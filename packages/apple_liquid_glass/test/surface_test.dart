@@ -431,30 +431,30 @@ void main() {
         const GlassLens(pull: 9, pullHeight: 36),
         rect,
       );
-      expect(large.backdropShrink, 0);
-      expect(large.backdropPull, 9);
-      expect(large.backdropPullDepth, 36);
-      expect(large.dispersion, 0);
+      expect(large.lens.shrink, 0);
+      expect(large.lens.pull, 9);
+      expect(large.lens.pullDepth, 36);
+      expect(large.lens.dispersion, 0);
       expect(large.frost, const LiquidGlassFrost.sigma(0));
       expect(large.refractionAmount, moreOrLessEquals(10.5));
       expect(large.refractionHeight, moreOrLessEquals(7));
-      expect(large.aberration, moreOrLessEquals(3.684, epsilon: 1e-3));
-      expect(large.aberrationDepth, moreOrLessEquals(14));
+      expect(large.lens.aberration, moreOrLessEquals(3.684, epsilon: 1e-3));
+      expect(large.lens.aberrationDepth, moreOrLessEquals(14));
 
       final small = await lifted(
         const GlassLens(pull: 9, pullHeight: 36, small: true),
         const Rect.fromLTWH(0, 0, 58, 38.33),
       );
-      expect(small.backdropPull, 9);
+      expect(small.lens.pull, 9);
       expect(small.refractionAmount, moreOrLessEquals(11.5, epsilon: 1e-2));
       expect(small.refractionHeight, moreOrLessEquals(6.9, epsilon: 1e-2));
-      expect(small.aberration, 0);
+      expect(small.lens.aberration, 0);
       expect(small.frost, const LiquidGlassFrost.sigma(0));
 
       final still = await lifted(const GlassLens(small: true), null);
-      expect(still.backdropPull, 0);
+      expect(still.lens.pull, 0);
       expect(still.refractionAmount, 0);
-      expect(still.aberration, 0);
+      expect(still.lens.aberration, 0);
     });
 
     testWidgets('the glass of a lifted knob lifts black to a tenth of white, '

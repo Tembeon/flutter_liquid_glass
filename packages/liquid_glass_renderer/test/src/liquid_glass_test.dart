@@ -1258,7 +1258,9 @@ void main() {
           await tester.pump();
           expect(renderObject.debugEncodeCount, initialRenderCount);
 
-          settings.value = settings.value.copyWith(backdropShrink: .2);
+          settings.value = settings.value.copyWith(
+            lens: const LensSettings(shrink: .2),
+          );
           await tester.pump();
           expect(
             renderObject.debugEncodeCount,
@@ -1614,7 +1616,7 @@ Widget _dprOpticsRegressionScene() => Directionality(
         settings: settingsWithoutLighting.copyWith(
           refractionHeight: 24,
           refractionAmount: 64,
-          dispersion: .5,
+          lens: const LensSettings(dispersion: .5),
         ),
         defaultAppearance: const LiquidGlassAppearance(),
         child: const LiquidGlass(

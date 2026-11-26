@@ -8,7 +8,12 @@ void main() {
 
   test('settings that differ where fake glass draws nothing look alike', () {
     expect(
-      FakeGlassLook.of(settings.copyWith(refractionAmount: 30, aberration: 1)),
+      FakeGlassLook.of(
+        settings.copyWith(
+          refractionAmount: 30,
+          lens: const LensSettings(aberration: 1),
+        ),
+      ),
       FakeGlassLook.of(settings),
     );
     expect(

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show Brightness;
 
 import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
+import 'package:liquid_glass_renderer/src/painting/lens_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_frost.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_haze.dart';
@@ -80,13 +81,8 @@ final class LiquidGlassSettings {
     this.refractionHeight = _defaultRefractionHeight,
     this.refractionAmount = _defaultRefractionAmount,
     this.refractionFitsShape = true,
-    this.backdropShrink = 0,
-    this.backdropPull = 0,
-    this.backdropPullDepth = 0,
-    this.aberration = 0,
-    this.aberrationDepth = 0,
+    this.lens = LensSettings.none,
     this.frost = const LiquidGlassFrost.ios27Regular(),
-    this.dispersion = 0,
     this.glintStrength = _defaultGlintStrength,
     this.contourStrength = _lightContourStrength,
     this.contourDirectionality = _lightContourDirectionality,
@@ -123,12 +119,7 @@ final class LiquidGlassSettings {
   }) : refractionHeight = _defaultRefractionHeight,
        refractionAmount = _defaultRefractionAmount,
        refractionFitsShape = true,
-       backdropShrink = 0,
-       backdropPull = 0,
-       backdropPullDepth = 0,
-       aberration = 0,
-       aberrationDepth = 0,
-       dispersion = 0,
+       lens = LensSettings.none,
        glintStrength = _defaultGlintStrength,
        contourStrength = brightness == Brightness.dark
            ? 0.88
@@ -163,12 +154,7 @@ final class LiquidGlassSettings {
   }) : refractionHeight = _defaultRefractionHeight,
        refractionAmount = _defaultRefractionAmount,
        refractionFitsShape = false,
-       backdropShrink = 0,
-       backdropPull = 0,
-       backdropPullDepth = 0,
-       aberration = 0,
-       aberrationDepth = 0,
-       dispersion = 0,
+       lens = LensSettings.none,
        glintStrength = _defaultGlintStrength,
        contourStrength = 0.36,
        contourDirectionality = 1,
@@ -229,67 +215,10 @@ final class LiquidGlassSettings {
   /// smallest of them, as the elements of an iOS 27 glass container do.
   final bool refractionFitsShape;
 
-  /// How much the backdrop seen through the face is shrunk, about the center
-  /// of the layer's glass: `0` keeps its size, `0.08` shows it at 92%.
-  ///
-  /// Clamped to `0` to `0.75`, so the glass can reveal more of its
-  /// surroundings but never enlarges (and pixelates) the captured backdrop.
-  /// Magnifiers should re-render their content at full resolution instead
-  /// (the example app's loupe does). The bevel's [refractionAmount] is applied
-  /// on top.
-  ///
-  /// All glass in one layer shares that center, so give a shrinking
-  /// shape its own layer when it should shrink about itself.
-  final double backdropShrink;
-
-  /// How far outside itself the glass reads the backdrop at its edge, in
-  /// logical pixels: the edge pulls its surroundings in, so the glass shows
-  /// more of what is around it, as a lifted iOS lens does.
-  ///
-  /// The pull is whole at the edge and falls along a quarter circle to
-  /// nothing [backdropPullDepth] from it, so the middle of glass deeper
-  /// than that shows the backdrop in place and at its own size, where
-  /// [backdropShrink] shows all of it smaller. It points away from the long
-  /// center line of the layer's glass bounds, which spans the long side less
-  /// the short side, and the depth is measured from a capsule of those
-  /// bounds. The bevel reads the pulled backdrop, as glass lying over it
-  /// would. `0` pulls nothing. Never negative.
-  final double backdropPull;
-
-  /// How deep [backdropPull] reaches from the edge, in logical pixels.
-  ///
-  /// `0` pulls nothing.
-  final double backdropPullDepth;
-
-  /// How far the glass parts the colors of what it shows, in logical
-  /// pixels: red shows what lies up to this far one way and blue what lies
-  /// up to this far the other way, so a bright line under the glass shows
-  /// with a red side and a blue side, and dimmer, as under a lifted iOS
-  /// lens.
-  ///
-  /// The way red reads is the edge's outward direction mirrored across the
-  /// line that falls from the upper left to the lower right, 52.5 degrees
-  /// below the horizontal (read from UIKit on iOS 27.2). At
-  /// the upper left and the lower right of a rounded end it points out of
-  /// the glass, at the upper right and the lower left into it, and between
-  /// them it runs 15 degrees off the edge: leftward along the top,
-  /// rightward along the bottom, up the left side and down the right one.
-  /// It does not turn with the text direction.
-  ///
-  /// Each color is read at several points up to that distance, the far ones
-  /// weighing most, and green on both sides of its place. The parted color
-  /// lies over the glass in full at the edge and fades to nothing
-  /// [aberrationDepth] from it. The edge's outward direction is the one
-  /// away from the long center line of the layer's glass bounds, as for
-  /// [backdropPull]. Unlike [dispersion], it does not need the bevel and
-  /// shows over the whole depth. `0` parts nothing. Never negative.
-  final double aberration;
-
-  /// How deep from the edge [aberration] fades to nothing, in logical
-  /// pixels.
-  ///
-  /// `0` parts nothing.
-  final double aberrationDepth;
+  /// What the glass does as a lens to what lies under it: its pull,
+  /// shrink, colour parting and dispersion. [LensSettings.none], the
+  /// default, does none of these.
+  final LensSettings lens;
 
   /// How far the glass blurs the backdrop.
   ///
@@ -299,15 +228,6 @@ final class LiquidGlassSettings {
   /// [LiquidGlassFrost.sigma] is drawn as given; the renderer may round the
   /// blur it applies.
   final LiquidGlassFrost frost;
-
-  /// Separation of the color channels in the refracted edge.
-  ///
-  /// Red is displaced by `1 + dispersion / 2` and blue by
-  /// `1 - dispersion / 2` times the edge displacement. Negative values bend
-  /// blue more, as real glass does; the iOS 27 loupe measures about `-0.06`
-  /// and other iOS 27 glass `0`. Non-zero values are more expensive to
-  /// render, so leave this at `0` unless the glass needs the effect.
-  final double dispersion;
 
   /// Strength of the glint along the light axis.
   ///
@@ -360,13 +280,8 @@ final class LiquidGlassSettings {
     double? refractionHeight,
     double? refractionAmount,
     bool? refractionFitsShape,
-    double? backdropShrink,
-    double? backdropPull,
-    double? backdropPullDepth,
-    double? aberration,
-    double? aberrationDepth,
+    LensSettings? lens,
     LiquidGlassFrost? frost,
-    double? dispersion,
     double? glintStrength,
     double? contourStrength,
     double? contourDirectionality,
@@ -377,13 +292,8 @@ final class LiquidGlassSettings {
     refractionHeight: refractionHeight ?? this.refractionHeight,
     refractionAmount: refractionAmount ?? this.refractionAmount,
     refractionFitsShape: refractionFitsShape ?? this.refractionFitsShape,
-    backdropShrink: backdropShrink ?? this.backdropShrink,
-    backdropPull: backdropPull ?? this.backdropPull,
-    backdropPullDepth: backdropPullDepth ?? this.backdropPullDepth,
-    aberration: aberration ?? this.aberration,
-    aberrationDepth: aberrationDepth ?? this.aberrationDepth,
+    lens: lens ?? this.lens,
     frost: frost ?? this.frost,
-    dispersion: dispersion ?? this.dispersion,
     glintStrength: glintStrength ?? this.glintStrength,
     contourStrength: contourStrength ?? this.contourStrength,
     contourDirectionality: contourDirectionality ?? this.contourDirectionality,
@@ -399,13 +309,8 @@ final class LiquidGlassSettings {
           other.refractionHeight == refractionHeight &&
           other.refractionAmount == refractionAmount &&
           other.refractionFitsShape == refractionFitsShape &&
-          other.backdropShrink == backdropShrink &&
-          other.backdropPull == backdropPull &&
-          other.backdropPullDepth == backdropPullDepth &&
-          other.aberration == aberration &&
-          other.aberrationDepth == aberrationDepth &&
+          other.lens == lens &&
           other.frost == frost &&
-          other.dispersion == dispersion &&
           other.glintStrength == glintStrength &&
           other.contourStrength == contourStrength &&
           other.contourDirectionality == contourDirectionality &&
@@ -418,13 +323,8 @@ final class LiquidGlassSettings {
     refractionHeight,
     refractionAmount,
     refractionFitsShape,
-    backdropShrink,
-    backdropPull,
-    backdropPullDepth,
-    aberration,
-    aberrationDepth,
+    lens,
     frost,
-    dispersion,
     glintStrength,
     contourStrength,
     contourDirectionality,
@@ -436,9 +336,8 @@ final class LiquidGlassSettings {
   @override
   String toString() =>
       'LiquidGlassSettings($refractionHeight, $refractionAmount, '
-      '$refractionFitsShape, $backdropShrink, '
-      '$backdropPull, $backdropPullDepth, $aberration, $aberrationDepth, '
-      '$frost, $dispersion, $glintStrength, $contourStrength, '
+      '$refractionFitsShape, $lens, '
+      '$frost, $glintStrength, $contourStrength, '
       '$contourDirectionality, $bevelShadowStrength, $sliderPosition, $haze)';
 }
 

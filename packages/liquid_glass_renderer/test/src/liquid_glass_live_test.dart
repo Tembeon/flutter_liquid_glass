@@ -575,7 +575,10 @@ void main() {
     expect(fake.debugClipPath, same(field.edge));
 
     layer.value = LiquidGlassLayerFrame(
-      settings: settings.copyWith(refractionAmount: 99, dispersion: 1),
+      settings: settings.copyWith(
+        refractionAmount: 99,
+        lens: const LensSettings(dispersion: 1),
+      ),
       field: field,
     );
     expect(fake.debugNeedsPaint, isFalse);

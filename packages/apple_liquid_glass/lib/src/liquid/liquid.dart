@@ -172,7 +172,7 @@ Color? _tintOf(GlassFrame frame, Color? own) {
 /// 0.15 of its height over 0.1 of it, a small lens (a knob or thumb) by 0.3
 /// over 0.18. A large lens parts the colors over its glass by seven reads,
 /// the farthest 1 / 19 of its height from its place, along the way
-/// [LiquidGlassSettings.aberration] describes, fading over 0.2 of the
+/// [LensSettings.aberration] describes, fading over 0.2 of the
 /// height from the edge; a small one parts none. Under the glass the lens
 /// pulls in its surroundings by its [GlassLens.pull]. Its rim is lit as at
 /// rest. Bend, pull and parting grow with the lift. The glass shades
@@ -207,10 +207,12 @@ LiquidGlassSettings _lensSettings(
   final settings = base.copyWith(
     frost: LiquidGlassFrost.sigma(small ? 6 * (1 - l) : 0),
     haze: const LiquidGlassHaze.none(),
-    dispersion: 0,
     bevelShadowStrength: 0,
-    backdropPull: lens.pull * l,
-    backdropPullDepth: lens.pullHeight,
+    lens: base.lens.copyWith(
+      pull: lens.pull * l,
+      pullDepth: lens.pullHeight,
+      dispersion: 0,
+    ),
   );
   if (height == null) {
     return small ? settings.copyWith(refractionAmount: 50 * (1 - l)) : settings;
@@ -222,8 +224,10 @@ LiquidGlassSettings _lensSettings(
     refractionHeight: small
         ? base.refractionHeight + (bevel - base.refractionHeight) * l
         : bevel,
-    aberration: small ? 0 : LensContentLaw.parting(height, lift: l),
-    aberrationDepth: LensContentLaw.partingDepth(height),
+    lens: settings.lens.copyWith(
+      aberration: small ? 0 : LensContentLaw.parting(height, lift: l),
+      aberrationDepth: LensContentLaw.partingDepth(height),
+    ),
   );
 }
 

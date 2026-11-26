@@ -28,6 +28,7 @@
 /// library paints a body as the renderer does.
 library;
 
+export 'src/painting/lens_settings.dart' show LensSettings;
 export 'src/painting/liquid_glass_appearance.dart' show LiquidGlassAppearance;
 export 'src/painting/liquid_glass_backdrop.dart'
     show LiquidGlassBackdrop, LiquidGlassReadBackdrop, LiquidGlassSolidBackdrop;

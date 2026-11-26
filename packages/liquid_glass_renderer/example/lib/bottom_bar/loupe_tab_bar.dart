@@ -103,10 +103,9 @@ class LoupeTabBar extends StatefulWidget {
     refractionHeight: 15,
     refractionAmount: 10,
     refractionFitsShape: false,
-    dispersion: -.3,
+    lens: LensSettings(dispersion: -.3, shrink: 0.14),
     frost: LiquidGlassFrost.sigma(0),
     contourStrength: .3,
-    backdropShrink: 0.14,
   );
 
   static const loupeKey = ValueKey('loupe-tab-bar-loupe');
@@ -185,7 +184,7 @@ class _LoupeTabBarState extends State<LoupeTabBar>
     press: _press,
     jelly: _jelly,
     tabCount: widget.tabs.length,
-    backdropShrink: widget.loupeSettings.backdropShrink,
+    backdropShrink: widget.loupeSettings.lens.shrink,
     iconScale: widget.loupeIconScale,
   );
   late final _barTransform = Listenable.merge([_press, _stretch]);
@@ -228,7 +227,7 @@ class _LoupeTabBarState extends State<LoupeTabBar>
     super.didUpdateWidget(oldWidget);
     _selection
       ..tabCount = widget.tabs.length
-      ..backdropShrink = widget.loupeSettings.backdropShrink
+      ..backdropShrink = widget.loupeSettings.lens.shrink
       ..iconScale = widget.loupeIconScale;
     if (widget.selectedIndex != oldWidget.selectedIndex) {
       _selected = widget.selectedIndex;

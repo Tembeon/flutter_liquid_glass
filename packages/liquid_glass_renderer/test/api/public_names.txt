@@ -4,6 +4,7 @@ GlassFrameReportCallback
 GlassFrameReports
 GlassReadReport
 GlassReadSource
+LensSettings
 LiquidGlass
 LiquidGlassAppearance
 LiquidGlassAvailableSupport

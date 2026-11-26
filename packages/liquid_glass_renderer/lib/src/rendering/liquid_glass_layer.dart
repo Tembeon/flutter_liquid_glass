@@ -141,7 +141,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // it. Where a policy turns it off, or the glass parts colors by
   // dispersion, which reads three points of the copy, Impeller blurs the
   // copy instead.
-  bool get _blursCopies => glassPolicy.shaderFrost && settings.dispersion == 0;
+  bool get _blursCopies =>
+      glassPolicy.shaderFrost && settings.lens.dispersion == 0;
 
   // Whether the glass frosts what it shows anywhere.
   bool get _frosts => settings.frostBase > 0;
@@ -768,12 +769,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           ? GeometryBinding.plainEdge
           : (
               pull: pull * dpr,
-              pullHeight: settings.backdropPullDepth * dpr,
+              pullHeight: settings.lens.pullDepth * dpr,
               // A square's line is a point, and either sign keeps it one.
               line: alongX ? line : -line,
               halfMinor: _materialSize.shortestSide / 2 * dpr,
               aberration: aberration * dpr,
-              aberrationDepth: settings.aberrationDepth * dpr,
+              aberrationDepth: settings.lens.aberrationDepth * dpr,
             ),
     );
   }
@@ -1452,7 +1453,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           : GlassShift.clearRatio * halfMinor,
     );
     final displacement =
-        shift * (1 + settings.dispersion.abs() * GlassShift.dispersionSpread);
+        shift *
+        (1 + settings.lens.dispersion.abs() * GlassShift.dispersionSpread);
     final backdropScale = 1 - settings.effectiveBackdropShrink;
     final revealed =
         (1 / backdropScale - 1) * max(material.width, material.height) / 2;

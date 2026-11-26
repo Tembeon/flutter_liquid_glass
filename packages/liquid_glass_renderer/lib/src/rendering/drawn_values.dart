@@ -18,18 +18,18 @@ extension DrawnSettings on LiquidGlassSettings {
   /// The edge displacement; never negative.
   double get effectiveRefractionAmount => math.max(0, refractionAmount);
 
-  /// [LiquidGlassSettings.backdropShrink] clamped to `0` to `0.75`.
-  double get effectiveBackdropShrink => backdropShrink.clamp(0.0, 0.75);
+  /// [LensSettings.shrink] clamped to `0` to `0.75`.
+  double get effectiveBackdropShrink => lens.shrink.clamp(0.0, 0.75);
 
-  /// [LiquidGlassSettings.backdropPull] where it reaches anywhere, else
-  /// `0`; never negative.
+  /// [LensSettings.pull] where it reaches anywhere, else `0`; never
+  /// negative.
   double get effectiveBackdropPull =>
-      backdropPullDepth > 0 ? math.max(0, backdropPull) : 0;
+      lens.pullDepth > 0 ? math.max(0, lens.pull) : 0;
 
-  /// [LiquidGlassSettings.aberration] where it shows anywhere, else `0`;
-  /// never negative.
+  /// [LensSettings.aberration] where it shows anywhere, else `0`; never
+  /// negative.
   double get effectiveAberration =>
-      aberrationDepth > 0 ? math.max(0, aberration) : 0;
+      lens.aberrationDepth > 0 ? math.max(0, lens.aberration) : 0;
 
   /// The slider position, clamped to `0` to `1`.
   double get effectiveSliderPosition => sliderPosition.clamp(0.0, 1.0);

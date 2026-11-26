@@ -72,7 +72,7 @@ final class LiquidGlassBentContent {
   ///
   /// With an [aberration] the colors of what the bends show part by it at
   /// the rim, fading to nothing [aberrationDepth] deep, along the way
-  /// `LiquidGlassSettings.aberration` describes; both are in logical
+  /// `LensSettings.aberration` describes; both are in logical
   /// pixels.
   ///
   /// [rect] and [clip] are in the coordinates [content] paints in when it

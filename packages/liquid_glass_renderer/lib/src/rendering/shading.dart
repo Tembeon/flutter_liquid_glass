@@ -135,7 +135,7 @@ final class GlassFace {
           _channel(tint.a),
         ],
         FaceLane.displacementScale: [settings.effectiveDisplacementScale * dpr],
-        FaceLane.dispersion: [settings.dispersion],
+        FaceLane.dispersion: [settings.lens.dispersion],
         FaceLane.glintStrength: [settings.glintStrength],
         FaceLane.backdropScale: [1 - settings.effectiveBackdropShrink],
         FaceLane.saturation: [model.saturation],

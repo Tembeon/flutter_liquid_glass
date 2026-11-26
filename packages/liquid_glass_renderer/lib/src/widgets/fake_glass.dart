@@ -61,8 +61,8 @@ class FakeGlass extends StatelessWidget {
   ///
   /// This path approximates lighting and blur without refraction.
   /// [LiquidGlassSettings.refractionAmount],
-  /// [LiquidGlassSettings.backdropShrink] and
-  /// [LiquidGlassSettings.dispersion] therefore have no effect, and
+  /// [LensSettings.shrink] and
+  /// [LensSettings.dispersion] therefore have no effect, and
   /// [LiquidGlassDirectColorModel.vibrancy] is likewise ignored. The
   /// `transmissionGamma` of a color model is only approximated.
   /// [LiquidGlassSettings.refractionHeight] only controls the width of the

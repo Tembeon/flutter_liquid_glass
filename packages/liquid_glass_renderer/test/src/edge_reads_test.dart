@@ -100,7 +100,7 @@ void main() {
 
     final pulled = await _pixels(
       tester,
-      _clear.copyWith(backdropPull: 9, backdropPullDepth: 36),
+      _clear.copyWith(lens: const LensSettings(pull: 9, pullDepth: 36)),
       white,
     );
     // 2.5 px deep the glass reads 5.7 px farther out: the stripe.
@@ -122,7 +122,9 @@ void main() {
 
     final parted = await _pixels(
       tester,
-      _clear.copyWith(aberration: 3, aberrationDepth: 30),
+      _clear.copyWith(
+        lens: const LensSettings(aberration: 3, aberrationDepth: 30),
+      ),
       white,
     );
     // 6.5 px under the top edge red reads up to 2.9 px to the left and
@@ -148,7 +150,9 @@ void main() {
     const white = [Rect.fromLTWH(0, 74, 200, 2)];
     final parted = await _pixels(
       tester,
-      _clear.copyWith(aberration: 3, aberrationDepth: 30),
+      _clear.copyWith(
+        lens: const LensSettings(aberration: 3, aberrationDepth: 30),
+      ),
       white,
     );
     // 6.5 px inside the left end red reads up to 2.9 px above.
@@ -169,7 +173,9 @@ void main() {
     const white = [Rect.fromLTWH(0, 0, 200, 150)];
     final parted = await _pixels(
       tester,
-      _clear.copyWith(aberration: 3, aberrationDepth: 30),
+      _clear.copyWith(
+        lens: const LensSettings(aberration: 3, aberrationDepth: 30),
+      ),
       white,
     );
     // About 3 px inside the four arcs, and 1.5 px inside the top and the

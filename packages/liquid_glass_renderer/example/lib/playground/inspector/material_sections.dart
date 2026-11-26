@@ -46,20 +46,27 @@ class MaterialSections extends StatelessWidget {
                 ),
                 SliderRow(
                   title: 'Backdrop Shrink',
-                  value: settings.backdropShrink,
+                  value: settings.lens.shrink,
                   min: 0,
                   max: 0.5,
                   format: (v) => v.toStringAsFixed(2),
-                  onChanged: (v) => edit(settings.copyWith(backdropShrink: v)),
+                  onChanged: (v) => edit(
+                    settings.copyWith(lens: settings.lens.copyWith(shrink: v)),
+                  ),
                 ),
                 SliderRow(
                   title: 'Dispersion',
-                  value: dispersionToTrack(settings.dispersion),
+                  value: dispersionToTrack(settings.lens.dispersion),
                   min: -1,
                   max: 1,
                   format: (t) => trackToDispersion(t).toStringAsFixed(3),
-                  onChanged: (t) =>
-                      edit(settings.copyWith(dispersion: trackToDispersion(t))),
+                  onChanged: (t) => edit(
+                    settings.copyWith(
+                      lens: settings.lens.copyWith(
+                        dispersion: trackToDispersion(t),
+                      ),
+                    ),
+                  ),
                 ),
                 SliderRow(
                   title: 'Blur',

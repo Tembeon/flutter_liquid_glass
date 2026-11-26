@@ -409,36 +409,40 @@ bevel refracts; the face shows the backdrop undisplaced.
   iOS 27 regular glass. The bevel is at most a quarter of the short side, and
   the rim samples no deeper than the center line. Clear glass sets it to
   `false`.
-- `backdropShrink`: shrinks the backdrop seen through the whole face. `0`
-  keeps its size and `0.08` shows it at 92%. It never enlarges, so the glass
-  never pixelates the backdrop. All glass in a layer shrinks about the center
-  of the layer's glass; give a shape its own layer to shrink it about itself.
-- `backdropPull` and `backdropPullDepth`: the edge reads the backdrop up to
-  `backdropPull` logical pixels outside the glass, falling to nothing
-  `backdropPullDepth` from the edge. Glass deeper than that shows its middle
-  in place and at its own size, where `backdropShrink` shows all of it smaller.
+
+### Lenses
+
+`lens: LensSettings(...)` holds what glass does as a lens to what lies under
+it. Every value defaults to `0`, which does none of it.
+
+- `shrink`: shrinks what the whole face shows. `0` keeps its size and `0.08`
+  shows it at 92%. It never enlarges, so the glass never pixelates the
+  backdrop. All glass in a layer shrinks about the center of the layer's
+  glass; give a shape its own layer to shrink it about itself.
+- `pull` and `pullDepth`: the edge reads the backdrop up to `pull` logical
+  pixels outside the glass, falling to nothing `pullDepth` from the edge.
+  Glass deeper than that shows its middle in place and at its own size, where
+  `shrink` shows all of it smaller.
 - `dispersion`: splits the colors in the refracted edge. Red moves by
   `1 + dispersion / 2` and blue by `1 - dispersion / 2` times the edge
   displacement; negative values bend blue more, as real glass does. iOS 27
-  regular and clear glass show none, so it defaults to `0`, which is also the
-  cheapest setting to render.
+  regular and clear glass show none, which is also the cheapest to render.
 - `aberration` and `aberrationDepth`: parts the colors of everything the glass
   shows, not only of the bevel: red shows what lies up to `aberration` logical
   pixels one way and blue what lies as far the other way, along the direction
-  iOS 27 parts them in (the dartdoc of `aberration` gives it), in full at the
-  edge and fading to nothing `aberrationDepth` from it. Glass that
-  parts colors draws with a larger shader variant, so leave it at `0` where it
-  is not wanted.
+  iOS 27 parts them in (the dartdoc of `LensSettings.aberration` gives it), in
+  full at the edge and fading to nothing `aberrationDepth` from it. Glass that
+  parts colors draws with a larger shader variant.
 
-`backdropPull` and `aberration` give a lifted iOS lens its look. Both default
-to `0`.
+`pull` and `aberration` give a lifted iOS lens its look; `lifted` scales a
+lens by how far it has lifted.
 
 The backdrop is always sampled bilinearly, so refracted lines move smoothly
 instead of snapping to whole pixels.
 
 ### Magnifiers
 
-`backdropShrink` never magnifies, because enlarging a captured backdrop makes
+`LensSettings.shrink` never magnifies, because enlarging a captured backdrop makes
 it blurry. The [example playground](#example-playground) shows how to build an
 iOS 27 text loupe instead: it re-renders the content under the lens at the
 magnified resolution and draws a `LiquidGlass` on a layer of its own on top,
@@ -527,8 +531,8 @@ the web, no Flutter GPU). Set `fake: true` on a layer to use it on purpose, or
 to test that path.
 
 It keeps frost, tint, the color model, the glint, the contour, the inner
-shadow, visibility and exterior shadows. It leaves out refraction,
-`backdropShrink`, `dispersion` and the direct model's vibrancy.
+shadow, visibility and exterior shadows. It leaves out refraction, the lens's
+`shrink` and `dispersion`, and the direct model's vibrancy.
 
 `FakeGlass` is not a cheaper mode: it pays for the same backdrop readback and
 blur as full glass (see below).

@@ -85,14 +85,14 @@ void main() {
         tester,
         const LiquidGlassSettings(
           frost: LiquidGlassFrost.sigma(0),
-          dispersion: 0.3,
+          lens: LensSettings(dispersion: 0.3),
         ),
       );
       final frosted = await _askOf(
         tester,
         const LiquidGlassSettings(
           frost: LiquidGlassFrost.sigma(12),
-          dispersion: 0.3,
+          lens: LensSettings(dispersion: 0.3),
         ),
       );
 
