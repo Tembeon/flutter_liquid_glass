@@ -9,6 +9,7 @@ import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
+import 'package:meta/meta.dart';
 
 /// Paints content over a glass shape the way the shape shows it at its
 /// rim: every point shows what lies deeper under the rim by the shape's
@@ -110,7 +111,7 @@ final class LiquidGlassBentContent {
     // is read texel for pixel wherever nothing bends.
     final bounds = ViewPixels(devicePixelRatio).outward(rect);
     final layer = OffsetLayer();
-    final offscreen = _Offscreen(layer, bounds);
+    final offscreen = OffscreenContext(layer, bounds);
     content(offscreen, offset);
     offscreen.finish();
     final image = _image = layer.toImageSync(
@@ -353,9 +354,14 @@ final class LiquidGlassBentContent {
 
 // Records what is painted into a layer of its own, to be drawn as a
 // picture.
-final class _Offscreen extends PaintingContext {
-  _Offscreen(super.containerLayer, super.estimatedBounds);
+/// A painting context outside a render tree, recording into its container
+/// layer until [finish].
+@internal
+final class OffscreenContext extends PaintingContext {
+  /// A context that records into [containerLayer].
+  OffscreenContext(super.containerLayer, super.estimatedBounds);
 
+  /// Ends the picture being recorded.
   void finish() => stopRecordingIfNeeded();
 }
 

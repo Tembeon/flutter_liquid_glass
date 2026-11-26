@@ -171,10 +171,46 @@ ui.ImageFilter frostFilter(
 /// each axis of it.
 @internal
 final class CopyFrost {
-  const CopyFrost._(this._passes);
+  const CopyFrost._(this._passes, this.program);
+
+  /// What frosts a layer as [sampling] says, or null before its program is
+  /// loaded: one pass of nine reads, a pass an axis over every pixel of the
+  /// copy the frost reaches, or sparse taps for a frost too wide for eight
+  /// pairs of them ([frostLatticeOf]).
+  static CopyFrost? of(FrostSampling sampling) {
+    final shader = GlassShaderPrograms.sharedShader(ShaderKeys.backdropFrost);
+    if (shader == null) return null;
+    final key = (
+      sampling.size,
+      sampling.bounds,
+      sampling.frost,
+      sampling.shown,
+    );
+    if (_inPlaceFilters[key] case final held?) return held;
+    if (_inPlaceFilters.length >= 32) _inPlaceFilters.clear();
+    final lattice = _latticeOf(sampling);
+    if (lattice != null) return _inPlaceFilters[key] = lattice;
+    _setFrost(shader, sampling, null);
+    shader.setImageSampler(
+      0,
+      transparentPixel,
+      filterQuality: FilterQuality.low,
+    );
+    // The one shader holds other uniforms by the time a scene takes this.
+    final sparse = CopyFrost._([
+      shaderFilterNow(shader),
+    ], ShaderKeys.backdropFrost);
+    // Sparse taps that stand in until the lattice's program loads are not
+    // kept.
+    final standsIn = frostLatticeOf(sampling.frost) != null;
+    return standsIn ? sparse : _inPlaceFilters[key] = sparse;
+  }
 
   // The filters, outermost first.
   final List<ui.ImageFilter> _passes;
+
+  /// The asset key of the program that draws the frost.
+  final String program;
 
   /// Pushes the frost's layers, each pinned to [size] from [origin]; what
   /// is drawn until [pop] comes out frosted.
@@ -212,28 +248,8 @@ typedef InPlaceFrost = ({CopyFrost? filter, double sigma});
 InPlaceFrost frostInPlace(CopyPlace place) {
   final sigma = place.baked;
   if (sigma <= 0) return (filter: null, sigma: 0);
-  final filter = _frostFilterOf(place.inPlace);
+  final filter = CopyFrost.of(place.inPlace);
   return (filter: filter, sigma: filter == null ? 0 : sigma);
-}
-
-// What frosts a layer as [sampling] says, or null before its shader is
-// loaded.
-CopyFrost? _frostFilterOf(FrostSampling sampling) {
-  final shader = GlassShaderPrograms.sharedShader(ShaderKeys.backdropFrost);
-  if (shader == null) return null;
-  final key = (sampling.size, sampling.bounds, sampling.frost, sampling.shown);
-  if (_inPlaceFilters[key] case final held?) return held;
-  if (_inPlaceFilters.length >= 32) _inPlaceFilters.clear();
-  final lattice = _latticeOf(sampling);
-  if (lattice != null) return _inPlaceFilters[key] = lattice;
-  _setFrost(shader, sampling, null);
-  shader.setImageSampler(0, transparentPixel, filterQuality: FilterQuality.low);
-  // The one shader holds other uniforms by the time a scene takes this.
-  final sparse = CopyFrost._([shaderFilterNow(shader)]);
-  // Sparse taps that stand in until the lattice's program loads are not
-  // kept.
-  final standsIn = frostLatticeOf(sampling.frost) != null;
-  return standsIn ? sparse : _inPlaceFilters[key] = sparse;
 }
 
 /// The reads of one axis of the frost drawn into a copy by [frost] of the
@@ -375,7 +391,7 @@ CopyFrost? _latticeOf(FrostSampling sampling) {
         'uOffsets': [...taps.offsets.take(3)],
         'uWeights': [...taps.weights.take(3)],
       }),
-    ]);
+    ], key);
   }
   return CopyFrost._([
     for (final axis in const [
@@ -383,7 +399,7 @@ CopyFrost? _latticeOf(FrostSampling sampling) {
       [1.0, 0.0],
     ])
       pass({'uAxis': axis, 'uOffsets': taps.offsets, 'uWeights': taps.weights}),
-  ]);
+  ], key);
 }
 
 // Chrome over a scroll keeps a copy's place, so its filter too.

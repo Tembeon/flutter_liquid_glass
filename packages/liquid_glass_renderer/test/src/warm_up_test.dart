@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
+import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/warm_up.dart';
 
 import 'shared.dart';
@@ -11,13 +12,15 @@ void main() {
     await tester.runAsync(precacheLiquidGlass);
     expect(debugWarmUpDraws, isNull, reason: 'warm-up is opt-in');
     await tester.runAsync(() => precacheLiquidGlass(warmUp: true));
-    // Every final shader alone and over each frost sigma, the fake glass
-    // filters twice each; a seeded pass per final shader, one with an
-    // identity seed and one per fake glass brightness; every final shader
-    // over a solid and a fake glass surface; two shadows per glass shape.
+    // Every program full glass loads, drawn as glass draws it.
+    expect(debugWarmUpDraws?.programs, unorderedEquals(FullGlass.programs));
+    // Every final shader alone and over each frost sigma, the band's frost,
+    // the fake glass filters twice each; every final shader over a plain
+    // copy, and one over copies drawn through each of their passes; two
+    // shadows per glass shape.
     final finals = FinalShaderVariant.all.length;
     expect(debugWarmUpDraws?.filters, greaterThan(finals * 5));
-    expect(debugWarmUpDraws?.paints, finals + 2);
+    expect(debugWarmUpDraws?.copies, finals + 2);
     expect(debugWarmUpDraws?.shadows, 6);
 
     debugWarmUpDraws = null;
