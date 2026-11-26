@@ -6,6 +6,7 @@ import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/impeller.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/rects.dart';
 import 'package:meta/meta.dart';
 
@@ -619,7 +620,7 @@ final class ReadLayout {
     required bool holdsGlass,
     required double edgeFrost,
     required double frostLeftOut,
-    required Object? filter,
+    required ImageReadLook? filter,
     required double? imageBlur,
     CopyLevels? levels,
   }) {
@@ -751,7 +752,7 @@ final class ReadLayout {
 
   /// Equal while the image read filter the copy is drawn through draws alike,
   /// null for none.
-  final Object? filter;
+  final ImageReadLook? filter;
 
   /// What the glass reading the copy blurs it by, the frost [frostLeftOut]
   /// added, or null where it reads it as it is: the blur the levels it

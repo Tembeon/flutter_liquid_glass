@@ -130,7 +130,8 @@ final class FilterLook {
   int get shapes => census.shapes;
 
   /// What a read of this site that can only come from an image does to it,
-  /// or null for glass that blurs a copy by itself.
+  /// or null where a read of it may come from the scene: glass that blurs a
+  /// copy by itself.
   final ImageReadFilter? imageRead;
 
   /// Whether a read of it can only come from an image ([imageRead]).
@@ -143,9 +144,12 @@ final class FilterLook {
   /// The least sigma, in logical pixels, it blurs what it shows by,
   /// whichever way: its shader's frost or blur, or its image read's blur, the
   /// lesser axis of one.
-  double get blurSigma => switch (imageRead?.blur) {
-    (final x, final y) => math.max(need.leastBlur, math.min(x, y)),
-    null => need.leastBlur,
+  double get blurSigma => switch (imageRead) {
+    BlurredImage(:final x, :final y) => math.max(
+      need.leastBlur,
+      math.min(x, y),
+    ),
+    _ => need.leastBlur,
   };
 
   @override

@@ -76,45 +76,94 @@ enum NoJoin {
   scaled,
 }
 
+/// What an image read draws alike under: the filter image reads share and
+/// how its output composites ([ImageReadFilter.look]).
+typedef ImageReadLook = ({Object? key, BlendMode blendMode});
+
 /// What a read that can only come from an image does to it, past the plain
-/// copy glass frosts by itself.
+/// copy glass blurs by itself.
 @immutable
-final class ImageReadFilter {
-  /// Creates the filter of an image read.
-  const ImageReadFilter({
-    this.filter,
-    this.blur,
+sealed class ImageReadFilter {
+  const ImageReadFilter();
+
+  /// What image reads under one filter share, or null for a plain image.
+  Object? get key;
+
+  /// Where the filter applies on the screen, the whole image when null.
+  Rect? get clip => null;
+
+  /// How the filter's output composites over the image.
+  BlendMode get blendMode => BlendMode.src;
+
+  /// What an image of it draws alike under.
+  ImageReadLook get look => (key: key, blendMode: blendMode);
+}
+
+/// A plain copy, which what reads it composites as it needs to.
+final class PlainImage extends ImageReadFilter {
+  /// A plain copy.
+  const PlainImage();
+
+  @override
+  Object? get key => null;
+
+  @override
+  bool operator ==(Object other) => other is PlainImage;
+
+  @override
+  int get hashCode => (PlainImage).hashCode;
+}
+
+/// An image blurred by a mirrored Gaussian of [x] and [y] logical pixels.
+final class BlurredImage extends ImageReadFilter {
+  /// An image blurred by [x] and [y].
+  const BlurredImage(this.x, this.y);
+
+  /// The sigma along x, in logical pixels.
+  final double x;
+
+  /// The sigma along y, in logical pixels.
+  final double y;
+
+  @override
+  Object? get key => (x, y);
+
+  @override
+  bool operator ==(Object other) =>
+      other is BlurredImage && other.x == x && other.y == y;
+
+  @override
+  int get hashCode => Object.hash(x, y);
+}
+
+/// An image under [filter], applied as a backdrop filter over it.
+final class FilteredImage extends ImageReadFilter {
+  /// An image under [filter] in [clip], composited by [blendMode].
+  const FilteredImage({
+    required this.filter,
     this.clip,
     this.blendMode = BlendMode.src,
   });
 
-  /// A plain copy, which what reads it composites as it needs to.
-  static const ImageReadFilter none = ImageReadFilter();
+  /// The filter.
+  final ImageFilter filter;
 
-  /// A filter applied as a backdrop filter over the image.
-  final ImageFilter? filter;
-
-  /// A mirrored Gaussian blur by these sigmas in logical pixels, standing for
-  /// [filter].
-  final (double, double)? blur;
-
-  /// Where [filter] applies, the whole image when null, on the screen.
+  @override
   final Rect? clip;
 
-  /// How [filter]'s output composites over the image.
+  @override
   final BlendMode blendMode;
 
-  /// What image reads under one filter share.
-  Object? get key => blur ?? filter;
+  @override
+  Object? get key => filter;
 
   @override
   bool operator ==(Object other) =>
-      other is ImageReadFilter &&
+      other is FilteredImage &&
       other.filter == filter &&
-      other.blur == blur &&
       other.clip == clip &&
       other.blendMode == blendMode;
 
   @override
-  int get hashCode => Object.hash(filter, blur, clip, blendMode);
+  int get hashCode => Object.hash(filter, clip, blendMode);
 }

@@ -1149,7 +1149,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         },
         tint: appearance.tint,
         census: _census,
-        imageRead: sigma > 0 ? ImageReadFilter(blur: (blurX, blurY)) : null,
+        imageRead: sigma > 0 ? BlurredImage(blurX, blurY) : null,
         anyGrid: true,
       ),
       role: _roleAt(screen),

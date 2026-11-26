@@ -265,7 +265,7 @@ final class _Tile {
   Offset get offset => place.at;
   Rect get bounds => place.bounds;
 
-  bool get filtered => imageRead.key != null;
+  bool get filtered => imageRead is! PlainImage;
 
   bool get layered => layout.imageFilterBlurs;
 
@@ -416,12 +416,13 @@ final class _ImageCopies {
         ..pushClipRect(bounds, clipBehavior: Clip.hardEdge)
         // Impeller takes an image filter's sigmas in the pixels it draws
         // into, whatever the canvas scale: here the copies' own.
-        ..pushImageFilter(
-          _blur(
-            first.imageRead.blur!.$1 * first.layout.pixels,
-            first.imageRead.blur!.$2 * first.layout.pixels,
+        ..pushImageFilter(switch (first.imageRead) {
+          BlurredImage(:final x, :final y) => _blur(
+            x * first.layout.pixels,
+            y * first.layout.pixels,
           ),
-        );
+          _ => throw StateError('Images blurred alike are blurred.'),
+        });
       for (final tile in group) {
         add(tile, tile.bounds);
       }
@@ -434,8 +435,11 @@ final class _ImageCopies {
     // alone; drawn straight into the image, Impeller blurs the whole image.
     for (final tile in isolated) {
       final imageRead = tile.imageRead;
-      final filter =
-          imageRead.filter ?? _blur(imageRead.blur!.$1, imageRead.blur!.$2);
+      final filter = switch (imageRead) {
+        FilteredImage(:final filter) => filter,
+        BlurredImage(:final x, :final y) => _blur(x, y),
+        PlainImage() => throw StateError('A plain image is not filtered.'),
+      };
       b.pushClipRect(tile.bounds, clipBehavior: Clip.antiAliasWithSaveLayer);
       add(tile, tile.bounds);
       b
@@ -525,7 +529,7 @@ final class GlassEmit {
           tiles.add(
             _Tile(
               ReplayedCopy(read, plan, form),
-              read.lead.ask.look.imageRead ?? ImageReadFilter.none,
+              read.lead.ask.look.imageRead ?? const PlainImage(),
             ),
           );
         }

@@ -380,10 +380,10 @@ void _resolveLayouts(PlanBasis basis, List<GlassRead> reads) {
       holdsGlass: read.holds.isNotEmpty,
       edgeFrost: read.bandPainter == null ? lead.need.shaderFrost : 0,
       frostLeftOut: frostLeftOut,
-      filter: imageRead == null ? null : (imageRead.key, imageRead.blendMode),
-      imageBlur: switch (imageRead?.blur) {
-        (final x, final y) => math.max(x, y),
-        null => null,
+      filter: imageRead?.look,
+      imageBlur: switch (imageRead) {
+        BlurredImage(:final x, :final y) => math.max(x, y),
+        _ => null,
       },
       levels: read.lead.isBand
           ? read.bandPainter?.ask.look.need.levels

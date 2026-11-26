@@ -70,7 +70,7 @@ SiteAsk backdropFilterAsk({
       look: FilterLook(
         key: null,
         need: const CopyNeed(),
-        imageRead: ImageReadFilter(
+        imageRead: FilteredImage(
           filter: filter,
           clip: shown,
           blendMode: blendMode,
@@ -89,7 +89,7 @@ SiteAsk backdropFilterAsk({
     look: FilterLook(
       key: null,
       need: need,
-      imageRead: inScene && over ? null : ImageReadFilter.none,
+      imageRead: inScene && over ? null : const PlainImage(),
     ),
     role: bandLook == null ? null : BandSiteRole(bandLook),
     noJoin: bandLook == null ? NoJoin.noGeometry : null,

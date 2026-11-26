@@ -264,7 +264,7 @@ void main() {
         return plan.notes;
       }
 
-      const imageRead = ImageReadFilter(blur: (4, 4));
+      const imageRead = BlurredImage(4, 4);
       FilterLook readsImage(int look) => FilterLook(
         key: look,
         need: const CopyNeed(),
@@ -465,7 +465,7 @@ void main() {
       final site = _site(0, const Rect.fromLTWH(20, 200, 200, 90));
       site.takeAsk(
         site._with(
-          look: look(0, imageRead: const ImageReadFilter(blur: (4, 4))),
+          look: look(0, imageRead: const BlurredImage(4, 4)),
         ),
       );
       final scene = _Scene([site]);
@@ -475,7 +475,7 @@ void main() {
       expect(held.source, const ImageRead(held: true));
       site.takeAsk(
         site._with(
-          look: look(0, imageRead: const ImageReadFilter(blur: (8, 8))),
+          look: look(0, imageRead: const BlurredImage(8, 8)),
         ),
       );
       final read = _plan(scene, ledger: ledger, frame: 3).reads.single;
@@ -487,7 +487,7 @@ void main() {
       final filtered = _site(2, const Rect.fromLTWH(20, 200, 200, 90));
       filtered.takeAsk(
         filtered._with(
-          look: look(0, imageRead: const ImageReadFilter(blur: (4, 4))),
+          look: look(0, imageRead: const BlurredImage(4, 4)),
         ),
       );
       final over = _site(4, const Rect.fromLTWH(20, 200, 200, 90));
