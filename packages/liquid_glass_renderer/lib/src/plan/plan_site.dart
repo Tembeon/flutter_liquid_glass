@@ -94,6 +94,42 @@ GeometryKind geometryKindOf(List<ShapeCensus> glass) => switch (glass) {
   _ => const SharedAtlas(),
 };
 
+/// What a filter of glass holds that no other site's does.
+@immutable
+final class GlassLook {
+  /// The look of glass.
+  const GlassLook({
+    this.drawsBand = false,
+    this.tint,
+    this.census = ShapeCensus.one,
+    this.anyGrid = false,
+  });
+
+  /// Whether this glass's shader can draw a scroll edge beside it.
+  final bool drawsBand;
+
+  /// The tint, which one filter can draw per shape, but not beside a band.
+  final Object? tint;
+
+  /// What the glass is.
+  final ShapeCensus census;
+
+  /// Whether its shader draws it at the pixels of a coarser copy holding it,
+  /// taking each fragment for as many device pixels.
+  final bool anyGrid;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassLook &&
+      other.drawsBand == drawsBand &&
+      other.tint == tint &&
+      other.census == census &&
+      other.anyGrid == anyGrid;
+
+  @override
+  int get hashCode => Object.hash(drawsBand, tint, census, anyGrid);
+}
+
 /// What one filter's uniforms must share.
 @immutable
 final class FilterLook {
@@ -101,11 +137,8 @@ final class FilterLook {
   const FilterLook({
     required this.key,
     required this.need,
-    this.drawsBand = false,
-    this.tint,
-    this.census = ShapeCensus.one,
     this.imageRead,
-    this.anyGrid = false,
+    this.glass,
   });
 
   /// No look: a site that draws nothing through a filter.
@@ -117,18 +150,6 @@ final class FilterLook {
   /// What its read's copy has to be.
   final CopyNeed need;
 
-  /// Whether this glass's shader can draw a scroll edge beside it.
-  final bool drawsBand;
-
-  /// The tint, which one filter can draw per shape, but not beside a band.
-  final Object? tint;
-
-  /// What its glass is, if it is glass.
-  final ShapeCensus census;
-
-  /// How many shapes it adds to a shared atlas.
-  int get shapes => census.shapes;
-
   /// What a read of this site that can only come from an image does to it,
   /// or null where a read of it may come from the scene: glass that blurs a
   /// copy by itself.
@@ -137,9 +158,12 @@ final class FilterLook {
   /// Whether a read of it can only come from an image ([imageRead]).
   bool get imageOnly => imageRead != null;
 
-  /// Whether its shader draws it at the pixels of a coarser copy holding it,
-  /// taking each fragment for as many device pixels.
-  final bool anyGrid;
+  /// What it holds as glass, or null for a site that is not glass.
+  final GlassLook? glass;
+
+  /// How many shapes it adds to a shared atlas: none for a site that is not
+  /// glass.
+  int get shapes => glass?.census.shapes ?? 0;
 
   /// The least sigma, in logical pixels, it blurs what it shows by,
   /// whichever way: its shader's frost or blur, or its image read's blur, the
@@ -157,15 +181,11 @@ final class FilterLook {
       other is FilterLook &&
       other.key == key &&
       other.need == need &&
-      other.drawsBand == drawsBand &&
-      other.tint == tint &&
-      other.census == census &&
       other.imageRead == imageRead &&
-      other.anyGrid == anyGrid;
+      other.glass == glass;
 
   @override
-  int get hashCode =>
-      Object.hash(key, need, drawsBand, tint, census, imageRead, anyGrid);
+  int get hashCode => Object.hash(key, need, imageRead, glass);
 }
 
 /// What a site asks of a frame, in the screen's logical pixels.

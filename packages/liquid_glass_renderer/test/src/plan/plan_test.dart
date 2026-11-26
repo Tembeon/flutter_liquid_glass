@@ -60,7 +60,7 @@ final class _Scene implements PlanScenery {
 FilterLook _look(int look, {bool frost = true}) => FilterLook(
   key: look,
   need: frost ? const CopyNeed(share: 2, shaderFrost: 8) : const CopyNeed(),
-  drawsBand: frost,
+  glass: GlassLook(drawsBand: frost),
 );
 
 WritableSiteFacts _site(int order, Rect drawn, {int look = 0, int floor = -1}) {
@@ -356,7 +356,7 @@ void main() {
           look: const FilterLook(
             key: 'a',
             need: CopyNeed(share: 2, shaderFrost: 2),
-            drawsBand: true,
+            glass: GlassLook(drawsBand: true),
           ),
         ),
       );
@@ -849,15 +849,17 @@ void main() {
               look: FilterLook(
                 key: look.key,
                 need: look.need,
-                drawsBand: look.drawsBand,
-                census: censuses[(seed + i) % censuses.length],
+                glass: GlassLook(
+                  drawsBand: look.glass?.drawsBand ?? false,
+                  census: censuses[(seed + i) % censuses.length],
+                ),
               ),
             ),
           );
         }
         for (final read in _plan(scene).reads) {
           final glass = [
-            for (final member in read.members) member.ask.look.census,
+            for (final member in read.members) member.ask.look.glass!.census,
           ];
           expect(
             read.geometryKind,

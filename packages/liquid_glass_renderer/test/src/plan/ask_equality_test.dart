@@ -31,11 +31,13 @@ SiteAsk _ask({
   look: FilterLook(
     key: key,
     need: need,
-    drawsBand: drawsBand,
-    tint: tint,
-    census: census,
     imageRead: imageRead,
-    anyGrid: anyGrid,
+    glass: GlassLook(
+      drawsBand: drawsBand,
+      tint: tint,
+      census: census,
+      anyGrid: anyGrid,
+    ),
   ),
   noJoin: noJoin,
   groupsBackdrop: groupsBackdrop,

@@ -52,12 +52,15 @@ bool _lookFits(GlassRead read, SiteFacts site, double devicePixelRatio) {
   final look = site.ask.look;
   if (site.isBand) return false;
   if (read.lead.isBand) {
-    return look.drawsBand &&
+    final glass = look.glass;
+    return glass != null &&
+        glass.drawsBand &&
         meets(site.ask.drawn, read.lead.ask.drawn) &&
         lead.need.bandFits(look.need, devicePixelRatio: devicePixelRatio) &&
         switch (read.bandPainter?.ask.look) {
           null => true,
-          final painter => painter.key == look.key && painter.tint == look.tint,
+          final painter =>
+            painter.key == look.key && painter.glass?.tint == glass.tint,
         };
   }
   return lead.key == look.key;
@@ -626,7 +629,9 @@ bool _under(GlassRead below, GlassRead read) {
 /// frosts its own copy keeps it at the coarser of the two grids
 /// (`CornerPlace.heldIn`).
 bool _holdsAtOwnGrid(GlassRead read) => read.holds.every(
-  (held) => held.holds.isEmpty && held.members.every((m) => m.ask.look.anyGrid),
+  (held) =>
+      held.holds.isEmpty &&
+      held.members.every((m) => m.ask.look.glass?.anyGrid ?? false),
 );
 
 bool _sameIds(List<Object> a, List<Object> b) {

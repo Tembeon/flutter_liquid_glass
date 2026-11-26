@@ -1085,6 +1085,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       final answer = SiteAsk(
         drawn: drawn,
         reads: shifted.inflate(backdropBlurReach(blurSigma)),
+        look: FilterLook(
+          key: null,
+          need: const CopyNeed(),
+          glass: GlassLook(census: _census),
+        ),
         role: _roleAt(screen),
         noJoin: noJoin,
         groupsBackdrop: hasGeometry,
@@ -1136,21 +1141,23 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           _colorModelFamily,
         ),
         need: need,
-        drawsBand: switch (FinalShaderVariant.bandIndexOf(
-          _kind(),
-          _colorModelFamily,
-          aberrates: _aberrates,
-        )) {
-          final band? =>
-            sigma == 0 &&
-                (FinalShaderVariant.all[band].blurs ||
-                    !(levels?.blurs ?? false)),
-          null => false,
-        },
-        tint: appearance.tint,
-        census: _census,
         imageRead: sigma > 0 ? BlurredImage(blurX, blurY) : null,
-        anyGrid: true,
+        glass: GlassLook(
+          drawsBand: switch (FinalShaderVariant.bandIndexOf(
+            _kind(),
+            _colorModelFamily,
+            aberrates: _aberrates,
+          )) {
+            final band? =>
+              sigma == 0 &&
+                  (FinalShaderVariant.all[band].blurs ||
+                      !(levels?.blurs ?? false)),
+            null => false,
+          },
+          tint: appearance.tint,
+          census: _census,
+          anyGrid: true,
+        ),
       ),
       role: _roleAt(screen),
       noJoin: noJoin,

@@ -40,7 +40,7 @@ final class GlassRead {
     : footprint = lead.ask.reads,
       quad = lead.ask.drawn,
       share = lead.ask.look.need.share,
-      shapes = lead.isBand ? 0 : lead.ask.look.shapes {
+      shapes = lead.ask.look.shapes {
     members.add(lead);
   }
 
@@ -94,7 +94,7 @@ final class GlassRead {
   /// What the glass of [glassMembers] is, in paint order.
   List<ShapeCensus> get glass => [
     for (final member in glassMembers)
-      if (member.ask.role is GlassSiteRole) member.ask.look.census,
+      if (member.ask.look.glass case final glass?) glass.census,
   ];
 
   /// The least blur the shader of the glass it leads draws over all of the
