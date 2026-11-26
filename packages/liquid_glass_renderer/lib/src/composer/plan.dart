@@ -205,6 +205,22 @@ bool planStands(
   int frame,
 ) => basis == last.basis && scene.dirty.isEmpty && frame < last.dueAt;
 
+/// Marks [last] as a frame it stands for ([planStands]) shows it: nothing
+/// changed under its glass, so no read changed and every image it bought is
+/// held.
+void standPlan(GlassPlan last) {
+  for (final read in last.reads) {
+    _showAgain(read, changed: false);
+  }
+}
+
+// [read] shown again in a later frame, where what it holds [changed] or not:
+// an image it bought is held.
+void _showAgain(GlassRead read, {required bool changed}) {
+  read.changed = changed;
+  if (read.source is ImageRead) read.source = const ImageRead(held: true);
+}
+
 /// [last] again for a frame where nothing changed but what lies under the
 /// glass, with the edits [compilePlan] would make: the same reads, each told
 /// whether what it holds changed. Null where the frame plans anew: an image
@@ -255,8 +271,7 @@ bool planStands(
   }
   if (frame >= dueAt) return null;
   for (final MapEntry(key: read, value: changed) in changes.entries) {
-    read.changed = changed;
-    if (read.source is ImageRead) read.source = const ImageRead(held: true);
+    _showAgain(read, changed: changed);
   }
   return (
     GlassPlan(

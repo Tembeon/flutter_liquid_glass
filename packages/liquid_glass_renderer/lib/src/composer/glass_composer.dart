@@ -73,6 +73,7 @@ final class GlassComposer implements GlassPlanner {
         painted != null &&
         last != null &&
         planStands(last, form, basis, form.frame);
+    if (stands) standPlan(last);
     // A paint empties the slots it fills, so a plan that stands is shown
     // again.
     final shows = painted == null || !stands || painted();
@@ -87,7 +88,7 @@ final class GlassComposer implements GlassPlanner {
       _last = plan;
     }
     final planned = clock.elapsed;
-    if (shows) _emit.emit(_last!, form, again: stands || kept != null);
+    if (shows) _emit.emit(_last!, form);
     for (final node in form.siteNodes) {
       node.site.endFrame();
     }

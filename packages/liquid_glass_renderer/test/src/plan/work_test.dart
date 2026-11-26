@@ -230,6 +230,40 @@ void main() {
       expect(_filledSlots(tester), filled);
     }, skip: skipProperGlassTests);
 
+    // A read that changed in the frame its plan was made in holds still in
+    // a frame the plan stands on: where its glass did not paint, nothing of
+    // it is replayed again.
+    testWidgets('and replays no read that held still', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final top = ValueNotifier<double>(10);
+      final bottom = ValueNotifier<double>(10);
+      addTearDown(top.dispose);
+      addTearDown(bottom.dispose);
+      await tester.pumpWidget(_overCard(top, bottom));
+      for (var i = 0; i < 3; i++) {
+        await expectGlassBudget(tester);
+      }
+      Future<int> replayedOnPaint() async {
+        await expectGlassBudget(tester);
+        find
+            .byType(LiquidGlassLayer)
+            .first
+            .evaluate()
+            .single
+            .renderObject!
+            .markNeedsPaint();
+        final report = await expectGlassBudget(tester);
+        expect(report.planned, isFalse, reason: '$report');
+        return report.layersReplayed;
+      }
+
+      final still = await replayedOnPaint();
+      bottom.value += 10;
+      expect(await replayedOnPaint(), still);
+    }, skip: skipProperGlassTests);
+
     testWidgets('but not when the glass went away', (tester) async {
       final controller = ScrollController();
       addTearDown(controller.dispose);

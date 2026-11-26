@@ -232,7 +232,7 @@ void reportGlassFrame({
   required Duration done,
 }) {
   final reads = [
-    for (final read in plan.reads) _readReportOf(read, stands: stands),
+    for (final read in plan.reads) _readReportOf(read),
   ];
   _pendingReports.add(
     () => GlassFrameReport._(
@@ -268,18 +268,17 @@ void reportGlassFrame({
   });
 }
 
-GlassReadReport _readReportOf(GlassRead read, {required bool stands}) =>
-    GlassReadReport._(
-      source: switch (read.source) {
-        SceneRead() => GlassReadSource.scene,
-        ImageRead(:final held) =>
-          held || stands ? GlassReadSource.heldImage : GlassReadSource.image,
-        BackdropRead() => GlassReadSource.backdrop,
-      },
-      level: read.level,
-      glassCount: read.glassMembers.length,
-      hasBand: read.lead.isBand,
-      footprint: read.footprint,
-      targetCount: read.targets,
-      changed: !stands && read.changed,
-    );
+GlassReadReport _readReportOf(GlassRead read) => GlassReadReport._(
+  source: switch (read.source) {
+    SceneRead() => GlassReadSource.scene,
+    ImageRead(:final held) =>
+      held ? GlassReadSource.heldImage : GlassReadSource.image,
+    BackdropRead() => GlassReadSource.backdrop,
+  },
+  level: read.level,
+  glassCount: read.glassMembers.length,
+  hasBand: read.lead.isBand,
+  footprint: read.footprint,
+  targetCount: read.targets,
+  changed: read.changed,
+);

@@ -507,9 +507,7 @@ final class GlassEmit {
   /// Tells each site of [form] its fate and draws what the reads need before
   /// the scene is built, deepest last, so what a copy holds is drawn by then.
   ///
-  /// [again] shows a plan an earlier frame emitted: the images it bought are
-  /// drawn already.
-  void emit(GlassPlan plan, GlassForm form, {required bool again}) {
+  void emit(GlassPlan plan, GlassForm form) {
     final reads = plan.reads;
     var deepest = 0;
     final keep = Set<Object>.identity();
@@ -527,7 +525,7 @@ final class GlassEmit {
       for (final read in reads) {
         if (read.level != level) continue;
         if (read.source case ImageRead(:final held)) {
-          if ((held || again) && _imageCopies.held(read) != null) continue;
+          if (held && _imageCopies.held(read) != null) continue;
           tiles.add(
             _Tile(
               ReplayedCopy(read, plan, form),
