@@ -30,7 +30,9 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
     // is back in its leader's tree, which the compositing poll sees.
     if (!painted.any((shape) => shape.transformMayLag)) _framePoll.markPolled();
     assert(
-      debugCheckOpacityBetweenShapesAndLayer(this, link.shapes),
+      debugCheckOpacityBetweenShapesAndLayer(this, [
+        for (final geometry in link.geometries) ...geometry.gatheredShapes,
+      ]),
       'Warns about an Opacity between a shape and its layer.',
     );
     return boundingBox;
@@ -74,7 +76,7 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
   bool retainedStructureHolds() {
     final retained = _retainedStructure;
     var at = 0;
-    for (final geometry in paintedShapes.where(_collects)) {
+    for (final geometry in paintedGeometries.where(_collects)) {
       for (final shape in geometry.gatheredShapes) {
         if (at == retained.length) return false;
         final (shape: kept, :castsShadows, :ancestors) = retained[at++];

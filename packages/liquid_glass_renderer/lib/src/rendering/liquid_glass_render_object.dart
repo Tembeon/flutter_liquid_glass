@@ -73,11 +73,11 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @protected
   void glowChanged() => markNeedsPaint();
 
-  /// The registered shapes that are painted when this layer paints (see
+  /// The registered geometries that are painted when this layer paints (see
   /// [isGlassShapePainted]), in paint order.
   @protected
-  List<RenderLiquidGlassGeometry> get paintedShapes => [
-    for (final shape in link.shapes)
+  List<RenderLiquidGlassGeometry> get paintedGeometries => [
+    for (final shape in link.geometries)
       if (isGlassShapePainted(shape, this)) shape,
   ];
 
@@ -138,7 +138,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     if (_defaultAppearance == value) return;
     _defaultAppearance = value;
     _defaultWornByNone = null;
-    for (final geometry in _link.shapes) {
+    for (final geometry in _link.geometries) {
       geometry.defaultAppearanceChanged();
     }
     onAppearanceChanged();
@@ -367,7 +367,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   // it only answers.
   Offset? _compareShapes({required bool record}) {
     // A shape going offstage or onstage changes this list, which repaints.
-    final current = paintedShapes;
+    final current = paintedGeometries;
     final committed = _frame.geometries;
     if (_framePoll.polledThisFrame && committed.length == current.length) {
       return Offset.zero;

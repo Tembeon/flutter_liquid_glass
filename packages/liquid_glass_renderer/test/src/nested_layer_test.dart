@@ -38,7 +38,9 @@ void main() {
           .toList();
       expect(layers, hasLength(2));
       expect(
-        layers.expand((layer) => layer.link.shapes.map((shape) => shape.size)),
+        layers.expand(
+          (layer) => layer.link.geometries.map((shape) => shape.size),
+        ),
         containsAllInOrder(const [Size(260, 180), Size(180, 120)]),
         reason:
             'Nested materials need ordered passes; siblings still share '

@@ -10,11 +10,11 @@ import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry
 /// Where the glass shapes and blend groups of one glass layer register, in
 /// paint order, so the layer draws their geometry.
 class GeometryRenderLink {
-  final List<RenderLiquidGlassGeometry> _shapeGeometries = [];
+  final List<RenderLiquidGlassGeometry> _geometries = [];
 
-  /// The registered geometries in paint order.
-  late final UnmodifiableListView<RenderLiquidGlassGeometry> shapes =
-      UnmodifiableListView(_shapeGeometries);
+  /// The registered geometries (glass and blend groups) in paint order.
+  late final UnmodifiableListView<RenderLiquidGlassGeometry> geometries =
+      UnmodifiableListView(_geometries);
 
   bool _dirty = false;
 
@@ -35,14 +35,14 @@ class GeometryRenderLink {
   /// the geometries [owner] paints changed: one back onstage keeps its
   /// registration and its geometry.
   void updatePaintOrder(RenderObject owner) {
-    if (sortGlassPaintOrder(owner, _shapeGeometries, (source) => source)) {
+    if (sortGlassPaintOrder(owner, _geometries, (source) => source)) {
       _dirty = true;
     }
-    for (final geometry in _shapeGeometries) {
+    for (final geometry in _geometries) {
       geometry.updatePaintOrder();
     }
     final painted = [
-      for (final geometry in _shapeGeometries)
+      for (final geometry in _geometries)
         if (isGlassShapePainted(geometry, owner)) geometry,
     ];
     if (!listEquals(painted, _painted)) _dirty = true;
@@ -52,7 +52,7 @@ class GeometryRenderLink {
   /// Rebuilds the geometry of every registered render object that changed,
   /// on a layer whose default appearance is [defaultAppearance].
   void updateAllGeometries(LiquidGlassAppearance defaultAppearance) {
-    for (final renderObject in _shapeGeometries) {
+    for (final renderObject in _geometries) {
       renderObject.maybeRebuildGeometry(defaultAppearance);
     }
   }
@@ -79,9 +79,9 @@ class GeometryRenderLink {
   void registerGeometry(
     RenderLiquidGlassGeometry renderObject,
   ) {
-    if (_shapeGeometries.contains(renderObject)) return;
+    if (_geometries.contains(renderObject)) return;
     _dirty = true;
-    _shapeGeometries.add(renderObject);
+    _geometries.add(renderObject);
     onMembershipChanged?.call();
   }
 
@@ -92,7 +92,7 @@ class GeometryRenderLink {
 
   /// Removes [renderObject]'s geometry from the layer.
   void unregisterGeometry(RenderLiquidGlassGeometry renderObject) {
-    if (_shapeGeometries.remove(renderObject)) {
+    if (_geometries.remove(renderObject)) {
       _dirty = true;
       onMembershipChanged?.call();
     }
@@ -100,7 +100,7 @@ class GeometryRenderLink {
 
   /// Forgets every registered geometry.
   void dispose() {
-    _shapeGeometries.clear();
+    _geometries.clear();
     _painted = const [];
     _lit = null;
   }
