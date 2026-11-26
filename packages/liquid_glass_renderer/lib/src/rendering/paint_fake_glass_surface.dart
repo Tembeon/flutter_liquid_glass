@@ -488,6 +488,7 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
     FakeSurfaceLane.specularWidth: edge(RecipeLane.specularWidth),
     FakeSurfaceLane.specularSpread: edge(RecipeLane.specularSpread),
     FakeSurfaceLane.specularBias: edge(RecipeLane.specularBias),
+    FakeSurfaceLane.specularInset: edge(RecipeLane.specularInset),
   };
 }
 

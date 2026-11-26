@@ -15,6 +15,21 @@ enum GlassVariant {
   clear,
 }
 
+/// Whether a [GlassRecipe] is for glass at rest or for a lens lifted out of
+/// it while held.
+enum GlassLift {
+  /// Glass at rest.
+  resting,
+
+  /// The lens lifted over a selection, as of a tab bar or a segmented
+  /// control: its face changes no colour.
+  lens,
+
+  /// The lens of a switch's knob or a slider's thumb: its face lifts black
+  /// to a tenth of white and leaves white where it is.
+  smallLens,
+}
+
 /// What one glass shape draws with, as iOS 27 sets it for the shape's size:
 /// blur, blur fill, face, bleed, ring shadow, dark edge and rim highlight.
 ///
@@ -54,12 +69,20 @@ final class GlassRecipe {
   /// floor and a more opaque white fill in light, a dark grey ceiling in
   /// dark, a black fill on clear glass with a weaker rim highlight. Reduce
   /// Transparency is not drawn as glass at all: the widgets go flat.
+  ///
+  /// A lifted lens ([lift]) keeps the resting glass's rim highlight and draws
+  /// its own face, its own dark specular (0.5 dark, a point wide from a third
+  /// of a point inside the edge, over 120 degrees in both schemes) and no
+  /// bleed or ring shadow, as read from UIKit with each lens
+  /// held on iOS 27.2.1 (notes private); its ring and drop shadows are the
+  /// widget's to draw. Its values are the same from 37 to 70 points.
   factory GlassRecipe.of({
     required GlassVariant variant,
     required Brightness brightness,
     required double shortSide,
     double slider = 0,
     bool highContrast = false,
+    GlassLift lift = GlassLift.resting,
   }) {
     final law = _Law(
       variant: variant,
@@ -67,6 +90,7 @@ final class GlassRecipe {
       shortSide: shortSide,
       slider: snapSlider(slider),
       highContrast: highContrast,
+      lift: lift,
     );
     return GlassRecipe(
       blur: law.blur(),
@@ -166,6 +190,7 @@ final class _Law {
     required this.shortSide,
     required this.slider,
     required this.highContrast,
+    required this.lift,
   }) : grown = ios27PanelProgress(shortSide),
        split = splitAtMiddleTick(slider);
 
@@ -174,10 +199,13 @@ final class _Law {
   final double shortSide;
   final double slider;
   final bool highContrast;
+  final GlassLift lift;
   final double grown;
   final ({double upTo, double past}) split;
 
   bool get clear => variant == GlassVariant.clear;
+
+  bool get lifted => lift != GlassLift.resting;
 
   BlurRecipe blur() {
     final depths = [shortSide / 2, 1.0, 0.0, 0.0];
@@ -213,8 +241,27 @@ final class _Law {
   }
 
   FaceRecipe face() {
-    final face = _restingFace();
-    return highContrast ? _contrastFace(face) : face;
+    switch (lift) {
+      case GlassLift.lens:
+        return const FaceRecipe(
+          black: 0,
+          white: 1,
+          saturation: 1,
+          fill: Color(0x00000000),
+          maxLuma: 0,
+        );
+      case GlassLift.smallLens:
+        return const FaceRecipe(
+          black: 0.1,
+          white: 1,
+          saturation: 0.9,
+          fill: Color(0x00000000),
+          maxLuma: 0,
+        );
+      case GlassLift.resting:
+        final face = _restingFace();
+        return highContrast ? _contrastFace(face) : face;
+    }
   }
 
   FaceRecipe _restingFace() {
@@ -288,6 +335,7 @@ final class _Law {
   }
 
   BleedRecipe bleed() {
+    if (lifted) return BleedRecipe.none;
     if (clear) {
       return const BleedRecipe(
         opacity: 0,
@@ -316,7 +364,7 @@ final class _Law {
   }
 
   RingShadowRecipe ringShadow() {
-    if (clear) return RingShadowRecipe.none;
+    if (clear || lifted) return RingShadowRecipe.none;
     return const RingShadowRecipe(
       opacity: 0.06,
       offset: 8,
@@ -326,10 +374,20 @@ final class _Law {
   }
 
   DarkSpecularRecipe darkSpecular() {
+    if (lifted) {
+      return DarkSpecularRecipe(
+        amount: 0.5,
+        width: 1,
+        outset: 2 / 3,
+        colorBias: -0.3,
+        spread: _degrees(120),
+      );
+    }
     final lightRegular = !clear && !dark;
     return DarkSpecularRecipe(
       amount: 0.4,
       width: 8 / 15,
+      outset: 8 / 15,
       colorBias: -0.3,
       spread: _degrees(lightRegular ? 96 : 75),
     );

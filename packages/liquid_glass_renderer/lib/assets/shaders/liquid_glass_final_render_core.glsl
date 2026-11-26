@@ -256,7 +256,7 @@ float recipeRingOf(float depth, vec2 normal, float halfSide) {
 // the edge, negative outside.
 float recipeSpecularOf(float depth, vec2 normal) {
     return darkSpecular(
-        depth,
+        depth - RECIPE(recipeSpecularInset),
         normal,
         1.0,
         RECIPE(recipeSpecularWidth),
@@ -269,11 +269,14 @@ float recipeSpecularOf(float depth, vec2 normal) {
 // specular band and the half pixel past it.
 float recipeOutset() {
     #if COLOR_MODELS == COLOR_MODELS_IOS27
-    return recipeSpecularWidth(0) + 0.5;
+    return recipeSpecularWidth(0) - recipeSpecularInset(0) + 0.5;
     #else
     return max(
-        max(recipeSpecularWidth(0), recipeSpecularWidth(1)),
-        recipeSpecularWidth(2)
+        max(
+            recipeSpecularWidth(0) - recipeSpecularInset(0),
+            recipeSpecularWidth(1) - recipeSpecularInset(1)
+        ),
+        recipeSpecularWidth(2) - recipeSpecularInset(2)
     ) + 0.5;
     #endif
 }

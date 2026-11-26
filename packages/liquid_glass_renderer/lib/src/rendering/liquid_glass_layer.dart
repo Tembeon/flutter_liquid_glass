@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_recipe_groups.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
@@ -191,9 +192,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     (depth: 0.0, strength: 1.0),
   ];
 
-  // The look whose recipe the glass blurs by: its own, at the size of its
-  // smallest shape; for the direct model, which has none, regular glass of
-  // its scheme.
+  // The look whose recipe the glass blurs by: its own at rest (a lifted
+  // lens blurs as its resting glass), at the size of its smallest shape; for
+  // the direct model, which has none, regular glass of its scheme.
   RecipeLook get _blurLook {
     final model = _blurModel;
     final (:variant, :brightness) = model.blurredAs;
@@ -207,6 +208,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       shortSide: _shapeShortSide,
       greyTint: recipe?.greyTint ?? false,
       highContrast: recipe?.highContrast ?? false,
+      lift: GlassLift.resting,
     );
   }
 

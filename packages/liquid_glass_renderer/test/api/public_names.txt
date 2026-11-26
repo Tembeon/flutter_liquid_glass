@@ -26,6 +26,7 @@ LiquidGlassGlow
 LiquidGlassHardFrostBand
 LiquidGlassImageBackdropFilter
 LiquidGlassIos27ClearColorModel
+LiquidGlassIos27LensColorModel
 LiquidGlassIos27RegularColorModel
 LiquidGlassIos27RegularShadow
 LiquidGlassLayer

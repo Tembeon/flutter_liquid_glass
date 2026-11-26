@@ -33,5 +33,6 @@ uniform vec4 uFake[9];
 #define uSpecularWidth uFake[7].w
 #define uSpecularSpread uFake[8].x
 #define uSpecularBias uFake[8].y
+#define uSpecularInset uFake[8].z
 
 #endif

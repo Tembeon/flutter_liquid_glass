@@ -210,6 +210,77 @@ void main() {
     );
   });
 
+  group('a lifted lens', () {
+    GlassRecipe lens(
+      GlassLift lift, {
+      Brightness brightness = Brightness.light,
+      double shortSide = 64,
+    }) => GlassRecipe.of(
+      variant: GlassVariant.regular,
+      brightness: brightness,
+      shortSide: shortSide,
+      lift: lift,
+    );
+
+    test(
+      'keeps the resting rim highlight and blur, and draws its own edge',
+      () {
+        for (final brightness in Brightness.values) {
+          for (final lift in [GlassLift.lens, GlassLift.smallLens]) {
+            final resting = _of(brightness: brightness, shortSide: 64);
+            final lifted = lens(lift, brightness: brightness);
+            expect(lifted.rimHighlight, resting.rimHighlight);
+            expect(lifted.blur, resting.blur);
+            expect(lifted.blurFill, resting.blurFill);
+            expect(lifted.bleed, BleedRecipe.none);
+            expect(lifted.ringShadow, RingShadowRecipe.none);
+            final specular = lifted.darkSpecular;
+            expect(specular.amount, 0.5);
+            expect(specular.width, 1);
+            expect(specular.reach, _near(2 / 3));
+            expect(specular.inset, _near(1 / 3));
+            expect(specular.colorBias, -0.3);
+            expect(specular.spread, _near(_deg(120)));
+          }
+        }
+      },
+    );
+
+    test("a selection's face keeps every colour, a knob's lifts black", () {
+      double shown(FaceRecipe face, double c, double luma) =>
+          face.black +
+          (face.white - face.black) * luma +
+          face.saturation * (c - luma);
+      final selection = lens(GlassLift.lens).face;
+      final knob = lens(GlassLift.smallLens).face;
+      for (final face in [selection, knob]) {
+        expect(face.rollOff, 0);
+        expect(face.fill.a, 0);
+      }
+      for (final (c, luma) in [
+        (0.0, 0.0),
+        (0.2, 0.5),
+        (0.9, 0.4),
+        (1.0, 1.0),
+      ]) {
+        expect(shown(selection, c, luma), _near(c));
+        expect(shown(knob, c, luma), _near(0.1 + 0.9 * c));
+      }
+    });
+
+    test('draws one edge and face from 37 to 70 points', () {
+      for (final lift in [GlassLift.lens, GlassLift.smallLens]) {
+        final at64 = lens(lift);
+        for (final side in [37.0, 50.0, 70.0]) {
+          final at = lens(lift, shortSide: side);
+          expect(at.rimHighlight, at64.rimHighlight);
+          expect(at.darkSpecular, at64.darkSpecular);
+          expect(at.face, at64.face);
+        }
+      }
+    });
+  });
+
   test('equal inputs give equal recipes', () {
     expect(_of(slider: 0.3), _of(slider: 0.3));
     expect(_of(slider: 0.3).hashCode, _of(slider: 0.3).hashCode);

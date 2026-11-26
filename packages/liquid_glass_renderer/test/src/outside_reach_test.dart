@@ -25,6 +25,7 @@ void main() {
               shortSide: shortSide,
               greyTint: false,
               highContrast: false,
+              lift: GlassLift.resting,
             );
             final outward = recipeEdges([recipe], slider).outward;
             expect(outward, greaterThan(0));

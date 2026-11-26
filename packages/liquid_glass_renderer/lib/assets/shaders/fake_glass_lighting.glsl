@@ -83,7 +83,7 @@ vec4 fakeGlassLit(
   float exteriorContourAlpha = clamp(contourBand * contourStrength, 0.0, 1.0);
   if (uSpecularStrength > 0.0) {
     exteriorContourAlpha += uSpecularStrength * darkSpecular(
-      -distance,
+      -distance - uSpecularInset,
       normal,
       uPixelSize,
       uSpecularWidth,

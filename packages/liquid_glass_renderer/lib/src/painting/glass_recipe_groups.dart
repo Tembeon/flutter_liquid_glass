@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show Color, clampDouble;
 
 import 'package:flutter/foundation.dart';
@@ -308,18 +309,20 @@ final class RingShadowRecipe {
       'blur: $blurRadius)';
 }
 
-/// The dark line just outside glass's edge, iOS 27's dark specular.
+/// The dark line at glass's edge, iOS 27's dark specular.
 ///
-/// A band [width] logical pixels wide just outside the edge darkens what
-/// lies there by [amount], biased toward the colour by [colorBias]. It is
-/// strongest where the edge runs across the vertical light axis and fades
-/// over [spread] radians of the edge's direction.
+/// A band [width] logical pixels wide whose outer end lies [outset] past the
+/// edge darkens what lies there by [amount], biased toward the colour by
+/// [colorBias], darkest at its outer end. It is strongest where the edge runs
+/// across the vertical light axis and fades over [spread] radians of the
+/// edge's direction.
 @immutable
 final class DarkSpecularRecipe {
   /// A dark specular of the given amount, band and spread.
   const DarkSpecularRecipe({
     required this.amount,
     required this.width,
+    required this.outset,
     required this.colorBias,
     required this.spread,
   });
@@ -330,34 +333,43 @@ final class DarkSpecularRecipe {
   /// How wide the band is.
   final double width;
 
+  /// How far past the edge the band's outer end lies: [width] for a band
+  /// wholly outside the glass, less for one that starts inside it.
+  final double outset;
+
   /// How far the band keeps the colour it darkens.
   final double colorBias;
 
-  /// Over how many radians of the edge's direction the band fades, as on a
-  /// display with headroom above white.
+  /// Over how many radians of the edge's direction the band fades: as on a
+  /// display with headroom above white for resting glass, and as a
+  /// screenshot shows it for a lifted lens, the one spread measured there.
   final double spread;
 
   /// Whether the band shows.
   bool get draws => amount > 0 && width > 0;
 
   /// How far past the edge the band reaches, in logical pixels.
-  double get reach => draws ? width : 0;
+  double get reach => draws ? outset : 0;
+
+  /// How far inside the edge the band starts, in logical pixels.
+  double get inset => draws ? math.max(width - outset, 0) : 0;
 
   @override
   bool operator ==(Object other) =>
       other is DarkSpecularRecipe &&
       other.amount == amount &&
       other.width == width &&
+      other.outset == outset &&
       other.colorBias == colorBias &&
       other.spread == spread;
 
   @override
-  int get hashCode => Object.hash(amount, width, colorBias, spread);
+  int get hashCode => Object.hash(amount, width, outset, colorBias, spread);
 
   @override
   String toString() =>
-      'DarkSpecularRecipe($amount, width: $width, bias: $colorBias, '
-      'spread: $spread)';
+      'DarkSpecularRecipe($amount, width: $width, outset: $outset, '
+      'bias: $colorBias, spread: $spread)';
 }
 
 /// The lit rim of glass: a mask from the edge that brightens and saturates

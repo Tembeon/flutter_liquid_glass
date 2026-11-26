@@ -46,6 +46,7 @@ export 'src/painting/liquid_glass_color_model.dart'
         LiquidGlassColorModel,
         LiquidGlassDirectColorModel,
         LiquidGlassIos27ClearColorModel,
+        LiquidGlassIos27LensColorModel,
         LiquidGlassIos27RegularColorModel;
 export 'src/painting/liquid_glass_content_bend.dart'
     show LiquidGlassContentBend;

@@ -458,7 +458,10 @@ enum FakeSurfaceLane implements UniformLane {
   specularSpread,
 
   /// The bias the dark specular's mask takes, from its amount.
-  specularBias;
+  specularBias,
+
+  /// How far inside the edge an iOS 27 recipe's dark specular starts.
+  specularInset;
 
   const FakeSurfaceLane([this.width = 1]);
 
@@ -702,7 +705,11 @@ enum RecipeLane implements UniformLane {
   ringStroke,
 
   /// One over the ring shadow's blur radius.
-  ringInverseRadius;
+  ringInverseRadius,
+
+  /// How far inside the edge the dark specular's band starts: 0 for a band
+  /// wholly outside the glass, a lifted lens's starts inside it.
+  specularInset;
 
   const RecipeLane([this.width = 1]);
 

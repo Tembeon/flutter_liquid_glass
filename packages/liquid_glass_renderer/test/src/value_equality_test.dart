@@ -177,14 +177,25 @@ void main() {
         ),
       ],
     );
+    _holdsValue(
+      LiquidGlassColorModel.ios27Lens(brightness: _dark()),
+      const LiquidGlassColorModel.ios27Lens(brightness: Brightness.dark),
+      [
+        const LiquidGlassColorModel.ios27Lens(brightness: Brightness.light),
+        const LiquidGlassColorModel.ios27SmallLens(brightness: Brightness.dark),
+        const LiquidGlassColorModel.ios27Regular(brightness: Brightness.dark),
+      ],
+    );
   });
 
-  test('a color model is one of three kinds, each with its own fields', () {
+  test('a color model is one of four kinds, each with its own fields', () {
     String kind(LiquidGlassColorModel model) => switch (model) {
       LiquidGlassDirectColorModel(:final saturation) => 'direct $saturation',
       LiquidGlassIos27RegularColorModel(:final brightness) =>
         'regular ${brightness.name}',
       LiquidGlassIos27ClearColorModel() => 'clear',
+      LiquidGlassIos27LensColorModel(:final small) =>
+        small ? 'small lens' : 'lens',
     };
     expect(
       kind(
@@ -202,6 +213,18 @@ void main() {
       'regular dark',
     );
     expect(kind(const LiquidGlassColorModel.ios27Clear()), 'clear');
+    expect(
+      kind(const LiquidGlassColorModel.ios27Lens(brightness: Brightness.light)),
+      'lens',
+    );
+    expect(
+      kind(
+        const LiquidGlassColorModel.ios27SmallLens(
+          brightness: Brightness.light,
+        ),
+      ),
+      'small lens',
+    );
   });
 
   test('every appearance constructor defaults to one tint', () {
@@ -276,6 +299,7 @@ void main() {
         shortSide: _n(100),
         greyTint: false,
         highContrast: false,
+        lift: GlassLift.resting,
       )),
       WornColorModel.recipe((
         variant: GlassVariant.regular,
@@ -283,6 +307,7 @@ void main() {
         shortSide: _n(100),
         greyTint: false,
         highContrast: false,
+        lift: GlassLift.resting,
       )),
       [
         WornColorModel.recipe((
@@ -291,6 +316,7 @@ void main() {
           shortSide: _n(101),
           greyTint: false,
           highContrast: false,
+          lift: GlassLift.resting,
         )),
         WornColorModel.recipe((
           variant: GlassVariant.regular,
@@ -298,6 +324,7 @@ void main() {
           shortSide: _n(100),
           greyTint: true,
           highContrast: false,
+          lift: GlassLift.resting,
         )),
         WornColorModel.recipe((
           variant: GlassVariant.regular,
@@ -305,6 +332,15 @@ void main() {
           shortSide: _n(100),
           greyTint: false,
           highContrast: true,
+          lift: GlassLift.resting,
+        )),
+        WornColorModel.recipe((
+          variant: GlassVariant.regular,
+          brightness: Brightness.light,
+          shortSide: _n(100),
+          greyTint: false,
+          highContrast: false,
+          lift: GlassLift.lens,
         )),
         WornColorModel.direct(brightness: Brightness.light, saturation: _n(1)),
         const WornColorModel.direct(brightness: Brightness.dark),

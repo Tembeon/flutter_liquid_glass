@@ -39,30 +39,31 @@ uniform highp vec4 uMapping[3];
 #define uFilterToMatteOffset uMapping[2].xy
 #define uBackdropOrigin uMapping[2].zw
 
-uniform vec4 uRecipes[27];
-#define recipeFace(slot) uRecipes[(slot) * 9].xyz
-#define recipeFaceRollOff(slot) uRecipes[(slot) * 9].w
-#define recipeFaceFill(slot) uRecipes[(slot) * 9 + 1]
-#define recipeBleed(slot) uRecipes[(slot) * 9 + 2].xyz
-#define recipeBleedOpacity(slot) uRecipes[(slot) * 9 + 2].w
-#define recipeTintRamp(slot) uRecipes[(slot) * 9 + 3]
-#define recipeBrighten(slot) uRecipes[(slot) * 9 + 4].xyz
-#define recipeHighlightOpacity(slot) uRecipes[(slot) * 9 + 4].w
-#define recipeHighlightWidth(slot) uRecipes[(slot) * 9 + 5].x
-#define recipeHighlightDiffuseWidth(slot) uRecipes[(slot) * 9 + 5].y
-#define recipeHighlightCurvature(slot) uRecipes[(slot) * 9 + 5].z
-#define recipeTintLumaWeight(slot) uRecipes[(slot) * 9 + 5].w
-#define recipeHighlightSpread(slot) uRecipes[(slot) * 9 + 6].xy
-#define recipeHighlightDiffuseBias(slot) uRecipes[(slot) * 9 + 6].z
-#define recipeTintFloor(slot) uRecipes[(slot) * 9 + 6].w
-#define recipeSpecularBias(slot) uRecipes[(slot) * 9 + 7].x
-#define recipeSpecularWidth(slot) uRecipes[(slot) * 9 + 7].y
-#define recipeSpecularColorBias(slot) uRecipes[(slot) * 9 + 7].z
-#define recipeSpecularSpread(slot) uRecipes[(slot) * 9 + 7].w
-#define recipeRingOpacity(slot) uRecipes[(slot) * 9 + 8].x
-#define recipeRingOffset(slot) uRecipes[(slot) * 9 + 8].y
-#define recipeRingStroke(slot) uRecipes[(slot) * 9 + 8].z
-#define recipeRingInverseRadius(slot) uRecipes[(slot) * 9 + 8].w
+uniform vec4 uRecipes[30];
+#define recipeFace(slot) uRecipes[(slot) * 10].xyz
+#define recipeFaceRollOff(slot) uRecipes[(slot) * 10].w
+#define recipeFaceFill(slot) uRecipes[(slot) * 10 + 1]
+#define recipeBleed(slot) uRecipes[(slot) * 10 + 2].xyz
+#define recipeBleedOpacity(slot) uRecipes[(slot) * 10 + 2].w
+#define recipeTintRamp(slot) uRecipes[(slot) * 10 + 3]
+#define recipeBrighten(slot) uRecipes[(slot) * 10 + 4].xyz
+#define recipeHighlightOpacity(slot) uRecipes[(slot) * 10 + 4].w
+#define recipeHighlightWidth(slot) uRecipes[(slot) * 10 + 5].x
+#define recipeHighlightDiffuseWidth(slot) uRecipes[(slot) * 10 + 5].y
+#define recipeHighlightCurvature(slot) uRecipes[(slot) * 10 + 5].z
+#define recipeTintLumaWeight(slot) uRecipes[(slot) * 10 + 5].w
+#define recipeHighlightSpread(slot) uRecipes[(slot) * 10 + 6].xy
+#define recipeHighlightDiffuseBias(slot) uRecipes[(slot) * 10 + 6].z
+#define recipeTintFloor(slot) uRecipes[(slot) * 10 + 6].w
+#define recipeSpecularBias(slot) uRecipes[(slot) * 10 + 7].x
+#define recipeSpecularWidth(slot) uRecipes[(slot) * 10 + 7].y
+#define recipeSpecularColorBias(slot) uRecipes[(slot) * 10 + 7].z
+#define recipeSpecularSpread(slot) uRecipes[(slot) * 10 + 7].w
+#define recipeRingOpacity(slot) uRecipes[(slot) * 10 + 8].x
+#define recipeRingOffset(slot) uRecipes[(slot) * 10 + 8].y
+#define recipeRingStroke(slot) uRecipes[(slot) * 10 + 8].z
+#define recipeRingInverseRadius(slot) uRecipes[(slot) * 10 + 8].w
+#define recipeSpecularInset(slot) uRecipes[(slot) * 10 + 9].x
 
 uniform highp vec4 uEffects[5];
 #define uSolidBackdrop uEffects[0]

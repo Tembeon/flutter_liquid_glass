@@ -123,9 +123,15 @@ sealed class LiquidGlassColorModel
     double? bevelShadowStrength,
   })
   const factory LiquidGlassColorModel.ios27Clear({bool highContrast})
+  const factory LiquidGlassColorModel.ios27Lens({
+    required Brightness brightness,
+  })
   const factory LiquidGlassColorModel.ios27Regular({
     required Brightness brightness,
     bool highContrast,
+  })
+  const factory LiquidGlassColorModel.ios27SmallLens({
+    required Brightness brightness,
   })
 final class LiquidGlassContentBend
   const LiquidGlassContentBend({required double amount, required double depth})
@@ -224,6 +230,10 @@ final class LiquidGlassImageBackdropFilter extends LiquidGlassBackdropFilter
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27ClearColorModel extends LiquidGlassColorModel
   final bool highContrast
+  overrides: ==, hashCode, toString
+final class LiquidGlassIos27LensColorModel extends LiquidGlassColorModel
+  final Brightness brightness
+  final bool small
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27RegularColorModel extends LiquidGlassColorModel
   final Brightness brightness
@@ -481,6 +491,7 @@ class LiquidGlassGlow (see package:liquid_glass_renderer/liquid_glass_renderer.d
 class LiquidGlassHardFrostBand (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassImageBackdropFilter (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassIos27ClearColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassIos27LensColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassIos27RegularColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassIos27RegularShadow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassLayerFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)

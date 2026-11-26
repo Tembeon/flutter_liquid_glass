@@ -34,8 +34,10 @@ List<double> saturationMatrix(
 /// A model is either the direct one ([LiquidGlassColorModel.direct]), which
 /// applies saturation, gamma and vibrancy per channel and adds no material
 /// of its own, or iOS 27's: [LiquidGlassColorModel.ios27Regular], whose face
-/// follows the size of the shape that wears it, and
-/// [LiquidGlassColorModel.ios27Clear]. The iOS 27 models draw the recipe
+/// follows the size of the shape that wears it,
+/// [LiquidGlassColorModel.ios27Clear], and the lenses UIKit lifts out of a
+/// held control, [LiquidGlassColorModel.ios27Lens] and
+/// [LiquidGlassColorModel.ios27SmallLens]. The iOS 27 models draw the recipe
 /// UIKit gives its glass (`GlassRecipe`).
 ///
 /// iOS gives glass a material by the shorter side of its shape. Up to 64
@@ -117,6 +119,26 @@ sealed class LiquidGlassColorModel {
   /// setting.
   const factory LiquidGlassColorModel.ios27Clear({bool highContrast}) =
       LiquidGlassIos27ClearColorModel._;
+
+  /// The lens iOS 27 lifts out of a held control over its selection, as a
+  /// tab bar's or a segmented control's, in [brightness].
+  ///
+  /// Its face changes no colour, its rim highlight is resting regular glass's
+  /// and its dark specular is its own, darker and reaching a third of a point
+  /// into the glass. It blurs and fills what it shows as regular glass of
+  /// [brightness] does. Its ring and drop shadows are the widget's to draw.
+  /// The numbers are those UIKit gives a held lens on iOS 27.2.1, the same
+  /// from 37 to 70 points, so glass of every size wears one look.
+  const factory LiquidGlassColorModel.ios27Lens({
+    required Brightness brightness,
+  }) = LiquidGlassIos27LensColorModel._;
+
+  /// The lens of a held switch's knob or slider's thumb in [brightness]:
+  /// [LiquidGlassColorModel.ios27Lens] whose face lifts black to a tenth of
+  /// white and leaves white where it is.
+  const factory LiquidGlassColorModel.ios27SmallLens({
+    required Brightness brightness,
+  }) = LiquidGlassIos27LensColorModel._small;
 }
 
 /// The [LiquidGlassColorModel] that applies its numbers directly
@@ -277,10 +299,43 @@ final class LiquidGlassIos27ClearColorModel extends LiquidGlassColorModel {
       '${highContrast ? 'highContrast: true' : ''})';
 }
 
+/// The [LiquidGlassColorModel] of a lens iOS 27 lifts out of a held control
+/// ([LiquidGlassColorModel.ios27Lens], [LiquidGlassColorModel.ios27SmallLens]).
+final class LiquidGlassIos27LensColorModel extends LiquidGlassColorModel {
+  const LiquidGlassIos27LensColorModel._({required this.brightness})
+    : small = false,
+      super._();
+
+  const LiquidGlassIos27LensColorModel._small({required this.brightness})
+    : small = true,
+      super._();
+
+  /// The colour scheme of the glass, whose blur and fill it takes.
+  final Brightness brightness;
+
+  /// Whether the lens is a knob's or a thumb's, whose face lifts black.
+  final bool small;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LiquidGlassIos27LensColorModel &&
+      other.brightness == brightness &&
+      other.small == small;
+
+  @override
+  int get hashCode =>
+      Object.hash(LiquidGlassIos27LensColorModel, brightness, small);
+
+  @override
+  String toString() =>
+      'LiquidGlassColorModel.${small ? 'ios27SmallLens' : 'ios27Lens'}'
+      '(brightness: $brightness)';
+}
+
 /// What an iOS 27 recipe takes that a shape's look decides: the variant,
 /// the scheme, the shape's shorter side in points, whether its tint is a
-/// grey, which takes a tint law of its own, and the Increase Contrast
-/// setting.
+/// grey, which takes a tint law of its own, the Increase Contrast setting,
+/// and whether the glass is a lifted lens.
 @internal
 typedef RecipeLook = ({
   GlassVariant variant,
@@ -288,6 +343,7 @@ typedef RecipeLook = ({
   double shortSide,
   bool greyTint,
   bool highContrast,
+  GlassLift lift,
 });
 
 /// The rim the direct model lights ([LiquidGlassColorModel.direct]); none
@@ -489,7 +545,8 @@ extension WearColorModel on LiquidGlassColorModel {
   /// panel's side on only the rim highlight's spread still widens, by at
   /// most 3.3 degrees up to [recipeSizes]' panel, so such glass wears that
   /// one's: panels of one layer keep one recipe slot and the shader of one
-  /// look. A grey tint takes another law than a colour.
+  /// look. A grey tint takes another law than a colour. A lifted lens wears
+  /// one recipe at every size.
   WornColorModel wornAt(double shortSide, {Color? tint}) {
     final grey =
         tint != null &&
@@ -509,6 +566,7 @@ extension WearColorModel on LiquidGlassColorModel {
           shortSide: side,
           greyTint: grey,
           highContrast: highContrast,
+          lift: GlassLift.resting,
         ));
       case LiquidGlassIos27RegularColorModel(
         :final brightness,
@@ -520,6 +578,16 @@ extension WearColorModel on LiquidGlassColorModel {
           shortSide: side,
           greyTint: grey,
           highContrast: highContrast,
+          lift: GlassLift.resting,
+        ));
+      case LiquidGlassIos27LensColorModel(:final brightness, :final small):
+        return _wear((
+          variant: GlassVariant.regular,
+          brightness: brightness,
+          shortSide: recipeSizes.control,
+          greyTint: grey,
+          highContrast: false,
+          lift: small ? GlassLift.smallLens : GlassLift.lens,
         ));
     }
   }

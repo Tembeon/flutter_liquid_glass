@@ -189,6 +189,24 @@ void main() {
     expect(direct.wornAt(40), isA<WornDirect>());
   });
 
+  test('a lifted lens wears one model at every size it takes', () {
+    for (final brightness in Brightness.values) {
+      for (final lens in [
+        LiquidGlassColorModel.ios27Lens(brightness: brightness),
+        LiquidGlassColorModel.ios27SmallLens(brightness: brightness),
+      ]) {
+        final worn = lens.wornAt(37);
+        for (final side in [44.0, 57.0, 70.0, 114.0]) {
+          expect(identical(lens.wornAt(side), worn), isTrue);
+        }
+        expect(
+          worn.blurredAs,
+          (variant: GlassVariant.regular, brightness: brightness),
+        );
+      }
+    }
+  });
+
   test('a grey tint takes its own tones, a color the tones of its scheme', () {
     const light = LiquidGlassColorModel.ios27Regular(
       brightness: Brightness.light,
@@ -250,6 +268,7 @@ void main() {
       shortSide: 120,
       greyTint: false,
       highContrast: false,
+      lift: GlassLift.resting,
     ), 0);
     expect(panel.bleed.opacity, closeTo(0.8 * 56 / 96, 1e-12));
   });

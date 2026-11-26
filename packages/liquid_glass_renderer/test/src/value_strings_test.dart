@@ -32,5 +32,17 @@ void main() {
       ).toString(),
       startsWith('LiquidGlassMaterial(settings: LiquidGlassSettings('),
     );
+    expect(
+      const LiquidGlassColorModel.ios27Lens(
+        brightness: Brightness.dark,
+      ).toString(),
+      'LiquidGlassColorModel.ios27Lens(brightness: Brightness.dark)',
+    );
+    expect(
+      const LiquidGlassColorModel.ios27SmallLens(
+        brightness: Brightness.light,
+      ).toString(),
+      'LiquidGlassColorModel.ios27SmallLens(brightness: Brightness.light)',
+    );
   });
 }

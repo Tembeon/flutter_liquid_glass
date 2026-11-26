@@ -113,6 +113,7 @@ GlassRecipe recipeOf(RecipeLook look, double sliderPosition) {
     shortSide: look.shortSide,
     slider: sliderPosition,
     highContrast: look.highContrast,
+    lift: look.lift,
   );
 }
 
@@ -184,7 +185,7 @@ List<double> recipeLanes(
     RecipeLane.specularBias: [
       if (specular.draws) 1 / specular.amount - 2 else 0,
     ],
-    RecipeLane.specularWidth: [specular.reach * dpr],
+    RecipeLane.specularWidth: [if (specular.draws) specular.width * dpr else 0],
     RecipeLane.specularColorBias: [
       if (specular.draws) specular.colorBias else 0,
     ],
@@ -195,6 +196,7 @@ List<double> recipeLanes(
     RecipeLane.ringInverseRadius: [
       if (ring.draws) 1 / (ring.blurRadius * dpr) else 0,
     ],
+    RecipeLane.specularInset: [specular.inset * dpr],
   });
   return _recipeLanes[key] = lanes;
 }
@@ -214,8 +216,9 @@ double outsideReachOf(WornColorModel model, double sliderPosition) =>
     };
 
 /// How far the edges the recipes of [looks] draw reach, in logical pixels:
-/// into the glass, its rim highlight and its ring shadow's band two sigmas
-/// past the moved outline, and out of it, its dark specular band.
+/// into the glass, its rim highlight, its ring shadow's band two sigmas
+/// past the moved outline and a lifted lens's dark specular, and out of it,
+/// its dark specular band.
 ({double inward, double outward}) recipeEdges(
   List<RecipeLook> looks,
   double sliderPosition,
@@ -238,7 +241,9 @@ double outsideReachOf(WornColorModel model, double sliderPosition) =>
         math.max(highlight.width, highlight.diffuseWidth),
       );
     }
-    outward = math.max(outward, recipe.darkSpecular.reach);
+    final specular = recipe.darkSpecular;
+    inward = math.max(inward, specular.inset);
+    outward = math.max(outward, specular.reach);
   }
   return (inward: inward, outward: outward);
 }
