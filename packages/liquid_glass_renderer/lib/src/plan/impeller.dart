@@ -39,9 +39,9 @@ abstract final class ImpellerLayers {
 
   /// The rows a layer keeps past the rows pinned in it. Impeller sometimes
   /// sizes a layer drawn under a transform a hair off whole pixels, as a
-  /// pressed sheet's, a row short; without the spare row a haze's mix finds
-  /// no strip and draws the copy unhazed, and the glass flickers from frame
-  /// to frame (sheet_haze_host_test).
+  /// pressed sheet's, a row short; without the spare row the copy's levels
+  /// lose their last row, the glass reads the copy unblurred there, and it
+  /// flickers from frame to frame.
   static const int spareRows = 1;
 
   /// Where an opacity pass that a glass seeds starts on the screen, in

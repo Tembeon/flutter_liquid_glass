@@ -5,7 +5,7 @@
 // pixels of the copy. The image filter of a layer that holds the copy from
 // its top-left corner, so every fragment lies on the center of a pixel of
 // the copy and takes the same weights, which come worked out (latticeTaps
-// in backdrop_rig.dart). A wider frost is two passes of
+// in copy_frost.dart). A wider frost is two passes of
 // backdrop_frost_axis.frag.
 
 #include <flutter/runtime_effect.glsl>

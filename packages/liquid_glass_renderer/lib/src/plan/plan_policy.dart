@@ -24,7 +24,8 @@ final class PlanPolicy {
   final int maxShapes;
 
   /// Targets a frame may issue before reads move to images. Counted as
-  /// `GlassRead.targets` counts them: a frosted read is two or three.
+  /// `GlassRead.targets` counts them: a read whose copy passes through
+  /// levels or a frost is two to four (`CornerPlace.passes`).
   final int maxTargets;
 
   /// Whether glass blurs a copy it reads and mixes in its fill from the

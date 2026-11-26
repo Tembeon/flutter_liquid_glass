@@ -5,9 +5,9 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart
 
 /// Lightweight color and materialization controls for one glass shape.
 ///
-/// Optical geometry and surface lighting belong to the containing
-/// `LiquidGlassLayer`. These values may differ between shapes that share a
-/// layer.
+/// The lens and the blur belong to the settings of the containing
+/// `LiquidGlassLayer`, the lit rim to [colorModel]. These values may differ
+/// between shapes that share a layer.
 ///
 /// Colors and color transfers are display-referred. The defaults of the
 /// unnamed constructor may be retuned before 1.0; the version-named presets
@@ -82,8 +82,8 @@ final class LiquidGlassAppearance {
   /// The transfer model used to combine [tint] with the backdrop.
   ///
   /// [LiquidGlassColorModel.direct] carries its own saturation, gamma and
-  /// vibrancy; the iOS 27 models derive the accompanying tonal response
-  /// from their fit, for the size of the shape that wears the appearance.
+  /// vibrancy; the iOS 27 models take theirs from their recipe, worn at the
+  /// size of the shape that wears the appearance.
   final LiquidGlassColorModel colorModel;
 
   /// Returns a copy with the supplied appearance controls replaced.

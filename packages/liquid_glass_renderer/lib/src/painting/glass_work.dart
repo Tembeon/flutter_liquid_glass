@@ -21,7 +21,7 @@ abstract final class GlassWork {
   /// Layers a read added again to the scene.
   static int replayed = 0;
 
-  /// Repaints the composer asked for.
+  /// Repaints the frame's planner asked for.
   static int marks = 0;
 
   /// Those of [marks] asked after paint, which land a frame late: the glass
