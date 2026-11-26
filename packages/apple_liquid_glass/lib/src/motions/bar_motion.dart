@@ -79,6 +79,10 @@ final class GlassBarMotion extends Motion {
   /// The tuning of the latest change.
   GlassBarTransitionSpec spec;
 
+  // The spec a change runs on: [spec], or its reduced form under Reduce
+  // Motion.
+  GlassBarTransitionSpec get _spec => traits.reduceMotion ? spec.reduced : spec;
+
   late final LayoutMotion _capsules = own(
     LayoutMotion(planner: _Planner(_planCapsules)),
   );
@@ -224,13 +228,13 @@ final class GlassBarMotion extends Motion {
   /// Whether a capsule of [size] grows out of (or shrinks into) a survivor
   /// whose box is [into] rather than appearing (or leaving) in place.
   bool _fits(Size size, Rect into) =>
-      !spec.oversizedInPlace ||
+      !_spec.oversizedInPlace ||
       (size.width <= into.width + 1e-6 && size.height <= into.height + 1e-6);
 
   Rect _shrunk(Rect box) => Rect.fromCenter(
     center: box.center,
-    width: box.width * spec.appearScale,
-    height: box.height * spec.appearScale,
+    width: box.width * _spec.appearScale,
+    height: box.height * _spec.appearScale,
   );
 
   void _startPulse(_Capsule c, Size size, double t) {
@@ -252,19 +256,19 @@ final class GlassBarMotion extends Motion {
     );
     unschedule((#swellH, c));
     unschedule((#swellW, c));
-    final scaleW = spec.pulseScaleFor(size.width);
-    final scaleH = spec.pulseScaleFor(size.height);
-    at(t + spec.pulseDelay, (t) {
-      pulse.w.retarget(t, scaleW, spring: spec.pulseUpSpring);
-      pulse.h.retarget(t, scaleH, spring: spec.pulseUpSpring);
+    final scaleW = _spec.pulseScaleFor(size.width);
+    final scaleH = _spec.pulseScaleFor(size.height);
+    at(t + _spec.pulseDelay, (t) {
+      pulse.w.retarget(t, scaleW, spring: _spec.pulseUpSpring);
+      pulse.h.retarget(t, scaleH, spring: _spec.pulseUpSpring);
       at(
-        t + spec.pulseHeightDownDelay,
-        (t) => pulse.h.retarget(t, 1, spring: spec.pulseHeightDownSpring),
+        t + _spec.pulseHeightDownDelay,
+        (t) => pulse.h.retarget(t, 1, spring: _spec.pulseHeightDownSpring),
         slot: (#swellH, c),
       );
       at(
-        t + spec.pulseWidthDownDelay,
-        (t) => pulse.w.retarget(t, 1, spring: spec.pulseWidthDownSpring),
+        t + _spec.pulseWidthDownDelay,
+        (t) => pulse.w.retarget(t, 1, spring: _spec.pulseWidthDownSpring),
         slot: (#swellW, c),
       );
     }, slot: (#swell, c));
@@ -354,7 +358,8 @@ final class GlassBarMotion extends Motion {
   }
 
   /// Shows [layout] from time [t], under [transition] when given; with
-  /// [animated] false (and on the first layout) everything snaps.
+  /// [animated] false (and on the first layout) everything snaps; under
+  /// Reduce Motion the change runs on [GlassBarTransitionSpec.reduced].
   void setLayout(
     double t,
     List<GlassBarCapsuleLayout> layout, {
@@ -364,7 +369,7 @@ final class GlassBarMotion extends Motion {
     if (transition != null) spec = transition;
     advance(t);
     _capsuleOf.removeWhere((id, _) => !_items.contains(id));
-    if (!_hasLayout || !animated || traits.reduceMotion) {
+    if (!_hasLayout || !animated) {
       _hasLayout = true;
       _snap(t, layout);
       return;
@@ -417,11 +422,11 @@ final class GlassBarMotion extends Motion {
     _swapCenters = _swaps(layout, paired);
     _capsules.layout(t, {
       for (var k = 0; k < layout.length; k++) resolved[k]: layout[k].rect,
-    }, spring: spec.frameSpring);
+    }, spring: _spec.frameSpring);
     _items.layout(t, {
       for (final c in layout)
         for (final item in c.items) item.id: item.rect,
-    }, spring: spec.contentSpring);
+    }, spring: _spec.contentSpring);
     _capsuleOf.addAll(_nextCapsuleOf);
     _layoutOf = const {};
     _nextCapsuleOf = const {};
@@ -472,7 +477,7 @@ final class GlassBarMotion extends Motion {
 
   Map<Object, LayoutPlan> _planCapsules(LayoutChange change) {
     if (change.spring == null) return const {};
-    final spring = spec.frameSpring;
+    final spring = _spec.frameSpring;
     final entries = change.entries;
     final survivors = {
       for (final MapEntry(:key, :value) in entries.entries)
@@ -516,14 +521,14 @@ final class GlassBarMotion extends Motion {
         birthSegments.add(c.segment);
         plans[c] = LayoutPlan(
           spring: spring,
-          delay: spec.frameDelay,
+          delay: _spec.frameDelay,
           origin: _shrunk(box),
         );
         pulses[c] = to.size;
       } else {
         c.apart = true;
         bornInPlace.add(c);
-        plans[c] = LayoutPlan(spring: spring, delay: spec.segmentDelay);
+        plans[c] = LayoutPlan(spring: spring, delay: _spec.segmentDelay);
       }
     }
     final deaths = <_Capsule, Offset>{};
@@ -536,7 +541,7 @@ final class GlassBarMotion extends Motion {
           nearestSurvivor(c.segment, here, after: true) ?? (null, Rect.zero);
       if (host == null || !_fits(size, sink)) {
         c.apart = true;
-        plans[c] = LayoutPlan(spring: spring, delay: spec.segmentDelay);
+        plans[c] = LayoutPlan(spring: spring, delay: _spec.segmentDelay);
         continue;
       }
       final box = _inside(size, here, sink);
@@ -544,7 +549,7 @@ final class GlassBarMotion extends Motion {
       hosts.add(host);
       plans[c] = LayoutPlan(
         spring: spring,
-        delay: spec.frameDelay,
+        delay: _spec.frameDelay,
         destination: _shrunk(box),
         restDistance: _landing,
       );
@@ -560,10 +565,10 @@ final class GlassBarMotion extends Motion {
       plans[c] = LayoutPlan(
         spring: spring,
         delay: entry is LayoutEntering && c.apart
-            ? spec.segmentDelay
+            ? _spec.segmentDelay
             : birthSegments.contains(c.segment) && moves
-            ? spec.birthStaggerDelay
-            : spec.frameDelay,
+            ? _spec.birthStaggerDelay
+            : _spec.frameDelay,
       );
       if (changed) pulses[c] = target.rect.size;
     }
@@ -602,8 +607,8 @@ final class GlassBarMotion extends Motion {
 
   Map<Object, LayoutPlan> _planItems(LayoutChange change) {
     if (change.spring == null) return const {};
-    final spring = spec.contentSpring;
-    final delay = spec.contentDelay;
+    final spring = _spec.contentSpring;
+    final delay = _spec.contentDelay;
     final plans = <Object, LayoutPlan>{};
     for (final MapEntry(key: id, value: entry) in change.entries.entries) {
       switch (entry) {
@@ -703,8 +708,8 @@ final class GlassBarMotion extends Motion {
     final rest = 1 - _capsules.presenceAt(c);
     final target = _capsules.laidOut(c)!;
     return Offset(
-      1 + (spec.pulseScaleFor(target.width) - 1) * rest,
-      1 + (spec.pulseScaleFor(target.height) - 1) * rest,
+      1 + (_spec.pulseScaleFor(target.width) - 1) * rest,
+      1 + (_spec.pulseScaleFor(target.height) - 1) * rest,
     );
   }
 
@@ -749,10 +754,10 @@ final class GlassBarMotion extends Motion {
         _items.itemAt(id).rect.center +
         (riding && !leaving ? _driftOf(capsule) : Offset.zero);
     var scale =
-        lerpDouble(spec.appearScale, 1, p)! *
+        lerpDouble(_spec.appearScale, 1, p)! *
         (riding ? _pulseAt(capsule).height : 1);
     var presence = p.clamp(0.0, 1.0);
-    var blur = math.max<double>(0, spec.appearBlur * (1 - p));
+    var blur = math.max<double>(0, _spec.appearBlur * (1 - p));
     if (capsule.apart) {
       final q = _capsules.presenceAt(capsule);
       final f = _apartScale(capsule);
@@ -765,7 +770,7 @@ final class GlassBarMotion extends Motion {
           );
       scale *= f.dy;
       presence *= q.clamp(0.0, 1.0);
-      blur = math.max(blur, spec.appearBlur * (1 - q));
+      blur = math.max(blur, _spec.appearBlur * (1 - q));
     }
     return GlassBarItemFrame(
       id,

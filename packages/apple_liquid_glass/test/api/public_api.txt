@@ -443,6 +443,7 @@ class GlassBarTransitionSpec
   @internal final Spring pulseUpSpring
   final double pulseWidthDownDelay
   @internal final Spring pulseWidthDownSpring
+  GlassBarTransitionSpec get reduced
   final double segmentDelay
   static const GlassBarTransitionSpec standard
 final class GlassBody extends LiquidGlassBody

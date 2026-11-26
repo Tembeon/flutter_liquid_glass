@@ -150,6 +150,31 @@ class GlassBarTransitionSpec {
     oversizedInPlace: false,
   );
 
+  /// This spec under Reduce Motion: UIKit's liquid morph there runs on a
+  /// critically damped spring of response 0.15 s, and items appear at
+  /// full size, unblurred, with no swell (read from UIKit, notes private).
+  GlassBarTransitionSpec get reduced => GlassBarTransitionSpec(
+    frameSpring: _reducedSpring,
+    frameDelay: frameDelay,
+    birthStaggerDelay: birthStaggerDelay,
+    contentSpring: _reducedSpring,
+    contentDelay: contentDelay,
+    appearScale: 1,
+    appearBlur: 0,
+    pulseDelay: pulseDelay,
+    pulseUpSpring: pulseUpSpring,
+    pulseMaxScale: 1,
+    pulseMaxPoints: 0,
+    pulseHeightDownDelay: pulseHeightDownDelay,
+    pulseHeightDownSpring: pulseHeightDownSpring,
+    pulseWidthDownDelay: pulseWidthDownDelay,
+    pulseWidthDownSpring: pulseWidthDownSpring,
+    segmentDelay: segmentDelay,
+    oversizedInPlace: oversizedInPlace,
+  );
+
+  static const _reducedSpring = Spring.response(0.15, dampingRatio: 1);
+
   /// The swell of a capsule [length] long, as a factor.
   double pulseScaleFor(double length) =>
       length <= 0 ? 1 : math.min(pulseMaxScale, 1 + pulseMaxPoints / length);
