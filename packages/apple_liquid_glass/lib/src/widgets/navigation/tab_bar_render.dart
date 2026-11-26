@@ -1,27 +1,47 @@
 part of 'tab_bar.dart';
 
-/// A tab's glyph and title where UIKit places them in a bar 62 points tall,
-/// not as a column: the glyph's center 24 points from the top, the title's
-/// bottom at 51, so a title in a taller script grows upward and moves
-/// nothing. [morph] takes the title away as the bar turns into its circle.
+/// A tab's glyph, title and badge where UIKit places them, not as a column
+/// or a row.
+///
+/// Under the glyph (a compact bar): the glyph's center 24 points from the
+/// top and the title's bottom at 51, so a title in a taller script grows
+/// upward and moves nothing; the badge's leading edge 5 points inside the
+/// glyph's trailing edge and its top 6 points above the glyph's, by eye
+/// (UIKit places it 2 points below the tab button's top).
+///
+/// Beside the glyph (a wide bar): the glyph, 8 points and the title
+/// centred in the button and on its middle line; the badge's leading edge
+/// 6 points before the title's trailing edge and its top on the button's
+/// (tab bar passport, iOS 27.2 simulator in landscape).
+///
+/// [morph] takes the title away as the bar turns into its circle.
 class _TabItem extends MultiChildRenderObjectWidget {
   const _TabItem({
     required this.morph,
     required this.titleGoneAt,
+    required this.metrics,
     required super.children,
   });
 
   final ValueListenable<double>? morph;
   final double titleGoneAt;
+  final TabBarMetrics metrics;
 
   @override
-  _RenderTabItem createRenderObject(BuildContext context) =>
-      _RenderTabItem(morph, titleGoneAt, following: followsMotion(context));
+  _RenderTabItem createRenderObject(BuildContext context) => _RenderTabItem(
+    morph,
+    titleGoneAt,
+    metrics,
+    Directionality.of(context),
+    following: followsMotion(context),
+  );
 
   @override
   void updateRenderObject(BuildContext context, _RenderTabItem renderObject) {
     renderObject.morph = morph;
     renderObject.titleGoneAt = titleGoneAt;
+    renderObject.metrics = metrics;
+    renderObject.direction = Directionality.of(context);
     renderObject.following = followsMotion(context);
   }
 }
@@ -32,12 +52,21 @@ class _RenderTabItem extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _TabItemParentData>,
         RenderBoxContainerDefaultsMixin<RenderBox, _TabItemParentData> {
-  _RenderTabItem(this._morph, this._titleGoneAt, {required bool following})
-    : _follow = MotionFollow.render(following: following) {
+  _RenderTabItem(
+    this._morph,
+    this._titleGoneAt,
+    this._metrics,
+    this._direction, {
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following) {
     _hear();
   }
 
   static const double _titleBottom = 51;
+  static const double _badgeInset = 5;
+  static const double _badgeRise = 6;
+  static const double _besideGap = 8;
+  static const double _besideBadgeOverlap = 6;
 
   ValueListenable<double>? _morph;
   ValueListenable<double>? get morph => _morph;
@@ -78,8 +107,27 @@ class _RenderTabItem extends RenderBox
     markNeedsPaint();
   }
 
+  TabBarMetrics _metrics;
+  TabBarMetrics get metrics => _metrics;
+  set metrics(TabBarMetrics value) {
+    if (value == _metrics) return;
+    _metrics = value;
+    markNeedsLayout();
+  }
+
+  TextDirection _direction;
+  TextDirection get direction => _direction;
+  set direction(TextDirection value) {
+    if (value == _direction) return;
+    _direction = value;
+    markNeedsLayout();
+  }
+
   RenderBox get _glyph => firstChild!;
-  RenderBox get _title => lastChild!;
+  RenderBox get _title => childAfter(_glyph)!;
+  RenderBox? get _badge => childAfter(_title);
+
+  bool get _rtl => _direction == TextDirection.rtl;
 
   @override
   void setupParentData(RenderBox child) {
@@ -93,16 +141,19 @@ class _RenderTabItem extends RenderBox
       computeMaxIntrinsicWidth(height);
 
   @override
-  double computeMaxIntrinsicWidth(double height) => math.max(
-    _glyph.getMaxIntrinsicWidth(double.infinity),
-    _title.getMaxIntrinsicWidth(double.infinity),
-  );
+  double computeMaxIntrinsicWidth(double height) {
+    final glyph = _glyph.getMaxIntrinsicWidth(double.infinity);
+    final title = _title.getMaxIntrinsicWidth(double.infinity);
+    return _metrics.titlesBeside
+        ? glyph + _besideGap + title
+        : math.max(glyph, title);
+  }
 
   @override
-  double computeMinIntrinsicHeight(double width) => GlassTabBar.height;
+  double computeMinIntrinsicHeight(double width) => _metrics.height;
 
   @override
-  double computeMaxIntrinsicHeight(double width) => GlassTabBar.height;
+  double computeMaxIntrinsicHeight(double width) => _metrics.height;
 
   @override
   Size computeDryLayout(covariant BoxConstraints constraints) =>
@@ -110,18 +161,36 @@ class _RenderTabItem extends RenderBox
         Size(
           constraints.hasBoundedWidth
               ? constraints.maxWidth
-              : computeMaxIntrinsicWidth(GlassTabBar.height),
-          GlassTabBar.height,
+              : computeMaxIntrinsicWidth(_metrics.height),
+          _metrics.height,
         ),
       );
+
+  void _place(RenderBox child, Offset offset) =>
+      (child.parentData! as _TabItemParentData).offset = offset;
+
+  Offset _at(RenderBox child) =>
+      (child.parentData! as _TabItemParentData).offset;
 
   @override
   void performLayout() {
     size = computeDryLayout(constraints);
     _glyph.layout(const BoxConstraints(), parentUsesSize: true);
-    (_glyph.parentData! as _TabItemParentData).offset = Offset(
-      (size.width - _glyph.size.width) / 2,
-      TabBarMinimizeMotion.glyphCenter - _glyph.size.height / 2,
+    if (_metrics.titlesBeside) {
+      _layOutBeside();
+    } else {
+      _layOutStacked();
+    }
+  }
+
+  void _layOutStacked() {
+    final glyph = _glyph.size;
+    _place(
+      _glyph,
+      Offset(
+        (size.width - glyph.width) / 2,
+        TabBarMinimizeMotion.glyphCenter - glyph.height / 2,
+      ),
     );
     _title.layout(
       BoxConstraints(
@@ -129,9 +198,58 @@ class _RenderTabItem extends RenderBox
       ),
       parentUsesSize: true,
     );
-    (_title.parentData! as _TabItemParentData).offset = Offset(
-      (size.width - _title.size.width) / 2,
-      _titleBottom - _title.size.height,
+    _place(
+      _title,
+      Offset(
+        (size.width - _title.size.width) / 2,
+        _titleBottom - _title.size.height,
+      ),
+    );
+    final badge = _badge;
+    if (badge == null) return;
+    badge.layout(const BoxConstraints(), parentUsesSize: true);
+    final at = _at(_glyph);
+    _place(
+      badge,
+      Offset(
+        _rtl
+            ? at.dx + _badgeInset - badge.size.width
+            : at.dx + glyph.width - _badgeInset,
+        at.dy - _badgeRise,
+      ),
+    );
+  }
+
+  void _layOutBeside() {
+    final glyph = _glyph.size;
+    final outset = 2 * (_metrics.slotInset - TabBarLayout.buttonInset);
+    _title.layout(
+      BoxConstraints(
+        maxWidth: math.max(
+          0,
+          size.width - outset - glyph.width - _besideGap,
+        ),
+      ),
+      parentUsesSize: true,
+    );
+    final title = _title.size;
+    final start = (size.width - glyph.width - _besideGap - title.width) / 2;
+    final middle = size.height / 2;
+    final glyphLeft = _rtl ? start + title.width + _besideGap : start;
+    final titleLeft = _rtl ? start : start + glyph.width + _besideGap;
+    _place(_glyph, Offset(glyphLeft, middle - glyph.height / 2));
+    _place(_title, Offset(titleLeft, middle - title.height / 2));
+    final badge = _badge;
+    if (badge == null) return;
+    badge.layout(const BoxConstraints(), parentUsesSize: true);
+    _place(
+      badge,
+      Offset(
+        _rtl
+            ? titleLeft + _besideBadgeOverlap - badge.size.width
+            : titleLeft + title.width - _besideBadgeOverlap,
+        TabBarLayout.buttonInset,
+      ),
     );
   }
 
@@ -141,22 +259,23 @@ class _RenderTabItem extends RenderBox
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    context.paintChild(
-      _glyph,
-      offset + (_glyph.parentData! as _TabItemParentData).offset,
-    );
-    final title = offset + (_title.parentData! as _TabItemParentData).offset;
+    context.paintChild(_glyph, offset + _at(_glyph));
+    final title = offset + _at(_title);
     final morph = _morph?.value ?? 0;
     if (morph == 0) {
       context.paintChild(_title, title);
-      return;
+    } else {
+      final left = 1 - morph / _titleGoneAt;
+      if (left > 0) {
+        context.pushOpacity(
+          title,
+          Color.getAlphaFromOpacity(left.clamp(0.0, 1.0)),
+          (context, offset) => context.paintChild(_title, offset),
+        );
+      }
     }
-    final left = 1 - morph / _titleGoneAt;
-    if (left <= 0) return;
-    context.pushOpacity(
-      title,
-      Color.getAlphaFromOpacity(left.clamp(0.0, 1.0)),
-      (context, offset) => context.paintChild(_title, offset),
-    );
+    if (_badge case final badge?) {
+      context.paintChild(badge, offset + _at(badge));
+    }
   }
 }

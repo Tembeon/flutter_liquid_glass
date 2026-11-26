@@ -2454,6 +2454,7 @@ class GlassTabBar extends StatelessWidget
   static const double height
   static const double iconSize
   static const double maxTextScale
+  static TabBarMetrics metricsOf(BuildContext context)
   final GlassTabBarMinimizeBehavior minimizeBehavior
   final void Function(int)? onDestinationSelected
   final GlassSearchController? searchController
@@ -3186,7 +3187,7 @@ final class LensMotion extends Motion
   static const ({double driftX, double driftY, double scaleX, double scaleY}) chromeAtRest
   Size get chromeSize
   set chromeSize(Size value)
-  final double height
+  double height
   bool get isDragging
   bool Function(int)? isSelectable
   double get lift
@@ -3978,6 +3979,7 @@ class RawGlassSelector extends StatefulWidget
     List<String?>? itemLabels,
     GlassSelectorCollapse? collapse,
     @internal TabBarHost host = ...,
+    @internal TabBarMetrics tabBarMetrics = ...,
     Key? key,
   })
   final bool autofocus
@@ -3998,6 +4000,7 @@ class RawGlassSelector extends StatefulWidget
   final int? selectedIndex
   final String? semanticLabel
   final WidgetStatesController? statesController
+  @internal final TabBarMetrics tabBarMetrics
   overrides: createState
 class RawGlassSlider extends StatefulWidget
   const RawGlassSlider({
@@ -4326,6 +4329,7 @@ final class SelectorGeometry
     required Size size,
     required List<Rect> slots,
     required List<({double center, double width})> lenses,
+    required double lensHeight,
     Rect? drawn,
   })
   @internal factory SelectorGeometry.of(
@@ -4337,23 +4341,27 @@ final class SelectorGeometry
     required bool proportional,
     required bool spans,
     required TabBarHost host,
+    required TabBarMetrics tabBarMetrics,
   })
   Rect get bar
   final Rect? drawn
-  @internal static double height(GlassSelectorMotion kind)
-  @internal static double lensHeight(GlassSelectorMotion kind)
+  @internal static double height(
+    GlassSelectorMotion kind,
+    TabBarMetrics tabBarMetrics,
+  )
+  final double lensHeight
   final List<({double center, double width})> lenses
   @internal static double natural(
     GlassSelectorMotion kind,
     List<double> items,
     List<double?>? fixed,
+    TabBarMetrics tabBarMetrics,
   )
   static const double segmentedHeight
   static const double segmentedInset
   static const double segmentedPadding
   final Size size
   final List<Rect> slots
-  static const double tabBarLensHeight
 final class SelectorMotion extends Motion
   @internal SelectorMotion({
     required GlassSelectorMotion kind,

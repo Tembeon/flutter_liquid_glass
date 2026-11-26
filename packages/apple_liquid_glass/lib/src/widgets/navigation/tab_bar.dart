@@ -120,7 +120,8 @@ class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle> {
   final WidgetStateProperty<Color?>? foregroundColor;
 
   /// The text style of a tab's title: 10 points, medium, and semibold
-  /// inside the lens, by default (tab bar passport).
+  /// inside the lens, by default; beside the glyph of a wide bar 12 points,
+  /// regular, and semibold inside the lens (tab bar passport).
   final WidgetStateProperty<TextStyle?>? textStyle;
 
   /// The ring inside a tab focused from the keyboard; null derives it from
@@ -461,6 +462,22 @@ class GlassTabBar extends StatelessWidget {
     fontSize: 10,
     fontWeight: FontWeight.w600,
   );
+  static const _wideTitle = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+  );
+  static const _wideSelectedTitle = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+  );
+
+  /// The record a tab bar at [context] lays itself out by: wide where the
+  /// window is regular across, or compact up and down and at least
+  /// [TabBarMetrics.wideFrom] wide, compact elsewhere.
+  static TabBarMetrics metricsOf(BuildContext context) => TabBarMetrics.of(
+    GlassEnvironment.of(context),
+    MediaQuery.sizeOf(context).width,
+  );
 
   /// A style from plain colors and text styles; a null value leaves the
   /// field to the theme, then the default.
@@ -488,30 +505,38 @@ class GlassTabBar extends StatelessWidget {
           }),
   );
 
-  GlassTabBarStyle _defaults(BuildContext context) => GlassTabBarStyle(
-    thumbColor: const WidgetStatePropertyAll(thumb),
-    foregroundColor: WidgetStateMapper<Color?>({
-      WidgetState.selected: GlassTheme.primaryColorOf(context) ?? selected,
-      WidgetState.any: unselected,
-    }),
-    textStyle: const WidgetStateMapper<TextStyle?>({
-      WidgetState.selected: _selectedTitle,
-      WidgetState.any: _title,
-    }),
-  );
+  GlassTabBarStyle _defaults(BuildContext context, TabBarMetrics metrics) =>
+      GlassTabBarStyle(
+        thumbColor: const WidgetStatePropertyAll(thumb),
+        foregroundColor: WidgetStateMapper<Color?>({
+          WidgetState.selected: GlassTheme.primaryColorOf(context) ?? selected,
+          WidgetState.any: unselected,
+        }),
+        textStyle: metrics.titlesBeside
+            ? const WidgetStateMapper<TextStyle?>({
+                WidgetState.selected: _wideSelectedTitle,
+                WidgetState.any: _wideTitle,
+              })
+            : const WidgetStateMapper<TextStyle?>({
+                WidgetState.selected: _selectedTitle,
+                WidgetState.any: _title,
+              }),
+      );
 
   @override
   Widget build(BuildContext context) {
     final themed = GlassTabBarStyle.maybeOf(context);
+    final metrics = metricsOf(context);
     final look = (style ?? const GlassTabBarStyle())
         .merge(themed)
-        .merge(_defaults(context));
+        .merge(_defaults(context, metrics));
     final onSelected = onDestinationSelected;
     Widget bar(GlassSelectorCollapse? collapse, {required TabBarHost host}) =>
         RawGlassSelector(
           motion: GlassSelectorMotion.tabBar,
           collapse: collapse,
           host: host,
+          tabBarMetrics: metrics,
           itemCount: destinations.length,
           itemKeys: [
             for (final (i, destination) in destinations.indexed)
@@ -534,6 +559,7 @@ class GlassTabBar extends StatelessWidget {
           ],
           itemBuilder: (context, index, states) => _TabContent(
             destination: destinations[index],
+            metrics: metrics,
             look: look,
             states: states,
             morph: collapse?.morph,

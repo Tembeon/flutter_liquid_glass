@@ -24,6 +24,7 @@ class _RenderSelectorRow extends RenderBox
     required this._proportional,
     required this._collapse,
     required this._host,
+    required this._tabBarMetrics,
     required this._showsLens,
     required this._hasLens,
     required this._lensContent,
@@ -106,6 +107,14 @@ class _RenderSelectorRow extends RenderBox
   set host(TabBarHost value) {
     if (value == _host) return;
     _host = value;
+    markNeedsLayout();
+  }
+
+  TabBarMetrics _tabBarMetrics;
+  TabBarMetrics get tabBarMetrics => _tabBarMetrics;
+  set tabBarMetrics(TabBarMetrics value) {
+    if (value == _tabBarMetrics) return;
+    _tabBarMetrics = value;
     markNeedsLayout();
   }
 
@@ -217,10 +226,14 @@ class _RenderSelectorRow extends RenderBox
         ),
   ];
 
-  double get _height => SelectorGeometry.height(_kind);
+  double get _height => SelectorGeometry.height(_kind, _tabBarMetrics);
 
-  double _natural() =>
-      SelectorGeometry.natural(_kind, _itemExtents(_height), _itemWidths);
+  double _natural() => SelectorGeometry.natural(
+    _kind,
+    _itemExtents(_height),
+    _itemWidths,
+    _tabBarMetrics,
+  );
 
   @override
   double computeMinIntrinsicWidth(double height) => _natural();
@@ -243,6 +256,7 @@ class _RenderSelectorRow extends RenderBox
     proportional: _proportional,
     spans: _collapse != null,
     host: _host,
+    tabBarMetrics: _tabBarMetrics,
   );
 
   @override

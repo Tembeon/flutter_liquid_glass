@@ -58,8 +58,8 @@ final class TouchGlowMotion extends Motion {
   });
 
   /// Creates the glow of a floating tab bar: the peaks of the flex spec of
-  /// the measured 274 x 62 pt bar, a [tabBarDiameter] spot and
-  /// [tabBarRiseLag] (tab bar passport).
+  /// the measured 274 x 62 pt bar until its own size sets [flex], a
+  /// [tabBarDiameter] spot and [tabBarRiseLag] (tab bar passport).
   factory TouchGlowMotion.tabBar() => TouchGlowMotion(
     flex: FlexSpec.forSize(const Size(274, TabBarLayout.height)),
     diameter: tabBarDiameter,

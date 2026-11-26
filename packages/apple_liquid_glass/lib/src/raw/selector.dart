@@ -64,6 +64,7 @@ class RawGlassSelector extends StatefulWidget {
     this.itemLabels,
     this.collapse,
     @internal this.host = TabBarHost.none,
+    @internal this.tabBarMetrics = TabBarMetrics.compact,
     super.key,
   }) : assert(
          itemKeys == null || itemKeys.length == itemCount,
@@ -152,6 +153,10 @@ class RawGlassSelector extends StatefulWidget {
   /// where it stands in its box.
   @internal
   final TabBarHost host;
+
+  /// The record a tab bar lays itself out by.
+  @internal
+  final TabBarMetrics tabBarMetrics;
 
   // The app's selection among the items; what the selector shows is its
   // motion's.
@@ -523,6 +528,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         proportional: widget.proportionalWidth,
         collapse: widget.collapse,
         host: widget.host,
+        tabBarMetrics: widget.tabBarMetrics,
         showsLens: selected != null,
         hasLens: lens != null,
         lensContent: _lensContent,

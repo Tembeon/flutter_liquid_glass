@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motions/lens_motion.dart';
 import 'package:apple_liquid_glass/src/motions/lens_tuning.dart';
 import 'package:apple_liquid_glass/src/motions/lens_values.dart';
@@ -18,9 +19,10 @@ enum GlassSelectorMotion {
   /// release outside 70 points of the control selects nothing.
   segmented,
 
-  /// `UITabBar`: a bar 62 points tall with a lens 54 points tall. The bar
-  /// swells and drifts under the finger and a glow follows it, and inside
-  /// the lens every item shows its selected look.
+  /// `UITabBar`: a bar 62 points tall with a lens 54 points tall, or 44
+  /// and 36 where it lays out wide ([TabBarMetrics]). The bar swells and
+  /// drifts under the finger and a glow follows it, and inside the lens
+  /// every item shows its selected look.
   tabBar,
 }
 
@@ -29,13 +31,14 @@ enum GlassSelectorMotion {
 /// drawn, for a [GlassSelectorMotion] in the room it is given.
 @immutable
 final class SelectorGeometry {
-  /// A layout of [size] with the given [slots], resting [lenses] and,
-  /// for a bar that does not fill its box, the [drawn] rect.
+  /// A layout of [size] with the given [slots], resting [lenses] [lensHeight]
+  /// tall and, for a bar that does not fill its box, the [drawn] rect.
   @internal
   const SelectorGeometry({
     required this.size,
     required this.slots,
     required this.lenses,
+    required this.lensHeight,
     this.drawn,
   });
 
@@ -47,7 +50,7 @@ final class SelectorGeometry {
   /// rest of a segmented control is shared by what each item claims. With
   /// [spans] a tab bar's box fills [maxWidth] while the bar draws in it,
   /// centered unless [host] stands it at the leading side, and [host] lays
-  /// the bar out as a host of other chrome.
+  /// the bar out as a host of other chrome, by [tabBarMetrics].
   @internal
   factory SelectorGeometry.of(
     GlassSelectorMotion kind,
@@ -58,13 +61,14 @@ final class SelectorGeometry {
     required bool proportional,
     required bool spans,
     required TabBarHost host,
+    required TabBarMetrics tabBarMetrics,
   }) {
-    final h = height(kind);
+    final h = height(kind, tabBarMetrics);
     switch (kind) {
       case GlassSelectorMotion.segmented:
         final width = maxWidth < double.infinity
             ? maxWidth
-            : natural(kind, items, fixed);
+            : natural(kind, items, fixed, tabBarMetrics);
         final size = constrain(Size(width, h));
         final widths = _segmentWidths(
           size.width,
@@ -80,7 +84,12 @@ final class SelectorGeometry {
           lenses.add((center: left + w / 2, width: w - 2 * segmentedInset));
           left += w;
         }
-        return SelectorGeometry(size: size, slots: slots, lenses: lenses);
+        return SelectorGeometry(
+          size: size,
+          slots: slots,
+          lenses: lenses,
+          lensHeight: segmentedHeight - 2 * segmentedInset,
+        );
       case GlassSelectorMotion.tabBar:
         final box = maxWidth < double.infinity
             ? maxWidth
@@ -89,6 +98,7 @@ final class SelectorGeometry {
           items,
           available: box,
           host: host,
+          metrics: tabBarMetrics,
         );
         final size = constrain(Size(spans ? box : bar.width, h));
         final left = host == TabBarHost.circle
@@ -96,6 +106,7 @@ final class SelectorGeometry {
             : (size.width - bar.width) / 2;
         return SelectorGeometry(
           size: size,
+          lensHeight: tabBarMetrics.buttonHeight,
           drawn: Rect.fromLTWH(left, 0, bar.width, size.height),
           slots: [
             for (final button in bar.buttons)
@@ -130,6 +141,9 @@ final class SelectorGeometry {
   /// Each item's resting lens along the track, left to right.
   final List<LensSlot> lenses;
 
+  /// The height of the resting lens.
+  final double lensHeight;
+
   /// The height of a segmented control.
   static const double segmentedHeight = 32;
 
@@ -142,21 +156,14 @@ final class SelectorGeometry {
   /// fit 9.13 - 9.18.
   static const double segmentedPadding = 9.15;
 
-  /// The height of a tab bar's resting lens (tab bar passport).
-  static const double tabBarLensHeight = 54;
-
-  /// The height of the control for [kind].
+  /// The height of the control for [kind], a tab bar's by [tabBarMetrics].
   @internal
-  static double height(GlassSelectorMotion kind) => switch (kind) {
+  static double height(
+    GlassSelectorMotion kind,
+    TabBarMetrics tabBarMetrics,
+  ) => switch (kind) {
     GlassSelectorMotion.segmented => segmentedHeight,
-    GlassSelectorMotion.tabBar => TabBarLayout.height,
-  };
-
-  /// The height of the resting lens for [kind].
-  @internal
-  static double lensHeight(GlassSelectorMotion kind) => switch (kind) {
-    GlassSelectorMotion.segmented => segmentedHeight - 2 * segmentedInset,
-    GlassSelectorMotion.tabBar => tabBarLensHeight,
+    GlassSelectorMotion.tabBar => tabBarMetrics.height,
   };
 
   /// The width the items claim without a bound.
@@ -165,6 +172,7 @@ final class SelectorGeometry {
     GlassSelectorMotion kind,
     List<double> items,
     List<double?>? fixed,
+    TabBarMetrics tabBarMetrics,
   ) {
     switch (kind) {
       case GlassSelectorMotion.segmented:
@@ -177,6 +185,7 @@ final class SelectorGeometry {
         return TabBarLayout.of(
           items,
           available: TabBarLayout.unboundWidth,
+          metrics: tabBarMetrics,
         ).width;
     }
   }
@@ -329,7 +338,12 @@ final class SelectorMotion extends Motion {
       spring: spring,
     );
     final changed =
-        !listEquals(geometry.lenses, _lenses) || geometry.size != size;
+        !listEquals(geometry.lenses, _lenses) ||
+        geometry.size != size ||
+        geometry.lensHeight != _lens?.height;
+    if (tabBar && geometry.bar.size != bar.size) {
+      glow.flex = FlexSpec.forSize(geometry.bar.size);
+    }
     size = geometry.size;
     bar = geometry.bar;
     _lenses = geometry.lenses;
@@ -344,13 +358,14 @@ final class SelectorMotion extends Motion {
         },
         slots: geometry.lenses,
         selected: pending!,
-        height: SelectorGeometry.lensHeight(kind),
+        height: geometry.lensHeight,
         chromeSize: geometry.bar.size,
         onEvent: onEvent,
       );
       created.isSelectable = isSelectable;
       _lens = own(created);
     } else if (changed || pending != null) {
+      lens.height = geometry.lensHeight;
       lens.reslot(
         t,
         geometry.lenses,

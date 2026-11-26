@@ -557,4 +557,107 @@ void main() {
     final title = tester.getCenter(find.text('Mail'));
     expect(badge.dx, closeTo(title.dx - 12 + 19, 0.5));
   });
+
+  group('wide', () {
+    // An iPhone 18 Pro in landscape: 874 wide, short, 62 of safe area and 38
+    // of the wide bar's inset at each side.
+    Widget wide(Widget bar, {TextDirection direction = TextDirection.ltr}) =>
+        MediaQuery(
+          data: const MediaQueryData(size: Size(874, 402)),
+          child: GlassEnvironmentOverride(
+            horizontalSizeClass: GlassSizeClass.compact,
+            verticalSizeClass: GlassSizeClass.compact,
+            child: Directionality(
+              textDirection: direction,
+              child: GlassScope(
+                renderer: const FlatGlassRenderer(),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: 874 - 2 * 62 - 2 * 38,
+                    ),
+                    child: bar,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+    List<GlassTabDestination> tabs({Widget? badge}) => [
+      for (var i = 0; i < 4; i++)
+        GlassTabDestination(
+          icon: SizedBox.square(key: Key('glyph $i'), dimension: 20),
+          label: Text('Tab $i'),
+          badge: i == 1 ? badge : null,
+        ),
+    ];
+
+    testWidgets('the bar is 44 tall and as wide as its tabs, the lens 36, '
+        'each title 12 points beside its glyph at the middle of its '
+        'button', (tester) async {
+      final probe = _Probe();
+      await tester.pumpWidget(
+        wide(
+          GlassTabBar(
+            destinations: tabs(),
+            selectedIndex: 0,
+            onDestinationSelected: (_) {},
+            style: GlassTabBarStyle(builder: probe.build),
+          ),
+        ),
+      );
+      final bar = tester.getRect(find.byType(RawGlassSelector));
+      expect(bar.height, 44);
+      expect(probe.lens.rect!.height, 36);
+      final title = tester.getRect(find.text('Tab 2').first);
+      final glyph = tester.getRect(find.byKey(const Key('glyph 2')).first);
+      expect(glyph.center.dy, closeTo(bar.center.dy, 0.01));
+      expect(title.center.dy, closeTo(bar.center.dy, 0.01));
+      expect(title.left - glyph.right, closeTo(8, 0.01));
+      final text = tester.widget<RichText>(
+        find
+            .descendant(
+              of: find.text('Tab 2').first,
+              matching: find.byType(RichText),
+            )
+            .first,
+      );
+      expect(text.text.style?.fontSize, 12);
+      expect(text.text.style?.fontWeight, FontWeight.w400);
+      final natural = glyph.width + 8 + title.width;
+      expect(
+        bar.width,
+        closeTo(4 * (natural + 12) + 3 * 4 + 8, 0.5),
+        reason: 'buttons 12 wider than their content, 4 apart, 4 inside',
+      );
+    });
+
+    testWidgets('a badge stands on the title, its leading edge 6 before the '
+        "title's trailing edge, its top on the button's", (tester) async {
+      for (final direction in TextDirection.values) {
+        await tester.pumpWidget(
+          wide(
+            GlassTabBar(
+              destinations: tabs(
+                badge: const SizedBox(key: Key('badge'), width: 18, height: 18),
+              ),
+              selectedIndex: 0,
+              onDestinationSelected: (_) {},
+            ),
+            direction: direction,
+          ),
+        );
+        final bar = tester.getRect(find.byType(RawGlassSelector));
+        final badge = tester.getRect(find.byKey(const Key('badge')).first);
+        final title = tester.getRect(find.text('Tab 1').first);
+        expect(badge.top, closeTo(bar.top + 4, 0.01));
+        if (direction == TextDirection.ltr) {
+          expect(badge.left, closeTo(title.right - 6, 0.01));
+        } else {
+          expect(badge.right, closeTo(title.left + 6, 0.01));
+        }
+      }
+    });
+  });
 }

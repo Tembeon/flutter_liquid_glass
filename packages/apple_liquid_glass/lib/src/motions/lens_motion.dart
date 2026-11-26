@@ -164,8 +164,9 @@ final class LensMotion extends Motion {
   /// while it rests.
   static const FlexValues chromeAtRest = FlexInteraction.rest;
 
-  /// The resting height of the lens.
-  final double height;
+  /// The resting height of the lens; a control laid out again by other
+  /// metrics sets it again.
+  double height;
 
   /// Seconds between a selecting touch and the start of the motion.
   final double startDelay;
