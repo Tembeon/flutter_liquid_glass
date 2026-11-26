@@ -70,5 +70,6 @@ const float kGlintOppositeStrength = 1.0;
 const float kBevelShadowDepth = 16.0;
 const float kBevelShadowOffset = 6.0;
 const float kBevelShadowDirectionality = 0.5;
+const float kLeastBevelShadowStrength = 0.001;
 
 #endif

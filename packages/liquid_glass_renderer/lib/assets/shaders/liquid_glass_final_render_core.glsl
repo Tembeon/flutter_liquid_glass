@@ -350,7 +350,7 @@ vec3 applyGlint(
     if (
         uGlintStrength < 0.01 &&
         uContourAlpha < 0.01 &&
-        uBevelShadowStrength < 0.001
+        uBevelShadowStrength < kLeastBevelShadowStrength
     ) {
         return baseColor;
     }
@@ -363,14 +363,14 @@ vec3 applyGlint(
     if (
         outlineCoverage < 0.01 &&
         profile < 0.001 &&
-        uBevelShadowStrength < 0.001
+        uBevelShadowStrength < kLeastBevelShadowStrength
     ) {
         return baseColor;
     }
 
     float glint = rimGlint(uGlintStrength, surfaceNormal, profile);
     float shadow = 0.0;
-    if (uBevelShadowStrength >= 0.001) {
+    if (uBevelShadowStrength >= kLeastBevelShadowStrength) {
         shadow = bevelShadow(
             inwardDistance,
             surfaceNormal,

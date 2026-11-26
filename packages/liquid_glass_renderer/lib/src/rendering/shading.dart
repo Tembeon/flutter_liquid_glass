@@ -246,7 +246,7 @@ double rimReach(
   if (rim.contourWidth > 0) {
     reach = max(reach, 0.5);
   }
-  if (rim.bevelShadowStrength >= 0.001) {
+  if (rim.drawsBevelShadow) {
     reach = max(
       reach,
       _saturatingSmoothstep(

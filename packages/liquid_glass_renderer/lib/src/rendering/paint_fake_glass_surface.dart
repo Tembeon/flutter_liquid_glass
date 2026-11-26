@@ -16,14 +16,10 @@ import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
-/// How far past its shape fake glass wearing [model] draws, in logical
-/// pixels: a pixel past the direct model's contour, or as far for an iOS 27
-/// recipe, whose dark specular is narrower, and for any model.
-double fakeGlassSurfaceOutset([WornColorModel? model]) =>
-    (model == null || model.recipe != null
-        ? GlassRim.contourWidth
-        : model.rim.contourWidth) +
-    1;
+/// How far past its shape fake glass wearing [model] in [look] draws, in
+/// logical pixels: a pixel past what [outsideReachOf] gives.
+double fakeGlassSurfaceOutset(FakeGlassLook look, WornColorModel model) =>
+    outsideReachOf(model, look.sliderPosition) + 1;
 
 final _noSuperellipse = List<double>.filled(SquircleLane.values.length, 0);
 
@@ -200,7 +196,9 @@ void paintFakeGlassContourRing(
     ..save()
     ..clipPath(
       Path.from(shape.getOuterPath(bounds))
-        ..addRect(bounds.inflate(fakeGlassSurfaceOutset(appearance.colorModel)))
+        ..addRect(
+          bounds.inflate(fakeGlassSurfaceOutset(look, appearance.colorModel)),
+        )
         ..fillType = PathFillType.evenOdd,
     );
   paintFakeGlassSurface(
@@ -260,7 +258,7 @@ void paintFakeGlassSurface(
       ..._noSuperellipse,
     ],
   ]);
-  final contourOutset = fakeGlassSurfaceOutset(appearance.colorModel);
+  final contourOutset = fakeGlassSurfaceOutset(look, appearance.colorModel);
   canvas.drawRect(
     shaderQuad(
       (Offset.zero & size).inflate(glintOnly ? 0 : contourOutset),
@@ -311,7 +309,7 @@ void paintFakeGlassFieldBody(
         edge,
       ).outside(
         edge.getBounds().inflate(
-          fakeGlassSurfaceOutset(appearance.colorModel) + 1,
+          fakeGlassSurfaceOutset(look, appearance.colorModel) + 1,
         ),
       ),
     );
@@ -354,7 +352,7 @@ void _paintFakeGlassFieldSurface(
       field.edge,
       paint
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2 * fakeGlassSurfaceOutset(appearance.colorModel),
+        ..strokeWidth = 2 * fakeGlassSurfaceOutset(look, appearance.colorModel),
     );
     return;
   }
@@ -377,7 +375,7 @@ Paint _surfacePaint(ui.FragmentShader shader, {required bool glintOnly}) {
 bool _drawsLight(FakeGlassLook look, WornAppearance appearance) {
   if (!appearance.shows) return false;
   return switch (appearance.colorModel.recipe) {
-    final worn? => recipeOf(worn, look.sliderPosition).rimHighlight.opacity > 0,
+    final worn? => recipeOf(worn, look.sliderPosition).rimHighlight.draws,
     null => appearance.colorModel.rim.glintStrength > 0,
   };
 }
@@ -391,11 +389,12 @@ bool fakeGlassDrawsContour(FakeGlassLook look, WornAppearance appearance) =>
       null => appearance.colorModel.rim.contourWidth > 0,
     };
 
+// Fake glass lays the dark specular over what lies outside it as black of
+// the strength its color bias takes away, so a band that keeps or lifts the
+// color it covers draws nothing here.
 DarkSpecularRecipe? _specularOf(GlassRecipe recipe) {
   final specular = recipe.darkSpecular;
-  return specular.amount > 0 && specular.width > 0 && specular.colorBias < 0
-      ? specular
-      : null;
+  return specular.draws && specular.colorBias < 0 ? specular : null;
 }
 
 Map<FakeSurfaceLane, List<double>> _litLanes(

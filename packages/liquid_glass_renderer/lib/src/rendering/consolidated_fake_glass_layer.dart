@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -137,7 +138,13 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   bool get encodesGeometry => false;
 
   @override
-  double get materialOutset => fakeGlassSurfaceOutset();
+  double get materialOutset => frameShapes.drawn.fold(
+    0,
+    (most, drawn) => math.max(
+      most,
+      fakeGlassSurfaceOutset(_look, drawn.shape.appearance.colorModel),
+    ),
+  );
 
   late FakeGlassLook _look = FakeGlassLook.of(settings);
 

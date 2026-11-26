@@ -324,6 +324,10 @@ final class DirectRim {
   /// The width of the dark contour in logical pixels; `0` without one.
   double get contourWidth => contourStrength > 0 ? GlassRim.contourWidth : 0;
 
+  /// Whether the inner bevel shadow is drawn.
+  bool get drawsBevelShadow =>
+      bevelShadowStrength >= GlassRim.leastBevelShadowStrength;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

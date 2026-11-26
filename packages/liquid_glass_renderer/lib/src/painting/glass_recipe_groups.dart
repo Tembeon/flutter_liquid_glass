@@ -284,6 +284,9 @@ final class RingShadowRecipe {
   /// How soft the band is.
   final double blurRadius;
 
+  /// Whether the band shows.
+  bool get draws => opacity > 0 && blurRadius > 0;
+
   @override
   bool operator ==(Object other) =>
       other is RingShadowRecipe &&
@@ -301,7 +304,7 @@ final class RingShadowRecipe {
       'blur: $blurRadius)';
 }
 
-/// The dark line just outside glass's edge, iOS 27's darker edge.
+/// The dark line just outside glass's edge, iOS 27's dark specular.
 ///
 /// A band [width] logical pixels wide just outside the edge darkens what
 /// lies there by [amount], biased toward the colour by [colorBias]. It is
@@ -309,7 +312,7 @@ final class RingShadowRecipe {
 /// over [spread] radians of the edge's direction.
 @immutable
 final class DarkSpecularRecipe {
-  /// A dark edge of the given amount, band and spread.
+  /// A dark specular of the given amount, band and spread.
   const DarkSpecularRecipe({
     required this.amount,
     required this.width,
@@ -329,6 +332,12 @@ final class DarkSpecularRecipe {
   /// Over how many radians of the edge's direction the band fades, as on a
   /// display with headroom above white.
   final double spread;
+
+  /// Whether the band shows.
+  bool get draws => amount > 0 && width > 0;
+
+  /// How far past the edge the band reaches, in logical pixels.
+  double get reach => draws ? width : 0;
 
   @override
   bool operator ==(Object other) =>
@@ -401,6 +410,9 @@ final class RimHighlightRecipe {
 
   /// How much the brightening multiplies the chroma.
   final double saturation;
+
+  /// Whether the light shows.
+  bool get draws => opacity > 0;
 
   @override
   bool operator ==(Object other) =>

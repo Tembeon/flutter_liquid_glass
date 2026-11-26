@@ -187,24 +187,33 @@ List<double> recipeLanes(
     ],
     RecipeLane.tintFloor: [law.lowFloor],
     RecipeLane.specularBias: [
-      if (specular.amount > 0) 1 / specular.amount - 2 else 0,
+      if (specular.draws) 1 / specular.amount - 2 else 0,
     ],
-    RecipeLane.specularWidth: [specular.width * dpr],
+    RecipeLane.specularWidth: [specular.reach * dpr],
     RecipeLane.specularColorBias: [
-      if (specular.amount > 0) specular.colorBias else 0,
+      if (specular.draws) specular.colorBias else 0,
     ],
     RecipeLane.specularSpread: [math.cos(specular.spread)],
-    RecipeLane.ringOpacity: [if (ring.blurRadius > 0) ring.opacity else 0],
+    RecipeLane.ringOpacity: [if (ring.draws) ring.opacity else 0],
     RecipeLane.ringOffset: [ring.offset * dpr],
     RecipeLane.ringStroke: [ring.strokeWidth * dpr],
     RecipeLane.ringInverseRadius: [
-      if (ring.blurRadius > 0) 1 / (ring.blurRadius * dpr) else 0,
+      if (ring.draws) 1 / (ring.blurRadius * dpr) else 0,
     ],
   });
   return _recipeLanes[key] = lanes;
 }
 
 final _recipeLanes = <(RecipeLook, double, double), List<double>>{};
+
+/// How far glass wearing [model] at [sliderPosition] draws outside its
+/// shape, in logical pixels: the direct model's contour, or the recipe's
+/// dark specular.
+double outsideReachOf(WornColorModel model, double sliderPosition) =>
+    switch (model.recipe) {
+      final look? => recipeOf(look, sliderPosition).darkSpecular.reach,
+      null => model.rim.contourWidth,
+    };
 
 /// How far the edges the recipes of [looks] draw reach, in logical pixels:
 /// into the glass, its rim highlight and its ring shadow's band two sigmas
@@ -218,22 +227,20 @@ final _recipeLanes = <(RecipeLook, double, double), List<double>>{};
   for (final look in looks) {
     final recipe = recipeOf(look, sliderPosition);
     final ring = recipe.ringShadow;
-    if (ring.opacity > 0 && ring.blurRadius > 0) {
+    if (ring.draws) {
       inward = math.max(
         inward,
         ring.offset + ring.strokeWidth + 2 * ring.blurRadius,
       );
     }
     final highlight = recipe.rimHighlight;
-    if (highlight.opacity > 0) {
+    if (highlight.draws) {
       inward = math.max(
         inward,
         math.max(highlight.width, highlight.diffuseWidth),
       );
     }
-    if (recipe.darkSpecular.amount > 0) {
-      outward = math.max(outward, recipe.darkSpecular.width);
-    }
+    outward = math.max(outward, recipe.darkSpecular.reach);
   }
   return (inward: inward, outward: outward);
 }

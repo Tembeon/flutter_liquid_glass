@@ -173,6 +173,9 @@ abstract final class GlassRim {
 
   /// How strongly the inner bevel shadow follows the light direction.
   static const double bevelShadowDirectionality = 0.5;
+
+  /// The least strength of an inner bevel shadow that is drawn.
+  static const double leastBevelShadowStrength = 0.001;
 }
 
 /// How far the final shader shifts the backdrop at a glass's edge, which the
@@ -1039,7 +1042,8 @@ const float kGlintWrap = ${_float(GlassRim.glintWrap)};
 const float kGlintOppositeStrength = ${_float(GlassRim.glintOppositeStrength)};
 const float kBevelShadowDepth = ${_float(GlassRim.bevelShadowDepth)};
 const float kBevelShadowOffset = ${_float(GlassRim.bevelShadowOffset)};
-const float kBevelShadowDirectionality = ${_float(GlassRim.bevelShadowDirectionality)};''',
+const float kBevelShadowDirectionality = ${_float(GlassRim.bevelShadowDirectionality)};
+const float kLeastBevelShadowStrength = ${_float(GlassRim.leastBevelShadowStrength)};''',
   ),
   'fake_glass_lanes.glsl': _guarded(
     'fake_glass_lanes.glsl',
