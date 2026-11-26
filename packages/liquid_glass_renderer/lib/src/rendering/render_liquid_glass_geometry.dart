@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
-import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
@@ -372,26 +371,20 @@ class GeometryCache {
 @immutable
 class ShapeGeometry {
   /// Describes one shape as its layer draws it.
-  ShapeGeometry({
+  const ShapeGeometry({
     required this.renderObject,
     required this.shape,
     required this.shapeBounds,
     required this.appearance,
     this.shadows = const [],
     this.shapeToGeometry,
-  }) : _rawCornerRadius = shape.cornerRadius,
-       _rawBottomRadius = shape.bottomCornerRadius,
-       _rawShapeType = shape.rawType;
+  });
 
   /// The render object of the shape.
   final LiquidGlassShapeRenderObject renderObject;
 
   /// The shape.
   final LiquidShape shape;
-
-  final RawShapeType _rawShapeType;
-  final double _rawCornerRadius;
-  final double _rawBottomRadius;
 
   /// The appearance of the shape, as glass of its size wears it.
   final WornAppearance appearance;
@@ -427,22 +420,6 @@ class ShapeGeometry {
     Object.hashAll(shadows),
     shapeToGeometry,
   );
-
-  // What the shape set encodes for the geometry shaders, which only it
-  // reads.
-
-  /// The kind of the shape, as the geometry shaders tell it.
-  @internal
-  RawShapeType get encodedShapeType => _rawShapeType;
-
-  /// The corner radius the geometry shaders draw the shape with.
-  @internal
-  double get encodedCornerRadius => _rawCornerRadius;
-
-  /// The radius of the two bottom corners: [encodedCornerRadius] except for a
-  /// [RawShapeType.squirclePair].
-  @internal
-  double get encodedBottomRadius => _rawBottomRadius;
 
   @override
   String toString() =>
