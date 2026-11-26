@@ -13,7 +13,7 @@ import 'package:liquid_glass_renderer/rendering.dart';
 /// a quarter circle that is strongest at the rim: first by the bend the
 /// lens gives its content, 0.2 of its height over 0.16 of it
 /// ([LensShadowLaw.contentBend]), then by the bend the lift adds,
-/// [liftBend] over [liftBendHeight] on every lens. So the rim of a tab
+/// [liftBend] over [liftBendDepth] on every lens. So the rim of a tab
 /// bar's lens shows what lies 14 points inside it, 4.2 points deep shows
 /// what lies 8.4 points deep, the nearest to the rim that ever shows, and
 /// from 11.2 points deep everything shows in place. Both bends grow with
@@ -29,14 +29,14 @@ abstract final class LensContentLaw {
   static const double liftBend = 17.5;
 
   /// How deep from the rim [liftBend] reaches.
-  static const double liftBendHeight = 11.2;
+  static const double liftBendDepth = 11.2;
 
   /// The bends of a lens of [height] across its short side lifted by
   /// [lift], from the one nearest the eye.
   static List<LiquidGlassContentBend> bends(double height, {double lift = 1}) {
     return [
       LensShadowLaw.contentBend(height, small: false, lift: lift),
-      LiquidGlassContentBend(amount: liftBend * lift, height: liftBendHeight),
+      LiquidGlassContentBend(amount: liftBend * lift, depth: liftBendDepth),
     ];
   }
 

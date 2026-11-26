@@ -19,7 +19,7 @@ LiquidGlassFrostBand _hard(
   fade: _fade,
   line: _line,
   saturation: saturation,
-  brightness: brightness,
+  lighten: brightness,
   presence: presence,
 );
 

@@ -636,7 +636,7 @@ final class MenuMotion extends Motion with Presented {
       center:
           _unflexed(glow.center) -
           _stack.frame(_stack.all[index - 1], menuRect).topLeft,
-      radius: glow.radius,
+      sigma: glow.sigma,
       spot: glow.spot,
     );
   }

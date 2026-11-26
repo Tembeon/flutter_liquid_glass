@@ -752,7 +752,7 @@ final class BandUniforms {
         BandLane.frost: [whole / targetShare],
         BandLane.fadeWhole: [row(dissolve.whole)],
         BandLane.fadeGone: [row(dissolve.gone)],
-        BandLane.brightness: [band.drawnBrightness],
+        BandLane.lighten: [band.drawnLighten],
         BandLane.fade: [fade.r * alpha, fade.g * alpha, fade.b * alpha, alpha],
         BandLane.hairlineRows: [row(lineStart), row(lineEnd)],
         BandLane.hairlineAlpha: [line.a],

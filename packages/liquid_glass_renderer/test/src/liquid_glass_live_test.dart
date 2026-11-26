@@ -30,7 +30,7 @@ const _second = LiquidGlassShapeFrame(
 );
 const _glow = LiquidGlassGlow(
   center: Offset(90, 90),
-  radius: 24,
+  sigma: 24,
   gain: 0.6,
   wash: 0.08,
 );

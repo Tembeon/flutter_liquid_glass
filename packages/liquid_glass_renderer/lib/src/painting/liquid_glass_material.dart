@@ -33,13 +33,13 @@ final class LiquidGlassMaterial {
     required Brightness brightness,
     double sliderPosition = 0,
     bool highContrast = false,
-    Color? tint,
+    Color tint = const Color(0x00000000),
   }) => LiquidGlassMaterial(
     settings: LiquidGlassSettings.ios27Regular(sliderPosition: sliderPosition),
     appearance: LiquidGlassAppearance.ios27Regular(
       brightness: brightness,
       highContrast: highContrast,
-      tint: tint ?? const Color(0x00000000),
+      tint: tint,
     ),
     shadows: brightness == Brightness.dark
         ? const [LiquidGlassShadow.ios27Regular(brightness: Brightness.dark)]
@@ -56,12 +56,12 @@ final class LiquidGlassMaterial {
   factory LiquidGlassMaterial.ios27Clear({
     double sliderPosition = 0,
     bool highContrast = false,
-    Color? tint,
+    Color tint = const Color(0x00000000),
   }) => LiquidGlassMaterial(
     settings: LiquidGlassSettings.ios27Clear(sliderPosition: sliderPosition),
     appearance: LiquidGlassAppearance.ios27Clear(
       highContrast: highContrast,
-      tint: tint ?? const Color(0x00000000),
+      tint: tint,
     ),
   );
 

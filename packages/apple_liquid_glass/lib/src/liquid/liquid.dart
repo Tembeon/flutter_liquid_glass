@@ -115,13 +115,13 @@ base class LiquidGlassRenderer extends GlassRenderer {
       ? LiquidGlassMaterial.ios27Clear(
           sliderPosition: sliderPosition,
           highContrast: highContrast,
-          tint: glass.tint,
+          tint: glass.tint ?? const Color(0x00000000),
         )
       : LiquidGlassMaterial.ios27Regular(
           brightness: brightness,
           sliderPosition: sliderPosition,
           highContrast: highContrast,
-          tint: glass.tint,
+          tint: glass.tint ?? const Color(0x00000000),
         );
 
   /// The shadows a body of [role] made of [material] casts.
@@ -307,7 +307,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       glow: switch (frame.glow) {
         final glow? => LiquidGlassGlow(
           center: glow.center,
-          radius: glow.radius,
+          sigma: glow.sigma,
           gain: glow.gainOn(widget.details.glass, _brightness),
           wash: glow.wash,
         ),

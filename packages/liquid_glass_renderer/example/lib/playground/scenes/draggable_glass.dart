@@ -39,7 +39,7 @@ class _TouchGlassState extends State<TouchGlass> {
     glow: switch (_touch) {
       final touch? => LiquidGlassGlow(
         center: touch,
-        radius: 24,
+        sigma: 24,
         gain: 0.3,
         wash: 0.04,
       ),

@@ -3059,13 +3059,13 @@ class GlassTouchGlow
   const GlassTouchGlow({
     required double wash,
     required Offset center,
-    required double radius,
+    required double sigma,
     required double spot,
   })
   final Offset center
   double gainOn(Glass glass, Brightness brightness)
-  final double radius
   GlassTouchGlow shift(Offset offset)
+  final double sigma
   final double spot
   final double wash
   overrides: ==, hashCode

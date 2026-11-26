@@ -93,10 +93,10 @@ abstract final class LensShadowLaw {
     required bool small,
     double lift = 1,
   }) => small
-      ? const LiquidGlassContentBend(amount: 0, height: 0)
+      ? const LiquidGlassContentBend(amount: 0, depth: 0)
       : LiquidGlassContentBend(
           amount: 0.2 * height * lift,
-          height: 0.16 * height,
+          depth: 0.16 * height,
         );
 }
 
@@ -322,7 +322,7 @@ class RenderLensShadows extends RenderBox {
         half,
         math.max(
           LensShadowLaw.innerDrop + 3 * LensShadowLaw.sigma,
-          bend.height,
+          bend.depth,
         ),
       );
       const drop = Offset(0, LensShadowLaw.innerDrop);

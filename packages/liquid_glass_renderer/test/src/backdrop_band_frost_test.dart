@@ -36,7 +36,7 @@ class _RenderHardBand extends RenderBox with LiquidGlassBackdropFilterHost {
         fade: Color(0x80FFFFFF),
         line: Color(0x1A000000),
         saturation: 1.25,
-        brightness: 0.03,
+        lighten: 0.03,
       ),
       clip: offset & size,
     )..clip = offset & size;

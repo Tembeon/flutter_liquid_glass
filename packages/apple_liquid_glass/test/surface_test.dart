@@ -1242,7 +1242,7 @@ const _capable = LiquidGlassSupport.available(
 const _touch = GlassTouchGlow(
   wash: 0.04,
   center: Offset(30, 22),
-  radius: 20,
+  sigma: 20,
   spot: 0.3,
 );
 

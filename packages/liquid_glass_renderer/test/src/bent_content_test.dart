@@ -292,7 +292,7 @@ class _RenderSharp extends RenderBox {
       offset,
       rect: rect,
       radius: _radius,
-      bends: const [LiquidGlassContentBend(amount: 6, height: 10)],
+      bends: const [LiquidGlassContentBend(amount: 6, depth: 10)],
       devicePixelRatio: 3,
       aberration: parted ? 3.7 : 0,
       aberrationDepth: parted ? 14 : 0,
@@ -339,7 +339,7 @@ Future<(Uint8List, int)> _sharp(
 }
 
 void main() {
-  const bend = LiquidGlassContentBend(amount: 10, height: 10);
+  const bend = LiquidGlassContentBend(amount: 10, depth: 10);
   // A line across the shape 12 to 14 px under its top, deeper than the
   // bends below reach.
   final line = Rect.fromLTWH(_shape.left, _shape.top + 12, _shape.width, 2);
@@ -375,7 +375,7 @@ void main() {
     // what lies 10.0 px deep, nothing.
     final reds = await _reds(
       tester,
-      const [LiquidGlassContentBend(amount: 18, height: 10)],
+      const [LiquidGlassContentBend(amount: 18, depth: 10)],
       [line],
     );
     expect(inPlace(tester), isFalse);
@@ -418,7 +418,7 @@ void main() {
   });
 
   group('with a parting', () {
-    const bends = [LiquidGlassContentBend(amount: 6, height: 10)];
+    const bends = [LiquidGlassContentBend(amount: 6, depth: 10)];
     // Three rows across the shape, 9 to 12 px under its top.
     final band = Rect.fromLTWH(_shape.left, _shape.top + 9, _shape.width, 3);
 
@@ -604,7 +604,7 @@ void main() {
     testWidgets('more than two bends are shown and not parted', (
       tester,
     ) async {
-      const one = LiquidGlassContentBend(amount: 2, height: 10);
+      const one = LiquidGlassContentBend(amount: 2, depth: 10);
       final pixels = await parted(
         tester,
         [band],

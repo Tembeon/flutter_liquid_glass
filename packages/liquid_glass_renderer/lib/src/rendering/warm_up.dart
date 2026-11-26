@@ -475,7 +475,7 @@ OffsetLayer _bentContent(
     Offset.zero,
     rect: bounds,
     radius: 6,
-    bends: const [LiquidGlassContentBend(amount: 2, height: 6)],
+    bends: const [LiquidGlassContentBend(amount: 2, depth: 6)],
     devicePixelRatio: devicePixelRatio,
     content: (context, offset) => context.canvas.drawRect(
       bounds.shift(offset),

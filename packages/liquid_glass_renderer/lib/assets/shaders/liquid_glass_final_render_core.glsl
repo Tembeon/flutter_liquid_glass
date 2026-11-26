@@ -93,7 +93,7 @@ vec4 bandColor(highp vec2 fragment) {
     );
     vec3 rgb = color.rgb;
     float luminance = dot(rgb, LUMA_WEIGHTS);
-    rgb = clamp(mix(vec3(luminance), rgb, uBandSaturation) + uBandBrightness * color.a, 0.0, 1.0);
+    rgb = clamp(mix(vec3(luminance), rgb, uBandSaturation) + uBandLighten * color.a, 0.0, 1.0);
     float whole = clamp(
         (fragment.y - uBandFadeGone) / (uBandFadeWhole - uBandFadeGone),
         0.0,

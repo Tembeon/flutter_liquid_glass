@@ -52,7 +52,7 @@ void paintFakeGlassGlow(
     );
   }
   if (glow.drawsSpot) {
-    final reach = glow.radius * _spotReach;
+    final reach = glow.sigma * _spotReach;
     Color white(double t) {
       final d = t * _spotReach;
       final level =

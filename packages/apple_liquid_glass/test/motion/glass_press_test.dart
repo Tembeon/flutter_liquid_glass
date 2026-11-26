@@ -138,7 +138,7 @@ void main() {
     expect(lit.center, const Offset(30, 10));
     expect(lit.wash, moreOrLessEquals(_litWash, epsilon: 1e-9));
     expect(
-      lit.radius,
+      lit.sigma,
       TouchGlowMotion.spotSpread * TouchGlowMotion.buttonDiameter,
     );
     press.pointerUp(1, const Offset(30, 10));

@@ -259,8 +259,8 @@ extension type const DrawnGlow._(LiquidGlassGlow _glow)
     return drawn.drawsWash || drawn.drawsSpot ? drawn : null;
   }
 
-  /// Whether the spot brightens anything: it has a gain and a radius.
-  bool get drawsSpot => gain > 0 && radius > 0;
+  /// Whether the spot brightens anything: it has a gain and a sigma.
+  bool get drawsSpot => gain > 0 && sigma > 0;
 
   /// Whether the wash raises the channels.
   bool get drawsWash => wash > 0;
@@ -291,7 +291,7 @@ GlowUniforms glowUniforms(
   final dpr = devicePixelRatio;
   final m = toLayer.storage;
   final stretch = math.sqrt((m[0] * m[5] - m[1] * m[4]).abs());
-  final sigma = glow.radius * stretch * dpr;
+  final sigma = glow.sigma * stretch * dpr;
   final spot = glow.drawsSpot && sigma > 0;
   final center = MatrixUtils.transformPoint(toLayer, glow.center) * dpr;
   final lit = box == null ? null : MatrixUtils.transformRect(toLayer, box);

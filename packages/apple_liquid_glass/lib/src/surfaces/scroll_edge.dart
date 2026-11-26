@@ -40,7 +40,7 @@ abstract final class ScrollEdgeTuning {
 
   /// The brightness added under the hard band, as a share of full
   /// intensity.
-  static const double hardBrightness = 0.03;
+  static const double hardLighten = 0.03;
 
   /// How far the content fades toward the background: UIKit's replay
   /// alpha, 0.5 in light and 0.6 in dark.
@@ -203,7 +203,7 @@ class RenderScrollEdge extends RenderBox {
           fade: _fadeColor,
           line: ScrollEdgeTuning.hairline(_brightness),
           saturation: ScrollEdgeTuning.hardSaturation,
-          brightness: ScrollEdgeTuning.hardBrightness,
+          lighten: ScrollEdgeTuning.hardLighten,
           presence: presence,
         )
       : LiquidGlassFrostBand.soft(

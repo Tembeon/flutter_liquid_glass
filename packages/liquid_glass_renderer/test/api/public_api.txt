@@ -128,10 +128,10 @@ sealed class LiquidGlassColorModel
     bool highContrast,
   })
 final class LiquidGlassContentBend
-  const LiquidGlassContentBend({required double amount, required double height})
+  const LiquidGlassContentBend({required double amount, required double depth})
   final double amount
-  final double height
-  double shownDepth(double depth)
+  final double depth
+  double shownDepth(double at)
   overrides: ==, hashCode, toString
 enum LiquidGlassDeviceClass
   capable,
@@ -182,7 +182,7 @@ sealed class LiquidGlassFrostBand extends LiquidGlassBackdropFilter
     required Color fade,
     required Color line,
     required double saturation,
-    required double brightness,
+    required double lighten,
     double presence,
   })
   const factory LiquidGlassFrostBand.soft({
@@ -204,17 +204,17 @@ sealed class LiquidGlassFrostBand extends LiquidGlassBackdropFilter
 final class LiquidGlassGlow
   const LiquidGlassGlow({
     Offset center = ...,
-    double radius = ...,
+    double sigma = ...,
     double gain = ...,
     double wash = ...,
   })
   final Offset center
   final double gain
-  final double radius
+  final double sigma
   final double wash
   overrides: ==, hashCode, toString
 final class LiquidGlassHardFrostBand extends LiquidGlassFrostBand
-  final double brightness
+  final double lighten
   final Color line
   final double saturation
   overrides: ==, hashCode, paintOver, toString
@@ -298,13 +298,13 @@ final class LiquidGlassMaterial
   factory LiquidGlassMaterial.ios27Clear({
     double sliderPosition = ...,
     bool highContrast = ...,
-    Color? tint,
+    Color tint = ...,
   })
   factory LiquidGlassMaterial.ios27Regular({
     required Brightness brightness,
     double sliderPosition = ...,
     bool highContrast = ...,
-    Color? tint,
+    Color tint = ...,
   })
   const LiquidGlassMaterial({
     required LiquidGlassSettings settings,

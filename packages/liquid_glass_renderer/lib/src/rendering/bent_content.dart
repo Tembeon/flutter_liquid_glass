@@ -96,7 +96,7 @@ final class LiquidGlassBentContent {
     final half = rect.shortestSide / 2;
     var reach = 0.0;
     for (final bend in bends) {
-      if (bend.amount != 0) reach = math.max(reach, bend.height);
+      if (bend.amount != 0) reach = math.max(reach, bend.depth);
     }
     reach = math.min(reach, half);
     ui.FragmentProgram? program;
@@ -184,7 +184,7 @@ final class LiquidGlassBentContent {
       ..translate(rect.left, rect.top);
     var still = aberrationDepth;
     for (final bend in bends) {
-      if (bend.amount != 0) still = math.max(still, bend.height);
+      if (bend.amount != 0) still = math.max(still, bend.depth);
     }
     final middle = _onPixels(_middle(rect.size, radius, still), canvas);
     // The shader draws the picture as it is from [still] deep on.
@@ -203,9 +203,9 @@ final class LiquidGlassBentContent {
         BentContentLane.pictureScale: [1 / picture.width, 1 / picture.height],
         BentContentLane.bends: [
           first?.amount ?? 0,
-          first?.height ?? 0,
+          first?.depth ?? 0,
           second?.amount ?? 0,
-          second?.height ?? 0,
+          second?.depth ?? 0,
         ],
         BentContentLane.parting: [aberration, aberrationDepth],
         BentContentLane.pixel: [1 / devicePixelRatio],

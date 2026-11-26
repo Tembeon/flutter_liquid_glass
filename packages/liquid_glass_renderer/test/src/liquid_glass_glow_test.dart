@@ -21,7 +21,7 @@ const _shape = LiquidRoundedSuperellipse(radius: 20);
 
 const _glow = LiquidGlassGlow(
   center: Offset(50, 50),
-  radius: 20,
+  sigma: 20,
   gain: 0.5,
   wash: 0.1,
 );
@@ -193,10 +193,10 @@ void main() {
       DrawnGlow.of(const LiquidGlassGlow(gain: 1)),
       isNull,
     );
-    expect(DrawnGlow.of(const LiquidGlassGlow(radius: 12)), isNull);
+    expect(DrawnGlow.of(const LiquidGlassGlow(sigma: 12)), isNull);
     expect(DrawnGlow.of(const LiquidGlassGlow()), isNull);
     expect(DrawnGlow.of(const LiquidGlassGlow(wash: 0.1)), isNotNull);
-    expect(DrawnGlow.of(const LiquidGlassGlow(radius: 12, gain: 1)), isNotNull);
+    expect(DrawnGlow.of(const LiquidGlassGlow(sigma: 12, gain: 1)), isNotNull);
     expect(DrawnGlow.of(null), isNull);
   });
 

@@ -861,8 +861,8 @@ enum BandLane implements UniformLane {
   /// The fragment row where the fade and the frost are gone.
   fadeGone,
 
-  /// The color's brightness.
-  brightness,
+  /// How much lighter the color is drawn.
+  lighten,
 
   /// The fade, premultiplied. It lies over what the glass reads too.
   fade(4),

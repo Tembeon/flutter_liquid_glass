@@ -95,7 +95,7 @@ uniform highp vec4 uBand[5];
 #define uBandFrost uBand[1].x
 #define uBandFadeWhole uBand[1].y
 #define uBandFadeGone uBand[1].z
-#define uBandBrightness uBand[1].w
+#define uBandLighten uBand[1].w
 #define uBandFade uBand[2]
 #define uBandHairlineRows uBand[3].xy
 #define uBandHairlineAlpha uBand[3].z

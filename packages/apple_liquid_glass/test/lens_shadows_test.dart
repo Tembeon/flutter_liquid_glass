@@ -92,7 +92,7 @@ void main() {
         'nothing shallower than 7.27', () {
       final bend = LensShadowLaw.contentBend(70, small: false);
       expect(bend.amount, moreOrLessEquals(14));
-      expect(bend.height, moreOrLessEquals(11.2));
+      expect(bend.depth, moreOrLessEquals(11.2));
       final shown = bend.shownDepth;
       expect(shown(0), moreOrLessEquals(14));
       expect(shown(4.2), moreOrLessEquals(7.271, epsilon: 2e-3));
@@ -105,7 +105,7 @@ void main() {
       expect(least, moreOrLessEquals(7.271, epsilon: 2e-3));
       expect(
         LensShadowLaw.contentBend(38, small: true),
-        const LiquidGlassContentBend(amount: 0, height: 0),
+        const LiquidGlassContentBend(amount: 0, depth: 0),
       );
     });
   });

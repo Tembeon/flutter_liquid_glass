@@ -6,8 +6,8 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 void main() {
   test('values print their fields by the names their constructors take', () {
     expect(
-      const LiquidGlassContentBend(amount: 2, height: 9).toString(),
-      'LiquidGlassContentBend(amount: 2.0, height: 9.0)',
+      const LiquidGlassContentBend(amount: 2, depth: 9).toString(),
+      'LiquidGlassContentBend(amount: 2.0, depth: 9.0)',
     );
     expect(
       const LiquidGlassSettings().toString(),
