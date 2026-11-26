@@ -97,10 +97,9 @@ List<double> fakeGlassFaceMatrix({
     final y = i / (samples - 1);
     final k = kept(y);
     final w = weight(y);
+    final faceChroma = face.saturation * k * (1 + faceChromaLift * (1 - k));
     chroma +=
-        ((1 - w) * (1 - fill.a) * face.saturation * k * (1 + 0.3 * (1 - k)) +
-            w * bleed.saturation) /
-        samples;
+        ((1 - w) * (1 - fill.a) * faceChroma + w * bleed.saturation) / samples;
   }
   final result = <double>[];
   for (var row = 0; row < 3; row++) {
@@ -122,10 +121,8 @@ double _lumaOf(Color color) =>
     lumaWeights.$2 * color.g +
     lumaWeights.$3 * color.b;
 
-double _kept(FaceRecipe face, double luma) {
-  final rollOff = face.maxLuma <= 0 ? 0.0 : 1 - face.maxLuma.clamp(0.0, 1.0);
-  return (1 - luma * rollOff).clamp(0.0, 1.0);
-}
+double _kept(FaceRecipe face, double luma) =>
+    (1 - luma * face.rollOff).clamp(0.0, 1.0);
 
 /// The luma [face] gives a grey backdrop of luma [luma], its fill
 /// included, as the final shader's recipeFaceOf.

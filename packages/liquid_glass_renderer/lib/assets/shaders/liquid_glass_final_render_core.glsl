@@ -169,7 +169,7 @@ vec3 recipeFaceOf(vec3 c) {
     float luma = dot(c, LUMA_WEIGHTS);
     float kept = clamp(1.0 - luma * RECIPE(recipeFaceRollOff), 0.0, 1.0);
     vec3 shown = vec3(mix(face.x, face.y, kept * luma)) +
-        (c - luma) * (kept * (1.0 + 0.3 * (1.0 - kept)) * face.z);
+        (c - luma) * (kept * (1.0 + kFaceChromaLift * (1.0 - kept)) * face.z);
     vec4 fill = RECIPE(recipeFaceFill);
     return shown * (1.0 - fill.a) + fill.rgb;
 }

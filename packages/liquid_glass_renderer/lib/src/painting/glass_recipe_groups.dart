@@ -1,4 +1,4 @@
-import 'dart:ui' show Color;
+import 'dart:ui' show Color, clampDouble;
 
 import 'package:flutter/foundation.dart';
 
@@ -127,6 +127,10 @@ final class FaceRecipe {
   /// The luma the face rolls off toward, as on a display with headroom
   /// above white such as an iPhone's; 0 rolls nothing off.
   final double maxLuma;
+
+  /// How much of a colour's luma the face takes away per unit of luma, from
+  /// [maxLuma]: what it keeps of luma `y` is `1 - y * rollOff`.
+  double get rollOff => maxLuma <= 0 ? 0 : 1 - clampDouble(maxLuma, 0, 1);
 
   @override
   bool operator ==(Object other) =>

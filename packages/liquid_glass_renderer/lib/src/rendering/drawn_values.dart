@@ -149,9 +149,7 @@ List<double> recipeLanes(
   final law = tintLawOf(look);
   final lanes = laneBlock(RecipeLane.values, {
     RecipeLane.face: [face.black, face.white, face.saturation],
-    RecipeLane.faceRollOff: [
-      if (face.maxLuma <= 0) 0 else 1 - clampDouble(face.maxLuma, 0, 1),
-    ],
+    RecipeLane.faceRollOff: [face.rollOff],
     RecipeLane.faceFill: [
       fill.r * fill.a,
       fill.g * fill.a,

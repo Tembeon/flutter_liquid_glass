@@ -326,6 +326,11 @@ const frostEase = (10.0, -15.0, 6.0);
 @internal
 const lumaWeights = (0.2126, 0.7152, 0.0722);
 
+/// How much an iOS 27 face lifts the chroma of what it keeps of a colour
+/// as it rolls the colour's luma off: `1 + faceChromaLift * (1 - kept)`.
+@internal
+const double faceChromaLift = 0.3;
+
 /// The mirror that turns an edge's outward normal into the way glass parts
 /// colors along, as the rows (x, y) and (y, z): the reflection across the
 /// line 52.5 degrees from the right to the bottom, cos 105 and sin 105.
@@ -1030,6 +1035,7 @@ const float kLevelSourceSpan = ${_float(levelSourceSpan)};
 const float kLevelSpanKnee = ${_float(levelSpanKnee)};
 const vec3 kFrostEase = ${_vec3(frostEase)};
 const vec3 LUMA_WEIGHTS = ${_vec3(lumaWeights)};
+const float kFaceChromaLift = ${_float(faceChromaLift)};
 const vec3 kPartingMirror = ${_vec3(partingMirror)};
 const vec3 kPartingSide = ${_vec3(partingSideWeights)};
 const vec3 kPartingMiddle = ${_vec3(partingMiddleWeights)};
