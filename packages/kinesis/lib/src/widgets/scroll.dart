@@ -1,3 +1,4 @@
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
@@ -58,6 +59,8 @@ final class MotionScroll extends Motion {
     MotionSignal(MotionScrollPhase.idle),
   );
   ScrollPosition? _position;
+  double? _glideTarget;
+  ({double pixels, double t})? _glideStart;
 
   /// The scroll view's metrics from its latest notification, or null before
   /// its first.
@@ -69,6 +72,16 @@ final class MotionScroll extends Motion {
   /// The position of the scroll view the latest notification came from: to
   /// scroll it to its start when the status bar is tapped, say.
   ScrollPosition? get position => _position;
+
+  /// Where the content comes to rest while it glides on after a finger let
+  /// go of it, or null in any other phase.
+  ///
+  /// UIKit: a decelerating `UIScrollView`'s target offset. Flutter keeps a
+  /// glide's simulation to its scroll position, so this one is the
+  /// position's physics run on from the glide's second frame at the speed of
+  /// its first, timed by the frames: known a frame into the glide, and off
+  /// by the friction of one frame.
+  double? get glideTarget => _glideTarget;
 
   /// Follows [notification] if it is a scroll or scroll metrics
   /// notification [predicate] accepts; lets every notification bubble on.
@@ -88,9 +101,32 @@ final class MotionScroll extends Motion {
       _position = Scrollable.maybeOf(context)?.position ?? _position;
     }
     final t = clock.now;
+    final frame =
+        SchedulerBinding.instance.currentSystemFrameTimeStamp.inMicroseconds /
+        Duration.microsecondsPerSecond;
+    if (phase != MotionScrollPhase.decelerating) {
+      _glideTarget = null;
+      _glideStart = null;
+    } else if (_glideStart == null) {
+      _glideStart = (pixels: metrics.pixels, t: frame);
+    } else {
+      _glideTarget ??= _glideFrom(metrics, frame);
+    }
     if (phase != this.phase) _phase.write(t, phase);
     if (!_same(metrics, this.metrics)) _metrics.write(t, metrics);
     return false;
+  }
+
+  // A glide's simulation runs out well within this many seconds.
+  static const double _glideHorizon = 10;
+
+  double? _glideFrom(ScrollMetrics metrics, double t) {
+    final start = _glideStart!;
+    final position = _position;
+    if (position == null || t <= start.t) return null;
+    final velocity = (metrics.pixels - start.pixels) / (t - start.t);
+    final glide = position.physics.createBallisticSimulation(metrics, velocity);
+    return glide?.x(_glideHorizon) ?? metrics.pixels;
   }
 
   MotionScrollPhase _next(ScrollNotification notification) {

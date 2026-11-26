@@ -143,7 +143,9 @@ abstract final class TabBarMinimizeTuning {
 /// moves toward its end (Flutter's `pixels` on a downward list, UIKit's
 /// `contentOffset.y`); `min` and `max` are the offsets of the content's
 /// two ends. Only a user's scroll counts: a drag, and the deceleration
-/// after it. A programmatic scroll is only recorded ([last]).
+/// after it, which a host gives as where the content will stop, so a fling's
+/// progress lands at once (read from UIKit). A programmatic scroll is only
+/// recorded ([last]).
 ///
 /// - A drag starts a fresh accumulation ([beginDrag]).
 /// - Past an end, only motion further past it counts (a rubber band's

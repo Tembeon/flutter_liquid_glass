@@ -203,7 +203,9 @@ class _MinimizingBarState extends State<_MinimizingBar> {
     switch (phase) {
       case MotionScrollPhase.dragging || MotionScrollPhase.decelerating:
         away.scroll(
-          offset,
+          phase == MotionScrollPhase.decelerating
+              ? scroll.glideTarget ?? offset
+              : offset,
           min: min,
           max: max,
           tracking: phase == MotionScrollPhase.dragging,

@@ -284,6 +284,37 @@ void main() {
     expect(_body(tester), const Rect.fromLTWH(38, 338, 44, 44));
   });
 
+  testWidgets('a fling counts where the content will stop: the bar '
+      'minimizes a frame into the glide, not where the content passes the '
+      '64 points (read from UIKit)', (tester) async {
+    await _phone(tester);
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _app(
+        behavior: GlassTabBarMinimizeBehavior.onScrollDown,
+        controller: controller,
+        accessory: const _Placement(),
+      ),
+    );
+    await tester.pump();
+    await tester.timedDrag(
+      find.byKey(const ValueKey(3)),
+      const Offset(0, -50),
+      const Duration(milliseconds: 200),
+    );
+    int? minimizedIn;
+    for (var i = 0; i < 60 && minimizedIn == null; i++) {
+      await tester.pump(_frame);
+      if (find.text('inline').evaluate().isNotEmpty) minimizedIn = i;
+    }
+    final offset = controller.offset;
+    await _settle(tester);
+    expect(controller.offset, greaterThan(64), reason: 'the glide goes on');
+    expect(minimizedIn, lessThanOrEqualTo(1));
+    expect(offset, lessThan(60));
+  });
+
   testWidgets('the hint scales the accessory with the bar, as UIKit '
       'scales the whole group', (tester) async {
     await _phone(tester);
