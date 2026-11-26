@@ -162,9 +162,9 @@ final class LiquidGlassSettings {
   /// [LiquidGlassAppearance.tint].
   ///
   /// Apps set this themselves; the renderer does not read the system value.
-  /// The slider makes the iOS 27 neutral wash more opaque and its dark
-  /// specular stronger, and a [blur] left null follows it, on direct glass
-  /// too, whose face alone does not.
+  /// The slider makes regular iOS 27 glass's neutral wash more opaque, and a
+  /// [blur] left null follows it, on direct glass too. No edge follows it,
+  /// nor clear glass's face or the direct model's.
   final double sliderPosition;
 
   /// How far the glass blurs what it shows, as the sigma of a Gaussian in

@@ -124,7 +124,7 @@ final class GlassTraits {
 
   /// Where the Liquid Glass slider of iOS 27 (Settings, Appearance) stands,
   /// from 0 (Clear) to 1 (Tinted): the liquid renderer's glass takes its
-  /// wash, border and blur from it (`LiquidGlassSettings.sliderPosition`).
+  /// wash and blur from it (`LiquidGlassSettings.sliderPosition`).
   final double glassTintAmount;
 
   /// Whether the system prefers that the app scale back resource-intensive

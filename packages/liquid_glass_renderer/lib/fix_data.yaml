@@ -78,6 +78,16 @@ transforms:
       - kind: 'removeParameter'
         name: 'backdropKey'
 
+  - title: 'Rename to blur'
+    date: 2026-11-27
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      field: 'frost'
+      inClass: 'LiquidGlassSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'blur'
+
   - title: 'Rename to sliderPosition'
     date: 2026-11-17
     element:
@@ -88,7 +98,7 @@ transforms:
       - kind: 'rename'
         newName: 'sliderPosition'
 
-  - title: 'Rename to sliderPosition'
+  - title: 'Rename to sliderPosition and blur'
     date: 2026-11-17
     element:
       uris: ['liquid_glass_renderer.dart']
@@ -98,8 +108,11 @@ transforms:
       - kind: 'renameParameter'
         oldName: 'tintAmount'
         newName: 'sliderPosition'
+      - kind: 'renameParameter'
+        oldName: 'frost'
+        newName: 'blur'
 
-  - title: 'Rename to sliderPosition'
+  - title: 'Rename to sliderPosition and blur'
     date: 2026-11-17
     element:
       uris: ['liquid_glass_renderer.dart']
@@ -109,8 +122,11 @@ transforms:
       - kind: 'renameParameter'
         oldName: 'tintAmount'
         newName: 'sliderPosition'
+      - kind: 'renameParameter'
+        oldName: 'frost'
+        newName: 'blur'
 
-  - title: 'Rename to sliderPosition'
+  - title: 'Rename to sliderPosition and blur, drop brightness'
     date: 2026-11-17
     element:
       uris: ['liquid_glass_renderer.dart']
@@ -120,8 +136,13 @@ transforms:
       - kind: 'renameParameter'
         oldName: 'tintAmount'
         newName: 'sliderPosition'
+      - kind: 'renameParameter'
+        oldName: 'frost'
+        newName: 'blur'
+      - kind: 'removeParameter'
+        name: 'brightness'
 
-  - title: 'Rename to sliderPosition'
+  - title: 'Rename to sliderPosition and blur'
     date: 2026-11-17
     element:
       uris: ['liquid_glass_renderer.dart']
@@ -131,6 +152,9 @@ transforms:
       - kind: 'renameParameter'
         oldName: 'tintAmount'
         newName: 'sliderPosition'
+      - kind: 'renameParameter'
+        oldName: 'frost'
+        newName: 'blur'
 
   - title: 'Rename to ios27Regular'
     date: 2026-11-17
