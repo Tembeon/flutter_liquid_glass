@@ -333,7 +333,41 @@ enum FakeSurfaceLane implements UniformLane {
   glintOnly,
 
   /// A pair's bottom corner radius, or -1 for one radius.
-  bottomRadius;
+  bottomRadius,
+
+  /// The opacity of an iOS 27 recipe's rim highlight, which the glint pass
+  /// draws in place of the glint; 0 for other glass.
+  highlightOpacity,
+  highlightWidth,
+  highlightDiffuseWidth,
+
+  /// The cosines of the half angles the highlight's line and its diffuse
+  /// glow light.
+  highlightSpread(2),
+  highlightDiffuseBias,
+  highlightCurvature,
+
+  /// The light the highlight adds where it is full.
+  highlightLift,
+
+  /// The opacity of an iOS 27 recipe's ring shadow, which takes the bevel
+  /// shadow's place; 0 for other glass.
+  ringOpacity,
+  ringOffset,
+  ringStroke,
+  ringInverseRadius,
+
+  /// How dark an iOS 27 recipe's dark specular makes the band outside the
+  /// glass where it is full, which takes the contour's place; 0 for other
+  /// glass.
+  specularStrength,
+  specularWidth,
+
+  /// The cosine of the half angle the dark specular darkens.
+  specularSpread,
+
+  /// The bias the dark specular's mask takes, from its amount.
+  specularBias;
 
   const FakeSurfaceLane([this.width = 1]);
 

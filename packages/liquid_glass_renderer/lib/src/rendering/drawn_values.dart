@@ -124,12 +124,20 @@ TintLaw tintLawOf(RecipeLook look) => tintLaw(
 
 /// The recipe of [look] at the Liquid Glass slider position
 /// [sliderPosition].
-GlassRecipe recipeOf(RecipeLook look, double sliderPosition) => GlassRecipe.of(
-  variant: look.variant,
-  brightness: look.brightness,
-  shortSide: look.shortSide,
-  slider: sliderPosition,
-);
+GlassRecipe recipeOf(RecipeLook look, double sliderPosition) {
+  final key = (look, sliderPosition);
+  final cached = _recipes[key];
+  if (cached != null) return cached;
+  if (_recipes.length >= 64) _recipes.clear();
+  return _recipes[key] = GlassRecipe.of(
+    variant: look.variant,
+    brightness: look.brightness,
+    shortSide: look.shortSide,
+    slider: sliderPosition,
+  );
+}
+
+final _recipes = <(RecipeLook, double), GlassRecipe>{};
 
 /// The floats of one slot of the final shader's uRecipes for [look] at the
 /// slider position [sliderPosition], by [RecipeLane], its widths in device

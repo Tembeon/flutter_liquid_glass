@@ -180,7 +180,7 @@ class RenderFakeGlass extends RenderProxyBox
   }
 
   bool get _paintsContourRing =>
-      _surfaceShader != null && _look.contourWidth > 0;
+      _surfaceShader != null && fakeGlassDrawsContour(_look, _worn);
 
   void _paintContourRing(Canvas canvas, Offset offset) {
     canvas

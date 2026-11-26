@@ -919,17 +919,17 @@ void main() {
         #if COLOR_MODELS == COLOR_MODELS_ALL
         gRecipeWeights = colorModelWeights.yzw / (1.0 - directWeight);
         #endif
-        // The glass's face, its bleed and its ring shadow, then the tint
-        // and the rim highlight over the face, as iOS composites them.
+        // The glass's face and its bleed, clamped, then its ring shadow,
+        // the tint and the rim highlight over it, as iOS composites them.
         vec3 face = recipeBleedOf(
             recipeFaceOf(refractColor.rgb),
             refractColor.rgb,
             dot(refractColor.rgb, LUMA_WEIGHTS)
         );
+        face = clamp(face, 0.0, 1.0);
         if (nearEdge) {
             face *= 1.0 - recipeRingOf(signedEdgeDistance, surfaceNormal);
         }
-        face = clamp(face, 0.0, 1.0);
         if (materialTint.a >= 0.001) {
             face = recipeTintOf(face, materialTint);
         }

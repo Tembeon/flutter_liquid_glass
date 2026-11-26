@@ -3,6 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe_groups.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
@@ -144,7 +146,7 @@ void paintFakeGlassSurfaceWithGlint(
     appearance: appearance,
     devicePixelRatio: devicePixelRatio,
   );
-  if (look.glintStrength > 0 && appearance.shows) {
+  if (_drawsLight(look, appearance)) {
     paintFakeGlassSurface(
       canvas,
       shader: shaders.next(),
@@ -275,9 +277,9 @@ void paintFakeGlassFieldBody(
     ..save()
     ..clipPath(edge);
   paint();
-  if (look.glintStrength > 0 && appearance.shows) paint(glintOnly: true);
+  if (_drawsLight(look, appearance)) paint(glintOnly: true);
   canvas.restore();
-  if (look.contourWidth <= 0) return;
+  if (!fakeGlassDrawsContour(look, appearance)) return;
   canvas
     ..save()
     ..clipPath(
@@ -342,6 +344,32 @@ Paint _surfacePaint(ui.FragmentShader shader, {required bool glintOnly}) {
   return paint;
 }
 
+/// Whether fake glass in [look] and [appearance] draws a glint pass: the
+/// glint of direct glass, the rim highlight of an iOS 27 recipe.
+bool _drawsLight(FakeGlassLook look, WornAppearance appearance) {
+  if (!appearance.shows) return false;
+  return switch (appearance.colorModel.recipe) {
+    final worn? => recipeOf(worn, look.sliderPosition).rimHighlight.opacity > 0,
+    null => look.glintStrength > 0,
+  };
+}
+
+/// Whether fake glass in [look] and [appearance] draws a band outside its
+/// shape: the contour of direct glass, the dark specular of an iOS 27
+/// recipe.
+bool fakeGlassDrawsContour(FakeGlassLook look, WornAppearance appearance) =>
+    switch (appearance.colorModel.recipe) {
+      final worn? => _specularOf(recipeOf(worn, look.sliderPosition)) != null,
+      null => look.contourWidth > 0,
+    };
+
+DarkSpecularRecipe? _specularOf(GlassRecipe recipe) {
+  final specular = recipe.darkSpecular;
+  return specular.amount > 0 && specular.width > 0 && specular.colorBias < 0
+      ? specular
+      : null;
+}
+
 Map<FakeSurfaceLane, List<double>> _litLanes(
   FakeGlassLook look,
   WornAppearance appearance, {
@@ -351,19 +379,33 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
 }) {
   final visibility = appearance.visibility;
   final colorModel = appearance.colorModel;
-  final faceEmission = switch (colorModel.recipe) {
-    final worn? => recipeOf(worn, look.sliderPosition).face.fill,
-    null => const Color(0x00000000),
-  };
+  final worn = colorModel.recipe;
+  final recipe = worn == null ? null : recipeOf(worn, look.sliderPosition);
+  final faceEmission = recipe?.face.fill ?? const Color(0x00000000);
+  final directVisibility = recipe == null ? visibility : 0.0;
+  final specular = recipe == null ? null : _specularOf(recipe);
+  final edges = worn == null
+      ? null
+      : recipeLanes(
+          worn,
+          sliderPosition: look.sliderPosition,
+          devicePixelRatio: 1,
+        );
+  List<double> edge(RecipeLane lane, {double scale = 1}) {
+    if (edges == null) return List.filled(lane.width, 0);
+    final at = laneOffset(RecipeLane.values, lane);
+    return [for (var i = 0; i < lane.width; i++) edges[at + i] * scale];
+  }
+
   return {
     FakeSurfaceLane.tint: _color8(fakeGlassSurfaceTint(appearance)),
-    FakeSurfaceLane.glintStrength: [look.glintStrength * visibility],
-    FakeSurfaceLane.contourStrength: [
-      look.contourStrength * visibility,
-    ],
+    FakeSurfaceLane.glintStrength: [look.glintStrength * directVisibility],
+    FakeSurfaceLane.contourStrength: [look.contourStrength * directVisibility],
     FakeSurfaceLane.contourWidth: [look.contourWidth],
     FakeSurfaceLane.contourDirectionality: [look.contourDirectionality],
-    FakeSurfaceLane.bevelStrength: [look.bevelShadowStrength * visibility],
+    FakeSurfaceLane.bevelStrength: [
+      look.bevelShadowStrength * directVisibility,
+    ],
     FakeSurfaceLane.pixelSize: [1 / math.max(devicePixelRatio, 0.01)],
     FakeSurfaceLane.exteriorOnly: [if (exteriorOnly) 1 else 0],
     FakeSurfaceLane.glintLuminance: [colorModel.fakeGlintLuminance],
@@ -375,6 +417,33 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
     FakeSurfaceLane.glintFaceGain: [colorModel.fakeGlintFaceGain],
     FakeSurfaceLane.glintVibrancy: [colorModel.fakeGlintVibrancy],
     FakeSurfaceLane.glintOnly: [if (glintOnly) 1 else 0],
+    FakeSurfaceLane.highlightOpacity: edge(
+      RecipeLane.highlightOpacity,
+      scale: visibility,
+    ),
+    FakeSurfaceLane.highlightWidth: edge(RecipeLane.highlightWidth),
+    FakeSurfaceLane.highlightDiffuseWidth: edge(
+      RecipeLane.highlightDiffuseWidth,
+    ),
+    FakeSurfaceLane.highlightSpread: edge(RecipeLane.highlightSpread),
+    FakeSurfaceLane.highlightDiffuseBias: edge(RecipeLane.highlightDiffuseBias),
+    FakeSurfaceLane.highlightCurvature: edge(RecipeLane.highlightCurvature),
+    FakeSurfaceLane.highlightLift: [
+      if (recipe == null) 0 else fakeGlassHighlightLift(recipe),
+    ],
+    FakeSurfaceLane.ringOpacity: edge(
+      RecipeLane.ringOpacity,
+      scale: visibility,
+    ),
+    FakeSurfaceLane.ringOffset: edge(RecipeLane.ringOffset),
+    FakeSurfaceLane.ringStroke: edge(RecipeLane.ringStroke),
+    FakeSurfaceLane.ringInverseRadius: edge(RecipeLane.ringInverseRadius),
+    FakeSurfaceLane.specularStrength: [
+      if (specular == null) 0 else -specular.colorBias * visibility,
+    ],
+    FakeSurfaceLane.specularWidth: edge(RecipeLane.specularWidth),
+    FakeSurfaceLane.specularSpread: edge(RecipeLane.specularSpread),
+    FakeSurfaceLane.specularBias: edge(RecipeLane.specularBias),
   };
 }
 

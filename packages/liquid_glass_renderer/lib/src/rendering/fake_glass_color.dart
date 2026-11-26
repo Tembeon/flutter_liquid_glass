@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_recipe_groups.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
@@ -77,13 +78,9 @@ List<double> fakeGlassFaceMatrix({
   final luminance = [lumaWeights.$1, lumaWeights.$2, lumaWeights.$3];
   final fill = face.fill;
   final fillColor = [fill.r, fill.g, fill.b];
-  final fillLuma =
-      luminance[0] * fill.r + luminance[1] * fill.g + luminance[2] * fill.b;
-  final rollOff = face.maxLuma <= 0 ? 0.0 : 1 - face.maxLuma.clamp(0.0, 1.0);
-  double kept(double y) => (1 - y * rollOff).clamp(0.0, 1.0);
-  double levels(double y) =>
-      (1 - fill.a) * (face.black + (face.white - face.black) * kept(y) * y) +
-      fill.a * fillLuma;
+  final fillLuma = _lumaOf(fill);
+  double kept(double y) => _kept(face, y);
+  double levels(double y) => recipeFaceLuma(face, y);
   double weight(double y) {
     final luma = levels(y).clamp(0.0, 1.0);
     final base = bleed.onBright >= 0.5 ? luma : 1 - luma;
@@ -118,6 +115,36 @@ List<double> fakeGlassFaceMatrix({
       ..add((offset + fill.a * (fillColor[row] - fillLuma)) * 255);
   }
   return result..addAll([0, 0, 0, opacity.clamp(0.0, 1.0), 0]);
+}
+
+double _lumaOf(Color color) =>
+    lumaWeights.$1 * color.r +
+    lumaWeights.$2 * color.g +
+    lumaWeights.$3 * color.b;
+
+double _kept(FaceRecipe face, double luma) {
+  final rollOff = face.maxLuma <= 0 ? 0.0 : 1 - face.maxLuma.clamp(0.0, 1.0);
+  return (1 - luma * rollOff).clamp(0.0, 1.0);
+}
+
+/// The luma [face] gives a grey backdrop of luma [luma], its fill
+/// included, as the final shader's recipeFaceOf.
+@internal
+double recipeFaceLuma(FaceRecipe face, double luma) {
+  final fill = face.fill;
+  return (1 - fill.a) *
+          (face.black + (face.white - face.black) * _kept(face, luma) * luma) +
+      fill.a * _lumaOf(fill);
+}
+
+/// The light the rim highlight of [recipe] adds where it is full, over the
+/// face of a mid grey: FakeGlass adds it to a face it cannot read.
+@internal
+double fakeGlassHighlightLift(GlassRecipe recipe) {
+  final face = recipeFaceLuma(recipe.face, 0.5).clamp(0.0, 1.0);
+  final highlight = recipe.rimHighlight;
+  final lit = highlight.black + (highlight.white - highlight.black) * face;
+  return (math.min(lit, 1) - face).clamp(0.0, 1.0);
 }
 
 /// What fake glass draws of a [LiquidGlassSettings]: the fake painters take
