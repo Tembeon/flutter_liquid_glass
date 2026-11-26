@@ -154,8 +154,6 @@ class _GlassToasterState extends State<GlassToaster> {
     return entry;
   }
 
-  // A dismissal from a build, a dependency change or a dispose lands after
-  // the frame, when the tree takes a rebuild again.
   void _remove(GlassToastEntry entry) {
     if (!mounted) return;
     if (SchedulerBinding.instance.schedulerPhase !=
@@ -163,6 +161,8 @@ class _GlassToasterState extends State<GlassToaster> {
       setState(() => _entries.remove(entry));
       return;
     }
+    // After the frame: a dismissal from a build, a dependency change or a
+    // dispose cannot rebuild the toaster there; the toast leaves on its spring.
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() => _entries.remove(entry));
     });
