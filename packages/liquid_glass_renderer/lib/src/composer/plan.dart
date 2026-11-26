@@ -231,8 +231,11 @@ String _note(
 /// glass, with the edits [compilePlan] would make: the same reads, each told
 /// whether what it holds changed. Null where the frame plans anew: an image
 /// it holds no longer stands, the layers under a site leave its read
-/// something else or take another pass, a read that held still is due its
-/// image, or its glass starts or stops fading.
+/// something else or take another pass, or a read that held still is due its
+/// image.
+///
+/// The glass is [last]'s: the same sites asking the same, under the same
+/// clips and state, each over the same glass ([SiteFacts.floor]).
 ///
 /// [compilePlan] of the frame gives a plan of the same values.
 (GlassPlan, PlanLedgerEdits)? keepPlan(
@@ -250,7 +253,6 @@ String _note(
   final changes = Map<GlassRead, bool>.identity();
   var dueAt = _never;
   for (final read in last.reads) {
-    if (read.lead.readsNoScene != read.noScene) return null;
     if (read.source is BackdropRead) continue;
     final memo = ledger.reads[read.lead.id];
     if (memo == null ||
@@ -349,7 +351,7 @@ void _decideFates(
       continue;
     }
     final read = GlassRead(site)..limit = limit;
-    if (limit.keepsToBackdrop(noScene: read.noScene)) {
+    if (limit.keepsToBackdrop(noScene: site.readsNoScene)) {
       read.source = const BackdropRead();
     }
     reads.add(read);
@@ -480,7 +482,8 @@ int _chooseSources(
     if (room != null) {
       read.source = const ImageRead(held: true);
     } else if (allowed &&
-        (read.noScene || (!changed && frame - next.changedAt >= need))) {
+        (read.lead.readsNoScene ||
+            (!changed && frame - next.changedAt >= need))) {
       read.source = const ImageRead(held: false);
       room = _withRoom(read, memo, rent, screen);
       boughtAt = frame;

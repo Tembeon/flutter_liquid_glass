@@ -419,6 +419,20 @@ final class WritableSiteFacts extends SiteFacts {
     assert(floor < _order, 'A floor lies under its site in paint order.');
     _floor = floor;
   }
+
+  /// Counts the frame's [sites] under its [floor]; true when the count
+  /// changed. The plan compares a floor only with other sites' order.
+  bool countSitesUnderFloor(List<SiteFacts> sites) {
+    var under = 0;
+    while (under < _index && sites[under].order < _floor) {
+      under++;
+    }
+    final changed = under != _sitesUnderFloor;
+    _sitesUnderFloor = under;
+    return changed;
+  }
+
+  int _sitesUnderFloor = -1;
 }
 
 /// The walk's node of a site ([SiteFacts]). It has one [facts] for its life.

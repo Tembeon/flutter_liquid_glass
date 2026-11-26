@@ -46,14 +46,14 @@ final class GlassComposer implements GlassPlanner {
   _last;
 
   // Whether the last plan's decisions still hold, unless what lies under the
-  // glass says otherwise: no site asks anew and nothing it was compiled
-  // under changed.
+  // glass says otherwise: no site asks anew or stands anew among clips,
+  // state and other glass, and nothing it was compiled under changed.
   bool _holds(PlanPolicy policy, bool copies, bool explain) {
     final form = _form;
     return switch (_last) {
       final last? =>
         form.sitesHeld &&
-            !form.asksChanged &&
+            !form.sitesChanged &&
             identical(policy, last.policy) &&
             copies == last.copies &&
             explain == last.explained &&
@@ -102,25 +102,17 @@ final class GlassComposer implements GlassPlanner {
     final kept = !stands && painted != null && _holds(policy, copies, explain)
         ? keepPlan(_last!.plan, form, _ledger, form.frame)
         : null;
-    if (kept case (final plan, final edits)) {
-      debugOnPlan?.call(form, plan);
-      edits.applyTo(_ledger, form.frame);
-      _last = (
-        plan: plan,
-        policy: policy,
-        copies: copies,
-        screen: form.screen,
-        explained: explain,
-      );
-    } else if (!stands) {
-      final (plan, edits) = compilePlan(
-        form,
-        _ledger,
-        policy,
-        form.frame,
-        copies: copies,
-        explain: explain,
-      );
+    if (!stands) {
+      final (plan, edits) =
+          kept ??
+          compilePlan(
+            form,
+            _ledger,
+            policy,
+            form.frame,
+            copies: copies,
+            explain: explain,
+          );
       debugOnPlan?.call(form, plan);
       edits.applyTo(_ledger, form.frame);
       _last = (

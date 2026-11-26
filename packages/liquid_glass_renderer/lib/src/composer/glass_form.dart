@@ -64,9 +64,10 @@ final class GlassForm implements PlanScenery {
   bool get sitesHeld => _sitesHeld;
   bool _sitesHeld = false;
 
-  /// Whether a site asks this frame what it did not ask the last.
-  bool get asksChanged => _asksChanged;
-  bool _asksChanged = false;
+  /// Whether a site asks this frame what it did not ask the last, or stands
+  /// under another clip or state, or over other glass, than it did.
+  bool get sitesChanged => _sitesChanged;
+  bool _sitesChanged = false;
 
   final List<SiteNode> _siteNodes = [];
 
@@ -106,7 +107,7 @@ final class GlassForm implements PlanScenery {
   void lower(ContainerLayer root, double devicePixelRatio, Size physicalSize) {
     frame++;
     dirty.clear();
-    _asksChanged = false;
+    _sitesChanged = false;
     _next = 0;
     _count = 0;
     _volatileCount = 0;
@@ -198,8 +199,9 @@ final class GlassForm implements PlanScenery {
   /// changed, which what lies over it reads.
   void noteAsk(WritableSiteFacts site, SiteAsk ask) {
     final last = site.ask;
-    if (site.takeAsk(ask)) _asksChanged = true;
+    final asked = site.takeAsk(ask);
     final around = site.noteForLog();
+    if (asked || !around) _sitesChanged = true;
     if (around && last.drawn == ask.drawn && last.paints == ask.paints) return;
     dirty.add(site.order, _union(last.drawn, ask.drawn));
   }
@@ -208,6 +210,7 @@ final class GlassForm implements PlanScenery {
   void settleFloors() {
     for (final site in _sites) {
       site.settleFloor(site.ask.hidden ? -1 : floorOf(site));
+      if (site.countSitesUnderFloor(_sites)) _sitesChanged = true;
     }
   }
 

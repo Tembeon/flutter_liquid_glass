@@ -509,21 +509,6 @@ void main() {
       expect(_plan(scene).reads.single.source, isA<BackdropRead>());
     });
 
-    test('a kept plan goes when its glass starts or stops fading', () {
-      final site = _site(0, const Rect.fromLTWH(20, 200, 200, 90));
-      final scene = _Scene([site])..changedAt = 100;
-      final ledger = PlanLedger();
-      final plan = _plan(scene, ledger: ledger);
-      expect(plan.reads.single.source, isA<SceneRead>());
-      expect(keepPlan(plan, scene, ledger, 101), isNotNull);
-      site._place(state: StateChain(StateChain.root, 128, fades: true));
-      expect(keepPlan(plan, scene, ledger, 101), isNull);
-      final faded = _plan(scene, ledger: ledger, frame: 101);
-      expect(faded.reads.single.source, const ImageRead(held: false));
-      site._place(state: StateChain.root);
-      expect(keepPlan(faded, scene, ledger, 102), isNull);
-    });
-
     test('a menu over a page long still buys in its first frame', () {
       final scene = _Scene([_site(0, const Rect.fromLTWH(20, 200, 300, 400))]);
       final read = _plan(scene, frame: 500).reads.single;
