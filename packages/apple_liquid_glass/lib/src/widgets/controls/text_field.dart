@@ -359,6 +359,11 @@ class GlassTextField extends StatelessWidget {
     darkColor: Color(0xFF406BF8),
   );
 
+  // The selection handles with the default tint: 20, 111, 225 (text
+  // field passport), not the caret's color; a tint the app sets colors
+  // both.
+  static const _handle = Color(0xFF146FE1);
+
   static const _text = TextStyle(fontSize: 17);
 
   @override
@@ -398,6 +403,7 @@ class GlassTextField extends StatelessWidget {
           (context, details) => _TextFieldLook(
             details: details,
             style: look.merge(_defaults(context, look.errorColor)),
+            handleColor: look.cursorColor == null ? _handle : null,
             labelText: labelText,
             placeholder: placeholder,
             helperText: helperText,
@@ -434,6 +440,7 @@ class _TextFieldLook extends StatelessWidget {
   const _TextFieldLook({
     required this.details,
     required this.style,
+    required this.handleColor,
     required this.labelText,
     required this.placeholder,
     required this.helperText,
@@ -444,6 +451,7 @@ class _TextFieldLook extends StatelessWidget {
 
   final GlassTextFieldDetails details;
   final GlassTextFieldStyle style;
+  final Color? handleColor;
   final String? labelText;
   final String? placeholder;
   final String? helperText;
@@ -503,6 +511,7 @@ class _TextFieldLook extends StatelessWidget {
           cursorColor: cursor,
           selectionColor: cursor.withValues(alpha: cursor.a * 0.2),
           scale: scale,
+          handleColor: handleColor,
         ),
       ],
     );

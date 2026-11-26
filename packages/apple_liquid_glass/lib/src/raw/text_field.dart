@@ -45,18 +45,21 @@ final class GlassTextFieldDetails {
     Color cursor,
     Color selection,
     GlassTextScale scale,
+    Color? handle,
   )
   _text;
 
   /// The editable text with its gestures and semantics, drawn in [style]
   /// at [scale] with a [cursorColor] cursor and [selectionColor] behind the
-  /// selected text.
+  /// selected text; a touch's selection shows UIKit's handles in
+  /// [handleColor], or in [cursorColor] when it is null.
   Widget text({
     required TextStyle style,
     required Color cursorColor,
     required Color selectionColor,
     required GlassTextScale scale,
-  }) => _text(style, cursorColor, selectionColor, scale);
+    Color? handleColor,
+  }) => _text(style, cursorColor, selectionColor, scale, handleColor);
 }
 
 /// A text field with no look of its own: [builder] decides how it looks
@@ -239,6 +242,7 @@ class _RawGlassTextFieldState extends State<RawGlassTextField>
     Color cursor,
     Color selection,
     GlassTextScale scale,
+    Color? handle,
   ) {
     final multiline = widget.maxLines != 1;
     return editableText(
@@ -273,6 +277,7 @@ class _RawGlassTextFieldState extends State<RawGlassTextField>
       readOnly: widget.readOnly,
       textAlign: widget.textAlign,
       scrollPhysics: widget.scrollPhysics,
+      handleColor: handle,
     );
   }
 

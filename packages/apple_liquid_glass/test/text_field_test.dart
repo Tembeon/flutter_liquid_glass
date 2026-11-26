@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -247,6 +248,45 @@ void main() {
     await tester.pump();
     expect(outside, 1);
   });
+
+  testWidgets(
+    "a double tap on a word shows UIKit's two lollipop handles "
+    'on a touch screen, none to a pointer',
+    (tester) async {
+      final lollipops = find.byWidgetPredicate(
+        (widget) =>
+            widget is CustomPaint &&
+            '${widget.painter.runtimeType}' == '_Lollipop',
+      );
+      final controller = TextEditingController(text: 'Hello world');
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(_app(GlassTextField(controller: controller)));
+      final word =
+          tester.getTopLeft(find.byType(EditableText)) + const Offset(15, 11);
+      await tester.tapAt(word);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tapAt(word);
+      await tester.pumpAndSettle();
+      expect(
+        controller.selection,
+        const TextSelection(baseOffset: 0, extentOffset: 5),
+      );
+      if (defaultTargetPlatform == TargetPlatform.macOS) {
+        expect(lollipops, findsNothing);
+        return;
+      }
+      expect(lollipops, findsNWidgets(2));
+      final line = tester.getSize(find.byType(EditableText)).height;
+      for (final handle in lollipops.evaluate()) {
+        final size = (handle.renderObject! as RenderBox).size;
+        expect(size, Size(16.5, line + 13.5));
+      }
+    },
+    variant: const TargetPlatformVariant({
+      TargetPlatform.iOS,
+      TargetPlatform.macOS,
+    }),
+  );
 
   testWidgets('a disabled field takes no focus and no text', (tester) async {
     final focus = FocusNode();

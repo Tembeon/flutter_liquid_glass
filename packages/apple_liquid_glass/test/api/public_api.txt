@@ -2888,6 +2888,7 @@ final class GlassTextFieldDetails
     required Color cursorColor,
     required Color selectionColor,
     required GlassTextScale scale,
+    Color? handleColor,
   })
   final TextAlign textAlign
 class GlassTextFieldStyle extends GlassStyle<GlassTextFieldStyle>
