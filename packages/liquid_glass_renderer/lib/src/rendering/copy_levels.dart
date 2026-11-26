@@ -80,15 +80,15 @@ final class GlassBlur {
 }
 
 /// The final shader's uCopy, by [CopyLane], for glass blurring by [blur] a
-/// copy whose levels [strip] lays out from [at] of a texture of [texture]
-/// pixels, each copy pixel [share] device pixels along each side; with no
-/// [strip], a read of no levels.
+/// copy whose levels [strip] lays out from [at] of a texture of [texels] to
+/// a pixel of the shader's size, each copy pixel [share] device pixels along
+/// each side; with no [strip], a read of no levels.
 @internal
 List<double> copyLanes({
   required LevelStrip? strip,
   required GlassBlur blur,
   Offset at = Offset.zero,
-  Size texture = Size.zero,
+  double texels = 1,
   int share = 1,
 }) {
   if (strip == null) {
@@ -104,17 +104,12 @@ List<double> copyLanes({
   final stride = strip.fillStride.toDouble();
   final fillOffset = stride > 0
       ? Offset(
-          (at.dx +
-                  1 +
-                  (grid.dx - at.dx) / stride -
-                  (grid.dx / stride).floor()) /
-              texture.width,
-          (row + (grid.dy - at.dy) / stride - (grid.dy / stride).floor()) /
-              texture.height,
+          at.dx + 1 + (grid.dx - at.dx) / stride - (grid.dx / stride).floor(),
+          row + (grid.dy - at.dy) / stride - (grid.dy / stride).floor(),
         )
       : Offset.zero;
   return laneBlock(CopyLane.values, {
-    CopyLane.levelTexture: [texture.width, texture.height],
+    CopyLane.levelTexels: [texels],
     CopyLane.levelGrid: [grid.dx, grid.dy],
     CopyLane.levelCopyAt: [at.dx, at.dy],
     CopyLane.levelRow: [row],

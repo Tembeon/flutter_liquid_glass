@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
@@ -129,17 +130,19 @@ final class GlassRead {
   int get targets => source is ImageRead ? 0 : sceneTargets;
 
   /// The targets it issues drawn in the scene: its filter's layer, the layers
-  /// that frost its copy and draw its levels, what its copy draws apart of
-  /// the screen, and all of that again for each read it holds that is no
-  /// image.
-  int get sceneTargets => source is BackdropRead ? 1 : _drawnIn(1);
+  /// its copy passes through where it lies ([CornerPlace.passes]), what its
+  /// copy draws apart of the screen, and all of that again for each read it
+  /// holds that is no image, where its copy holds some of it.
+  int get sceneTargets =>
+      source is BackdropRead ? 1 : _drawnIn(CornerPlace.inFrame(layout));
 
-  int _drawnIn(int targetShare) {
-    var total =
-        1 + inside + layout.frostLayersIn(targetShare) + layout.levelLayers;
+  int _drawnIn(CornerPlace place) {
+    var total = 1 + inside + place.passes;
     for (final held in holds) {
       if (held.source is ImageRead) continue;
-      total += held._drawnIn(layout.share);
+      if (CornerPlace.heldIn(held.layout, layout) case final inner?) {
+        total += held._drawnIn(inner);
+      }
     }
     return total;
   }

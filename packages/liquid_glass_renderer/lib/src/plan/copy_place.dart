@@ -399,6 +399,18 @@ final class CornerPlace extends CopyPlace {
     return _keepsWhole(levelSize(strip)) ? strip : null;
   }();
 
+  /// Whether Impeller blurs the copy where it lies in place of levels the
+  /// layer has no room for.
+  bool get blursInPlace =>
+      levels == null && (layout.drawnLevels?.blurs ?? false);
+
+  /// The layers the copy passes through where it lies, each a pass of the
+  /// frame: the frost drawn into it at its own pixels, then its levels'
+  /// passes, or the blur in their place, a layer and Impeller's two passes.
+  int get passes =>
+      layout.frostLayersIn(targetShare) +
+      (levels?.passes ?? (blursInPlace ? 3 : 0));
+
   @override
   Offset get levelAt => copyRect.topLeft / targetShare.toDouble();
 

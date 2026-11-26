@@ -700,8 +700,12 @@ enum EffectsLane implements UniformLane {
 /// fill. All zero where the glass reads no copy.
 @internal
 enum CopyLane implements UniformLane {
-  /// The size, in texels, of the texture the copy lies in.
-  levelTexture(2),
+  /// The texels of the texture the copy lies in to a pixel of the final
+  /// shader's uSize: 1 where the shader filters the layer the copy lies in,
+  /// whose texture Impeller may round a row short of the one laid out under
+  /// a transform off whole pixels, and one over the share where it reads an
+  /// image.
+  levelTexels,
 
   /// The copy's top left on the screen's grid of copy pixels.
   levelGrid(2),
@@ -740,8 +744,8 @@ enum CopyLane implements UniformLane {
   /// it is darker, and how much of the result the fill covers.
   fillMix(3),
 
-  /// Where the copy's uv lands in the fill level, over the uv scaled by
-  /// [fillInverseStride].
+  /// Where the copy's uv lands in the fill level, in texels, over the uv
+  /// scaled by [fillInverseStride].
   fillOffset(2);
 
   const CopyLane([this.width = 1]);

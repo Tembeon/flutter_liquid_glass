@@ -8,6 +8,12 @@
 // then the blur levels from the finest, each inside a ring of one texel that
 // repeats its edge, so a read anywhere over the copy needs no clamp.
 
+// The size, in texels, of the texture the copy lies in, as the shader was
+// given it.
+highp vec2 levelTexture() {
+    return uSize * uLevelTexels;
+}
+
 // The uv of blur level [k] over the copy's uv [copyUV].
 highp vec2 levelUV(highp vec2 copyUV, highp float k) {
     highp float stride = exp2(k);
@@ -18,7 +24,7 @@ highp vec2 levelUV(highp vec2 copyUV, highp float k) {
         vec2(column, uLevelRow) +
         (uLevelGrid - uLevelCopyAt) / stride -
         floor(uLevelGrid / stride)
-    ) / uLevelTexture;
+    ) / levelTexture();
 }
 
 // The variance, in copy pixels squared, of a bilinear read of blur level
@@ -65,7 +71,10 @@ vec4 levelBlur(
 
 // The fill level over the copy's uv [copyUV].
 vec4 levelFill(sampler2D copy, highp vec2 copyUV) {
-    return texture(copy, copyUV * uFillInverseStride + uFillOffset);
+    return texture(
+        copy,
+        copyUV * uFillInverseStride + uFillOffset / levelTexture()
+    );
 }
 
 // [c] moved to the fill [f] by one amount where [f] is lighter and by

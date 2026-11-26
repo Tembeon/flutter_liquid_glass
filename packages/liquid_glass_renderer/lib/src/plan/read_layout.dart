@@ -756,15 +756,6 @@ final class ReadLayout {
     return frostLatticeOf(inCopyPixels) == FrostLattice.axes ? 2 : 1;
   }
 
-  /// The layers that draw the copy's [levels] beside it, each a pass of the
-  /// frame ([LevelStrip.passes]).
-  int get levelLayers => switch (drawnLevels) {
-    final levels? => LevelStrip.passesOf(
-      LevelStrip.choose(levels, pixels: pixels, boxed: share > 1),
-    ),
-    null => 0,
-  };
-
   /// The frost, in logical pixels, that stands for [sigma] over what the
   /// copy left out.
   double frostFor(double sigma) => sigma > 0 && frostLeftOut > 0

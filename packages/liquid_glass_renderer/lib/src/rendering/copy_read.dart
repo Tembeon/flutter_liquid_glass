@@ -115,7 +115,7 @@ final class ImagePart {
 
 // The lanes a place's copy was last read with: chrome over a scroll keeps
 // its place and its blur.
-final _lanesOf = Expando<(GlassBlur, Size, List<double>)>();
+final _lanesOf = Expando<(GlassBlur, List<double>)>();
 
 /// A read's copy where glass reads it: laid out over a layer of the frame's
 /// scene ([CornerRead]) or held in an image ([ImageCopy]).
@@ -134,13 +134,12 @@ sealed class PlacedCopy {
 
   double _frostLeft(double frost) => place.tapFrost(frost, held: _held);
 
-  /// The size of the texture the copy lies in, in its pixels.
-  Size get _texture;
+  /// The texels of the texture the copy lies in to a pixel of the final
+  /// shader's size.
+  double get _texels;
 
   List<double> _copyLanes(GlassBlur blur) {
-    final texture = _texture;
-    if (_lanesOf[place] case (final held, final size, final lanes)
-        when size == texture && held == blur) {
+    if (_lanesOf[place] case (final held, final lanes) when held == blur) {
       return lanes;
     }
     final layout = place.layout;
@@ -148,10 +147,10 @@ sealed class PlacedCopy {
       strip: place.levels,
       blur: blur.adding(layout.frostLeftOut * layout.view.devicePixelRatio),
       at: place.levelAt,
-      texture: texture,
+      texels: _texels,
       share: place.share,
     );
-    _lanesOf[place] = (blur, texture, lanes);
+    _lanesOf[place] = (blur, lanes);
     return lanes;
   }
 
@@ -186,10 +185,10 @@ final class ImageCopy extends PlacedCopy {
   /// Equal while the copy lies at the same place on the same grid.
   Object get placement => (place.at, place.share);
 
-  /// The copy is painted in the screen's device pixels; one at fewer pixels
-  /// than the screen stands for an image as many times larger.
+  /// The shader's size is the image's, scaled to the screen's device
+  /// pixels (see [glassSampling]).
   @override
-  Size get _texture => Size(image.width.toDouble(), image.height.toDouble());
+  double get _texels => 1 / place.share;
 
   @override
   GlassSampling glassSampling(GlassBlur blur) {
@@ -229,10 +228,10 @@ final class CornerRead extends PlacedCopy {
   @override
   double get _held => inPlace.sigma;
 
-  /// The copy lies in the top-left corner of its layer, at the screen's
-  /// pixels or coarser.
+  /// The copy lies in the top-left corner of the layer the shader filters,
+  /// at the screen's pixels or coarser.
   @override
-  Size get _texture => _layerSize / place.targetShare.toDouble();
+  double get _texels => 1;
 
   @override
   GlassSampling glassSampling(GlassBlur blur) {
@@ -287,7 +286,7 @@ final class CornerRead extends PlacedCopy {
   /// NEAR: the glass blurs by one sigma over all of its face, and mixes in
   /// no fill.
   late final ui.ImageFilter? _blurInPlace = switch (place.layout.drawnLevels) {
-    final wanted? when wanted.blurs && place.levels == null =>
+    final wanted? when place.blursInPlace =>
       ui.ImageFilter.blur(
         sigmaX: _impellerSigma(wanted.most),
         sigmaY: _impellerSigma(wanted.most),

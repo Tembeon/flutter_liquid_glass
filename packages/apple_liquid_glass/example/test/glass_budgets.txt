@@ -1,7 +1,7 @@
 Controls@0         reads 2  targets 6  images 0  backdrop 0
-Controls@500       reads 6  targets 22  images 0  backdrop 0
-Controls@1000      reads 6  targets 19  images 0  backdrop 0
-Photos@100         reads 3  targets 12  images 0  backdrop 0
-Motion@300         reads 4  targets 19  images 0  backdrop 0
-iPad Controls@500  reads 7  targets 23  images 0  backdrop 0
+Controls@500       reads 5  targets 16  images 0  backdrop 0
+Controls@1000      reads 5  targets 13  images 0  backdrop 0
+Photos@100         reads 2  targets 6  images 0  backdrop 0
+Motion@300         reads 3  targets 12  images 0  backdrop 0
+iPad Controls@500  reads 7  targets 19  images 0  backdrop 0
 iPad Photos@100    reads 4  targets 16  images 0  backdrop 0

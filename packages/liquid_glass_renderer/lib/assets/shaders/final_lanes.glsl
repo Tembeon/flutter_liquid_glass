@@ -73,21 +73,21 @@ uniform highp vec4 uEffects[5];
 #define uGlowWash uEffects[4].z
 #define uBackdropReduced uEffects[4].w
 
-uniform highp vec4 uCopy[7];
-#define uLevelTexture uCopy[0].xy
-#define uLevelGrid uCopy[0].zw
-#define uLevelCopyAt uCopy[1].xy
-#define uLevelRow uCopy[1].z
-#define uLevelBlurAt uCopy[1].w
-#define uLevelWidth uCopy[2].x
-#define uLevelShare uCopy[2].y
-#define uLevelFinest uCopy[2].z
-#define uLevelCoarsest uCopy[2].w
-#define uBlurSigmas uCopy[3]
-#define uBlurDepths uCopy[4].xyz
-#define uFillInverseStride uCopy[4].w
-#define uFillMix uCopy[5].xyz
-#define uFillOffset vec2(uCopy[5].w, uCopy[6].x)
+uniform highp vec4 uCopy[6];
+#define uLevelTexels uCopy[0].x
+#define uLevelGrid uCopy[0].yz
+#define uLevelCopyAt vec2(uCopy[0].w, uCopy[1].x)
+#define uLevelRow uCopy[1].y
+#define uLevelBlurAt uCopy[1].z
+#define uLevelWidth uCopy[1].w
+#define uLevelShare uCopy[2].x
+#define uLevelFinest uCopy[2].y
+#define uLevelCoarsest uCopy[2].z
+#define uBlurSigmas vec4(uCopy[2].w, uCopy[3].x, uCopy[3].y, uCopy[3].z)
+#define uBlurDepths vec3(uCopy[3].w, uCopy[4].x, uCopy[4].y)
+#define uFillInverseStride uCopy[4].z
+#define uFillMix vec3(uCopy[4].w, uCopy[5].x, uCopy[5].y)
+#define uFillOffset uCopy[5].zw
 
 #if FROST_BAND
 uniform highp vec4 uBand[5];

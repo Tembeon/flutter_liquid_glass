@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_haze.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the copies
 // are drawn as Impeller draws them.
@@ -365,7 +366,7 @@ void main() {
     final whole = read(share: 1);
     expect(whole.footprint, const Rect.fromLTWH(50, 100, 200, 60));
     expect(whole.layer, const Rect.fromLTRB(50, 100, 250, 179));
-    expect(whole.levelLayers, 2);
+    expect(CornerPlace.inFrame(whole).passes, 2);
     // A smaller copy lies in its layer's corner, with rows to spare.
     final corner = read(share: 2);
     expect(corner.layer, corner.footprint);
