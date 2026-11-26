@@ -244,6 +244,27 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// The height of the row under the status bar (navigation bar passport).
   static const double height = 54;
 
+  /// The space between a bar's box and its outer items: 16 on a 402 point
+  /// screen (bars passport).
+  static const double sideInset = navigationSideInset;
+
+  /// How far in from the sides of the box of [context] a navigation bar's
+  /// outer items stand on its row: [sideInset] from the box's sides, past
+  /// a side's safe area but 24 points of it, past a tab sidebar over the
+  /// box, past the window buttons whose line runs through the row, and
+  /// clear of what the hardware covers beside it. An app's own control on
+  /// the row stands inside it to line up with the bar's items, after the
+  /// window buttons on the same gap.
+  static EdgeInsets itemPaddingOf(BuildContext context) {
+    final sides = BarRoom.sidesOf(
+      context,
+      inset: sideInset,
+      top: BarRoom.rowTopOf(context),
+      height: height,
+    );
+    return EdgeInsets.only(left: sides.left, right: sides.right);
+  }
+
   /// The height a large title adds under the row (navigation bar
   /// passport).
   static const double largeTitleHeight = 52;

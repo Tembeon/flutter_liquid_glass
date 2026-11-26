@@ -181,6 +181,41 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('the item padding is where the bar\'s outer items stand, '
+      'after the window buttons on the same gap', (tester) async {
+    await _phone(tester);
+    late EdgeInsets padding;
+    const lead = Key('lead');
+    const trail = Key('trail');
+    await tester.pumpWidget(
+      _app(
+        GlassEnvironmentOverride(
+          windowControls: const GlassWindowControls(
+            left: 80,
+            lineCenter: 62 + GlassNavigationBar.height / 2,
+          ),
+          child: Builder(
+            builder: (context) {
+              padding = GlassNavigationBar.itemPaddingOf(context);
+              return _page(
+                title: const Text('Notes'),
+                leading: const SizedBox(key: lead, width: 36, height: 36),
+                trailing: const SizedBox(key: trail, width: 36, height: 36),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(padding, const EdgeInsets.only(left: 80 + 16, right: 16));
+    final leading = tester.getRect(find.byKey(lead));
+    final trailing = tester.getRect(find.byKey(trail));
+    // A custom item stands 4 inside its capsule.
+    expect(leading.left, padding.left + 4);
+    expect(402 - trailing.right, padding.right + 4);
+  });
+
   testWidgets('the inline title sits on the center when it fits, else from '
       'the leading side, level with the capsules', (tester) async {
     await _phone(tester);

@@ -1450,6 +1450,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget
   final bool automaticallyImplyLeading
   final GlassBackButtonDisplayMode backButtonDisplayMode
   static const double height
+  static EdgeInsets itemPaddingOf(BuildContext context)
   final Widget? largeTitle
   static const double largeTitleHeight
   final List<GlassBarEntry> leading
@@ -1457,6 +1458,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget
   @internal double get scrolledUnderAfter
   final Widget? searchField
   static const double searchFieldHeight
+  static const double sideInset
   final GlassNavigationBarStyle? style
   final Widget? title
   final List<GlassBarEntry> trailing
