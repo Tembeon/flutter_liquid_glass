@@ -152,12 +152,10 @@ Rect _globalRect(SemanticsNode node) {
   );
 }
 
-// The split view's sidebar button, below the 44 point bar at the top of the
-// tab scaffold, whose button for the tab sidebar has the same label.
+// The split view's sidebar button: an iPad in portrait keeps the tab bar
+// at the bottom, so no tab sidebar's button reads the same.
 FinderBase<SemanticsNode> _splitSidebar(String label) =>
-    find.semantics.byPredicate(
-      (node) => node.label == label && _globalRect(node).top >= 44,
-    );
+    find.semantics.byLabel(label);
 
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 90; i++) {
@@ -523,7 +521,7 @@ void main() {
     expect(find.text('List 0'), findsOneWidget);
   });
 
-  testWidgets('on an iPad with the tab sidebar and the list hidden, a page '
+  testWidgets('on an iPad in portrait with the list hidden, a page '
       'deep in the detail keeps the list button before its back button, and '
       'selecting the selected tab again pops it to its root', (
     tester,

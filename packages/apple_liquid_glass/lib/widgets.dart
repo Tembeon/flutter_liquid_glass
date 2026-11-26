@@ -108,7 +108,6 @@ export 'src/widgets/navigation/tab_layout.dart'
         GlassTabListMode,
         GlassTabListState,
         GlassTabPlacement,
-        GlassTabSidebarHidden,
         GlassTabSidebarPanel,
         GlassWidthRange;
 export 'src/widgets/navigation/tab_scaffold.dart'

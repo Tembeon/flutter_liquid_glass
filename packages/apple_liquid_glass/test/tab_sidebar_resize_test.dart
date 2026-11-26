@@ -69,6 +69,24 @@ class _Probe extends StatelessWidget {
   }
 }
 
+// The tab sidebar over the content in portrait and beside it from 1024
+// wide in landscape, hiding into its button: where the automatic layout
+// keeps the bottom bar in portrait, the layout these tests read the
+// sidebar over the content in.
+GlassTabLayoutPolicy _overInPortrait({
+  GlassTabSidebarPanel panel = GlassTabSidebarPanel.glass,
+}) => GlassTabLayoutPolicy.custom((environment, size) {
+  if (environment.formFactor == GlassFormFactor.phone ||
+      !environment.isRegularWidth) {
+    return const GlassTabLayout.bottom();
+  }
+  return GlassTabLayout.sidebar(
+    beside: size.width >= 1024 && size.width >= size.height,
+    sidebarPanel: panel,
+    list: size.width >= 728 ? GlassTabListMode.beside : GlassTabListMode.hidden,
+  );
+});
+
 Future<void> _pump(
   WidgetTester tester,
   GlassTabController controller,
@@ -77,7 +95,7 @@ Future<void> _pump(
   bool resizable = true,
   bool list = false,
   bool showsListButton = true,
-  GlassTabLayoutPolicy layout = const GlassTabLayoutPolicy.automatic(),
+  GlassTabLayoutPolicy? layout,
   GlassTabSidebarStyle? sidebarStyle,
   GlassWindowControls windowControls = GlassWindowControls.none,
   double? windowCornerRadius,
@@ -104,7 +122,7 @@ Future<void> _pump(
             child: GlassTabScaffold(
               controller: controller,
               resizable: resizable,
-              layout: layout,
+              layout: layout ?? _overInPortrait(),
               sidebarStyle: sidebarStyle,
               tabs: [
                 GlassTab(
@@ -141,7 +159,7 @@ Future<void> _settle(WidgetTester tester) async {
 Finder _private(String type) =>
     find.byWidgetPredicate((widget) => '${widget.runtimeType}' == type);
 
-Finder get _bar => _private('_TopBar');
+Finder get _alone => _private('_SidebarButton');
 Finder get _sidebar => find.byType(GlassTabSidebar);
 
 Finder get _divider => find.byWidgetPredicate(
@@ -269,7 +287,7 @@ void main() {
     await _move(tester, hand, -50);
     expect(controller.sidebarShown, isFalse, reason: 'past the rail: hidden');
     await _settle(tester);
-    expect(_bar, findsOneWidget);
+    expect(_alone, findsOneWidget);
     expect(_padding['One']!.left, 0);
 
     await _move(tester, hand, 50);
@@ -363,12 +381,12 @@ void main() {
     expect(controller.sidebarRail, isFalse);
     expect(_glass(tester).right, 280);
     expect(_padding['One']!.left, 0, reason: 'the sidebar covers the content');
-    expect(_padding['One']!.top, 32 + 54);
+    expect(_padding['One']!.top, 32);
     expect(find.text('One'), findsOneWidget);
     await tester.tapAt(const Offset(700, 700));
     await _settle(tester);
     expect(controller.sidebarShown, isFalse);
-    expect(_bar, findsOneWidget);
+    expect(_alone, findsOneWidget);
   });
 
   testWidgets('the arrow keys and a screen reader step the edge, fold at the '
@@ -529,7 +547,7 @@ void main() {
     addTearDown(controller.dispose);
     const desktop = GlassTabLayoutPolicy.desktop();
     await _pump(tester, controller, const Size(700, 834), layout: desktop);
-    expect(_bar, findsNothing);
+    expect(_alone, findsNothing);
     expect(_glass(tester).right, 280);
     final button = find.descendant(
       of: _sidebar,
@@ -663,16 +681,14 @@ void main() {
 
     controller.sidebarShown = false;
     await _settle(tester);
-    expect(_glass(tester), tester.getRect(_bar));
+    expect(_glass(tester), tester.getRect(_alone));
     expect(_glassFrame(tester).opacity, 1);
 
     await _pump(
       tester,
       controller,
       _portrait,
-      layout: const GlassTabLayoutPolicy.automatic(
-        sidebarPanel: GlassTabSidebarPanel.flush,
-      ),
+      layout: _overInPortrait(panel: GlassTabSidebarPanel.flush),
       sidebarStyle: style,
     );
     controller.sidebarShown = true;
@@ -690,15 +706,12 @@ void main() {
     addTearDown(controller.dispose);
     const controls = GlassWindowControls(left: 76);
     final item = find.byKey(const ValueKey('One leading'));
-    Future<void> pump(
-      GlassTabSidebarHidden hidden, {
-      TextDirection direction = TextDirection.ltr,
-    }) async {
+    Future<void> pump({TextDirection direction = TextDirection.ltr}) async {
       await _pump(
         tester,
         controller,
         _landscape,
-        layout: GlassTabLayoutPolicy.desktop(hides: true, hidden: hidden),
+        layout: const GlassTabLayoutPolicy.desktop(hides: true),
         windowControls: controls,
         leading: true,
         direction: direction,
@@ -707,13 +720,8 @@ void main() {
       await _settle(tester);
     }
 
-    await pump(GlassTabSidebarHidden.bar);
-    final atBar = tester.getTopLeft(item).dx;
-    expect(_padding['One']!.top, 32 + 54);
-
-    await pump(GlassTabSidebarHidden.button);
+    await pump();
     final button = _private('_SidebarButton');
-    expect(_bar, findsNothing);
     expect(tester.getRect(button), const Rect.fromLTWH(92, 32, 44, 44));
     expect(_glass(tester), tester.getRect(button));
     expect(
@@ -726,7 +734,11 @@ void main() {
       GlassEnvironment.of(tester.element(item)).windowControls,
       const GlassWindowControls(left: 136, lineCenter: 54),
     );
-    expect(tester.getTopLeft(item).dx, moreOrLessEquals(atBar + 136));
+    expect(
+      tester.getTopLeft(item).dx,
+      moreOrLessEquals(136 + 28),
+      reason: 'it stands 28 past what the button reserves as past an edge',
+    );
 
     await tester.tap(button);
     await _settle(tester);
@@ -759,7 +771,7 @@ void main() {
     controller.popToRoot(0);
     await _settle(tester);
 
-    await pump(GlassTabSidebarHidden.button, direction: TextDirection.rtl);
+    await pump(direction: TextDirection.rtl);
     expect(
       tester.getRect(button),
       Rect.fromLTWH(_landscape.width - 60, 32, 44, 44),
@@ -768,26 +780,6 @@ void main() {
       GlassEnvironment.of(tester.element(item)).windowControls,
       const GlassWindowControls(left: 76, right: 60, lineCenter: 54),
     );
-
-    await _pump(
-      tester,
-      controller,
-      _portrait,
-      layout: const GlassTabLayoutPolicy.automatic(
-        hidden: GlassTabSidebarHidden.button,
-      ),
-    );
-    controller.sidebarShown = null;
-    await _settle(tester);
-    expect(tester.getRect(button), const Rect.fromLTWH(16, 32, 44, 44));
-    await tester.tap(button);
-    await _settle(tester);
-    expect(_glass(tester), Rect.fromLTWH(0, 0, 280, _portrait.height));
-    expect(_padding['One']!.left, 0);
-    await tester.tapAt(const Offset(800, 600));
-    await _settle(tester);
-    expect(controller.sidebarShown, isFalse);
-    expect(_glass(tester), tester.getRect(button));
   });
 
   testWidgets("a list tab's column at the window's edge starts its bar past "
@@ -797,15 +789,12 @@ void main() {
     const controls = GlassWindowControls(left: 76);
     final item = find.byKey(const ValueKey('One leading'));
     final detail = find.text('Nothing open');
-    Future<void> pump(
-      GlassTabSidebarHidden hidden, {
-      TextDirection direction = TextDirection.ltr,
-    }) async {
+    Future<void> pump({TextDirection direction = TextDirection.ltr}) async {
       await _pump(
         tester,
         controller,
         _landscape,
-        layout: GlassTabLayoutPolicy.desktop(hides: true, hidden: hidden),
+        layout: const GlassTabLayoutPolicy.desktop(hides: true),
         windowControls: controls,
         leading: true,
         list: true,
@@ -815,22 +804,23 @@ void main() {
       await _settle(tester);
     }
 
-    await pump(GlassTabSidebarHidden.bar);
-    final atBar = tester.getTopLeft(item).dx;
-
-    await pump(GlassTabSidebarHidden.button);
+    await pump();
     expect(detail, findsOneWidget);
     expect(
       GlassEnvironment.of(tester.element(item)).windowControls,
       const GlassWindowControls(left: 136, lineCenter: 54),
     );
-    expect(tester.getTopLeft(item).dx, moreOrLessEquals(atBar + 136));
+    expect(
+      tester.getTopLeft(item).dx,
+      moreOrLessEquals(136 + 28),
+      reason: 'it stands 28 past what the button reserves as past an edge',
+    );
     expect(
       GlassEnvironment.of(tester.element(detail)).windowControls.isEmpty,
       isTrue,
     );
 
-    await pump(GlassTabSidebarHidden.button, direction: TextDirection.rtl);
+    await pump(direction: TextDirection.rtl);
     expect(
       GlassEnvironment.of(tester.element(item)).windowControls,
       const GlassWindowControls(right: 60, lineCenter: 54),
@@ -889,11 +879,11 @@ void main() {
       expect(_edge(tester), 340);
       controller.sidebarShown = false;
       await _settle(tester);
-      expect(_bar, findsOneWidget);
+      expect(_alone, findsOneWidget);
       await _pump(tester, controller, const Size(834, 1194), layout: layout);
       await _pump(tester, controller, _landscape, layout: layout);
       expect(
-        _bar,
+        _alone,
         remembers ? findsOneWidget : findsNothing,
         reason: 'remembers: $remembers',
       );
@@ -951,7 +941,7 @@ void main() {
       );
     addTearDown(next.dispose);
     await _pump(tester, next, _landscape, list: true, layout: desktop);
-    expect(_bar, findsOneWidget);
+    expect(_alone, findsOneWidget);
     expect(next.splitOf(0).primaryWidth, 300);
     next.sidebarShown = true;
     await _settle(tester);

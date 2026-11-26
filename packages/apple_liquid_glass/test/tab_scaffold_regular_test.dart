@@ -16,6 +16,21 @@ const _bottom = 20.0;
 
 final _padding = <String, EdgeInsets>{};
 
+// The tab sidebar over the content in portrait and beside it from 1024
+// wide in landscape, hiding into its button: where the automatic layout
+// keeps the bottom bar in portrait, the layout these tests read the
+// sidebar over the content in.
+final _overInPortrait = GlassTabLayoutPolicy.custom((environment, size) {
+  if (environment.formFactor == GlassFormFactor.phone ||
+      !environment.isRegularWidth) {
+    return const GlassTabLayout.bottom();
+  }
+  return GlassTabLayout.sidebar(
+    beside: size.width >= 1024 && size.width >= size.height,
+    list: size.width >= 728 ? GlassTabListMode.beside : GlassTabListMode.hidden,
+  );
+});
+
 class _Page extends StatelessWidget {
   const _Page(this.name, {this.hidesTabBar = false});
 
@@ -56,6 +71,7 @@ Future<void> _pump(
   NotificationListenerCallback<ScrollNotification>? onScroll,
   int more = 0,
   Pose? pose,
+  GlassTabLayoutPolicy layout = const GlassTabLayoutPolicy.automatic(),
 }) async {
   if (pose != null) {
     pose.apply(tester);
@@ -83,6 +99,7 @@ Future<void> _pump(
             renderer: const FlatGlassRenderer(),
             child: GlassTabScaffold(
               controller: controller,
+              layout: layout,
               searchController: search,
               searchBuilder: search == null
                   ? null
@@ -128,7 +145,7 @@ Future<void> _settle(WidgetTester tester) async {
 Finder _private(String type) =>
     find.byWidgetPredicate((widget) => '${widget.runtimeType}' == type);
 
-Finder get _bar => _private('_TopBar');
+Finder get _alone => _private('_SidebarButton');
 Finder get _sidebar => find.byType(GlassTabSidebar);
 Finder get _rows => find.byType(GlassTabSidebarRow);
 
@@ -140,9 +157,7 @@ Finder _buttons(String label) => find.byWidgetPredicate(
       (widget is GlassButton && widget.semanticLabel == label),
 );
 
-Finder _button(String label) => _buttons(label).first;
-
-// Where the glass of the bar at the top and of the sidebar is drawn.
+// Where the glass of the sidebar's button and of the sidebar is drawn.
 Rect _glass(WidgetTester tester) => tester
     .widget<GlassSurface>(
       find.byWidgetPredicate(
@@ -157,25 +172,21 @@ Rect _glass(WidgetTester tester) => tester
     .rect!;
 
 void main() {
-  testWidgets('on an iPad in portrait the tabs stand in a bar at the top, '
-      'centered on the top safe area, with the content 54 below its top', (
+  testWidgets('on an iPad in portrait the automatic layout keeps the tab bar '
+      'at the bottom, laid out wide, where UIKit puts a bar at the top', (
     tester,
   ) async {
-    final semantics = tester.ensureSemantics();
     final controller = GlassTabController();
     addTearDown(controller.dispose);
     await _pump(tester, controller, _portrait);
-    expect(find.byType(GlassFloatingTabBar), findsNothing);
+    expect(find.byType(GlassFloatingTabBar), findsOneWidget);
     expect(_sidebar, findsNothing);
-    final bar = tester.getRect(_bar);
-    expect(bar.top, _top);
+    expect(_alone, findsNothing);
+    final bar = tester.getRect(find.byType(RawGlassSelector));
     expect(bar.height, 44);
+    expect(bar.bottom, _portrait.height - 20);
     expect(bar.center.dx, moreOrLessEquals(_portrait.width / 2));
-    final button = tester.getRect(_button('Show Sidebar'));
-    expect(button, Rect.fromLTWH(bar.left + 4, _top + 4, 56, 36));
-    expect(_padding['One']!.top, _top + 54);
-    expect(_padding['One']!.left, 0);
-    semantics.dispose();
+    expect(_padding['One']!.top, _top);
   });
 
   testWidgets('the sidebar button shows the sidebar over the content, which '
@@ -185,12 +196,12 @@ void main() {
     addTearDown(controller.dispose);
     var heard = 0;
     controller.addListener(() => heard++);
-    await _pump(tester, controller, _portrait);
+    await _pump(tester, controller, _portrait, layout: _overInPortrait);
     tester.semantics.tap(find.semantics.byLabel('Show Sidebar').first);
     await _settle(tester);
     expect(controller.sidebarShown, isTrue);
     expect(heard, 1);
-    expect(_bar, findsNothing);
+    expect(_alone, findsNothing);
     expect(
       tester.getRect(_sidebar),
       const Rect.fromLTWH(0, 0, 280, 1376),
@@ -202,14 +213,14 @@ void main() {
     expect(tester.getRect(_rows.at(1)).top, _top + 63 + 44);
     expect(
       _padding['One']!.top,
-      _top + 54,
+      _top,
       reason: 'a sidebar over the content leaves its safe area alone',
     );
     await tester.tapAt(const Offset(700, 700));
     await _settle(tester);
     expect(controller.sidebarShown, isFalse);
     expect(_sidebar, findsNothing);
-    expect(_bar, findsOneWidget);
+    expect(_alone, findsOneWidget);
     semantics.dispose();
   });
 
@@ -217,7 +228,7 @@ void main() {
       'leaves the sidebar up', (tester) async {
     final controller = GlassTabController();
     addTearDown(controller.dispose);
-    await _pump(tester, controller, _portrait);
+    await _pump(tester, controller, _portrait, layout: _overInPortrait);
     controller.sidebarShown = true;
     await _settle(tester);
     await tester.tap(find.descendant(of: _sidebar, matching: find.text('Two')));
@@ -233,7 +244,7 @@ void main() {
     final controller = GlassTabController();
     addTearDown(controller.dispose);
     await _pump(tester, controller, _landscape);
-    expect(_bar, findsNothing);
+    expect(_alone, findsNothing);
     expect(find.semantics.byLabel('Hide Sidebar'), findsOneWidget);
     expect(tester.getRect(_sidebar), const Rect.fromLTWH(0, 0, 280, 834));
     expect(_padding['One']!.left, 280);
@@ -248,9 +259,9 @@ void main() {
     await _settle(tester);
     expect(controller.sidebarShown, isFalse);
     expect(_sidebar, findsNothing);
-    expect(_bar, findsOneWidget);
+    expect(_alone, findsOneWidget);
     expect(_padding['One']!.left, 0);
-    expect(_padding['One']!.top, _top + 54);
+    expect(_padding['One']!.top, _top);
     semantics.dispose();
   });
 
@@ -273,51 +284,48 @@ void main() {
   ) async {
     final controller = GlassTabController();
     addTearDown(controller.dispose);
-    await _pump(tester, controller, _landscape);
+    await _pump(tester, controller, _landscape, layout: _overInPortrait);
     controller.sidebarShown = false;
     await _settle(tester);
     expect(_sidebar, findsNothing);
-    await _pump(tester, controller, _portrait);
+    await _pump(tester, controller, _portrait, layout: _overInPortrait);
     expect(controller.sidebarShown, isNull);
     expect(_sidebar, findsNothing);
-    await _pump(tester, controller, _landscape);
+    await _pump(tester, controller, _landscape, layout: _overInPortrait);
     expect(_sidebar, findsOneWidget);
   });
 
-  testWidgets('a phone in landscape and an iPhone Duo open flat keep the bar '
-      'at the bottom, where an iPad window as wide puts the tabs in a sidebar '
-      'and a compact one keeps the bar', (tester) async {
+  testWidgets('a phone in landscape, an iPhone Duo open flat and iPad '
+      'windows too narrow for a sidebar beside the content keep the bar at '
+      'the bottom', (tester) async {
     final controller = GlassTabController();
     addTearDown(controller.dispose);
-    for (final (pose, bottom) in [
-      (Poses.iPhoneLandscape, true),
-      (Poses.duoInnerClassic, true),
-      (Poses.iPadWindowShortRegular, false),
-      (Poses.iPadWindowCompactWidest, true),
+    for (final pose in [
+      Poses.iPhoneLandscape,
+      Poses.duoInnerClassic,
+      Poses.iPadWindowShortRegular,
+      Poses.iPadWindowCompactWidest,
     ]) {
       await _pump(tester, controller, pose.window, pose: pose);
-      expect(
-        find.byType(GlassFloatingTabBar),
-        bottom ? findsOneWidget : findsNothing,
-        reason: '$pose',
-      );
-      expect(_bar, bottom ? findsNothing : findsOneWidget, reason: '$pose');
+      expect(find.byType(GlassFloatingTabBar), findsOneWidget, reason: '$pose');
+      expect(_sidebar, findsNothing, reason: '$pose');
     }
   });
 
-  testWidgets('a tab of the bar at the top selects it, the search tab opens '
-      'the search, and a tab closes it', (tester) async {
-    final semantics = tester.ensureSemantics();
+  testWidgets("a row of the sidebar selects its tab, the search's row opens "
+      "the search, and a tab's row closes it", (tester) async {
     final controller = GlassTabController();
     addTearDown(controller.dispose);
     final search = GlassSearchController();
     addTearDown(search.dispose);
-    await _pump(tester, controller, _portrait, search: search);
-    await tester.tap(find.descendant(of: _bar, matching: find.text('Two')));
+    await _pump(tester, controller, _landscape, search: search);
+    await tester.tap(find.descendant(of: _sidebar, matching: find.text('Two')));
     await _settle(tester);
     expect(controller.index, 1);
     expect(find.text('Two page'), findsOneWidget);
-    tester.semantics.tap(find.semantics.byLabel('Search'));
+    await tester.tap(
+      find.descendant(of: _sidebar, matching: find.text('Search')),
+    );
     await _settle(tester);
     expect(search.isOpen, isTrue);
     expect(find.text('Search page'), findsOneWidget);
@@ -330,12 +338,11 @@ void main() {
     await tester.enterText(find.byType(EditableText), 'two');
     await _settle(tester);
     expect(search.text, 'two');
-    await tester.tap(find.descendant(of: _bar, matching: find.text('One')));
+    await tester.tap(find.descendant(of: _sidebar, matching: find.text('One')));
     await _settle(tester);
     expect(search.isOpen, isFalse);
     expect(controller.index, 0);
     expect(find.text('One page'), findsOneWidget);
-    semantics.dispose();
   });
 
   testWidgets('the tab chosen is flagged selected in the bar and in the '
@@ -359,22 +366,6 @@ void main() {
     expect(selected('Two'), isTrue);
     expect(selected('One'), isFalse);
     semantics.dispose();
-  });
-
-  testWidgets('a page that hides the tab bar slides the bar at the top away', (
-    tester,
-  ) async {
-    final controller = GlassTabController(initialIndex: 1);
-    addTearDown(controller.dispose);
-    await _pump(tester, controller, _portrait);
-    await tester.tap(find.text('Two page'));
-    await _settle(tester);
-    expect(find.text('Two.next page'), findsOneWidget);
-    expect(tester.getRect(_bar).bottom, lessThanOrEqualTo(0));
-    await tester.binding.handlePopRoute();
-    await _settle(tester);
-    expect(find.text('Two.next page'), findsNothing);
-    expect(tester.getRect(_bar).top, _top);
   });
 
   testWidgets('the selected row is a gray pill while the list tab shows its '
@@ -448,8 +439,9 @@ void main() {
     expect(_padding['One']!.bottom, 84);
   });
 
-  testWidgets('the action is a circle beside the bar at the top and a row at '
-      'the end of the sidebar', (tester) async {
+  testWidgets('the action is a row at the end of the sidebar', (
+    tester,
+  ) async {
     final controller = GlassTabController();
     addTearDown(controller.dispose);
     var pressed = 0;
@@ -473,19 +465,6 @@ void main() {
     expect(tester.getRect(row).top, _top + 63 + 2 * 44);
     await tester.tap(row);
     expect(pressed, 1);
-
-    controller.sidebarShown = false;
-    await _settle(tester);
-    final bar = tester.getRect(_bar);
-    final action = tester.getRect(_button('Compose'));
-    expect(action, Rect.fromLTWH(bar.right + 8, _top, 44, 44));
-    expect(
-      (bar.left + action.right) / 2,
-      moreOrLessEquals(1210 / 2),
-      reason: 'the bar and the action center together',
-    );
-    await tester.tap(_button('Compose'));
-    expect(pressed, 2);
   });
 
   testWidgets('a scroll of a sidebar of many tabs is not a scroll of the '
@@ -512,61 +491,13 @@ void main() {
     expect(scrolled, isNotEmpty, reason: 'the content scroll goes up');
   });
 
-  testWidgets('a bar too narrow for every tab keeps the leading tabs that '
-      'fit and the selected one, and the sidebar holds them all', (
-    tester,
-  ) async {
+  testWidgets("the glass of the sidebar's button morphs into the sidebar, "
+      'across first and down 0.105 s later, and back, up first and across '
+      '0.13 s later', (tester) async {
     final controller = GlassTabController();
     addTearDown(controller.dispose);
-    final search = GlassSearchController();
-    addTearDown(search.dispose);
-    await _pump(tester, controller, const Size(1032, 1376), more: 20);
-    expect(tester.takeException(), isNull);
-    final bar = tester.getRect(_bar);
-    expect(bar.left, greaterThanOrEqualTo(20));
-    expect(bar.right, lessThanOrEqualTo(1032 - 20));
-    expect(find.descendant(of: _bar, matching: find.text('One')), findsOne);
-    expect(
-      find.descendant(of: _bar, matching: find.text('More 19')),
-      findsNothing,
-    );
-
-    controller.index = 21;
-    await _settle(tester);
-    expect(tester.takeException(), isNull);
-    expect(
-      find.descendant(of: _bar, matching: find.text('More 19')),
-      findsOne,
-      reason: 'the selected tab takes the place of the last that fit',
-    );
-    expect(tester.getRect(_bar).right, lessThanOrEqualTo(1032 - 20));
-
-    await _pump(
-      tester,
-      controller,
-      const Size(680, 800),
-      search: search,
-      more: 20,
-    );
-    expect(tester.takeException(), isNull);
-    expect(tester.getRect(_bar).width, lessThanOrEqualTo(680 - 40));
-    controller.sidebarShown = true;
-    await _settle(tester);
-    await tester.tap(
-      find.descendant(of: _sidebar, matching: find.text('More 0')),
-    );
-    await _settle(tester);
-    expect(controller.index, 2);
-  });
-
-  testWidgets('the glass of the bar morphs into the sidebar, across first '
-      'and down 0.105 s later, and back, up first and across 0.13 s later', (
-    tester,
-  ) async {
-    final controller = GlassTabController();
-    addTearDown(controller.dispose);
-    await _pump(tester, controller, _portrait);
-    final bar = tester.getRect(_bar);
+    await _pump(tester, controller, _portrait, layout: _overInPortrait);
+    final bar = tester.getRect(_alone);
     expect(_glass(tester), bar);
     const sidebar = Rect.fromLTWH(0, 0, 280, 1376);
 
@@ -578,7 +509,7 @@ void main() {
     expect(now.width, isNot(bar.width));
     expect(now.top, bar.top, reason: 'down waits 0.105 s');
     expect(now.height, bar.height);
-    expect(_bar, findsOneWidget, reason: 'both sides stand while it moves');
+    expect(_alone, findsOneWidget, reason: 'both stand while it moves');
     expect(_sidebar, findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 140));
@@ -587,7 +518,7 @@ void main() {
     expect(now.height, inExclusiveRange(bar.height, sidebar.height));
     await _settle(tester);
     expect(_glass(tester), sidebar);
-    expect(_bar, findsNothing);
+    expect(_alone, findsNothing);
 
     controller.sidebarShown = false;
     await tester.pump();
@@ -605,11 +536,11 @@ void main() {
   });
 
   testWidgets('a hide before the sidebar starts down drops the down stage: '
-      "the glass goes back across at the bar's height", (tester) async {
+      "the glass goes back across at the button's height", (tester) async {
     final controller = GlassTabController();
     addTearDown(controller.dispose);
-    await _pump(tester, controller, _portrait);
-    final bar = tester.getRect(_bar);
+    await _pump(tester, controller, _portrait, layout: _overInPortrait);
+    final bar = tester.getRect(_alone);
     controller.sidebarShown = true;
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
@@ -623,12 +554,11 @@ void main() {
     expect(tallest, bar.height);
     expect(_glass(tester), bar);
     expect(_sidebar, findsNothing);
-    expect(_bar, findsOneWidget);
+    expect(_alone, findsOneWidget);
   });
 
-  testWidgets('the search page gets a field of its own only under the bar at '
-      "the top: a phone in landscape keeps the bottom bar's field alone, "
-      "and a change of chrome keeps the page's state", (tester) async {
+  testWidgets("the search page keeps the bottom bar's field alone, and a "
+      "change of chrome keeps the page's state", (tester) async {
     final controller = GlassTabController();
     addTearDown(controller.dispose);
     final search = GlassSearchController();

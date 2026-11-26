@@ -330,8 +330,8 @@ class GlassBarSupplement extends InheritedWidget {
 }
 
 /// A search field a container gives the pages of [child]: a tab scaffold's
-/// search page under the bar at the top, where UIKit's search tab leaves
-/// the field to the page's navigation bar (search tab bar passport, iPad).
+/// search page beside its tab sidebar, where UIKit's search tab leaves the
+/// field to the page's navigation bar (search tab bar passport, iPad).
 /// A page's [GlassNavigationBar] with no field of its own stacks it. The
 /// container keeps the supplement in place with a null [field] where its
 /// own bar holds the field, so its pages keep their state.

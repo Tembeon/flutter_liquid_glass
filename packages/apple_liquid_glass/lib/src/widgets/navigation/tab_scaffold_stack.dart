@@ -151,7 +151,7 @@ class GlassTabController extends ChangeNotifier {
 
   /// Whether the tab sidebar shows, as a sidebar or as [sidebarRail] has it,
   /// or null for what the layout shows by itself: the rail, the sidebar
-  /// where it stands beside the content, the bar at the top where the
+  /// where it stands beside the content, its button alone where the
   /// sidebar would cover the content. A layout whose sidebar cannot hide
   /// shows it whatever this says.
   ///

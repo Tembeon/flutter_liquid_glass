@@ -105,30 +105,29 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// renderer and with no `GlassScope` above.
 ///
 /// With the tabs in a sidebar ([GlassTabPlacement.sidebar]), as on an iPad,
-/// they are a bar at the top or a tab sidebar, 280 points wide by default
-/// ([GlassTabLayout.sidebarWidth]): the bar's button shows the sidebar, the
-/// sidebar's hides it. Where the layout stands the sidebar beside the
-/// content ([GlassTabLayout.sidebarBeside]) it shows by itself, and the
-/// content gets its width as its leading safe area, a list tab's column
-/// running under it, the sidebar's width wider; elsewhere it covers the
-/// content, dimmed, until a tap on the content or its button hides it.
-/// While the bar shows, the content's top safe area grows by the bar's
-/// room. A layout whose sidebar hides into its button alone
-/// ([GlassTabLayout.sidebarHidden]) leaves that button where the first
-/// item of the content's navigation bar would stand, the content's bars
-/// starting past it as they start past the window buttons, and keeps the
-/// content's safe area; a page that hides the tab bar leaves the button in
-/// place. [GlassTabController.sidebarShown] keeps what the buttons chose.
+/// they are a tab sidebar, 280 points wide by default
+/// ([GlassTabLayout.sidebarWidth]), or its button alone where the sidebar
+/// hides: the button shows the sidebar, the sidebar's hides it. Where the
+/// layout stands the sidebar beside the content
+/// ([GlassTabLayout.sidebarBeside]) it shows by itself, and the content
+/// gets its width as its leading safe area, a list tab's column running
+/// under it, the sidebar's width wider; elsewhere it covers the content,
+/// dimmed, until a tap on the content or its button hides it. The button
+/// alone stands where the first item of the content's navigation bar would
+/// stand, the content's bars starting past it as they start past the window
+/// buttons, and keeps the content's safe area; a page that hides the tab
+/// bar leaves the button in place. [GlassTabController.sidebarShown] keeps
+/// what the buttons chose.
 ///
 /// The sidebar stands on the layout's [GlassTabLayout.sidebarPanel]:
 /// UIKit's glass to the window's edges by default; part of the window, an
-/// opaque fill with a hairline on the content's side that the bar's glass
-/// fades into as it grows ([GlassTabSidebarPanel.flush]); or glass
+/// opaque fill with a hairline on the content's side that the button's
+/// glass fades into as it grows ([GlassTabSidebarPanel.flush]); or glass
 /// [GlassTabLayout.sidebarMargin] from the window's edges, the content
 /// beside it past the margin ([GlassTabSidebarPanel.floating]). A sidebar
 /// over the content floats on every panel but UIKit's.
 /// [GlassTabSidebarStyle.backgroundColor] fills a flush panel and tints a
-/// glass one apart from the bar.
+/// glass one apart from the button.
 ///
 /// With [resizable], a hand drags the sidebar's edge within the layout's
 /// [GlassTabLayout.sidebarWidth], the content keeping its
@@ -170,26 +169,22 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// where the layout lets it hide or fold, as its buttons do; a
 /// [GlassSelectTabIntent] selects a tab.
 ///
-/// Fidelity. The bar's 21 point inset is measured on iOS 27, the bar at the
-/// top and the sidebar on the 11 inch iPad Pro (iOS 27.2 simulator,
-/// tab sidebar passport); 834 and 1032 point wide portraits put the sidebar
-/// over the content and a 1210 wide landscape beside it, and the automatic
-/// policy stands it beside from 1024 points wide in landscape, a width
-/// between them. Not measured: the bar's
-/// selection lens's motion, its search tab and action, a badge's place in
-/// either, the dimming, how the bar's and the sidebar's content fade as
-/// the glass morphs, the press of a row, and the bar going away for a
-/// page with [GlassPageScaffold.hidesTabBar] (it slides up), and which tabs
-/// a bar too narrow for them all keeps (here the leading tabs that fit and
-/// the selected one, the sidebar holding them all), and whether UIKit's
-/// tab sidebar resizes: its edge, its rail and their numbers are this
-/// package's own, as are the flush and floating panels, their margin and
-/// the sidebar's button alone;
+/// Fidelity. The bar's 21 point inset is measured on iOS 27, the sidebar on
+/// the 11 inch iPad Pro (iOS 27.2 simulator, tab sidebar passport); a 1210
+/// wide landscape puts it beside the content, and the automatic policy
+/// stands it beside from 1024 points wide in landscape. Where UIKit puts a
+/// bar of the tabs at the top (834 and 1032 point wide portraits), this
+/// scaffold keeps the bottom bar, laid out wide; the bar at the top is left
+/// out on purpose, as it takes the content's first row. Not measured: the
+/// dimming, how the button's and the sidebar's content fade as the glass
+/// morphs, the press of a row, and whether UIKit's tab sidebar resizes: its
+/// edge, its rail and their numbers are this package's own, as are the
+/// flush and floating panels, their margin and the sidebar's button alone;
 /// what UIKit draws where its sidebar's glass meets the window's edges is
-/// not measured. The bar at the top does not
-/// minimize, and the sidebar has no Edit mode, groups, swipes or menus.
-/// The bar's glass morphs into the sidebar's on springs fitted to that
-/// passport's frames; the content's safe area takes the sidebar's
+/// not measured. The sidebar has no Edit mode, groups, swipes or menus.
+/// The glass morphs between the button and the sidebar on the springs
+/// UIKit's bar at the top morphs on, fitted to that passport's frames; the
+/// content's safe area takes the sidebar's
 /// width at once, where UIKit moves the content beside it with the
 /// sidebar. The search page's bar stacks its field under the titles where
 /// UIKit puts a search button at the bar's end. An iPhone Duo keeps the
@@ -820,7 +815,6 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
             ),
         ],
         selected: searching ? count : (selected < 0 ? null : selected),
-        iconOnly: search == null ? null : count,
         onSelected: (index) {
           if (index == count) {
             search?.openView();
@@ -842,7 +836,6 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         railWidth: layout.railWidth,
         hides: layout.sidebarHides,
         folds: layout.sidebarFolds,
-        button: layout.sidebarHidden == GlassTabSidebarHidden.button,
         onSidebarWidth: (value) => controller.sidebarWidth = value,
         onSidebarReset: controller._resetSidebar,
         resizable: widget.resizable,

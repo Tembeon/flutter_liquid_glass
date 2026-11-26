@@ -77,19 +77,19 @@ void main() {
         'iPad window, regular and narrow',
         _environment(_tablet, _regular),
         const Size(700, 834),
-        (_sidebar, false, _hidden),
+        (_bottom, false, _hidden),
       ),
       (
         'iPad window, short',
         _environment(_tablet, _regular),
         const Size(915, 486),
-        (_sidebar, false, _beside),
+        (_bottom, false, _beside),
       ),
       (
         'iPad portrait',
         _environment(_tablet, _regular),
         const Size(1032, 1376),
-        (_sidebar, false, _beside),
+        (_bottom, false, _beside),
       ),
       (
         'iPad landscape',
@@ -129,7 +129,7 @@ void main() {
     expect(wide.listWidth, range);
     expect(
       _rowOf(policy.resolve(environment, const Size(799, 700))),
-      (_sidebar, false, _hidden),
+      (_bottom, false, _hidden),
     );
   });
 

@@ -3,26 +3,8 @@ part of 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold.dart';
 // The chrome of a regular width as the tab sidebar passport measures it on
 // the 11 inch iPad Pro (iOS 27.2), unless a line says otherwise.
 abstract final class _Regular {
-  static const double barHeight = 44;
   static const double barRadius = 22;
-  static const double barPadding = 4;
-  static const double buttonWidth = 56;
   static const double glyphSize = 21;
-  static const double itemHeight = 36;
-  static const double itemRadius = 18;
-  static const double itemPadding = 15.5;
-
-  // The search tab drawn as its magnifier alone: not measured.
-  static const double iconItemWidth = 44;
-
-  // The action's circle beside the bar: not measured.
-  static const double actionGap = 8;
-
-  // The least room a side of the bar keeps: not measured.
-  static const double barMargin = 20;
-
-  // The content's navigation bars stand 54 below the bar's top.
-  static const double contentDrop = 54;
 
   static const double circle = 44;
   static const double circleEnd = 16;
@@ -63,14 +45,6 @@ abstract final class _Regular {
   static const double accessoryInset = 20;
   static const double accessoryPadding = 20;
 
-  static const TextStyle item = TextStyle(
-    fontSize: 17,
-    fontWeight: FontWeight.w500,
-  );
-  static const TextStyle selectedItem = TextStyle(
-    fontSize: 17,
-    fontWeight: FontWeight.w600,
-  );
   static const TextStyle row = TextStyle(fontSize: 17);
   static const TextStyle selectedRow = TextStyle(
     fontSize: 17,
@@ -81,19 +55,18 @@ abstract final class _Regular {
   static const double maxTextScale = 1.25;
 }
 
-// The chrome of a regular width: the bar at the top, or the tab sidebar
-// over the content or beside it, or its rail beside it, with the content's
-// safe area grown for them, and the bottom accessory over the content's
-// bottom. The bar's platter and the side are one glass whose frame springs
-// between them, each side's content over it, clipped to it and fading with
-// it. A hand on the side's edge resizes the sidebar, folds it into the
-// rail past its minimum and hides the rail past its width.
+// The chrome of a regular width: the tab sidebar over the content or beside
+// it, its rail beside it, or its button alone, with the content's safe area
+// grown for them, and the bottom accessory over the content's bottom. The
+// button's circle and the side are one glass whose frame springs between
+// them, each one's content over it, clipped to it and fading with it. A
+// hand on the side's edge resizes the sidebar, folds it into the rail past
+// its minimum and hides the rail past its width.
 class _RegularChrome extends StatefulWidget {
   const _RegularChrome({
     required this.size,
     required this.items,
     required this.selected,
-    required this.iconOnly,
     required this.onSelected,
     required this.beside,
     required this.sidebarShown,
@@ -107,7 +80,6 @@ class _RegularChrome extends StatefulWidget {
     required this.railWidth,
     required this.hides,
     required this.folds,
-    required this.button,
     required this.onSidebarWidth,
     required this.onSidebarReset,
     required this.resizable,
@@ -130,7 +102,6 @@ class _RegularChrome extends StatefulWidget {
   final Size size;
   final List<GlassTabDestination> items;
   final int? selected;
-  final int? iconOnly;
   final ValueChanged<int> onSelected;
   final bool beside;
   final bool sidebarShown;
@@ -147,9 +118,6 @@ class _RegularChrome extends StatefulWidget {
   final double railWidth;
   final bool hides;
   final bool folds;
-  // Whether the hidden side leaves its button alone on the content's top
-  // line, where the bar at the top would stand.
-  final bool button;
   final ValueChanged<double> onSidebarWidth;
   final VoidCallback onSidebarReset;
   final bool resizable;
@@ -178,8 +146,8 @@ class _RegularChromeState extends State<_RegularChrome> {
   final _active = ValueNotifier<MotionScroll?>(null);
   late final MotionClock _clock = MotionClockScope.of(context);
   late final _hiding = GlassTabBarHiding(clock: _clock);
-  // How far the glass has gone from the bar at the top to the side, 0 to
-  // 1: across, its place and width; down, its top and height.
+  // How far the glass has gone from the button to the side, 0 to 1:
+  // across, its place and width; down, its top and height.
   late final _across = MotionValue<double>(
     0,
     clock: _clock,
@@ -193,8 +161,10 @@ class _RegularChromeState extends State<_RegularChrome> {
   // The side's width.
   late final _side = MotionValue<double>(widget.sidebarWidth, clock: _clock);
   late MotionSelection<GlassFrame> _frame;
-  late MotionSelection<double> _barLift;
-  late MotionSelection<double> _barOpacity;
+  late final _buttonOpacity = MotionSelection(
+    () => 1 - _shareOf(_across),
+    clock: _clock,
+  );
   late final _sidebarOpacity = MotionSelection(
     () => _shareOf(_down),
     clock: _clock,
@@ -215,8 +185,8 @@ class _RegularChromeState extends State<_RegularChrome> {
   _Place? _place;
   bool? _toSidebar;
   bool _beside = false;
-  // Whether the glass rests at the bar or the side, and whether the side's
-  // width rests.
+  // Whether the glass rests at the button or the side, and whether the
+  // side's width rests.
   bool _morphed = true;
   bool _sized = true;
   bool _aiming = false;
@@ -251,16 +221,9 @@ class _RegularChromeState extends State<_RegularChrome> {
     );
   }
 
-  // How far the bar of [place] shows: a page that hides the tab bar lifts
-  // the bar away, and leaves a button alone in place.
-  double _barShown(_Place place) => place.button ? 1 : _hiding.shown.value;
-
-  // How far up the bar of [place] goes to hide: out of the window.
-  static double _liftOf(_Place place) =>
-      place.button ? 0 : place.bar.top + place.bar.height;
-
-  // The glass at the progress of [_across] and [_down] between the bar
-  // and the side of [place].
+  // The glass at the progress of [_across] and [_down] between the button
+  // and the side of [place]; a page that hides the tab bar leaves the
+  // button in place.
   MotionSelection<GlassFrame> _frameAt(_Place place) => MotionSelection(() {
     final bar = place.bar;
     final size = place.size;
@@ -273,7 +236,6 @@ class _RegularChromeState extends State<_RegularChrome> {
     final start = place.rtl ? size.width - margin - side : margin;
     final left = bar.left + (start - bar.left) * across;
     final grown = _shareOf(_down);
-    final shown = _barShown(place);
     final tint = place.tint;
     return GlassFrame(
       shape: LiquidRoundedSuperellipse(
@@ -284,27 +246,15 @@ class _RegularChromeState extends State<_RegularChrome> {
       ),
       rect: Rect.fromLTWH(
         left,
-        bar.top +
-            (margin - bar.top) * down +
-            (shown - 1) * _liftOf(place) * (1 - grown),
+        bar.top + (margin - bar.top) * down,
         width,
         height,
       ),
       tint: tint,
       tintAmount: tint == null ? 1 : grown,
-      opacity: (shown + (1 - shown) * grown) * (place.opaque ? 1 - grown : 1),
+      opacity: place.opaque ? 1 - grown : 1,
     );
   }, clock: _clock);
-
-  MotionSelection<double> _barLiftAt(_Place place) => MotionSelection(
-    () => (_barShown(place) - 1) * _liftOf(place) * (1 - _shareOf(_down)),
-    clock: _clock,
-  );
-
-  MotionSelection<double> _barOpacityAt(_Place place) => MotionSelection(
-    () => _barShown(place) * (1 - _shareOf(_across)),
-    clock: _clock,
-  );
 
   // The window buttons the content's bars start past while the side leaves
   // its button at [button] on their row: the button, at the edge it stands
@@ -326,7 +276,7 @@ class _RegularChromeState extends State<_RegularChrome> {
     );
   }
 
-  // Sends the glass to the side or the bar: at once on the first build and
+  // Sends the glass to the side or the button: at once on the first build and
   // on a change between over and beside (a rotated window is laid out
   // anew), else on the morph's springs.
   void _aim({required bool toSidebar, required bool beside}) {
@@ -400,8 +350,8 @@ class _RegularChromeState extends State<_RegularChrome> {
   _SideWidths get _widths =>
       _SideWidths(rail: widget.railWidth, minimum: widget.minSidebarWidth);
 
-  // The side's forms the layout offers, narrowest first: hidden (the bar at
-  // the top), the rail and the sidebar.
+  // The side's forms the layout offers, narrowest first: hidden (its button
+  // alone), the rail and the sidebar.
   List<_SideForm> get _kinds => [
     if (widget.hides) _SideForm.hidden,
     if (widget.folds) _SideForm.rail,
@@ -576,9 +526,7 @@ class _RegularChromeState extends State<_RegularChrome> {
     final rail = widget.rail;
     final beside = widget.beside;
     final placed = shown && (beside || rail);
-    final button = widget.button;
-    final top =
-        media.padding.top + (placed || button ? 0 : _Regular.contentDrop);
+    final top = media.padding.top;
     final accessory = widget.accessory;
     final bottom = accessory == null
         ? media.padding.bottom
@@ -588,45 +536,19 @@ class _RegularChromeState extends State<_RegularChrome> {
           );
     final action = widget.action;
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    final _BarLayout? layout;
-    final Rect bar;
-    if (button) {
-      layout = null;
-      final rowTop = BarRoom.rowTopOf(context);
-      final sides = BarRoom.sidesOf(
-        context,
-        inset: navigationSideInset,
-        top: rowTop,
-        height: GlassNavigationBar.height,
-      );
-      bar = Rect.fromLTWH(
-        rtl ? size.width - sides.right - _Regular.circle : sides.left,
-        rowTop,
-        _Regular.circle,
-        _Regular.circle,
-      );
-    } else {
-      final besideBar = action == null
-          ? 0.0
-          : _Regular.actionGap + _Regular.circle;
-      final sides = BarRoom.sidesOf(context, inset: _Regular.barMargin);
-      final row = _BarLayout(
-        context,
-        items: widget.items,
-        iconOnly: widget.iconOnly,
-        selected: widget.selected,
-        maxWidth:
-            size.width - 2 * math.max(sides.left, sides.right) - besideBar,
-      );
-      layout = row;
-      final start = (size.width - row.width - besideBar) / 2;
-      bar = Rect.fromLTWH(
-        rtl ? size.width - start - row.width : start,
-        media.padding.top,
-        row.width,
-        _Regular.barHeight,
-      );
-    }
+    final rowTop = BarRoom.rowTopOf(context);
+    final sides = BarRoom.sidesOf(
+      context,
+      inset: navigationSideInset,
+      top: rowTop,
+      height: GlassNavigationBar.height,
+    );
+    final bar = Rect.fromLTWH(
+      rtl ? size.width - sides.right - _Regular.circle : sides.left,
+      rowTop,
+      _Regular.circle,
+      _Regular.circle,
+    );
     final sideLook = _sidebarLook(context, widget.sidebarStyle);
     final place = (
       bar: bar,
@@ -638,13 +560,10 @@ class _RegularChromeState extends State<_RegularChrome> {
       tint: widget.opaque || sideLook.backgroundColor == null
           ? null
           : GlassDynamicColor.resolve(sideLook.backgroundColor!, context),
-      button: button,
     );
     if (place != _place) {
       _place = place;
       _frame = _frameAt(place);
-      _barLift = _barLiftAt(place);
-      _barOpacity = _barOpacityAt(place);
     }
     final margin = widget.margin;
     if ((placed, beside, margin) != _insetFor) {
@@ -658,7 +577,7 @@ class _RegularChromeState extends State<_RegularChrome> {
     final over = !beside && withSidebar && (!rail || !_sized);
     return GlassChrome(
       edges: ChromeEdges(
-        top: placed || button ? ChromeBar.none : ChromeBar.floating,
+        top: ChromeBar.none,
         topExtent: top,
         scrolledUnderAfter: 0,
         bottom: ChromeBar.none,
@@ -677,15 +596,9 @@ class _RegularChromeState extends State<_RegularChrome> {
               data: media.copyWith(
                 padding: media.padding.copyWith(top: top, bottom: bottom),
               ),
-              // Under the top bar the content's rows are not the window's
-              // first: the window buttons stand in the bar's row. Beside
-              // the side's button alone they start past it.
+              // Beside the side's button the content's bars start past it.
               child: GlassEnvironmentOverride(
-                windowControls: placed
-                    ? null
-                    : button
-                    ? _buttonReserve(bar, rtl: rtl)
-                    : GlassWindowControls.none,
+                windowControls: placed ? null : _buttonReserve(bar, rtl: rtl),
                 child: widget.child,
               ),
             ),
@@ -756,25 +669,13 @@ class _RegularChromeState extends State<_RegularChrome> {
                       key: const ValueKey('bar'),
                       rect: bar,
                       child: MotionTransition(
-                        translateY: _barLift,
-                        opacity: _barOpacity,
+                        opacity: _buttonOpacity,
                         child: _leaving(
                           shown,
-                          layout == null
-                              ? _SidebarButton(
-                                  onPressed: () => widget.onSidebar(true),
-                                  look: widget.look,
-                                )
-                              : _TopBar(
-                                  layout: layout,
-                                  items: widget.items,
-                                  selected: widget.selected,
-                                  iconOnly: widget.iconOnly,
-                                  onSelected: widget.onSelected,
-                                  onSidebar: () => widget.onSidebar(true),
-                                  look: widget.look,
-                                  semanticLabel: widget.semanticLabel,
-                                ),
+                          _SidebarButton(
+                            onPressed: () => widget.onSidebar(true),
+                            look: widget.look,
+                          ),
                         ),
                       ),
                     ),
@@ -815,26 +716,6 @@ class _RegularChromeState extends State<_RegularChrome> {
               ),
             ),
           ),
-          if (action != null && layout != null && withBar)
-            Positioned(
-              key: const ValueKey('action'),
-              left: rtl
-                  ? bar.left - _Regular.actionGap - _Regular.circle
-                  : bar.right + _Regular.actionGap,
-              top: bar.top,
-              child: MotionTransition(
-                translateY: _barLift,
-                opacity: _barOpacity,
-                child: _leaving(
-                  shown,
-                  _circle(
-                    onPressed: action.onPressed,
-                    semanticLabel: action.semanticLabel,
-                    child: action.icon,
-                  ),
-                ),
-              ),
-            ),
           if (widget.resizable && (shown || _fold != null)) _edge(rtl: rtl),
         ],
       ),
@@ -920,7 +801,6 @@ typedef _Place = ({
   double radius,
   bool opaque,
   Color? tint,
-  bool button,
 });
 
 // The corner radius of a side [margin] from the window's edges: concentric
@@ -1057,80 +937,8 @@ Color _foreground(
   context,
 );
 
-// A tab's button as accessibility reads it, in the button's own node: the
-// tab's name, whether it is the one selected, and its badge.
-Widget _tabSemantics(
-  GlassTabDestination destination, {
-  required bool selected,
-  required Widget child,
-}) => Semantics(
-  selected: selected,
-  label: destination.semanticLabel ?? glassLabelTextOf(destination.label),
-  child: child,
-);
-
-// What the bar at the top holds: the width of every tab, as wide as its
-// title at either weight and 15.5 a side, and the tabs that fit in
-// [maxWidth], in order: the leading ones that fit, the selected one in
-// place of the last of them when it does not, and the search tab at the
-// end; the sidebar holds them all.
-final class _BarLayout {
-  factory _BarLayout(
-    BuildContext context, {
-    required List<GlassTabDestination> items,
-    required int? iconOnly,
-    required int? selected,
-    required double maxWidth,
-  }) {
-    final scale = GlassTextScale.of(context, max: _Regular.maxTextScale);
-    final direction = Directionality.of(context);
-    double widthOf(int index) {
-      if (index == iconOnly) return _Regular.iconItemWidth;
-      final text = glassLabelTextOf(items[index].label) ?? '';
-      double drawn(TextStyle style) => scale
-          .measure(text, style, textDirection: direction, maxLines: 1)
-          .size
-          .width;
-      return math.max(drawn(_Regular.item), drawn(_Regular.selectedItem)) +
-          2 * _Regular.itemPadding;
-    }
-
-    final widths = [for (var i = 0; i < items.length; i++) widthOf(i)];
-    var room =
-        maxWidth -
-        2 * _Regular.barPadding -
-        _Regular.buttonWidth -
-        (iconOnly == null ? 0 : widths[iconOnly]);
-    final fits = <int>[];
-    for (var i = 0; i < widths.length; i++) {
-      if (i == iconOnly) continue;
-      if (widths[i] > room) break;
-      fits.add(i);
-      room -= widths[i];
-    }
-    if (selected != null && selected != iconOnly && !fits.contains(selected)) {
-      while (fits.isNotEmpty && widths[selected] > room) {
-        room += widths[fits.removeLast()];
-      }
-      fits.add(selected);
-    }
-    return _BarLayout._(widths, [...fits, ?iconOnly]);
-  }
-
-  const _BarLayout._(this.widths, this.shown);
-
-  final List<double> widths;
-  final List<int> shown;
-
-  // The row inside the platter: the sidebar button and the tabs shown.
-  double get row =>
-      shown.fold(_Regular.buttonWidth, (sum, index) => sum + widths[index]);
-
-  double get width => row + 2 * _Regular.barPadding;
-}
-
-// The button that shows the sidebar: in the bar at the top, or alone on
-// the glass circle the hidden side morphs from.
+// The button that shows the sidebar, alone on the glass circle the hidden
+// side morphs from.
 class _SidebarButton extends StatelessWidget {
   const _SidebarButton({required this.onPressed, required this.look});
 
@@ -1150,168 +958,6 @@ class _SidebarButton extends StatelessWidget {
       child: const GlassSidebarGlyph(),
     ),
   );
-}
-
-// The content of the bar at the top: the sidebar button and the tabs
-// [layout] shows, and the selection lens on the selected one.
-class _TopBar extends StatefulWidget {
-  const _TopBar({
-    required this.layout,
-    required this.items,
-    required this.selected,
-    required this.iconOnly,
-    required this.onSelected,
-    required this.onSidebar,
-    required this.look,
-    required this.semanticLabel,
-  });
-
-  final _BarLayout layout;
-  final List<GlassTabDestination> items;
-  final int? selected;
-  final int? iconOnly;
-  final ValueChanged<int> onSelected;
-  final VoidCallback onSidebar;
-  final GlassTabBarStyle? look;
-  final String? semanticLabel;
-
-  @override
-  State<_TopBar> createState() => _TopBarState();
-}
-
-class _TopBarState extends State<_TopBar> {
-  late final MotionClock _clock = MotionClockScope.of(context);
-  late final _left = MotionValue<double>(0, clock: _clock);
-  late final _width = MotionValue<double>(0, clock: _clock);
-  late final _lens = MotionSelection(
-    () => GlassFrame(
-      shape: const LiquidRoundedSuperellipse(radius: _Regular.itemRadius),
-      rect: Rect.fromLTWH(_left.value, 0, _width.value, _Regular.itemHeight),
-      opacity: _width.value > 0 ? 1 : 0,
-    ),
-    clock: _clock,
-  );
-  bool _placed = false;
-
-  void _place(double left, double width) {
-    if (!_placed) {
-      _placed = true;
-      _left.target = left;
-      _width.target = width;
-    } else if (_left.target != left || _width.target != width) {
-      TabSidebarMotion.select(_left, _width, toStart: left, toWidth: width);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final look = widget.look;
-    final items = widget.items;
-    final scale = GlassTextScale.of(context, max: _Regular.maxTextScale);
-    final direction = Directionality.of(context);
-    final layout = widget.layout;
-    final widths = layout.widths;
-    final shown = layout.shown;
-    final row = layout.row;
-    final selected = widget.selected;
-    if (selected == null || !shown.contains(selected)) {
-      _width.target = 0;
-      _placed = false;
-    } else {
-      var start = _Regular.buttonWidth;
-      for (final index in shown.takeWhile((index) => index != selected)) {
-        start += widths[index];
-      }
-      final width = widths[selected];
-      _place(
-        direction == TextDirection.rtl ? row - start - width : start,
-        width,
-      );
-    }
-    final thumb = look?.thumbColor?.resolve(const {}) ?? GlassTabBar.thumb;
-
-    Widget item(int index) {
-      final destination = items[index];
-      final chosen = index == selected;
-      final color = _foreground(context, look, selected: chosen);
-      final icon = chosen
-          ? destination.selectedIcon ?? destination.icon
-          : destination.icon;
-      final label = index == widget.iconOnly
-          ? IconTheme.merge(
-              data: IconThemeData(color: color, size: _Regular.glyphSize),
-              child: icon,
-            )
-          : DefaultTextStyle(
-              style: scale
-                  .resolve(chosen ? _Regular.selectedItem : _Regular.item)
-                  .copyWith(color: color),
-              maxLines: 1,
-              child: destination.label,
-            );
-      final badge = destination.badge;
-      return SizedBox(
-        width: widths[index],
-        height: _Regular.itemHeight,
-        child: RawGlassButton(
-          onPressed: destination.enabled
-              ? () => widget.onSelected(index)
-              : null,
-          builder: (context, details) => details.label,
-          child: _tabSemantics(
-            destination,
-            selected: chosen,
-            child: Stack(
-              clipBehavior: Clip.none,
-              fit: StackFit.expand,
-              children: [
-                Center(child: ExcludeSemantics(child: scale.apply(label))),
-                if (badge != null)
-                  PositionedDirectional(top: 0, end: 0, child: badge),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Semantics(
-      container: true,
-      label: widget.semanticLabel,
-      child: Padding(
-        padding: const EdgeInsets.all(_Regular.barPadding),
-        child: SizedBox(
-          width: row,
-          height: _Regular.itemHeight,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: GlassSurface.live(
-                  role: GlassRole.lens,
-                  frame: _lens,
-                  glass: Glass.regular(tint: thumb),
-                  child: const SizedBox.expand(),
-                ),
-              ),
-              Row(
-                children: [
-                  SizedBox(
-                    width: _Regular.buttonWidth,
-                    height: _Regular.itemHeight,
-                    child: _SidebarButton(
-                      onPressed: widget.onSidebar,
-                      look: look,
-                    ),
-                  ),
-                  for (final index in shown) item(index),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// The tab sidebar of a [GlassTabScaffold] as a block of its own, for an
