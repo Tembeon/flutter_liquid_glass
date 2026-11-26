@@ -145,6 +145,8 @@ vec3 applyBleed(
 }
 
 #if COLOR_MODELS != COLOR_MODELS_DIRECT
+#include "recipe_edges.glsl"
+
 // A lane of the glass's recipe: slot 0's, or the slots' blended by the
 // weights of the recipes, which sum to one.
 #if COLOR_MODELS == COLOR_MODELS_IOS27
@@ -211,37 +213,19 @@ vec3 recipeTintOf(vec3 c, vec4 tint) {
     return mix(c, tinted * (most > 1.2 ? 1.2 / most : 1.0), tint.a);
 }
 
-// Two lights opposite each other along the axis [facing] is measured on,
-// each reaching [spread] (a cosine) of the edge's direction, over a mask
-// [value] that the bias shapes.
-float twoLights(float facing, float spread, float bias, float value) {
-    float reach = 1.0 / max(1.0 - spread, 1e-6);
-    float near = clamp((facing - spread) * reach, 0.0, 1.0) * value;
-    float far = clamp((-facing - spread) * reach, 0.0, 1.0) * value;
-    return near / max(bias * (1.0 - near) + 1.0, 1e-6) +
-        far / max(bias * (1.0 - far) + 1.0, 1e-6);
-}
-
 // The rim highlight over the face [c] at [depth] device pixels inside the
 // edge, whose outward normal is [normal]: a line and a diffuse glow lit
 // from above and below that brighten the face.
 vec3 recipeHighlightOf(vec3 c, float depth, vec2 normal) {
-    float line = RECIPE(recipeHighlightWidth);
-    float diffuse = RECIPE(recipeHighlightDiffuseWidth);
-    vec2 spread = RECIPE(recipeHighlightSpread);
-    float inside = clamp(depth + 0.5, 0.0, 1.0);
-    float x = clamp(depth / line, 0.0, 1.0);
-    float lineMask = mix(x < 1.0 ? 1.0 : 0.0, 1.0 - x,
-        RECIPE(recipeHighlightCurvature)) * inside *
-        clamp(line - depth + 0.5, 0.0, 1.0);
-    float glowMask = (1.0 - clamp(depth / diffuse, 0.0, 1.0)) * inside *
-        clamp(diffuse - depth + 0.5, 0.0, 1.0);
-    float mask = clamp(
-        twoLights(-normal.y, spread.x, -1.0, lineMask) +
-            twoLights(-normal.y, spread.y, RECIPE(recipeHighlightDiffuseBias),
-                glowMask),
-        0.0,
-        1.0
+    float mask = rimHighlight(
+        depth,
+        normal,
+        1.0,
+        RECIPE(recipeHighlightWidth),
+        RECIPE(recipeHighlightDiffuseWidth),
+        RECIPE(recipeHighlightSpread),
+        RECIPE(recipeHighlightDiffuseBias),
+        RECIPE(recipeHighlightCurvature)
     ) * RECIPE(recipeHighlightOpacity);
     if (mask <= 0.0) return c;
     vec3 lit = levels(c, RECIPE(recipeBrighten));
@@ -249,45 +233,28 @@ vec3 recipeHighlightOf(vec3 c, float depth, vec2 normal) {
     return mix(c, lit * (most > 1.2 ? 1.2 / most : 1.0), mask);
 }
 
-// 1 - erf(x / sqrt 2) halved, the Gaussian's tail past x sigma, within 0.001.
-float gaussianTail(float x) {
-    float t = clamp(x * 0.7071, -2.0, 2.0);
-    float t2 = t * t;
-    return 0.5 +
-        t * (-0.5605 + t2 * (0.16821 + t2 * (-0.03445 + 0.002954 * t2)));
-}
-
-// How dark the ring shadow is at [depth] device pixels inside the edge
-// whose outward normal is [normal]: a band inside the outline moved down,
-// blurred. The moved outline's distance is taken to first order from this
-// pixel's own, which is exact along straight edges.
+// How dark the ring shadow is at [depth] device pixels inside the edge.
 float recipeRingOf(float depth, vec2 normal) {
-    float inverseRadius = RECIPE(recipeRingInverseRadius);
-    float moved = (-depth - RECIPE(recipeRingOffset) * normal.y) *
-        inverseRadius;
-    return RECIPE(recipeRingOpacity) * clamp(
-        gaussianTail(moved) -
-            gaussianTail(moved + RECIPE(recipeRingStroke) * inverseRadius),
-        0.0,
-        1.0
+    return ringShadow(
+        depth,
+        normal,
+        RECIPE(recipeRingOpacity),
+        RECIPE(recipeRingOffset),
+        RECIPE(recipeRingStroke),
+        RECIPE(recipeRingInverseRadius)
     );
 }
 
 // How strongly the dark specular darkens at [depth] device pixels inside
-// the edge (negative outside), whose outward normal is [normal]: a band
-// its width wide just outside the edge, strongest at its outer side, lit
-// from the left and the right.
+// the edge, negative outside.
 float recipeSpecularOf(float depth, vec2 normal) {
-    float width = RECIPE(recipeSpecularWidth);
-    if (width <= 0.0) return 0.0;
-    float from = width + depth;
-    float x = 1.0 - clamp(from / width, 0.0, 1.0);
-    float fall = mix(x > 0.0 ? 1.0 : 0.0, x, 0.75) *
-        clamp(0.5 - depth, 0.0, 1.0) * clamp(from + 0.5, 0.0, 1.0);
-    return min(
-        twoLights(normal.x, RECIPE(recipeSpecularSpread),
-            RECIPE(recipeSpecularBias), fall),
-        1.0
+    return darkSpecular(
+        depth,
+        normal,
+        1.0,
+        RECIPE(recipeSpecularWidth),
+        RECIPE(recipeSpecularSpread),
+        RECIPE(recipeSpecularBias)
     );
 }
 
