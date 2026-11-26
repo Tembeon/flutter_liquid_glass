@@ -59,11 +59,9 @@ void main() {
     'frame, and the glass paints for it',
     (tester) async {
       installsGlassComposer = false;
-      GlassFrames.newPlanner = DirectReads.new;
       glassReadsCopies = true;
       addTearDown(() {
         installsGlassComposer = true;
-        GlassComposer.install();
         glassReadsCopies = false;
       });
       await tester.pumpWidget(
@@ -92,11 +90,9 @@ void main() {
     tester,
   ) async {
     installsGlassComposer = false;
-    GlassFrames.newPlanner = DirectReads.new;
     glassReadsCopies = true;
     addTearDown(() {
       installsGlassComposer = true;
-      GlassComposer.install();
       glassReadsCopies = false;
     });
     tester.view

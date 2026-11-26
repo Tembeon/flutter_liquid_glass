@@ -5,10 +5,19 @@ import 'package:meta/meta.dart';
 
 /// Whether [installLiquidGlassComposer] installs the frame's composer
 /// ([GlassComposer]); without it each glass reads its own backdrop
-/// ([DirectReads]). A test of what glass draws without the composer turns it
+/// ([DirectReads]). Setting it plans every view's glass so from each view's
+/// next frame on. A test of what glass draws without the composer turns it
 /// off before the first glass widget builds.
-@internal
-bool installsGlassComposer = true;
+@visibleForTesting
+bool get installsGlassComposer => _installsGlassComposer;
+@visibleForTesting
+set installsGlassComposer(bool installs) {
+  _installsGlassComposer = installs;
+  GlassFrames.newPlanner = DirectReads.new;
+  installLiquidGlassComposer();
+}
+
+bool _installsGlassComposer = true;
 
 /// Has the glass of every view planned by the renderer's composer, which
 /// lets glass read copies of what lies under it and share one read between
@@ -19,5 +28,5 @@ bool installsGlassComposer = true;
 /// ([LiquidGlassBackdropFilterHost]) calls it the same way, before the
 /// render object's first frame.
 void installLiquidGlassComposer() {
-  if (installsGlassComposer) GlassComposer.install();
+  if (_installsGlassComposer) GlassComposer.install();
 }
