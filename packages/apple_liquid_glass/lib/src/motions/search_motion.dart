@@ -140,10 +140,10 @@ class SearchTabGeometry {
     TabBarMetrics metrics,
   ) {
     final group = math.min(
-      math.max(0, width - 2 * metrics.sideInset),
+      math.max<double>(0, width - 2 * metrics.sideInset),
       metrics.hostedMaximum ?? double.infinity,
     );
-    return (left: (width - group) / 2, width: group.toDouble());
+    return (left: (width - group) / 2, width: group);
   }
 
   /// The share of the window's width a wide bar's focused field and close

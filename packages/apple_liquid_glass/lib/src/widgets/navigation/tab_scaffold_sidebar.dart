@@ -3,7 +3,6 @@ part of 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold.dart';
 // The chrome of a regular width as the tab sidebar passport measures it on
 // the 11 inch iPad Pro (iOS 27.2), unless a line says otherwise.
 abstract final class _Regular {
-  static const double barRadius = 22;
   static const double glyphSize = 21;
 
   static const double circle = 44;
@@ -207,8 +206,8 @@ class _RegularChromeState extends State<_RegularChrome> {
         ? place.size.width - place.margin - width
         : place.margin;
     return math.max(
-      (left - place.bar.left).abs(),
-      (width - place.bar.width).abs(),
+      (left - place.button.left).abs(),
+      (width - place.button.width).abs(),
     );
   }
 
@@ -216,8 +215,8 @@ class _RegularChromeState extends State<_RegularChrome> {
     final place = _place;
     if (place == null) return 0;
     return math.max(
-      (place.bar.top - place.margin).abs(),
-      (place.size.height - 2 * place.margin - place.bar.height).abs(),
+      (place.button.top - place.margin).abs(),
+      (place.size.height - 2 * place.margin - place.button.height).abs(),
     );
   }
 
@@ -225,28 +224,29 @@ class _RegularChromeState extends State<_RegularChrome> {
   // and the side of [place]; a page that hides the tab bar leaves the
   // button in place.
   MotionSelection<GlassFrame> _frameAt(_Place place) => MotionSelection(() {
-    final bar = place.bar;
+    final button = place.button;
     final size = place.size;
     final margin = place.margin;
     final across = _across.value;
     final down = _down.value;
     final side = _side.value;
-    final width = bar.width + (side - bar.width) * across;
-    final height = bar.height + (size.height - 2 * margin - bar.height) * down;
+    final width = button.width + (side - button.width) * across;
+    final height =
+        button.height + (size.height - 2 * margin - button.height) * down;
     final start = place.rtl ? size.width - margin - side : margin;
-    final left = bar.left + (start - bar.left) * across;
+    final left = button.left + (start - button.left) * across;
     final grown = _shareOf(_down);
     final tint = place.tint;
     return GlassFrame(
       shape: LiquidRoundedSuperellipse(
         radius: math.min(
-          _lerp(_Regular.barRadius, place.radius, grown),
+          _lerp(_Regular.circle / 2, place.radius, grown),
           math.min(width, height) / 2,
         ),
       ),
       rect: Rect.fromLTWH(
         left,
-        bar.top + (margin - bar.top) * down,
+        button.top + (margin - button.top) * down,
         width,
         height,
       ),
@@ -543,7 +543,7 @@ class _RegularChromeState extends State<_RegularChrome> {
       top: rowTop,
       height: GlassNavigationBar.height,
     );
-    final bar = Rect.fromLTWH(
+    final button = Rect.fromLTWH(
       rtl ? size.width - sides.right - _Regular.circle : sides.left,
       rowTop,
       _Regular.circle,
@@ -551,7 +551,7 @@ class _RegularChromeState extends State<_RegularChrome> {
     );
     final sideLook = _sidebarLook(context, widget.sidebarStyle);
     final place = (
-      bar: bar,
+      button: button,
       size: size,
       rtl: rtl,
       margin: widget.margin,
@@ -572,7 +572,7 @@ class _RegularChromeState extends State<_RegularChrome> {
     }
     _aimSide(rail: rail, width: widget.sidebarWidth);
     _aim(toSidebar: shown, beside: beside);
-    final withBar = !shown || !_morphed;
+    final withButton = !shown || !_morphed;
     final withSidebar = shown || !_morphed;
     final over = !beside && withSidebar && (!rail || !_sized);
     return GlassChrome(
@@ -598,7 +598,9 @@ class _RegularChromeState extends State<_RegularChrome> {
               ),
               // Beside the side's button the content's bars start past it.
               child: GlassEnvironmentOverride(
-                windowControls: placed ? null : _buttonReserve(bar, rtl: rtl),
+                windowControls: placed
+                    ? null
+                    : _buttonReserve(button, rtl: rtl),
                 child: widget.child,
               ),
             ),
@@ -664,10 +666,10 @@ class _RegularChromeState extends State<_RegularChrome> {
               clipBehavior: _morphed && _sized ? Clip.none : Clip.hardEdge,
               child: Stack(
                 children: [
-                  if (withBar)
+                  if (withButton)
                     Positioned.fromRect(
-                      key: const ValueKey('bar'),
-                      rect: bar,
+                      key: const ValueKey('button'),
+                      rect: button,
                       child: MotionTransition(
                         opacity: _buttonOpacity,
                         child: _leaving(
@@ -788,13 +790,12 @@ class _SideLayout extends SingleChildLayoutDelegate {
       oldDelegate.edge != edge;
 }
 
-// Where the chrome lays the glass out: the bar's rect, the room the side
+// Where the chrome lays the glass out: the side's button, the room the side
 // fills the height of less its margin, the edge the side stands at, the
 // side's corner radius, whether the glass fades into a flush panel's fill,
-// the tint the glass takes on as it grows into the side, and whether the
-// bar is the side's button alone.
+// and the tint the glass takes on as it grows into the side.
 typedef _Place = ({
-  Rect bar,
+  Rect button,
   Size size,
   bool rtl,
   double margin,
@@ -804,10 +805,10 @@ typedef _Place = ({
 });
 
 // The corner radius of a side [margin] from the window's edges: concentric
-// with the window's where they are known, the bar's elsewhere.
+// with the window's where they are known, the button's elsewhere.
 double _floatingRadius(BuildContext context, double margin) {
   final window = GlassEnvironment.of(context).windowCornerRadius;
-  return window == null ? _Regular.barRadius : math.max(0, window - margin);
+  return window == null ? _Regular.circle / 2 : math.max(0, window - margin);
 }
 
 // A flush side: its opaque fill and a hairline on the content's side, over
@@ -1017,7 +1018,7 @@ class _SidebarButton extends StatelessWidget {
 /// shell stands away from the window's edges
 /// ([GlassTabSidebarPanel.floating]). Without one the rows stand on what
 /// the shell draws under them, as the scaffold's stand on the glass that
-/// morphs from its bar.
+/// morphs from its button.
 ///
 /// The tabs' rows are one Tab stop, entered at the selected row; the up
 /// and down arrows move the focus to the row above or below and select its
@@ -1623,8 +1624,8 @@ class GlassTabSidebarStyle extends GlassStyle<GlassTabSidebarStyle> {
 
   /// What the sidebar's panel is filled with: the opaque fill of a
   /// [GlassTabSidebarPanel.flush] panel, the scaffold's background by
-  /// default, and a tint over a glass one, which the bar's glass crosses
-  /// into as it morphs into the sidebar, none by default.
+  /// default, and a tint over a glass one, which the button's glass
+  /// crosses into as it morphs into the sidebar, none by default.
   final Color? backgroundColor;
 
   /// The hairline a [GlassTabSidebarPanel.flush] panel draws on the

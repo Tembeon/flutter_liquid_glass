@@ -73,7 +73,7 @@ enum GlassTabSidebarPanel {
 
   /// Glass [GlassTabLayout.sidebarMargin] from the window's edges, its
   /// corners concentric with the window's where they are known
-  /// ([GlassEnvironment.windowCornerRadius]) and the bar's elsewhere; the
+  /// ([GlassEnvironment.windowCornerRadius]) and the button's elsewhere; the
   /// content stands beside it, the margin past it.
   floating,
 }
