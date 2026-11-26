@@ -999,14 +999,17 @@ void main() {
                 .whereType<RenderLiquidGlassLayer>()
                 .where((renderObject) => renderObject.paintBounds != Rect.zero)
                 .last;
-            final support = Shadow.convertRadiusToSigma(12) * 3 - 1;
+            final support = Shadow.convertRadiusToSigma(12) * 2.885 - 1;
             expect(
               renderObject.paintBounds,
-              Rect.fromLTRB(
-                -support,
-                4 - support,
-                100 + support,
-                104 + support,
+              rectMoreOrLessEquals(
+                Rect.fromLTRB(
+                  -support,
+                  4 - support,
+                  100 + support,
+                  104 + support,
+                ),
+                epsilon: 0.01,
               ),
             );
             final filterBounds = renderObject.debugFilterBounds!;

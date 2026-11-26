@@ -66,11 +66,14 @@ void main() {
       );
       expect(
         renderObject.paintBounds,
-        Rect.fromLTRB(
-          -glassShadowBlurSupportForTest,
-          4 - glassShadowBlurSupportForTest,
-          renderObject.size.width + glassShadowBlurSupportForTest,
-          renderObject.size.height + 4 + glassShadowBlurSupportForTest,
+        rectMoreOrLessEquals(
+          Rect.fromLTRB(
+            -glassShadowBlurSupportForTest,
+            4 - glassShadowBlurSupportForTest,
+            renderObject.size.width + glassShadowBlurSupportForTest,
+            renderObject.size.height + 4 + glassShadowBlurSupportForTest,
+          ),
+          epsilon: 0.01,
         ),
       );
     });
@@ -383,8 +386,10 @@ Widget _comparisonSurface({
   );
 }
 
+// How far an opaque shadow blurred by 12 and spread by -1 shows: to half a
+// level out of 255, 2.885 sigmas past its edge.
 final glassShadowBlurSupportForTest =
-    ui.Shadow.convertRadiusToSigma(12) * 3 - 1;
+    ui.Shadow.convertRadiusToSigma(12) * 2.885 - 1;
 
 String _backendGolden(String name) =>
     ui.ImageFilter.isShaderFilterSupported ? name : '${name}_skia';

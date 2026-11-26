@@ -2,7 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
-import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe_groups.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
 
@@ -113,12 +114,6 @@ final class LiquidGlassIos27RegularShadow extends LiquidGlassShadow {
 /// A [LiquidGlassShadow] as glass of a size casts it.
 @internal
 extension CastGlassShadow on LiquidGlassShadow {
-  static const _offset = Offset(0, 8);
-
-  // The iOS 27 shadow's own colour is black at 30 %; the opacity that grows
-  // with the size multiplies it.
-  static const _alpha = 0.3;
-
   /// The shadow of a shape of [size].
   BoxShadow castAt(Size size) {
     switch (this) {
@@ -135,26 +130,25 @@ extension CastGlassShadow on LiquidGlassShadow {
           spreadRadius: spreadRadius,
         );
       case LiquidGlassIos27RegularShadow(:final brightness):
-        final grown = ios27PanelProgress(size.shortestSide);
-        final opacity =
-            0.04 + (brightness == Brightness.dark ? 0.56 : 0.36) * grown;
-        // iOS fades the shadow as erfc(distance / radius), a Gaussian edge
-        // whose sigma is the radius over sqrt 2; Flutter derives sigma from
-        // blurRadius as 0.57735 r + 0.5.
-        final sigma = (4 + 20 * grown) / math.sqrt2;
-        return BoxShadow(
-          color: Color.from(
-            alpha: _alpha * opacity,
-            red: 0,
-            green: 0,
-            blue: 0,
+        return _boxShadowOf(
+          ios27DropShadow(
+            variant: GlassVariant.regular,
+            brightness: brightness,
+            shortSide: size.shortestSide,
           ),
-          offset: _offset,
-          blurRadius: (sigma - 0.5) / 0.57735,
         );
     }
   }
 }
+
+// iOS fades the shadow as erfc(distance / radius), a Gaussian edge whose
+// sigma is the radius over sqrt 2; Flutter derives sigma from blurRadius as
+// 0.57735 r + 0.5.
+BoxShadow _boxShadowOf(DropShadowRecipe shadow) => BoxShadow(
+  color: shadow.color.withValues(alpha: shadow.color.a * shadow.opacity),
+  offset: Offset(0, shadow.offset),
+  blurRadius: math.max((shadow.radius / math.sqrt2 - 0.5) / 0.57735, 0),
+);
 
 /// [shadows] as a shape of [size] casts them ([CastGlassShadow.castAt]).
 @internal
@@ -391,20 +385,40 @@ Path pathOutside(
     ..addPath(cut, Offset.zero, matrix4: transform);
 }
 
-double _blurSupport(double blurRadius) =>
-    Shadow.convertRadiusToSigma(blurRadius) * 3;
+// How far past a body a shadow of [alpha] blurred by [blurRadius] still
+// shows: where the Gaussian tail of its edge falls to half a level out of
+// 255, which no pixel shows.
+double _blurSupport(double blurRadius, double alpha) {
+  final faintest = 0.5 / 255 / alpha;
+  if (blurRadius <= 0 || !(faintest < 0.5)) return 0;
+  return Shadow.convertRadiusToSigma(blurRadius) *
+      _gaussianTailInverse(faintest);
+}
+
+// How many sigmas past its edge a Gaussian's tail falls to [p], for p up to
+// a half (Abramowitz and Stegun 26.2.23, within 4.5e-4 sigma).
+double _gaussianTailInverse(double p) {
+  final t = math.sqrt(-2 * math.log(p));
+  return t -
+      (2.515517 + t * (0.802853 + t * 0.010328)) /
+          (1 + t * (1.432788 + t * (0.189269 + t * 0.001308)));
+}
 
 Rect _shadowRect(Rect body, BoxShadow shadow, double visibility) => body
     .shift(shadow.offset)
     .inflate(
       math.max(
-        shadow.spreadRadius + _blurSupport(shadow.blurRadius * visibility),
+        shadow.spreadRadius +
+            _blurSupport(
+              shadow.blurRadius * visibility,
+              shadow.color.a * visibility,
+            ),
         0,
       ),
     );
 
 /// [body] grown to hold what each of [shadows] of it paints at
-/// [visibility].
+/// [visibility], as far as it shows.
 @internal
 Rect glassShadowBounds(
   Rect body,

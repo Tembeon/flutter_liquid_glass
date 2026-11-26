@@ -279,6 +279,31 @@ final class GlassRecipeOverrides {
       'shadows: $shadows, highlight: $highlight)';
 }
 
+/// The shadow iOS 27 glass of [variant] in [brightness] casts when its
+/// shorter side is [shortSide] logical pixels, as [GlassRecipe.of] gives it:
+/// none under clear glass, and under regular glass one that grows from a
+/// control's to a panel's ([ios27PanelProgress]). The accessibility
+/// settings and the slider leave it as it is.
+@internal
+DropShadowRecipe ios27DropShadow({
+  required GlassVariant variant,
+  required Brightness brightness,
+  required double shortSide,
+}) {
+  if (variant == GlassVariant.clear) {
+    return const DropShadowRecipe(
+      radius: 0,
+      opacity: 0,
+      color: Color.from(alpha: 0.1, red: 0, green: 0, blue: 0),
+    );
+  }
+  final grown = ios27PanelProgress(shortSide);
+  return DropShadowRecipe(
+    radius: 4 + 20 * grown,
+    opacity: 0.04 + (brightness == Brightness.dark ? 0.56 : 0.36) * grown,
+  );
+}
+
 /// [slider] within 0..1, snapped to the steps of 0.05 iOS's Liquid Glass
 /// slider takes.
 double snapSlider(double slider) =>
@@ -529,19 +554,11 @@ final class _Law {
           );
   }
 
-  DropShadowRecipe dropShadow() {
-    if (clear) {
-      return const DropShadowRecipe(
-        radius: 0,
-        opacity: 0,
-        color: Color.from(alpha: 0.1, red: 0, green: 0, blue: 0),
-      );
-    }
-    return DropShadowRecipe(
-      radius: 4 + 20 * grown,
-      opacity: 0.04 + (dark ? 0.56 : 0.36) * grown,
-    );
-  }
+  DropShadowRecipe dropShadow() => ios27DropShadow(
+    variant: variant,
+    brightness: dark ? Brightness.dark : Brightness.light,
+    shortSide: shortSide,
+  );
 
   RingShadowRecipe ringShadow() {
     if (clear || reduceTransparency) return RingShadowRecipe.none;
