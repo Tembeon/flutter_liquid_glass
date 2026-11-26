@@ -448,9 +448,8 @@ enum FakeSurfaceLane implements UniformLane {
   ringStroke,
   ringInverseRadius,
 
-  /// How dark an iOS 27 recipe's dark specular makes the band outside the
-  /// glass where it is full, which takes the contour's place; 0 for other
-  /// glass.
+  /// How dark an iOS 27 recipe's dark specular makes its band where it is
+  /// full, which takes the contour's place; 0 for other glass.
   specularStrength,
   specularWidth,
 
@@ -484,7 +483,7 @@ enum BentContentLane implements UniformLane {
   /// One over the picture's size.
   pictureScale(2),
 
-  /// The amount and height of the first bend, then of the second.
+  /// The amount and depth of the first bend, then of the second.
   bends(4),
 
   /// How far the colors part and how deep from the rim the parting fades.

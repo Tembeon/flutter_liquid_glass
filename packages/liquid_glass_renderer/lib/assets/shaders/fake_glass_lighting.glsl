@@ -80,9 +80,9 @@ vec4 fakeGlassLit(
       : 0.0;
   float unshaded = (1.0 - tintAlpha) * (1.0 - ring);
   float materialAlpha = 1.0 - unshaded * (1.0 - shadow);
-  float exteriorContourAlpha = clamp(contourBand * contourStrength, 0.0, 1.0);
+  float edgeBandAlpha = clamp(contourBand * contourStrength, 0.0, 1.0);
   if (uSpecularStrength > 0.0) {
-    exteriorContourAlpha += uSpecularStrength * darkSpecular(
+    edgeBandAlpha += uSpecularStrength * darkSpecular(
       -distance - uSpecularInset,
       normal,
       uPixelSize,
@@ -100,7 +100,7 @@ vec4 fakeGlassLit(
         max(max(litPremultiplied.r, litPremultiplied.g), litPremultiplied.b);
     litAlpha = max(litAlpha, alphaCoveringColor);
   }
-  float alpha = litAlpha * materialCoverage + exteriorContourAlpha;
+  float alpha = litAlpha * materialCoverage + edgeBandAlpha;
   return vec4(
     max(litPremultiplied * materialCoverage, vec3(0.0)),
     clamp(alpha, 0.0, 1.0)

@@ -102,9 +102,11 @@ float ringShadowAcross(
     return min(ring, 1.0);
 }
 
-// How strongly the dark specular darkens at [depth]: a band [width] wide
-// just outside the edge, strongest at its outer side, lit from the left
-// and the right as far as the cosine [spread], its mask biased by [bias].
+// How strongly the dark specular darkens at [depth] from the band's inner
+// end, positive inward: a band [width] wide outward from there, strongest
+// at its outer end, lit from the left and the right as far as the cosine
+// [spread], its mask biased by [bias]. A band that starts inside the glass
+// is drawn with its callers' depth moved by its inset.
 float darkSpecular(
     float depth,
     vec2 normal,

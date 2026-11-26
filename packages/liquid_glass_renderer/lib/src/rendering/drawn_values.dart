@@ -125,8 +125,8 @@ final _recipes = <(RecipeLook, double), GlassRecipe>{};
 ///
 /// The rim highlight's line takes its full amount, 1, and its diffuse glow
 /// the diffuse amount of it; each mask is biased by one over its amount
-/// less two, as UIKit's. The dark specular lies its own width outside the
-/// edge.
+/// less two, as UIKit's. The dark specular's band runs from its inset inside
+/// the edge to its outset past it.
 List<double> recipeLanes(
   RecipeLook look, {
   required double sliderPosition,

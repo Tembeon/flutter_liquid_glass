@@ -949,7 +949,7 @@ void main() {
             face = recipeTintOf(face, materialTint);
         }
         // The ring reaches deepest; the highlight lies within its widest
-        // band and the half pixel outside, the dark specular outside.
+        // band and the half pixel outside.
         if (nearEdge && signedEdgeDistance > -0.5 &&
             signedEdgeDistance < max(
                 RECIPE(recipeHighlightWidth),
@@ -957,7 +957,8 @@ void main() {
             ) + 0.5) {
             face = recipeHighlightOf(face, signedEdgeDistance, surfaceNormal);
         }
-        if (nearEdge && signedEdgeDistance < 0.5) {
+        if (nearEdge &&
+            signedEdgeDistance < RECIPE(recipeSpecularInset) + 0.5) {
             specular = recipeSpecularOf(signedEdgeDistance, surfaceNormal) *
                 appearanceVisibility *
                 (1.0 - directWeight);
