@@ -300,11 +300,13 @@ void main() {
     expect(await face(_control), closeTo(0xB9, 2));
   }, skip: skipProperGlassTests);
 
-  test('glass up to 64 points and from 192 points wears one model each', () {
+  test('glass up to 64 points and from 160 points wears one model each', () {
     for (final brightness in Brightness.values) {
       final model = LiquidGlassColorModel.ios27Regular(brightness: brightness);
       expect(identical(model.wornAt(20), model.wornAt(64)), isTrue);
-      expect(identical(model.wornAt(192), model.wornAt(900)), isTrue);
+      expect(identical(model.wornAt(160), model.wornAt(900)), isTrue);
+      expect(identical(model.wornAt(175), model.wornAt(192)), isTrue);
+      expect(model.wornAt(159), isNot(model.wornAt(160)));
       expect(model.wornAt(64), isNot(model.wornAt(192)));
       expect(model.wornAt(100), model.wornAt(100));
       expect(model.wornAt(100), isNot(model.wornAt(120)));
@@ -312,7 +314,7 @@ void main() {
     }
     const clear = LiquidGlassColorModel.ios27Clear();
     expect(identical(clear.wornAt(40), clear.wornAt(64)), isTrue);
-    expect(identical(clear.wornAt(192), clear.wornAt(400)), isTrue);
+    expect(identical(clear.wornAt(160), clear.wornAt(400)), isTrue);
     const direct = LiquidGlassColorModel.direct();
     expect(identical(direct.wornAt(40), direct.wornAt(400)), isTrue);
     expect(direct.wornAt(40).recipe, isNull);

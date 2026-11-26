@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
+import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 
 /// Flutter's 4x5 color matrix that sets [saturation] on the luminance glass
@@ -256,9 +257,12 @@ extension WearColorModel on LiquidGlassColorModel {
   /// The model as glass whose shorter side is [shortSide] points and whose
   /// tint is [tint] wears it.
   ///
-  /// iOS 27 glass up to 64 points wears one recipe and glass from 192
+  /// iOS 27 glass up to 64 points wears one recipe and glass from 160
   /// points another, so shapes that share a layer mostly share one; between
-  /// the two each size wears its own. A grey tint takes another law than a
+  /// the two each size wears its own. From 160 points on only the rim
+  /// highlight's spread still widens, by at most 3.3 degrees up to 192, so
+  /// such glass wears the 192's: panels of one layer keep one recipe slot
+  /// and the shader of one look. A grey tint takes another law than a
   /// colour.
   WornColorModel wornAt(double shortSide, {Color? tint}) {
     final grey =
@@ -266,7 +270,9 @@ extension WearColorModel on LiquidGlassColorModel {
         tint.a > 0 &&
         (tint.r - tint.g).abs() < 1 / 510 &&
         (tint.g - tint.b).abs() < 1 / 510;
-    final side = shortSide.clamp(recipeSizes.control, recipeSizes.panel);
+    final side = shortSide >= ios27SizeRamp.panel
+        ? recipeSizes.panel
+        : shortSide.clamp(recipeSizes.control, recipeSizes.panel);
     switch (this) {
       case LiquidGlassDirectColorModel(
         :final saturation,
