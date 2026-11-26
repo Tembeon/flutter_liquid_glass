@@ -280,14 +280,14 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   @override
   Widget build(BuildContext context) {
     final brightness = MediaQuery.platformBrightnessOf(context);
-    final increaseContrast = MediaQuery.maybeHighContrastOf(context) ?? false;
+    final highContrast = MediaQuery.maybeHighContrastOf(context) ?? false;
     if (brightness != _platformBrightness ||
-        increaseContrast != _platformContrast) {
+        highContrast != _platformContrast) {
       _platformBrightness = brightness;
-      _platformContrast = increaseContrast;
+      _platformContrast = highContrast;
       _platform = LiquidGlassAppearance.ios27Regular(
         brightness: brightness,
-        increaseContrast: increaseContrast,
+        highContrast: highContrast,
       );
     }
     final defaultAppearance = _defaultAppearance;

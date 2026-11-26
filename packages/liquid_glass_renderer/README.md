@@ -412,7 +412,7 @@ bevel refracts; the face shows the backdrop undisplaced.
 
 ### Lenses
 
-`lens: LensSettings(...)` holds what glass does as a lens to what lies under
+`lens: LiquidGlassLens(...)` holds what glass does as a lens to what lies under
 it. Every value defaults to `0`, which does none of it.
 
 - `shrink`: shrinks what the whole face shows. `0` keeps its size and `0.08`
@@ -430,7 +430,7 @@ it. Every value defaults to `0`, which does none of it.
 - `aberration` and `aberrationDepth`: parts the colors of everything the glass
   shows, not only of the bevel: red shows what lies up to `aberration` logical
   pixels one way and blue what lies as far the other way, along the direction
-  iOS 27 parts them in (the dartdoc of `LensSettings.aberration` gives it), in
+  iOS 27 parts them in (the dartdoc of `LiquidGlassLens.aberration` gives it), in
   full at the edge and fading to nothing `aberrationDepth` from it. Glass that
   parts colors draws with a larger shader variant.
 
@@ -442,7 +442,7 @@ instead of snapping to whole pixels.
 
 ### Magnifiers
 
-`LensSettings.shrink` never magnifies, because enlarging a captured backdrop makes
+`LiquidGlassLens.shrink` never magnifies, because enlarging a captured backdrop makes
 it blurry. The [example playground](#example-playground) shows how to build an
 iOS 27 text loupe instead: it re-renders the content under the lens at the
 magnified resolution and draws a `LiquidGlass` on a layer of its own on top,

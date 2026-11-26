@@ -2,7 +2,7 @@
 /// what lies behind it.
 ///
 /// `LiquidShape` and its kinds give the outline, `LiquidGlassSettings` the
-/// optics (the blur, and the lens in `LensSettings`),
+/// optics (the blur, and the lens in `LiquidGlassLens`),
 /// `LiquidGlassAppearance` and `LiquidGlassColorModel` the color, the
 /// material and the lit rim,
 /// `LiquidGlassMaterial` settings, an appearance and shadows that belong
@@ -29,7 +29,6 @@
 /// library paints a body as the renderer does.
 library;
 
-export 'src/painting/lens_settings.dart' show LensSettings;
 export 'src/painting/liquid_glass_appearance.dart' show LiquidGlassAppearance;
 export 'src/painting/liquid_glass_backdrop.dart'
     show LiquidGlassBackdrop, LiquidGlassReadBackdrop, LiquidGlassSolidBackdrop;
@@ -53,6 +52,7 @@ export 'src/painting/liquid_glass_content_bend.dart'
 export 'src/painting/liquid_glass_field.dart' show LiquidGlassField;
 export 'src/painting/liquid_glass_glow.dart' show LiquidGlassGlow;
 export 'src/painting/liquid_glass_layer_frame.dart' show LiquidGlassLayerFrame;
+export 'src/painting/liquid_glass_lens.dart' show LiquidGlassLens;
 export 'src/painting/liquid_glass_material.dart' show LiquidGlassMaterial;
 export 'src/painting/liquid_glass_settings.dart' show LiquidGlassSettings;
 export 'src/painting/liquid_glass_shadow.dart'

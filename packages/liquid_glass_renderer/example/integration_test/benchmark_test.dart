@@ -1932,7 +1932,7 @@ class _AppLikeSceneState extends State<_AppLikeScene> {
                           blur: 0,
                           refractionHeight: 24,
                           refractionAmount: 40,
-                          lens: LensSettings(shrink: .08, dispersion: .1),
+                          lens: LiquidGlassLens(shrink: .08, dispersion: .1),
                         ),
                         defaultAppearance: LiquidGlassAppearance(
                           colorModel: LiquidGlassColorModel.direct(

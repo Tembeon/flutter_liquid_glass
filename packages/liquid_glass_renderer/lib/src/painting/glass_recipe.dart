@@ -36,7 +36,7 @@ final class GlassRecipe {
 
   /// iOS 27 glass of [variant] in [brightness] whose shorter side is
   /// [shortSide] logical pixels, at the Liquid Glass slider position
-  /// [slider], with the system's [increaseContrast].
+  /// [slider], with the system's [highContrast].
   ///
   /// Every value follows a law of the size, the slider, the scheme and the
   /// variant read from UIKit on iOS 27.0 and 27.2 (notes private); on the
@@ -59,14 +59,14 @@ final class GlassRecipe {
     required Brightness brightness,
     required double shortSide,
     double slider = 0,
-    bool increaseContrast = false,
+    bool highContrast = false,
   }) {
     final law = _Law(
       variant: variant,
       dark: brightness == Brightness.dark,
       shortSide: shortSide,
       slider: snapSlider(slider),
-      increaseContrast: increaseContrast,
+      highContrast: highContrast,
     );
     return GlassRecipe(
       blur: law.blur(),
@@ -165,7 +165,7 @@ final class _Law {
     required this.dark,
     required this.shortSide,
     required this.slider,
-    required this.increaseContrast,
+    required this.highContrast,
   }) : grown = ios27PanelProgress(shortSide),
        split = splitAtMiddleTick(slider);
 
@@ -173,7 +173,7 @@ final class _Law {
   final bool dark;
   final double shortSide;
   final double slider;
-  final bool increaseContrast;
+  final bool highContrast;
   final double grown;
   final ({double upTo, double past}) split;
 
@@ -214,7 +214,7 @@ final class _Law {
 
   FaceRecipe face() {
     final face = _restingFace();
-    return increaseContrast ? _contrastFace(face) : face;
+    return highContrast ? _contrastFace(face) : face;
   }
 
   FaceRecipe _restingFace() {
@@ -339,7 +339,7 @@ final class _Law {
     final spread = _degrees(
       80 + 10 * clampDouble((shortSide - 96) / 96, 0, 1),
     );
-    final opacity = clear && increaseContrast ? 0.55 : 1.0;
+    final opacity = clear && highContrast ? 0.55 : 1.0;
     return clear
         ? RimHighlightRecipe(
             width: 1,

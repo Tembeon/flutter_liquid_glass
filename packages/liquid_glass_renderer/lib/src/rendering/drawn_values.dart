@@ -8,10 +8,10 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 
-/// The values of [LensSettings] the shaders take: each clamped to the range
+/// The values of [LiquidGlassLens] the shaders take: each clamped to the range
 /// the renderer draws.
-extension DrawnLens on LensSettings {
-  /// [shrink] clamped to the range [LensSettings.shrink] gives.
+extension DrawnLens on LiquidGlassLens {
+  /// [shrink] clamped to the range [LiquidGlassLens.shrink] gives.
   double get drawnShrink => shrink.clamp(0.0, 0.75);
 
   /// [pull] where it reaches anywhere, else `0`; never negative.
@@ -112,7 +112,7 @@ GlassRecipe recipeOf(RecipeLook look, double sliderPosition) {
     brightness: look.brightness,
     shortSide: look.shortSide,
     slider: sliderPosition,
-    increaseContrast: look.increaseContrast,
+    highContrast: look.highContrast,
   );
 }
 

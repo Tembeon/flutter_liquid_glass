@@ -98,7 +98,7 @@ void main() {
 
     final pulled = await _pixels(
       tester,
-      _clear.copyWith(lens: const LensSettings(pull: 9, pullDepth: 36)),
+      _clear.copyWith(lens: const LiquidGlassLens(pull: 9, pullDepth: 36)),
       white,
     );
     // 2.5 px deep the glass reads 5.7 px farther out: the stripe.
@@ -121,7 +121,7 @@ void main() {
     final parted = await _pixels(
       tester,
       _clear.copyWith(
-        lens: const LensSettings(aberration: 3, aberrationDepth: 30),
+        lens: const LiquidGlassLens(aberration: 3, aberrationDepth: 30),
       ),
       white,
     );
@@ -149,7 +149,7 @@ void main() {
     final parted = await _pixels(
       tester,
       _clear.copyWith(
-        lens: const LensSettings(aberration: 3, aberrationDepth: 30),
+        lens: const LiquidGlassLens(aberration: 3, aberrationDepth: 30),
       ),
       white,
     );
@@ -172,7 +172,7 @@ void main() {
     final parted = await _pixels(
       tester,
       _clear.copyWith(
-        lens: const LensSettings(aberration: 3, aberrationDepth: 30),
+        lens: const LiquidGlassLens(aberration: 3, aberrationDepth: 30),
       ),
       white,
     );

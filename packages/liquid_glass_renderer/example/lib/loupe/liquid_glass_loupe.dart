@@ -94,7 +94,7 @@ class LiquidGlassLoupe extends StatelessWidget {
   static const LiquidGlassSettings defaultSettings = LiquidGlassSettings(
     refractionHeight: 8,
     refractionAmount: 34.5,
-    lens: LensSettings(dispersion: -0.06),
+    lens: LiquidGlassLens(dispersion: -0.06),
     blur: 0,
   );
 

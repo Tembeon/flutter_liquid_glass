@@ -23,7 +23,7 @@ final class LiquidGlassMaterial {
   /// iOS 27 regular glass (`Glass.regular`, which Apple also uses for
   /// toolbars and `.glass` buttons) in [brightness], at the Liquid Glass
   /// slider position [sliderPosition], with the face of the Increase
-  /// Contrast setting where [increaseContrast] says so, and tinted with
+  /// Contrast setting where [highContrast] says so, and tinted with
   /// [tint].
   ///
   /// It is [LiquidGlassSettings.ios27Regular],
@@ -32,13 +32,13 @@ final class LiquidGlassMaterial {
   factory LiquidGlassMaterial.ios27Regular({
     required Brightness brightness,
     double sliderPosition = 0,
-    bool increaseContrast = false,
+    bool highContrast = false,
     Color? tint,
   }) => LiquidGlassMaterial(
     settings: LiquidGlassSettings.ios27Regular(sliderPosition: sliderPosition),
     appearance: LiquidGlassAppearance.ios27Regular(
       brightness: brightness,
-      increaseContrast: increaseContrast,
+      highContrast: highContrast,
       tint: tint ?? const Color(0x00000000),
     ),
     shadows: brightness == Brightness.dark
@@ -48,19 +48,19 @@ final class LiquidGlassMaterial {
 
   /// iOS 27 clear glass (`Glass.clear`), identical in light and dark, at
   /// the Liquid Glass slider position [sliderPosition], with the face of
-  /// the Increase Contrast setting where [increaseContrast] says so, and
+  /// the Increase Contrast setting where [highContrast] says so, and
   /// tinted with [tint].
   ///
   /// It is [LiquidGlassSettings.ios27Clear] and
   /// [LiquidGlassAppearance.ios27Clear]; clear glass casts no shadow on iOS.
   factory LiquidGlassMaterial.ios27Clear({
     double sliderPosition = 0,
-    bool increaseContrast = false,
+    bool highContrast = false,
     Color? tint,
   }) => LiquidGlassMaterial(
     settings: LiquidGlassSettings.ios27Clear(sliderPosition: sliderPosition),
     appearance: LiquidGlassAppearance.ios27Clear(
-      increaseContrast: increaseContrast,
+      highContrast: highContrast,
       tint: tint ?? const Color(0x00000000),
     ),
   );

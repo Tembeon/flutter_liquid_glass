@@ -544,7 +544,7 @@ void main() {
     layer.value = LiquidGlassLayerFrame(
       settings: settings.copyWith(
         refractionAmount: 99,
-        lens: const LensSettings(dispersion: 1),
+        lens: const LiquidGlassLens(dispersion: 1),
       ),
       field: field,
     );

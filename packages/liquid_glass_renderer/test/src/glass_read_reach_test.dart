@@ -86,14 +86,14 @@ void main() {
         tester,
         const LiquidGlassSettings(
           blur: 0,
-          lens: LensSettings(dispersion: 0.3),
+          lens: LiquidGlassLens(dispersion: 0.3),
         ),
       );
       final frosted = await _askOf(
         tester,
         const LiquidGlassSettings(
           blur: 12,
-          lens: LensSettings(dispersion: 0.3),
+          lens: LiquidGlassLens(dispersion: 0.3),
         ),
       );
 

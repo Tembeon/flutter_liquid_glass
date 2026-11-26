@@ -24,7 +24,7 @@ void main() {
               brightness: brightness,
               shortSide: shortSide,
               greyTint: false,
-              increaseContrast: false,
+              highContrast: false,
             );
             final outward = recipeEdges([recipe], slider).outward;
             expect(outward, greaterThan(0));

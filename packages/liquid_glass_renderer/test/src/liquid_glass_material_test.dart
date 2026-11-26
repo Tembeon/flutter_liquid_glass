@@ -61,16 +61,16 @@ void main() {
     expect(
       LiquidGlassMaterial.ios27Regular(
         brightness: Brightness.light,
-        increaseContrast: true,
+        highContrast: true,
       ).appearance,
       const LiquidGlassAppearance.ios27Regular(
         brightness: Brightness.light,
-        increaseContrast: true,
+        highContrast: true,
       ),
     );
     expect(
-      LiquidGlassMaterial.ios27Clear(increaseContrast: true).appearance,
-      const LiquidGlassAppearance.ios27Clear(increaseContrast: true),
+      LiquidGlassMaterial.ios27Clear(highContrast: true).appearance,
+      const LiquidGlassAppearance.ios27Clear(highContrast: true),
     );
     const tint = Color(0xFF0A84FF);
     expect(
@@ -118,7 +118,7 @@ void main() {
         );
         final material = LiquidGlassMaterial.ios27Regular(
           brightness: brightness,
-          increaseContrast: highContrast,
+          highContrast: highContrast,
         );
         final reason = '$brightness, high contrast $highContrast';
         expect(scope.settings, material.settings, reason: reason);

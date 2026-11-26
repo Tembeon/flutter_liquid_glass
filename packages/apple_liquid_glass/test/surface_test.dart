@@ -379,7 +379,7 @@ void main() {
           final expected = LiquidGlassRenderer.materialOf(
             glass,
             Brightness.light,
-            increaseContrast: highContrast,
+            highContrast: highContrast,
           ).appearance;
           final reason = '$glass, high contrast $highContrast';
           expect(

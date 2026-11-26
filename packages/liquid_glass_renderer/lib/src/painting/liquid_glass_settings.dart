@@ -2,9 +2,9 @@ import 'dart:math' as math;
 
 import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
 import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
-import 'package:liquid_glass_renderer/src/painting/lens_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_lens.dart';
 import 'package:meta/meta.dart';
 
 /// The short sides, in logical pixels, where the fitted blur response of
@@ -68,7 +68,7 @@ final class LiquidGlassSettings {
     this.refractionHeight = _defaultRefractionHeight,
     this.refractionAmount = _defaultRefractionAmount,
     this.refractionFitsShape = true,
-    this.lens = LensSettings.none,
+    this.lens = LiquidGlassLens.none,
     this.sliderPosition = 0,
     this.blur,
   });
@@ -86,7 +86,7 @@ final class LiquidGlassSettings {
     : refractionHeight = _defaultRefractionHeight,
       refractionAmount = _defaultRefractionAmount,
       refractionFitsShape = true,
-      lens = LensSettings.none;
+      lens = LiquidGlassLens.none;
 
   /// The lens of iOS 27 `Glass.clear` at the Liquid Glass slider position
   /// [sliderPosition]: the full 20 pt / 60 pt bevel on glass from 93 points
@@ -98,7 +98,7 @@ final class LiquidGlassSettings {
     : refractionHeight = _defaultRefractionHeight,
       refractionAmount = _defaultRefractionAmount,
       refractionFitsShape = false,
-      lens = LensSettings.none;
+      lens = LiquidGlassLens.none;
 
   static const double _defaultRefractionHeight = 20;
   static const double _defaultRefractionAmount = 60;
@@ -151,9 +151,9 @@ final class LiquidGlassSettings {
   final bool refractionFitsShape;
 
   /// What the glass does as a lens to what lies under it: its pull,
-  /// shrink, colour parting and dispersion. [LensSettings.none], the
+  /// shrink, colour parting and dispersion. [LiquidGlassLens.none], the
   /// default, does none of these.
-  final LensSettings lens;
+  final LiquidGlassLens lens;
 
   /// Position of the iOS 27 Liquid Glass slider in Settings, from `0`
   /// (Clear) to `1` (Tinted), drawn at the 0.05 steps the slider takes: a
@@ -186,7 +186,7 @@ final class LiquidGlassSettings {
     double? refractionHeight,
     double? refractionAmount,
     bool? refractionFitsShape,
-    LensSettings? lens,
+    LiquidGlassLens? lens,
     double? sliderPosition,
     double? blur,
   }) => LiquidGlassSettings(

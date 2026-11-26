@@ -14,7 +14,7 @@ void main() {
         settings.copyWith(
           refractionAmount: 30,
           refractionHeight: 40,
-          lens: const LensSettings(aberration: 1),
+          lens: const LiquidGlassLens(aberration: 1),
         ),
       ),
       FakeGlassLook.of(settings),

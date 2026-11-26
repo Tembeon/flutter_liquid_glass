@@ -576,7 +576,7 @@ class _TabIndicatorState extends State<_TabIndicator>
                         settings: const LiquidGlassSettings(
                           refractionHeight: 24,
                           refractionAmount: 40,
-                          lens: LensSettings(shrink: .08, dispersion: .1),
+                          lens: LiquidGlassLens(shrink: .08, dispersion: .1),
                           blur: 0,
                         ),
                         child: const LiquidGlass(

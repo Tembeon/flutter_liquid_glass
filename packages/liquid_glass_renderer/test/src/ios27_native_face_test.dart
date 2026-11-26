@@ -91,26 +91,26 @@ void main() {
       (GlassVariant.clear, Brightness.light),
     ]) {
       final drawn = <List<int>>[];
-      for (final increaseContrast in [false, true]) {
+      for (final highContrast in [false, true]) {
         final (settings, appearance) = variant == GlassVariant.clear
             ? (
                 const LiquidGlassSettings.ios27Clear(),
                 LiquidGlassAppearance.ios27Clear(
-                  increaseContrast: increaseContrast,
+                  highContrast: highContrast,
                 ),
               )
             : (
                 const LiquidGlassSettings.ios27Regular(),
                 LiquidGlassAppearance.ios27Regular(
                   brightness: brightness,
-                  increaseContrast: increaseContrast,
+                  highContrast: highContrast,
                 ),
               );
         final face = GlassRecipe.of(
           variant: variant,
           brightness: brightness,
           shortSide: nativeControl.height,
-          increaseContrast: increaseContrast,
+          highContrast: highContrast,
         ).face;
         final fill = face.fill;
         final wanted = [
@@ -126,7 +126,7 @@ void main() {
             closeTo(wanted[channel], 2),
             reason:
                 '$variant ${brightness.name} over black, '
-                'increaseContrast $increaseContrast: drew $colour, '
+                'highContrast $highContrast: drew $colour, '
                 'the recipe gives $wanted',
           );
         }
@@ -249,7 +249,7 @@ void main() {
       brightness: Brightness.dark,
       shortSide: 120,
       greyTint: false,
-      increaseContrast: false,
+      highContrast: false,
     ), 0);
     expect(panel.bleed.opacity, closeTo(0.8 * 56 / 96, 1e-12));
   });

@@ -10,13 +10,13 @@ GlassRecipe _of({
   Brightness brightness = Brightness.light,
   double shortSide = 150,
   double slider = 0,
-  bool increaseContrast = false,
+  bool highContrast = false,
 }) => GlassRecipe.of(
   variant: variant,
   brightness: brightness,
   shortSide: shortSide,
   slider: slider,
-  increaseContrast: increaseContrast,
+  highContrast: highContrast,
 );
 
 double _deg(double degrees) => degrees * math.pi / 180;
@@ -139,7 +139,7 @@ void main() {
   group('Increase Contrast', () {
     test('changes only the face of regular glass', () {
       final base = _of(slider: 0.5);
-      final r = _of(slider: 0.5, increaseContrast: true);
+      final r = _of(slider: 0.5, highContrast: true);
 
       expect(r.face.black, 0.5);
       expect(r.face.white, 1.03);
@@ -157,13 +157,13 @@ void main() {
       );
       expect(r.rimHighlight, base.rimHighlight);
       expect(
-        _of(slider: 1, increaseContrast: true).face.fill.a,
+        _of(slider: 1, highContrast: true).face.fill.a,
         closeTo(0.5, 1e-9),
       );
     });
 
     test('caps dark glass at a dark grey', () {
-      final r = _of(brightness: Brightness.dark, increaseContrast: true);
+      final r = _of(brightness: Brightness.dark, highContrast: true);
 
       expect(r.face.black, 0.1);
       expect(r.face.white, 0.3);
@@ -171,7 +171,7 @@ void main() {
     });
 
     test('lays black over clear glass and weakens its rim', () {
-      final r = _of(variant: GlassVariant.clear, increaseContrast: true);
+      final r = _of(variant: GlassVariant.clear, highContrast: true);
 
       expect(r.face.white, 0.6);
       expect(r.face.fill.r, 0);

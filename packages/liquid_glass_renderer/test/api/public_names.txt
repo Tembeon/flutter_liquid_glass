@@ -4,7 +4,6 @@ GlassFrameReportCallback
 GlassFrameReports
 GlassReadReport
 GlassReadSource
-LensSettings
 LiquidGlass
 LiquidGlassAppearance
 LiquidGlassAvailableSupport
@@ -32,6 +31,7 @@ LiquidGlassIos27RegularShadow
 LiquidGlassLayer
 LiquidGlassLayerEffects
 LiquidGlassLayerFrame
+LiquidGlassLens
 LiquidGlassMaterial
 LiquidGlassPathSilhouette
 LiquidGlassPendingSupport

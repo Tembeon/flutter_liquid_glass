@@ -17,8 +17,8 @@ void main() {
       ),
     );
     expect(
-      const LensSettings(pull: 9, pullDepth: 36).toString(),
-      startsWith('LensSettings(pull: 9.0, pullDepth: 36.0, '),
+      const LiquidGlassLens(pull: 9, pullDepth: 36).toString(),
+      startsWith('LiquidGlassLens(pull: 9.0, pullDepth: 36.0, '),
     );
     expect(
       const LiquidGlassAppearance().toString(),

@@ -104,23 +104,23 @@ base class LiquidGlassRenderer extends GlassRenderer {
 
   /// The iOS 27 material of [glass] in [brightness], at the Liquid Glass
   /// slider position [sliderPosition], with the face of the Increase
-  /// Contrast setting where [increaseContrast] says so.
+  /// Contrast setting where [highContrast] says so.
   @internal
   static LiquidGlassMaterial materialOf(
     Glass glass,
     Brightness brightness, {
     double sliderPosition = 0,
-    bool increaseContrast = false,
+    bool highContrast = false,
   }) => glass.isClear
       ? LiquidGlassMaterial.ios27Clear(
           sliderPosition: sliderPosition,
-          increaseContrast: increaseContrast,
+          highContrast: highContrast,
           tint: glass.tint,
         )
       : LiquidGlassMaterial.ios27Regular(
           brightness: brightness,
           sliderPosition: sliderPosition,
-          increaseContrast: increaseContrast,
+          highContrast: highContrast,
           tint: glass.tint,
         );
 
@@ -172,7 +172,7 @@ Color? _tintOf(GlassFrame frame, Color? own) {
 /// 0.15 of its height over 0.1 of it, a small lens (a knob or thumb) by 0.3
 /// over 0.18. A large lens parts the colors over its glass by seven reads,
 /// the farthest 1 / 19 of its height from its place, along the way
-/// [LensSettings.aberration] describes, fading over 0.2 of the
+/// [LiquidGlassLens.aberration] describes, fading over 0.2 of the
 /// height from the edge; a small one parts none. Under the glass the lens
 /// pulls in its surroundings by its [GlassLens.pull]. Bend, pull and
 /// parting grow with the lift.
@@ -269,7 +269,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
   late final _shape = ValueNotifier(_shapeFrame);
   late LiquidGlassMaterial _material;
   late Brightness _brightness;
-  late bool _increaseContrast;
+  late bool _highContrast;
   _LiquidGroupState? _group;
 
   ValueListenable<GlassFrame> get _source => widget.details.frame;
@@ -291,7 +291,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
                 ? Glass.clear(tint: tint)
                 : Glass.regular(tint: tint),
             _brightness,
-            increaseContrast: _increaseContrast,
+            highContrast: _highContrast,
           ).appearance;
     return LiquidGlassShapeFrame(
       shape: frame.shape,
@@ -351,11 +351,11 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     group.reportGlass(this, widget.details.glass);
     final traits = GlassTraits.of(context);
     _brightness = traits.brightness;
-    _increaseContrast = traits.highContrast;
+    _highContrast = traits.highContrast;
     _material = LiquidGlassRenderer.materialOf(
       widget.details.glass,
       _brightness,
-      increaseContrast: _increaseContrast,
+      highContrast: _highContrast,
     );
     _shape.value = _shapeFrame;
     return LiquidGlass.live(

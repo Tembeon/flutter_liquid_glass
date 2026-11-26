@@ -97,7 +97,7 @@ class _LiquidGroupState extends State<_LiquidGroup> {
       _clear ? const Glass.clear() : const Glass.regular(),
       _traits.brightness,
       sliderPosition: _traits.glassTintAmount,
-      increaseContrast: _traits.highContrast,
+      highContrast: _traits.highContrast,
     );
     _base = material.settings;
     _appearance = material.appearance;

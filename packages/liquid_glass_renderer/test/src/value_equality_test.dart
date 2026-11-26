@@ -117,20 +117,20 @@ void main() {
         const LiquidGlassColorModel.ios27Regular(brightness: Brightness.light),
         const LiquidGlassColorModel.ios27Regular(
           brightness: Brightness.dark,
-          increaseContrast: true,
+          highContrast: true,
         ),
         const LiquidGlassColorModel.ios27Clear(),
         const LiquidGlassColorModel.direct(),
       ],
     );
     _holdsValue(
-      LiquidGlassColorModel.ios27Clear(increaseContrast: _b(true)),
-      const LiquidGlassColorModel.ios27Clear(increaseContrast: true),
+      LiquidGlassColorModel.ios27Clear(highContrast: _b(true)),
+      const LiquidGlassColorModel.ios27Clear(highContrast: true),
       [
         const LiquidGlassColorModel.ios27Clear(),
         const LiquidGlassColorModel.ios27Regular(
           brightness: Brightness.light,
-          increaseContrast: true,
+          highContrast: true,
         ),
       ],
     );
@@ -222,14 +222,14 @@ void main() {
         brightness: Brightness.light,
         shortSide: _n(100),
         greyTint: false,
-        increaseContrast: false,
+        highContrast: false,
       )),
       WornColorModel.recipe((
         variant: GlassVariant.regular,
         brightness: Brightness.light,
         shortSide: _n(100),
         greyTint: false,
-        increaseContrast: false,
+        highContrast: false,
       )),
       [
         WornColorModel.recipe((
@@ -237,21 +237,21 @@ void main() {
           brightness: Brightness.light,
           shortSide: _n(101),
           greyTint: false,
-          increaseContrast: false,
+          highContrast: false,
         )),
         WornColorModel.recipe((
           variant: GlassVariant.regular,
           brightness: Brightness.light,
           shortSide: _n(100),
           greyTint: true,
-          increaseContrast: false,
+          highContrast: false,
         )),
         WornColorModel.recipe((
           variant: GlassVariant.regular,
           brightness: Brightness.light,
           shortSide: _n(100),
           greyTint: false,
-          increaseContrast: true,
+          highContrast: true,
         )),
         WornColorModel.direct(saturation: _n(1)),
         const WornColorModel.direct(brightness: Brightness.dark),

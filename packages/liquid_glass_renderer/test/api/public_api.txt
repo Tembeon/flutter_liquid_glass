@@ -14,31 +14,6 @@ class FakeGlass extends StatelessWidget
   final List<LiquidGlassShadow> shadows
   final LiquidShape shape
   overrides: build, debugFillProperties
-final class LensSettings
-  const LensSettings({
-    double pull = ...,
-    double pullDepth = ...,
-    double shrink = ...,
-    double aberration = ...,
-    double aberrationDepth = ...,
-    double dispersion = ...,
-  })
-  final double aberration
-  final double aberrationDepth
-  LensSettings copyWith({
-    double? pull,
-    double? pullDepth,
-    double? shrink,
-    double? aberration,
-    double? aberrationDepth,
-    double? dispersion,
-  })
-  final double dispersion
-  static const LensSettings none
-  final double pull
-  final double pullDepth
-  final double shrink
-  overrides: ==, hashCode, toString
 class LiquidGlass extends StatefulWidget
   const LiquidGlass.live({
     required ValueListenable<LiquidGlassShapeFrame> frame,
@@ -63,13 +38,13 @@ class LiquidGlass extends StatefulWidget
   overrides: createState, debugFillProperties
 final class LiquidGlassAppearance
   const LiquidGlassAppearance.ios27Clear({
-    bool increaseContrast = ...,
+    bool highContrast = ...,
     Color tint = ...,
     double visibility = ...,
   })
   const LiquidGlassAppearance.ios27Regular({
     required Brightness brightness,
-    bool increaseContrast = ...,
+    bool highContrast = ...,
     Color tint = ...,
     double visibility = ...,
   })
@@ -147,10 +122,10 @@ sealed class LiquidGlassColorModel
     double? contourDirectionality,
     double? bevelShadowStrength,
   })
-  const factory LiquidGlassColorModel.ios27Clear({bool increaseContrast})
+  const factory LiquidGlassColorModel.ios27Clear({bool highContrast})
   const factory LiquidGlassColorModel.ios27Regular({
     required Brightness brightness,
-    bool increaseContrast,
+    bool highContrast,
   })
 final class LiquidGlassContentBend
   const LiquidGlassContentBend({required double amount, required double height})
@@ -248,11 +223,11 @@ final class LiquidGlassImageBackdropFilter extends LiquidGlassBackdropFilter
   final double sigma
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27ClearColorModel extends LiquidGlassColorModel
-  final bool increaseContrast
+  final bool highContrast
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27RegularColorModel extends LiquidGlassColorModel
   final Brightness brightness
-  final bool increaseContrast
+  final bool highContrast
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27RegularShadow extends LiquidGlassShadow
   final Brightness brightness
@@ -294,16 +269,41 @@ final class LiquidGlassLayerFrame
   final LiquidGlassField? field
   final LiquidGlassSettings settings
   overrides: ==, hashCode, toString
+final class LiquidGlassLens
+  const LiquidGlassLens({
+    double pull = ...,
+    double pullDepth = ...,
+    double shrink = ...,
+    double aberration = ...,
+    double aberrationDepth = ...,
+    double dispersion = ...,
+  })
+  final double aberration
+  final double aberrationDepth
+  LiquidGlassLens copyWith({
+    double? pull,
+    double? pullDepth,
+    double? shrink,
+    double? aberration,
+    double? aberrationDepth,
+    double? dispersion,
+  })
+  final double dispersion
+  static const LiquidGlassLens none
+  final double pull
+  final double pullDepth
+  final double shrink
+  overrides: ==, hashCode, toString
 final class LiquidGlassMaterial
   factory LiquidGlassMaterial.ios27Clear({
     double sliderPosition = ...,
-    bool increaseContrast = ...,
+    bool highContrast = ...,
     Color? tint,
   })
   factory LiquidGlassMaterial.ios27Regular({
     required Brightness brightness,
     double sliderPosition = ...,
-    bool increaseContrast = ...,
+    bool highContrast = ...,
     Color? tint,
   })
   const LiquidGlassMaterial({
@@ -346,7 +346,7 @@ final class LiquidGlassSettings
     double refractionHeight = ...,
     double refractionAmount = ...,
     bool refractionFitsShape = ...,
-    LensSettings lens = ...,
+    LiquidGlassLens lens = ...,
     double sliderPosition = ...,
     double? blur,
   })
@@ -355,11 +355,11 @@ final class LiquidGlassSettings
     double? refractionHeight,
     double? refractionAmount,
     bool? refractionFitsShape,
-    LensSettings? lens,
+    LiquidGlassLens? lens,
     double? sliderPosition,
     double? blur,
   })
-  final LensSettings lens
+  final LiquidGlassLens lens
   final double refractionAmount
   final bool refractionFitsShape
   final double refractionHeight
@@ -464,7 +464,6 @@ final ValueListenable<LiquidGlassSupport> liquidGlassSupport
 Future<LiquidGlassSupport> precacheLiquidGlass({bool warmUp = ...})
 
 # package:liquid_glass_renderer/painting.dart
-class LensSettings (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassAppearance (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassAvailableSupport (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassBackdrop (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
@@ -485,6 +484,7 @@ class LiquidGlassIos27ClearColorModel (see package:liquid_glass_renderer/liquid_
 class LiquidGlassIos27RegularColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassIos27RegularShadow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassLayerFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassLens (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassMaterial (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassPathSilhouette (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassPendingSupport (see package:liquid_glass_renderer/liquid_glass_renderer.dart)

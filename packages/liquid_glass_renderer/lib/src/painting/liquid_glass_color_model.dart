@@ -93,14 +93,14 @@ sealed class LiquidGlassColorModel {
   /// exact for fully saturated colors and up to 0.12 off the darker tone of
   /// a pale one.
   ///
-  /// With [increaseContrast], the face iOS 27 gives glass under the
+  /// With [highContrast], the face iOS 27 gives glass under the
   /// Increase Contrast setting: less saturated, light glass lifts black
   /// further under a more opaque white fill, dark glass caps its brightest
   /// parts at a dark grey. The setting comes from the platform
   /// (`MediaQuery.highContrastOf` on iOS); this model never reads it.
   const factory LiquidGlassColorModel.ios27Regular({
     required Brightness brightness,
-    bool increaseContrast,
+    bool highContrast,
   }) = LiquidGlassIos27RegularColorModel._;
 
   /// iOS 27 `Glass.clear`, identical in light and dark appearance and at
@@ -112,10 +112,10 @@ sealed class LiquidGlassColorModel {
   /// brightens its own face rather than pulling toward a fixed bright
   /// target.
   ///
-  /// With [increaseContrast], clear glass darkens its face under a black
+  /// With [highContrast], clear glass darkens its face under a black
   /// fill and dims its rim highlight, as under iOS 27's Increase Contrast
   /// setting.
-  const factory LiquidGlassColorModel.ios27Clear({bool increaseContrast}) =
+  const factory LiquidGlassColorModel.ios27Clear({bool highContrast}) =
       LiquidGlassIos27ClearColorModel._;
 }
 
@@ -228,53 +228,53 @@ final class LiquidGlassDirectColorModel extends LiquidGlassColorModel {
 final class LiquidGlassIos27RegularColorModel extends LiquidGlassColorModel {
   const LiquidGlassIos27RegularColorModel._({
     required this.brightness,
-    this.increaseContrast = false,
+    this.highContrast = false,
   }) : super._();
 
   /// The colour scheme of the glass.
   final Brightness brightness;
 
   /// Whether the glass takes the face of the Increase Contrast setting.
-  final bool increaseContrast;
+  final bool highContrast;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is LiquidGlassIos27RegularColorModel &&
           other.brightness == brightness &&
-          other.increaseContrast == increaseContrast;
+          other.highContrast == highContrast;
 
   @override
-  int get hashCode => Object.hash(brightness, increaseContrast);
+  int get hashCode => Object.hash(brightness, highContrast);
 
   @override
   String toString() =>
       'LiquidGlassColorModel.ios27Regular(brightness: $brightness'
-      '${increaseContrast ? ', increaseContrast: true' : ''})';
+      '${highContrast ? ', highContrast: true' : ''})';
 }
 
 /// The [LiquidGlassColorModel] of iOS 27 clear glass
 /// ([LiquidGlassColorModel.ios27Clear]).
 final class LiquidGlassIos27ClearColorModel extends LiquidGlassColorModel {
-  const LiquidGlassIos27ClearColorModel._({this.increaseContrast = false})
+  const LiquidGlassIos27ClearColorModel._({this.highContrast = false})
     : super._();
 
   /// Whether the glass takes the face of the Increase Contrast setting.
-  final bool increaseContrast;
+  final bool highContrast;
 
   @override
   bool operator ==(Object other) =>
       other is LiquidGlassIos27ClearColorModel &&
-      other.increaseContrast == increaseContrast;
+      other.highContrast == highContrast;
 
   @override
   int get hashCode =>
-      Object.hash(LiquidGlassIos27ClearColorModel, increaseContrast);
+      Object.hash(LiquidGlassIos27ClearColorModel, highContrast);
 
   @override
   String toString() =>
       'LiquidGlassColorModel.ios27Clear('
-      '${increaseContrast ? 'increaseContrast: true' : ''})';
+      '${highContrast ? 'highContrast: true' : ''})';
 }
 
 /// What an iOS 27 recipe takes that a shape's look decides: the variant,
@@ -287,7 +287,7 @@ typedef RecipeLook = ({
   Brightness brightness,
   double shortSide,
   bool greyTint,
-  bool increaseContrast,
+  bool highContrast,
 });
 
 /// The rim the direct model lights ([LiquidGlassColorModel.direct]); none
@@ -502,24 +502,24 @@ extension WearColorModel on LiquidGlassColorModel {
     switch (this) {
       case final LiquidGlassDirectColorModel direct:
         return direct == _plain ? _plainDirect : _wearDirect(direct);
-      case LiquidGlassIos27ClearColorModel(:final increaseContrast):
+      case LiquidGlassIos27ClearColorModel(:final highContrast):
         return _wear((
           variant: GlassVariant.clear,
           brightness: Brightness.light,
           shortSide: side,
           greyTint: grey,
-          increaseContrast: increaseContrast,
+          highContrast: highContrast,
         ));
       case LiquidGlassIos27RegularColorModel(
         :final brightness,
-        :final increaseContrast,
+        :final highContrast,
       ):
         return _wear((
           variant: GlassVariant.regular,
           brightness: brightness,
           shortSide: side,
           greyTint: grey,
-          increaseContrast: increaseContrast,
+          highContrast: highContrast,
         ));
     }
   }

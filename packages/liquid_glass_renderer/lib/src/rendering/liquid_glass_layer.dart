@@ -206,7 +206,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       brightness: brightness,
       shortSide: _shapeShortSide,
       greyTint: recipe?.greyTint ?? false,
-      increaseContrast: recipe?.increaseContrast ?? false,
+      highContrast: recipe?.highContrast ?? false,
     );
   }
 

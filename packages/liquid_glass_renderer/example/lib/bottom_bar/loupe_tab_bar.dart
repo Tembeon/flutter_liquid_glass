@@ -103,7 +103,7 @@ class LoupeTabBar extends StatefulWidget {
     refractionHeight: 15,
     refractionAmount: 10,
     refractionFitsShape: false,
-    lens: LensSettings(dispersion: -.3, shrink: 0.14),
+    lens: LiquidGlassLens(dispersion: -.3, shrink: 0.14),
     blur: 0,
   );
 

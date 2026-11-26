@@ -29,26 +29,26 @@ final class LiquidGlassAppearance {
 
   /// The iOS 27 regular material (`Glass.regular`, which Apple also uses
   /// for toolbars and `.glass` buttons) in [brightness], with the face of
-  /// the Increase Contrast setting where [increaseContrast] says so. Its
+  /// the Increase Contrast setting where [highContrast] says so. Its
   /// face follows the size of the shape that wears it (see
   /// [LiquidGlassColorModel.ios27Regular]).
   const LiquidGlassAppearance.ios27Regular({
     required Brightness brightness,
-    bool increaseContrast = false,
+    bool highContrast = false,
     this.tint = const Color(0x00000000),
     this.visibility = 1,
   }) : colorModel = brightness == Brightness.dark
-           ? (increaseContrast ? _darkContrast : _dark)
-           : (increaseContrast ? _lightContrast : _light);
+           ? (highContrast ? _darkContrast : _dark)
+           : (highContrast ? _lightContrast : _light);
 
   /// The iOS 27 `Glass.clear` appearance, identical in light and dark and
   /// at every size, with the face of the Increase Contrast setting where
-  /// [increaseContrast] says so.
+  /// [highContrast] says so.
   const LiquidGlassAppearance.ios27Clear({
-    bool increaseContrast = false,
+    bool highContrast = false,
     this.tint = const Color(0x00000000),
     this.visibility = 1,
-  }) : colorModel = increaseContrast ? _clearContrast : _clear;
+  }) : colorModel = highContrast ? _clearContrast : _clear;
 
   static const _light = LiquidGlassColorModel.ios27Regular(
     brightness: Brightness.light,
@@ -58,15 +58,15 @@ final class LiquidGlassAppearance {
   );
   static const _lightContrast = LiquidGlassColorModel.ios27Regular(
     brightness: Brightness.light,
-    increaseContrast: true,
+    highContrast: true,
   );
   static const _darkContrast = LiquidGlassColorModel.ios27Regular(
     brightness: Brightness.dark,
-    increaseContrast: true,
+    highContrast: true,
   );
   static const _clear = LiquidGlassColorModel.ios27Clear();
   static const _clearContrast = LiquidGlassColorModel.ios27Clear(
-    increaseContrast: true,
+    highContrast: true,
   );
 
   /// Material tint; alpha controls how strongly it mixes with the backdrop.
