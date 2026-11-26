@@ -12,7 +12,7 @@ import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_levels.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:material_ui/material_ui.dart';
@@ -195,11 +195,11 @@ Future<Uint8List> _drawn(
 void main() {
   setUp(() {
     glassReadsCopies = true;
-    debugGlassHaze = false;
+    debugGlassFill = false;
   });
   tearDown(() {
     glassReadsCopies = false;
-    debugGlassHaze = null;
+    debugGlassFill = null;
     debugGlassPolicy = const PlanPolicy();
   });
 
@@ -264,7 +264,9 @@ void main() {
         frost: 6,
         second: false,
       );
-      expect(_difference(image, inFrame), lessThanOrEqualTo(1));
+      // The levels lie on the same cells in the layer and in the image, and
+      // a bilinear read of them rounds apart by up to 2 levels.
+      expect(_difference(image, inFrame), lessThanOrEqualTo(2));
     }, skip: skipProperGlassTests);
 
     // The grown layer lands on the copy's pixel grid a pixel off the image's
@@ -380,9 +382,13 @@ void main() {
     }
   }, skip: skipProperGlassTests);
 
-  // The upper glass frosts its own copy in its shader, and that copy is
+  // The upper glass blurs its own copy from its levels, and that copy is
   // held in the lower glass's coarser one. Drawn at both shares at once, its
-  // pixels would hold 16 device pixels each.
+  // pixels would hold 16 device pixels each. A coarser copy averages the
+  // page into the levels from its own pixels: up to 12 levels over the
+  // test's hard bars. Held at a share of 4 under a frost of 3, the copy
+  // fills its layer to the bottom of the lower glass's copy, which leaves no
+  // room for its levels: Impeller blurs it by one sigma, 24 levels off.
   testWidgets('glass held in a coarse copy is drawn at the coarser grid', (
     tester,
   ) async {
@@ -393,7 +399,10 @@ void main() {
     GlassPlan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
     addTearDown(() => GlassComposer.debugOnPlan = null);
-    for (final frost in [3.0, 6.0]) {
+    for (final (frost, nears) in [
+      (3.0, [(2, 12), (4, 24)]),
+      (6.0, [(2, 8), (4, 6)]),
+    ]) {
       Future<Uint8List> drawn(int share) {
         debugGlassPolicy = PlanPolicy(maxCopyShare: share);
         return _drawn(
@@ -406,14 +415,14 @@ void main() {
       }
 
       final atScreen = await drawn(1);
-      for (final share in [2, 4]) {
+      for (final (share, near) in nears) {
         final shown = await drawn(share);
         final holding = plan!.reads.singleWhere((r) => r.holds.isNotEmpty);
         expect(holding.layout.share, share);
         expect(holding.holds.single.layout.share, greaterThan(1));
         expect(
           _difference(atScreen, shown),
-          lessThanOrEqualTo(9),
+          lessThanOrEqualTo(near),
           reason: 'frost $frost, copy share $share',
         );
       }
@@ -453,9 +462,9 @@ void main() {
     }
   }, skip: skipProperGlassTests);
 
-  // The lower glass's frosted copy is an image at a fraction of the screen's
-  // pixels, and the upper glass is drawn in the frame inside it as a filter,
-  // whose fragments are the image's pixels.
+  // The lower glass's copy, which Impeller blurs, is an image at a fraction
+  // of the screen's pixels, and the upper glass is drawn in the frame inside
+  // it as a filter, whose fragments are the image's pixels.
   for (final pixelRatio in [2.0, 3.0]) {
     testWidgets("an image copy at a fraction of the screen's pixels draws "
         'glass drawn in the frame where it lies (dpr $pixelRatio)', (
@@ -464,6 +473,7 @@ void main() {
       tester.view.physicalSize = const Size(260, 360) * pixelRatio;
       tester.view.devicePixelRatio = pixelRatio;
       addTearDown(tester.view.reset);
+      debugGlassPolicy = const PlanPolicy(shaderFrost: false);
       final image = await _drawn(
         tester,
         inFrame: false,

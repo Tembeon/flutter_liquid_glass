@@ -15,7 +15,7 @@ import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 // frosts its copy through a runtime effect, which only Impeller draws.
 
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_levels.dart';
 
 const _light = LiquidGlassSettings.ios27Regular(brightness: Brightness.light);
 
@@ -150,11 +150,11 @@ double _meanInBand(Uint8List a, Uint8List b, double dpr) {
 void main() {
   setUp(() {
     MotionClock.debugReset();
-    debugGlassHaze = false;
+    debugGlassFill = false;
   });
   tearDown(() {
     glassReadsCopies = false;
-    debugGlassHaze = null;
+    debugGlassFill = null;
     debugGlassPolicy = const PlanPolicy();
   });
 

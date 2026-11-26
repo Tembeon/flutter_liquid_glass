@@ -144,8 +144,9 @@ void main() {
       report.reads.map((r) => r.source),
       isNot(contains(GlassReadSource.backdrop)),
     );
-    // Each read's own filter, which follows the glass, and no more.
-    expect(report.filtersBuilt, lessThanOrEqualTo(2 * report.reads.length));
+    // Each read's own filter, which follows the glass, and the two passes of
+    // its levels, which follow the screen's grid under it; no more.
+    expect(report.filtersBuilt, lessThanOrEqualTo(3 * report.reads.length));
   });
 
   testWidgets(

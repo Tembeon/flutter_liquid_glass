@@ -3,16 +3,16 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_levels.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 import 'shared.dart';
 import 'underlay_scene.dart';
 
 void main() {
-  setUp(() => debugGlassHaze = false);
+  setUp(() => debugGlassFill = false);
   tearDown(() {
-    debugGlassHaze = null;
+    debugGlassFill = null;
     debugGlassPolicy = const PlanPolicy();
   });
 
@@ -32,42 +32,33 @@ void main() {
     expect(difference, lessThanOrEqualTo(4));
   }, skip: skipProperGlassTests);
 
-  // The scene's text is white bars under the glass, the hardest edges a
-  // frost meets: the frost's taps differ from Impeller's blur most there, and
-  // the copy's size adds to it as it does for a blurred copy.
-  // A smaller copy holds its frost, drawn over every pixel of it the frost
-  // reaches. It is a step coarser than Impeller's blur would take (see
-  // CopyNeed.glassFrost), so what is drawn into it lands up to half of its
-  // pixel off.
-  for (final (frost, size, near) in [
-    (3.0, (130, 99), 22),
-    (8.0, (65, 50), 24),
-    (12.0, (65, 50), 15),
+  // NEAR: glass blurs a copy from levels, not by Impeller's blur. Over the
+  // scene's white bars, the hardest edges a blur meets, it lies 0.3 to 0.9
+  // channel levels from what reading the backdrop draws on average, 8 to 12
+  // at the 99th percentile and up to 30 at the bars' corners. The levels
+  // average the copy on cells of the screen, so a coarse copy blurs alike.
+  for (final (frost, share, near) in [
+    (3.0, 1, 20),
+    (8.0, 2, 27),
+    (12.0, 4, 30),
+    (20.0, 4, 24),
   ]) {
     testWidgets('glass frosted by $frost over an unblurred copy draws near '
         'what reading the backdrop draws', (tester) async {
       copyIntoImages();
       final difference = await underlayParity(tester, frost: frost);
-      final copy = underlayGlass(tester).debugImageCopy!.image;
-      expect((copy.width, copy.height), size);
+      final held = underlayGlass(tester).debugImageCopy!;
+      expect(held.place.share, share);
+      expect(held.place.levels, isNotNull);
       expect(difference, lessThanOrEqualTo(near));
     }, skip: skipProperGlassTests);
   }
-
-  testWidgets('a frost wider than the shader draws keeps a blurred copy', (
-    tester,
-  ) async {
-    final difference = await underlayParity(tester, frost: 20);
-    final copy = underlayGlass(tester).debugImageCopy!.image;
-    expect((copy.width, copy.height), (130, 100));
-    expect(difference, lessThanOrEqualTo(6));
-  }, skip: skipProperGlassTests);
 
   testWidgets('scaled glass frosted over an unblurred copy draws near what '
       'reading the backdrop draws', (tester) async {
     expect(
       await underlayParity(tester, frost: 8, scale: 1.2),
-      lessThanOrEqualTo(20),
+      lessThanOrEqualTo(31),
     );
   }, skip: skipProperGlassTests);
 }

@@ -19,7 +19,7 @@ precision mediump float;
 #include "rim_light.glsl"
 #include "render.glsl"
 #include "glass_glow.glsl"
-#if FROST
+#if FROST_BAND
 #include "frost.glsl"
 #endif
 
@@ -29,6 +29,7 @@ uniform highp vec2 uSize;
 // declaration its own Metal buffer, bound per draw, where Vulkan binds one
 // struct.
 #include "final_lanes.glsl"
+#include "copy_levels.glsl"
 #define uRefractionFitsShape (uRefractionFits > 0.5)
 
 // The scroll edge's fade over what the glass reads, premultiplied: none
@@ -459,13 +460,27 @@ bool drawsOutside(float signedEdgeDistance) {
     #endif
 }
 
+// The sigma, in device pixels, the glass blurs what it shows by at
+// [depth] in a shape [halfSide] deep: the ramp from the deepest stop, at
+// the shape's middle, through the others, linear between them.
+highp float blurSigma(float depth, float halfSide) {
+    vec3 deeper = vec3(halfSide, uBlurDepths.xy);
+    vec3 shallower = uBlurDepths;
+    vec3 along = clamp(
+        (depth - shallower) / max(deeper - shallower, 1e-3),
+        0.0,
+        1.0
+    );
+    return uBlurSigmas.w + dot(uBlurSigmas.xyz - uBlurSigmas.yzw, along);
+}
+
 #if PLAIN_INTERIOR
 // How deep a pixel needs no bevel and no rim light. Glass that carries
 // anything else over its whole face never takes this path.
 float plainInteriorDepth() {
     bool plain = abs(uBackdropScale - 1.0) <= 0.0001 &&
         uBackdropPull.x <= 0.0 &&
-        uBackdropFrost <= 0.0 &&
+        max(uBlurSigmas.x, uBlurSigmas.y) <= 0.0 &&
         uTint.a < 0.001 &&
         uVisibility >= 1.0 &&
         uGlowSpot.w <= 0.0 &&
@@ -591,6 +606,15 @@ void main() {
                     max(uBackdropReduced, 1.0)
             ).rgb;
         }
+        if (uFillInverseStride > 0.0) {
+            backdrop = fillMix(
+                backdrop,
+                levelFill(
+                    uBackgroundTexture,
+                    screenUV / max(uBackdropReduced, 1.0)
+                ).rgb
+            );
+        }
         fragColor = vec4(
             clamp(
                 recipeBleedOf(
@@ -700,6 +724,7 @@ void main() {
         ) * appearanceVisibility;
     }
     vec4 refractColor;
+    highp vec2 copyUV = vec2(0.0);
     if (uSolidBackdrop.a > 0.5) {
         // Refracting, frosting or splitting a uniform color returns it.
         refractColor = vec4(uSolidBackdrop.rgb, 1.0);
@@ -743,26 +768,18 @@ void main() {
                 mirrorBackgroundUV(refractedUV, invUSize) * copyScale
             );
         }
-        #if FROST
-        if (uBackdropFrost > 0.0) {
-            // The copy is taken unblurred and grown by three sigma, so the
-            // taps read real backdrop past the rim; one refracted past it
-            // reads the copy's edge.
-            highp vec2 halfTexel = invUSize * 0.5;
-            refractColor = frostTaps(
+        copyUV = mirrorBackgroundUV(refractedUV, invUSize) * copyScale;
+        #if BLUR
+        highp float sigma = blurSigma(
+            signedEdgeDistance,
+            geometryTexel.w
+        ) / uLevelShare;
+        if (sigma > 0.0 && uLevelCoarsest > 0.0) {
+            refractColor = levelBlur(
                 uBackgroundTexture,
-                refractedUV * copyScale,
-                uBackdropFrost,
-                invUSize * copyScale,
-                halfTexel * copyScale,
-                (vec2(1.0) - halfTexel) * copyScale,
-                #if KIND == KIND_TINT
-                // The dither takes this variant past the registers of full
-                // occupancy, and a tint hides the most of what it hides.
-                vec2(0.0)
-                #else
-                fragCoord
-                #endif
+                refractColor,
+                copyUV,
+                sigma
             );
         }
         #endif
@@ -798,6 +815,13 @@ void main() {
         float blue = texture(uBackgroundTexture, blueUV * copyScale).b;
         
         refractColor = vec4(red, greenSample.g, blue, greenSample.a);
+        copyUV = greenUV * copyScale;
+    }
+    if (uFillInverseStride > 0.0 && uSolidBackdrop.a <= 0.5) {
+        refractColor.rgb = fillMix(
+            refractColor.rgb,
+            levelFill(uBackgroundTexture, copyUV).rgb
+        );
     }
     #if ABERRATION
     if (uBackdropAberration.x > 0.0 && uSolidBackdrop.a <= 0.5) {

@@ -7,8 +7,12 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe_groups.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
+import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
@@ -24,7 +28,7 @@ import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/rendering/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_levels.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/debug.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
@@ -112,7 +116,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       final index = FinalShaderVariant.bandIndexOf(
         kind,
         models,
-        frost: _frostsCopies,
         shape: shape,
         aberrates: _aberrates,
       );
@@ -122,7 +125,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return FinalShaderVariant.indexOf(
       kind,
       models,
-      frost: _frostsCopies,
       shape: shape,
       aberrates: _aberrates,
     );
@@ -135,26 +137,143 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   FragmentShader get debugBackdropShader =>
       finalShaders[debugBackdropDraw.variant];
 
-  // Whether the shader may frost the copy it draws over, which picks a
-  // variant that can. Settings pick it, as they pick the color models.
-  bool get _frostsCopies =>
-      glassPolicy.shaderFrost && _drawn.frosts && settings.dispersion == 0;
+  // Whether the shader blurs the copy it draws over from the levels beside
+  // it. Where a policy turns it off, or the glass parts colors by
+  // dispersion, which reads three points of the copy, Impeller blurs the
+  // copy instead.
+  bool get _blursCopies => glassPolicy.shaderFrost && settings.dispersion == 0;
 
-  // What the fitted frost and haze of the settings come to, worked out once
-  // per settings.
-  ({LiquidGlassSettings of, bool frosts, LiquidGlassFixedHaze? haze})
-  get _drawn {
-    final held = _heldDrawn;
-    if (held != null && identical(held.of, settings)) return held;
-    return _heldDrawn = (
-      of: settings,
-      frosts: settings.frostBase > 0,
-      haze: settings.drawnHaze,
+  // Whether the glass frosts what it shows anywhere.
+  bool get _frosts => settings.frostBase > 0;
+
+  // What the glass blurs a copy it reads by and mixes into it, in iOS's
+  // units of blur: its recipe's (BlurRecipe, BlurFillRecipe), worn at the
+  // size of its smallest shape as its frost was. A frost of a fixed sigma
+  // blurs by it all over, and a haze of a fixed mix mixes that in.
+  ({BlurRecipe blur, BlurFillRecipe fill}) get _blurRecipes {
+    if (debugGlassFill == false) {
+      return (
+        blur: BlurRecipe(
+          radius:
+              _frostSigmaForCurrentShapes() *
+              ImpellerBlur.deliveredFraction /
+              ios27BlurUnit,
+          stops: _flatBlur,
+        ),
+        fill: BlurFillRecipe.none,
+      );
+    }
+    final look = _blurLook;
+    final slider = settings.effectiveSliderPosition;
+    final key = (settings, look, slider);
+    final held = _heldBlurRecipes;
+    if (held != null && held.key == key) return held.recipes;
+    final recipe = recipeOf(look, slider);
+    final recipes = (
+      blur: switch (settings.frost) {
+        LiquidGlassFixedFrost(:final sigma) => BlurRecipe(
+          radius: max(sigma, 0) / ios27BlurUnit,
+          stops: _flatBlur,
+        ),
+        _ => recipe.blur,
+      },
+      fill: switch (settings.haze) {
+        LiquidGlassFixedHaze() => switch (settings.drawnHaze) {
+          final haze? => BlurFillRecipe(
+            radius: haze.sigma / ios27BlurUnit,
+            lighten: haze.lighten,
+            darken: haze.darken,
+            cover: haze.cover,
+          ),
+          null => BlurFillRecipe.none,
+        },
+        _ => recipe.blurFill,
+      },
+    );
+    _heldBlurRecipes = (key: key, recipes: recipes);
+    return recipes;
+  }
+
+  ({Object key, ({BlurRecipe blur, BlurFillRecipe fill}) recipes})?
+  _heldBlurRecipes;
+
+  static const _flatBlur = [
+    (depth: 0.0, strength: 1.0),
+    (depth: 0.0, strength: 1.0),
+    (depth: 0.0, strength: 1.0),
+    (depth: 0.0, strength: 1.0),
+  ];
+
+  // The look whose recipe the glass blurs by: its own, at the size of its
+  // smallest shape; for the direct model, which has none, the iOS 27 look
+  // its frost and haze name.
+  RecipeLook get _blurLook {
+    final worn = _usesShapeAppearances && _shapeAppearances.isNotEmpty
+        ? _shapeAppearances.first
+        : _uniformAppearance ?? defaultWornByNone;
+    final side = _shapeShortSide;
+    if (worn.colorModel.recipe case final look?) {
+      return (
+        variant: look.variant,
+        brightness: look.brightness,
+        shortSide: side,
+        greyTint: look.greyTint,
+        increaseContrast: look.increaseContrast,
+      );
+    }
+    final clear =
+        settings.frost is LiquidGlassIos27ClearFrost ||
+        settings.haze is LiquidGlassIos27ClearHaze;
+    return (
+      variant: clear ? GlassVariant.clear : GlassVariant.regular,
+      brightness: switch (settings.haze) {
+        LiquidGlassIos27RegularHaze(:final brightness) => brightness,
+        _ => Brightness.light,
+      },
+      shortSide: side,
+      greyTint: false,
+      increaseContrast: false,
     );
   }
 
-  ({LiquidGlassSettings of, bool frosts, LiquidGlassFixedHaze? haze})?
-  _heldDrawn;
+  // What the glass blurs a copy by at [scale] times its logical pixels, on
+  // a screen of [dpr]: the levels its read lays out, or null for none, and
+  // what its shader blurs by from them.
+  ({CopyLevels? levels, GlassBlur blur}) _copyBlurAt(double dpr, double scale) {
+    final key = (_blurRecipes, dpr, scale);
+    final held = _heldCopyBlur;
+    if (held != null && held.key == key) return held.blur;
+    final (:blur, :fill) = _blurRecipes;
+    double sigma(double strength) =>
+        blur.radius * strength * ios27BlurUnit * scale;
+    final stops = blur.stops;
+    final deep = sigma(stops[0].strength);
+    final rim = sigma(stops[1].strength);
+    final fills =
+        fill.radius > 0 &&
+        (fill.lighten > 0 || fill.darken > 0 || fill.cover > 0);
+    final levels = CopyLevels(
+      least: min(deep, rim),
+      most: max(deep, rim),
+      fill: fills ? fill.radius * ios27BlurUnit * scale : 0,
+    );
+    final drawn = (
+      levels: levels.blurs || levels.fills ? levels : null,
+      blur: GlassBlur(
+        sigmas: [for (final stop in stops) sigma(stop.strength) * dpr],
+        depths: [for (final stop in stops.skip(1)) stop.depth * dpr],
+        fillMix: [
+          clampDouble(fill.lighten, 0, 1),
+          clampDouble(fill.darken, 0, 1),
+          clampDouble(fill.cover, 0, 1),
+        ],
+      ),
+    );
+    _heldCopyBlur = (key: key, blur: drawn);
+    return drawn;
+  }
+
+  ({Object key, ({CopyLevels? levels, GlassBlur blur}) blur})? _heldCopyBlur;
 
   /// The color models the layer shades: the direct model alone, one iOS
   /// 27 model in the first slot, or any.
@@ -200,12 +319,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // The material and glow the glass draws with, made again after their
   // inputs change.
   GlassFace? _face;
-  GlassFace? _hazedFace;
+  GlassFace? _fadedFace;
   GlowUniforms? _glowUniforms;
 
   void _shadingChanged() {
     _face = null;
-    _hazedFace = null;
+    _fadedFace = null;
   }
 
   GlassFace get _glassFace {
@@ -217,7 +336,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       appearance: appearance,
       colorModels: slots,
       devicePixelRatio: devicePixelRatio,
-      blurs: _drawn.frosts,
+      blurs: _frosts,
       edges: _recipeEdges,
     );
   }
@@ -259,19 +378,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   (LiquidGlassSettings, double, double)? _frostInputs;
   double _frostSigma = 0;
 
-  double _hazedFrostSigmaAt(double dpr) {
-    final inputs = (settings, dpr, _shapeShortSide);
-    if (inputs == _hazedFrostInputs) return _hazedFrostSigma;
-    _hazedFrostInputs = inputs;
-    return _hazedFrostSigma = settings.hazedFrostSigmaAt(
-      dpr,
-      shapeShortSide: _shapeShortSide,
-    );
-  }
-
-  (LiquidGlassSettings, double, double)? _hazedFrostInputs;
-  double _hazedFrostSigma = 0;
-
   // iOS captures what lies under glass at half the screen's pixels, which a
   // screen of 2.5 device pixels per point or more shows that soft. Against
   // native glass 63 points high over hard cells, glass with a fitted frost
@@ -280,31 +386,19 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   static const int _coarseCopyShare = 2;
   static const double _coarseCopyMinRatio = 2.5;
 
-  CopyNeed? _hazedNeed(double stretch, double dpr) {
-    if (debugGlassHaze == false) return null;
-    final haze = _drawn.haze;
-    // Until the haze's programs load the one blur stands in for it.
-    if (haze != null && !CopyHaze.ready) return null;
-    final frost = _hazedFrostSigmaAt(dpr);
-    final coarse = settings.frostIsFitted && dpr >= _coarseCopyMinRatio;
-    if (frost <= 0) {
-      return haze == null && !coarse
-          ? null
-          : CopyNeed(share: coarse ? _coarseCopyShare : 1, haze: haze);
-    }
-    if (!_frostsCopies) return null;
-    final need = CopyNeed.glassFrost(
-      frost * stretch,
+  // The need of glass that blurs a copy from [levels] on a screen of [dpr],
+  // or null where Impeller blurs it instead, or until the levels' program
+  // loads.
+  CopyNeed? _levelledNeed(CopyLevels? levels, double dpr) {
+    if (levels == null || !_blursCopies || !CopyLevelPasses.ready) return null;
+    return CopyNeed.levelled(
+      levels,
       devicePixelRatio: dpr,
-      haze: haze,
+      maxShare: glassPolicy.maxCopyShare,
+      atLeast: settings.frostIsFitted && dpr >= _coarseCopyMinRatio
+          ? _coarseCopyShare
+          : 1,
     );
-    return need != null && coarse && need.share < _coarseCopyShare
-        ? CopyNeed(
-            share: _coarseCopyShare,
-            shaderFrost: need.shaderFrost,
-            haze: haze,
-          )
-        : need;
   }
 
   /// The color of a [LiquidGlassBackdrop.solid], or null to read the
@@ -713,7 +807,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // the filter's coverage, which every clip around the filter narrows: the
     // retained clips between this layer and its shapes, and the clips above
     // this layer up to its pass. The texture is transparent outside it.
-    if (!_drawn.frosts) return clip;
+    if (!_frosts) return clip;
     var captured = clip.shift(translation);
     final ancestorClips = [
       retainedClipBounds,
@@ -1058,36 +1152,24 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       screen,
       view.bucket(bounds),
     );
-    // The shader frosts round and a haze is mixed in round, so glass
-    // stretched past 5 % keeps the copy's blur, which follows each axis.
-    final round = (scaleX / scaleY - 1).abs() <= 0.05;
-    final hazed = round ? _hazedNeed(sqrt(scaleX * scaleY), dpr) : null;
-    final sigma = hazed == null ? frostSigma : 0.0;
+    // The shader blurs round, by the mean of the glass's two scales.
+    final (:levels, :blur) = _copyBlurAt(dpr, sqrt(scaleX * scaleY));
+    final levelled = _levelledNeed(levels, dpr);
+    final sigma = levelled == null ? frostSigma : 0.0;
     final frostX = sigma * scaleX;
     final frostY = sigma * scaleY;
-    // Frost the final shader can draw is drawn there, over an unblurred
-    // copy: the copy's blur passes become its taps.
-    final frosted =
-        hazed ??
-        (sigma > 0 && _frostsCopies && round
-            ? CopyNeed.glassFrost(
-                sigma * sqrt(scaleX * scaleY),
-                devicePixelRatio: dpr,
-              )
-            : null);
     final need =
-        frosted ??
+        levelled ??
         CopyNeed.blurred(
           min(frostX, frostY),
           devicePixelRatio: dpr,
           maxShare: glassPolicy.maxCopyShare,
         );
-    final frost = need.shaderFrost;
     final appearance = _uniformAppearance ?? defaultWornByNone;
     final answer = SiteAsk(
       drawn: drawn,
       reads: shifted.inflate(
-        frosted == null ? backdropBlurReach(sigma) : need.reachAt(dpr),
+        levelled == null ? backdropBlurReach(sigma) : need.reachAt(dpr),
       ),
       clip: switch (retainedClipBounds) {
         final clip? => MatrixUtils.transformRect(
@@ -1102,28 +1184,25 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           appearance.colorModel,
           appearance.visibility,
           dpr,
-          need.shaderFrost,
+          need.levels,
           need.share,
           _colorModelFamily,
         ),
         need: need,
-        // A haze is mixed into all of its copy, which a scroll edge drawn
-        // beside the glass would read too.
+        // The variants that draw a scroll edge beside the glass blur nothing
+        // inside it.
         drawsBand:
-            need.haze == null &&
-            frost > 0 &&
+            sigma == 0 &&
+            !(levels?.blurs ?? false) &&
             FinalShaderVariant.bandIndexOf(
                   _kind(),
                   _colorModelFamily,
-                  frost: _frostsCopies,
                   aberrates: _aberrates,
                 ) !=
                 null,
         tint: appearance.tint,
         census: _census,
-        imageRead: sigma > 0 && frosted == null
-            ? ImageReadFilter(blur: (frostX, frostY))
-            : null,
+        imageRead: sigma > 0 ? ImageReadFilter(blur: (frostX, frostY)) : null,
         anyGrid: true,
       ),
       role: _roleAt(screen),
@@ -1132,7 +1211,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       place: place,
       paints: paints,
     );
-    return (answer, (screen: screen, logical: logical, shaderFrost: frost));
+    return (answer, (screen: screen, logical: logical, blur: blur));
   }
 
   SiteFate _fate = const HiddenFate();
@@ -1501,4 +1580,4 @@ extension RenderLiquidGlassLayerDebug on RenderLiquidGlassLayer {
   Tiling? get debugTiling => _drift.tiling;
 }
 
-typedef _Frame = ({Matrix4 screen, Rect logical, double shaderFrost});
+typedef _Frame = ({Matrix4 screen, Rect logical, GlassBlur blur});

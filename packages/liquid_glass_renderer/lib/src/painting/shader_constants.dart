@@ -199,16 +199,11 @@ const List<(double, double)> frostSixteenTaps = [
   (-0.30413, -2.55934),
 ];
 
-/// How many taps `frostTaps` (frost.glsl) reads along its spiral.
-@internal
-const int frostSpiralTaps = 12;
-
 /// How many sigmas out the farthest tap of any frost in frost.glsl lies.
 @internal
 final double frostTapReach = [
   for (final (x, y) in [...frostEightTaps, ...frostSixteenTaps])
     sqrt(x * x + y * y),
-  sqrt(-2 * log(1 - (frostSpiralTaps - 0.5) / frostSpiralTaps)),
 ].reduce(max);
 
 /// How deep inside and how far outside its edge fake glass reads the
@@ -222,10 +217,15 @@ const double fakeFieldInside = 24;
 @internal
 const double fakeFieldOutside = 8;
 
-/// The reads along a side of a cell that backdrop_haze_strip.frag has room
-/// for.
+/// The pairs of pixels along each side of a cell that copy_levels.frag has
+/// room to average.
 @internal
-const int hazeMostReads = 32;
+const int levelMostPairs = 32;
+
+/// The coarsest blur level a copy carries: its cells average level 2 by
+/// [levelMostPairs] / 2 pairs along each side.
+@internal
+const int levelMostDeep = 6;
 
 /// Rec.709's luminance weights, the material's luminance basis: a
 /// color-card fit on the host's Metal shows less blue and cyan transfer error
@@ -687,13 +687,64 @@ enum EffectsLane implements UniformLane {
   /// screen, so no glass reads its own texel; at 1 or more, the copy fills
   /// the top-left 1 / reduced of its texture along each side (a layer whose
   /// copy is drawn in its corner).
-  backdropReduced,
-
-  /// The Gaussian sigma, in device pixels, the shader frosts an unblurred
-  /// copy by; zero reads it as it is.
-  backdropFrost;
+  backdropReduced;
 
   const EffectsLane([this.width = 1]);
+
+  @override
+  final int width;
+}
+
+/// The floats of the final shader's uCopy: the levels a copy carries beside
+/// it (copy_levels.glsl), and how the glass blurs it by depth and mixes its
+/// fill. All zero where the glass reads no copy.
+@internal
+enum CopyLane implements UniformLane {
+  /// The size, in texels, of the texture the copy lies in.
+  levelTexture(2),
+
+  /// The copy's top left on the screen's grid of copy pixels.
+  levelGrid(2),
+
+  /// Where the copy's top left lies in the texture, in texels.
+  levelCopyAt(2),
+
+  /// The texel row the levels' cells start at.
+  levelRow,
+
+  /// The texel column the finest blur level's cells start at.
+  levelBlurAt,
+
+  /// The copy's width rounded up to whole cells of the coarsest blur level.
+  levelWidth,
+
+  /// Device pixels a copy pixel holds along each side.
+  levelShare,
+
+  /// The finest and the coarsest blur level, 0 for none.
+  levelFinest,
+  levelCoarsest,
+
+  /// The blur's sigma, in device pixels, at the ramp's four stops from the
+  /// deepest.
+  blurSigmas(4),
+
+  /// The depths, in the geometry's pixels, of the ramp's stops after the
+  /// deepest, which lies at the middle of each shape.
+  blurDepths(3),
+
+  /// One over the fill level's stride, 0 for no fill.
+  fillInverseStride,
+
+  /// How far a channel moves to the fill where the fill is lighter and where
+  /// it is darker, and how much of the result the fill covers.
+  fillMix(3),
+
+  /// Where the copy's uv lands in the fill level, over the uv scaled by
+  /// [fillInverseStride].
+  fillOffset(2);
+
+  const CopyLane([this.width = 1]);
 
   @override
   final int width;
@@ -871,12 +922,12 @@ const float kGlintVibrancy = ${_float(GlassGlint.directVibrancy)};
 const float kClearShiftRatio = ${_float(GlassShift.clearRatio)};
 const float kDispersionSpread = ${_float(GlassShift.dispersionSpread)};
 const float kFrostEightMost = ${_float(frostEightMost)};
-#define FROST_SPIRAL_TAPS $frostSpiralTaps
 #define FROST_EIGHT_TAPS(TAP) ${_taps(frostEightTaps)}
 #define FROST_SIXTEEN_TAPS(TAP) ${_taps(frostSixteenTaps)}
 const float kFakeFieldInside = ${_float(fakeFieldInside)};
 const float kFakeFieldOutside = ${_float(fakeFieldOutside)};
-#define HAZE_MOST_READS $hazeMostReads
+#define LEVEL_MOST_PAIRS $levelMostPairs
+#define LEVEL_MOST_DEEP $levelMostDeep
 const vec3 LUMA_WEIGHTS = ${_vec3(lumaWeights)};
 const vec3 kPartingMirror = ${_vec3(partingMirror)};
 const vec3 kPartingSide = ${_vec3(partingSideWeights)};
@@ -910,6 +961,8 @@ ${_lanes('uMapping', MappingLane.values, highp: true)}
 ${_slotLanes('uRecipes', RecipeLane.values, slots: colorModelSlotCount, prefix: 'recipe')}
 
 ${_lanes('uEffects', EffectsLane.values, highp: true)}
+
+${_lanes('uCopy', CopyLane.values, highp: true)}
 
 #if FROST_BAND
 ${_lanes('uBand', BandLane.values, highp: true, prefix: 'uBand')}

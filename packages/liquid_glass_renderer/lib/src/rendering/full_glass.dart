@@ -95,8 +95,7 @@ sealed class FullGlass {
           ShaderKeys.backdropFrost,
           ShaderKeys.backdropFrostAxis,
           ShaderKeys.backdropFrostSquare,
-          ShaderKeys.backdropHazeStrip,
-          ShaderKeys.backdropHazeMix,
+          ShaderKeys.copyLevels,
         ]),
         _guard(() async {
           bundle = await GeometryBundle.load(

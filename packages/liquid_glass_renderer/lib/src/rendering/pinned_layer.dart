@@ -6,7 +6,7 @@ import 'package:meta/meta.dart';
 
 /// Filter layers that start at a corner of their own and keep their size
 /// whatever they hold: the layers a filter reads by fragments counted from
-/// the layer's corner, as glass reads a copy and a frost or a haze runs over
+/// the layer's corner, as glass reads a copy and its levels are drawn under
 /// it. The only code that pins a layer so.
 ///
 /// Impeller sizes a layer by what is drawn in it. A pinned layer's first

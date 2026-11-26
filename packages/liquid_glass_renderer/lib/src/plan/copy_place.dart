@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/impeller.dart';
@@ -82,43 +81,6 @@ final class FrostDissolve {
   int get hashCode => Object.hash(whole, gone);
 }
 
-/// Where a copy's haze mixes into it: the part of its texture the copy
-/// fills (`copy`, from the top left), where the copy lies in it (`rect`),
-/// the texture's pixels per logical pixel (`pixels`), where its top left
-/// lies on the screen counted in its pixels (`origin`), and the size of the
-/// layers that mix it (`size`: the copy and its strip below it).
-typedef HazeLayout = ({
-  Size copy,
-  Rect rect,
-  double pixels,
-  Offset origin,
-  Size size,
-});
-
-/// The haze layout of a copy that fills [copy] of its texture, lying at
-/// [rect] of it, [pixels] to a logical pixel, the texture's top left at
-/// [origin] of the screen in its pixels.
-@internal
-HazeLayout hazeLayoutOf(
-  LiquidGlassFixedHaze haze, {
-  required Size copy,
-  required Rect rect,
-  required double pixels,
-  required Offset origin,
-}) {
-  final strip = HazeStrip(haze.sigma * pixels, copy, origin: origin);
-  return (
-    copy: copy,
-    rect: rect,
-    pixels: pixels,
-    origin: origin,
-    size: Size(
-      max(copy.width, strip.across.toDouble()),
-      copy.height + strip.rows,
-    ),
-  );
-}
-
 /// One read's copy laid out in one texture: where the copy lies in it, which
 /// fragments of a draw over it read which of its pixels, and what frost the
 /// reads still add.
@@ -166,6 +128,22 @@ sealed class CopyPlace {
 
   /// The part of the screen the copy's content is replayed from.
   DeviceBox get replayed;
+
+  /// Where the copy's levels lie beside it, from [levelAt], or null where
+  /// it carries none.
+  LevelStrip? get levels;
+
+  /// Where the copy's top left lies in the texture its levels lie in, in its
+  /// pixels: where its strip of levels starts from.
+  Offset get levelAt;
+
+  LevelStrip _stripOf(CopyLevels levels, Size copy) => LevelStrip(
+    levels,
+    pixels: pixels,
+    boxed: share > 1,
+    copy: copy,
+    grid: _onScreen(zero) + levelAt,
+  );
 
   /// The sigma, in device pixels, the shaders' taps frost the copy by for
   /// Impeller's blur by [frost] logical pixels of glass.
@@ -400,32 +378,38 @@ final class CornerPlace extends CopyPlace {
     );
   }
 
-  /// Where the copy's haze mixes into it, counted in the target's pixels,
-  /// or null where it has none.
+  /// Where the copy's levels lie in the layer, counted in the target's
+  /// pixels, or null where it carries none.
   ///
-  /// Where the layer with the haze's rows would not keep its corner
-  /// ([ImpellerLayers.keepsCorner]), the copy is drawn with no haze.
-  late final HazeLayout? haze = () {
-    final haze = layout.haze;
-    if (haze == null) return null;
-    final copySize = this.copySize;
-    final hazeLayout = hazeLayoutOf(
-      haze,
-      copy: Size(
-        (copySize.width / targetShare).ceilToDouble(),
-        (copySize.height / targetShare).ceilToDouble(),
-      ),
-      rect: copyRect.scaled(1 / targetShare),
-      pixels: pixels,
-      origin: _onScreen(zero),
+  /// Where the clip the layer is drawn under would cut the levels' rows off
+  /// ([ImpellerLayers.keepsWhole]), as a coarser copy's footprint cuts glass
+  /// it holds near its bottom, the copy carries none.
+  @override
+  late final LevelStrip? levels = () {
+    final levels = layout.drawnLevels;
+    if (levels == null) return null;
+    final copy = copyRect.size / targetShare.toDouble();
+    final strip = _stripOf(
+      levels,
+      Size(copy.width.ceilToDouble(), copy.height.ceilToDouble()),
     );
-    return _keepsCorner(hazeLayout.size * targetShare.toDouble())
-        ? hazeLayout
-        : null;
+    return _keepsWhole(levelSize(strip)) ? strip : null;
   }();
 
-  bool _keepsCorner(Size size) => switch (under) {
-    final under? => ImpellerLayers.keepsCorner(
+  @override
+  Offset get levelAt => copyRect.topLeft / targetShare.toDouble();
+
+  /// The part of the layer, from its corner, the passes of [strip] draw: the
+  /// copy and its levels under it, in the layer's coordinates.
+  Size levelSize(LevelStrip strip) {
+    final at = levelAt;
+    final size = strip.size;
+    return Size(at.dx + size.width, at.dy + size.height) *
+        targetShare.toDouble();
+  }
+
+  bool _keepsWhole(Size size) => switch (under) {
+    final under? => ImpellerLayers.keepsWhole(
       device.topLeft & sizeWith(size),
       under.scaled(devicePixelRatio),
     ),
@@ -434,7 +418,7 @@ final class CornerPlace extends CopyPlace {
 
   /// The layer's size in device pixels where layers of [size] lie in it
   /// from its corner: the part of the screen it covers, and under it the
-  /// rows of a haze's strip where the layer has none for them.
+  /// rows of its levels where the layer has none for them.
   Size sizeWith(Size size) => Size(
     max(device.width, size.width),
     max(device.height, size.height),
@@ -457,6 +441,22 @@ final class ImagePlace extends CopyPlace {
   /// The size of a copy of [layout], in the image's pixels.
   static (int, int) sizeOf(ReadLayout layout) =>
       layout.imageBox!.pixelsOn(layout.share);
+
+  /// The size a copy of [layout] takes in the image with the levels it
+  /// carries under it, in the image's pixels.
+  static (int, int) reservedOf(ReadLayout layout) {
+    final (width, height) = sizeOf(layout);
+    final levels = layout.drawnLevels;
+    if (levels == null) return (width, height);
+    final size = LevelStrip(
+      levels,
+      pixels: layout.pixels,
+      boxed: layout.share > 1,
+      copy: Size(width.toDouble(), height.toDouble()),
+      grid: Offset.zero,
+    ).size;
+    return (size.width.ceil(), size.height.ceil());
+  }
 
   @override
   final Offset at;
@@ -535,17 +535,14 @@ final class ImagePlace extends CopyPlace {
   @override
   (Size, Rect) get _inPlaceInput => (size, Offset.zero & size);
 
-  /// Where the copy's haze mixes into it, or null where it has none.
-  HazeLayout? get haze => switch (layout.haze) {
-    final haze? => hazeLayoutOf(
-      haze,
-      copy: size,
-      rect: Offset.zero & size,
-      pixels: pixels,
-      origin: _onScreen(replayed.topLeft),
-    ),
+  @override
+  LevelStrip? get levels => switch (layout.drawnLevels) {
+    final levels? => _stripOf(levels, size),
     null => null,
   };
+
+  @override
+  Offset get levelAt => at;
 
   /// From the screen's logical pixels to the copy's place in the image.
   Matrix4 get screenToImage {

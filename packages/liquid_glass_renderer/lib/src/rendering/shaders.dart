@@ -39,13 +39,9 @@ abstract class ShaderKeys {
   static final String backdropFrostAxis =
       '${_shadersRoot}build/shaderbundles/backdrop_frost_axis.iplr';
 
-  /// The compiled shader that averages a copy into the strip its haze reads.
-  static final String backdropHazeStrip =
-      '${_shadersRoot}build/shaderbundles/backdrop_haze_strip.iplr';
-
-  /// The compiled shader that mixes a copy's haze into it.
-  static final String backdropHazeMix =
-      '${_shadersRoot}build/shaderbundles/backdrop_haze_mix.iplr';
+  /// The compiled shader that draws the levels a copy carries beside it.
+  static final String copyLevels =
+      '${_shadersRoot}build/shaderbundles/copy_levels.iplr';
 
   /// The surface shader of fake glass.
   static final fakeGlassSurface =

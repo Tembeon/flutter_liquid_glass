@@ -141,11 +141,12 @@ final class FilterLook {
   /// taking each fragment for as many device pixels.
   final bool anyGrid;
 
-  /// The sigma, in logical pixels, it frosts what it shows by, whichever way:
-  /// its copy's frost or its image read's blur, the lesser axis of one.
+  /// The least sigma, in logical pixels, it frosts what it shows by,
+  /// whichever way: its shader's frost or blur, or its image read's blur, the
+  /// lesser axis of one.
   double get frostSigma => switch (imageRead?.blur) {
-    (final x, final y) => math.max(need.shaderFrost, math.min(x, y)),
-    null => need.shaderFrost,
+    (final x, final y) => math.max(need.leastFrost, math.min(x, y)),
+    null => need.leastFrost,
   };
 
   @override

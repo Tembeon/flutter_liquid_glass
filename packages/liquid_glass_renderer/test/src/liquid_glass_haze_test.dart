@@ -1,15 +1,12 @@
 @Tags(['macos_pixels'])
 library;
 
-import 'dart:math' as math;
-
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_haze.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
-import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the copies
 // are drawn as Impeller draws them.
@@ -279,76 +276,76 @@ void main() {
     );
   });
 
-  test('a haze keeps its wide blur in cells about a sigma wide', () {
-    final strip = HazeStrip(15.5, const Size(300, 60), origin: Offset.zero);
-    expect(strip.cell, 14);
-    expect(strip.across, 22);
-    expect(strip.down, 5);
-    // A layer keeps a row past the strip for Impeller to lose.
-    expect(strip.rows, 6);
-    // The bell over the cells makes up what their averages leave of the
-    // width, wherever a fragment lies between two of them.
-    const asked = 15.5 * 15.5 / (14 * 14) - 1 / 12;
-    for (final place in [0.0, 0.3, 0.5, 0.9]) {
-      var total = 0.0;
-      var spread = 0.0;
-      for (var pixel = -2; pixel <= 3; pixel++) {
-        final distance = pixel - place;
-        final inside = math.max(
-          1 - distance * distance / (strip.reach * strip.reach),
-          0,
-        );
-        total += inside * inside;
-        spread += inside * inside * distance * distance;
-      }
-      expect(spread / total, closeTo(asked, 0.06), reason: 'at $place');
-    }
-    expect(
-      hazeLayoutOf(
-        const LiquidGlassHaze() as LiquidGlassFixedHaze,
-        copy: const Size(300, 60),
-        rect: Offset.zero & const Size(300, 60),
-        pixels: 1,
-        origin: Offset.zero,
-      ).size,
-      const Size(300, 66),
+  test('a fill keeps its level in cells about a sigma wide', () {
+    final strip = LevelStrip(
+      const CopyLevels(fill: 15.5),
+      pixels: 1,
+      boxed: false,
+      copy: const Size(300, 60),
+      grid: Offset.zero,
     );
-    // The cells lie on the screen: a copy whose corner lies 10 and 20 pixels
-    // into the screen starts 10 and 6 pixels into its first cells, and reaches
-    // into as many more cells as that takes.
-    final placed = HazeStrip(
-      15.5,
-      const Size(300, 60),
-      origin: const Offset(10, 20),
+    // 8 / 3 + 28^2 / 3 is a sigma of 16.2: the stride is a whole number of
+    // level 2's cells, which it averages.
+    expect(strip.fillStride, 28);
+    expect(strip.blurs, isFalse);
+    expect((strip.first, strip.last), (2, 2));
+    // Twelve cells across and a ring, then level 2's 76 and its ring.
+    expect(strip.fillColumns, 14);
+    expect(strip.columnOf(2), 15);
+    expect(strip.across, 92);
+    // Level 2's 16 rows and its ring, and a row for Impeller to lose.
+    expect(strip.rows, 19);
+    expect(strip.size, const Size(300, 79));
+    expect(strip.passes, 2);
+    // The cells lie on the screen: a copy elsewhere takes as many.
+    final placed = LevelStrip(
+      const CopyLevels(fill: 15.5),
+      pixels: 1,
+      boxed: false,
+      copy: const Size(300, 60),
+      grid: const Offset(10, 21),
     );
-    expect(placed.phase, const Offset(10, 6));
-    expect(placed.across, 23);
-    expect(placed.down, 5);
-    expect(
-      HazeStrip(15.5, const Size(300, 60), origin: const Offset(-9, 0)).phase,
-      const Offset(5, 0),
-    );
-    // A copy at half of the pixels of a screen three times as fine.
-    expect(
-      HazeStrip(
-        15.5 * 1.5,
-        const Size(300, 60),
-        origin: Offset.zero,
-      ).cell,
-      22,
-    );
-    // The strip's shader reads at most 32 pairs of pixels along a cell, and
-    // the bell reaches no further than the six cells a fragment reads.
-    final widest = HazeStrip(400, const Size(300, 60), origin: Offset.zero);
-    expect(widest.cell, 64);
-    expect(widest.reach, 3);
+    expect(placed.size, strip.size);
+    expect(placed.grid, const Offset(10, 21));
   });
 
-  test('a read leaves the rows of its haze under its copy', () {
-    final haze = drawnHazeOf(
-      const LiquidGlassHaze.ios27Regular(brightness: Brightness.light),
-      0,
+  test('a blur takes the levels that bracket its least and most', () {
+    final strip = LevelStrip(
+      const CopyLevels(least: 2, most: 8),
+      pixels: 1,
+      boxed: false,
+      copy: const Size(300, 60),
+      grid: Offset.zero,
     );
+    expect((strip.first, strip.last), (1, 4));
+    expect(strip.blurs, isTrue);
+    expect(strip.width, 304);
+    expect(strip.height, 64);
+    expect(strip.columnOf(1), 1);
+    expect(strip.columnOf(2), 1 + 152 + 3);
+    expect(strip.passes, 2);
+    // Half the copy's pixels hold half the blur's.
+    final coarse = LevelStrip(
+      const CopyLevels(least: 2, most: 8),
+      pixels: 0.5,
+      boxed: true,
+      copy: const Size(150, 30),
+      grid: Offset.zero,
+    );
+    expect((coarse.first, coarse.last), (1, 3));
+    // A blur no wider than the copy's pixels reads level 1 and the copy.
+    final fine = LevelStrip(
+      const CopyLevels(least: 0, most: 1),
+      pixels: 1,
+      boxed: false,
+      copy: const Size(40, 40),
+      grid: Offset.zero,
+    );
+    expect((fine.first, fine.last), (1, 2));
+    expect(fine.passes, 1);
+  });
+
+  test('a read leaves the rows of its levels under its copy', () {
     ReadLayout read({required int share, Rect? clip}) => ReadLayout.resolve(
       devicePixelRatio: 1,
       askedShare: share,
@@ -357,17 +354,18 @@ void main() {
       screen: const Rect.fromLTWH(0, 0, 300, 400),
       clip: clip,
       holdsGlass: false,
-      glassFrost: 0,
-      bandFrost: null,
+      edgeFrost: 0,
       frostLeftOut: 0,
       filter: null,
       imageBlur: 0,
-      haze: haze,
+      levels: const CopyLevels(fill: 15.5),
     );
-    // Sixty rows of the copy are five cells of fourteen, and a spare row.
+    // Sixty rows of the copy are fifteen of level 2, its ring and a spare
+    // row.
     final whole = read(share: 1);
     expect(whole.footprint, const Rect.fromLTWH(50, 100, 200, 60));
-    expect(whole.layer, const Rect.fromLTRB(50, 100, 250, 166));
+    expect(whole.layer, const Rect.fromLTRB(50, 100, 250, 179));
+    expect(whole.levelLayers, 2);
     // A smaller copy lies in its layer's corner, with rows to spare.
     final corner = read(share: 2);
     expect(corner.layer, corner.footprint);
@@ -375,13 +373,13 @@ void main() {
     // layer for leaves it whole, and the rows fit under it.
     expect(
       read(share: 1, clip: const Rect.fromLTRB(0, 110, 300, 400)).layer,
-      const Rect.fromLTRB(50, 100, 250, 166),
+      const Rect.fromLTRB(50, 100, 250, 179),
     );
     // With the rows past the clip's bottom too, the layer would be cut to
     // the clip: it starts at the clip, and keeps the rows of what is left.
     expect(
       read(share: 1, clip: const Rect.fromLTRB(0, 113, 300, 160)).layer,
-      const Rect.fromLTRB(50, 113, 250, 165),
+      const Rect.fromLTRB(50, 113, 250, 176),
     );
   });
 

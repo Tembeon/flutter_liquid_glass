@@ -51,17 +51,15 @@ enum FinalShaderModels {
 /// in flight; the tint variants keep their occupancy and spill less. The
 /// general variants serve mixed models and [FinalShaderKind.material].
 ///
-/// Every variant can frost an unblurred copy of the backdrop itself, except
-/// the one-appearance iOS 27 variant over an atlas, which fits a Mali-G52's
-/// 32 work registers only without that: its frosted twin draws frosted glass
-/// ([frost]). The other variants take the same register class with the frost
-/// loop as without it (test/shader_registers.txt), so they always carry it.
+/// Every variant blurs a copy it reads by depth from the levels beside it
+/// (copy_levels.glsl), except the variants that draw a scroll edge beside the
+/// glass, which take 64 work registers on a Mali-G78 with that read: they
+/// draw glass that blurs nothing inside, as the bars a scroll edge leads.
 @immutable
 final class FinalShaderVariant {
   const FinalShaderVariant._(
     this.kind,
     this.models, {
-    this.frost = false,
     this.band = false,
     this.shape = false,
   });
@@ -72,9 +70,6 @@ final class FinalShaderVariant {
   /// The color models it shades.
   final FinalShaderModels models;
 
-  /// Whether this is the frosted twin of a variant that cannot frost.
-  final bool frost;
-
   /// Whether the variant also draws a scroll edge beside the glass.
   final bool band;
 
@@ -82,9 +77,9 @@ final class FinalShaderVariant {
   /// at each fragment, where the others read an atlas (ComputedGeometry).
   final bool shape;
 
-  /// Whether the variant can frost an unblurred copy itself
-  /// (uBackdropFrost): every variant but the one whose frost is a twin.
-  bool get frosts => frost || !_frostTwins.contains((kind, models, shape));
+  /// Whether the variant blurs the copy it reads by depth: every variant
+  /// but those that draw a scroll edge.
+  bool get blurs => !band;
 
   /// Whether the variant parts colors (uBackdropAberration). Its six reads
   /// take the 32-register variants to 46 registers and more on the
@@ -108,7 +103,7 @@ final class FinalShaderVariant {
       'KIND': 'KIND_${kind.name.toUpperCase()}',
       'COLOR_MODELS': 'COLOR_MODELS_${models.name.toUpperCase()}',
       'COMPUTED_SHAPE': flag(shape),
-      'FROST': flag(frosts),
+      'BLUR': flag(blurs),
       'FROST_BAND': flag(band),
       'ABERRATION': flag(aberrates),
       'GLOW': flag(glows),
@@ -133,7 +128,7 @@ final class FinalShaderVariant {
   /// The shader's file name without its extension.
   String get name =>
       'liquid_glass_final_render${shape ? '_shape' : ''}${kind.suffix}'
-      '${models.suffix}${frost ? '_frost' : ''}${band ? '_band' : ''}';
+      '${models.suffix}${band ? '_band' : ''}';
 
   /// The asset key of the compiled shader.
   String get assetKey => ShaderKeys.finalRender(name);
@@ -142,13 +137,6 @@ final class FinalShaderVariant {
   static final List<String> assetKeys = [
     for (final variant in all) variant.assetKey,
   ];
-
-  // The variants whose frost is a twin, by kind, models and shape: on a
-  // Mali-G52 it holds 32 work registers without the frost loop and 49 with
-  // it.
-  static const _frostTwins = {
-    (FinalShaderKind.single, FinalShaderModels.ios27, false),
-  };
 
   /// Every variant, in the order a layer holds their shaders: the ones
   /// that read an atlas, then their twins for one shape, which has one
@@ -167,27 +155,17 @@ final class FinalShaderVariant {
     else
       for (final models in FinalShaderModels.values) ...[
         FinalShaderVariant._(kind, models, shape: shape),
-        if (_frostTwins.contains((kind, models, shape)))
-          FinalShaderVariant._(kind, models, frost: true, shape: shape),
         if (kind == FinalShaderKind.single && models == FinalShaderModels.ios27)
-          FinalShaderVariant._(
-            kind,
-            models,
-            frost: _frostTwins.contains((kind, models, shape)),
-            band: true,
-            shape: shape,
-          ),
+          FinalShaderVariant._(kind, models, band: true, shape: shape),
       ],
   ];
 
   /// The index in [all] of the cheapest variant that draws [kind] with
-  /// [models], frosts an unblurred copy when [frost] and parts colors when
-  /// [aberrates]; with [shape] the one that works one shape out itself,
-  /// which is of [FinalShaderKind.single].
+  /// [models] and parts colors when [aberrates]; with [shape] the one that
+  /// works one shape out itself, which is of [FinalShaderKind.single].
   static int indexOf(
     FinalShaderKind kind,
     FinalShaderModels models, {
-    bool frost = false,
     bool shape = false,
     bool aberrates = false,
   }) {
@@ -199,7 +177,6 @@ final class FinalShaderVariant {
         _indices[_code(
           kind,
           models,
-          frost: frost,
           band: false,
           shape: shape,
           aberrates: aberrates,
@@ -210,20 +187,17 @@ final class FinalShaderVariant {
 
   /// The index in [all] of the variant that draws [kind] with [models]
   /// beside the scroll edge's band leading its read, as [indexOf] picks, or
-  /// null where none does.
+  /// null where none does. It blurs nothing inside the glass.
   static int? bandIndexOf(
     FinalShaderKind kind,
     FinalShaderModels models, {
-    required bool frost,
     bool shape = false,
     bool aberrates = false,
   }) {
-    if (!frost) return null;
     final index =
         _indices[_code(
           kind,
           models,
-          frost: true,
           band: true,
           shape: shape,
           aberrates: aberrates,
@@ -237,37 +211,32 @@ final class FinalShaderVariant {
     for (final kind in FinalShaderKind.values)
       for (final models in FinalShaderModels.values)
         for (final aberrates in const [false, true])
-          for (final frost in const [false, true])
-            for (final band in const [false, true])
-              for (final shape in const [false, true])
-                _find(
-                  kind,
-                  models,
-                  frost: frost,
-                  band: band,
-                  shape: shape,
-                  aberrates: aberrates,
-                ),
+          for (final band in const [false, true])
+            for (final shape in const [false, true])
+              _find(
+                kind,
+                models,
+                band: band,
+                shape: shape,
+                aberrates: aberrates,
+              ),
   ];
 
   static int _code(
     FinalShaderKind kind,
     FinalShaderModels models, {
-    required bool frost,
     required bool band,
     required bool shape,
     required bool aberrates,
   }) =>
-      (kind.index * FinalShaderModels.values.length + models.index) * 16 +
-      (aberrates ? 8 : 0) +
-      (frost ? 4 : 0) +
+      (kind.index * FinalShaderModels.values.length + models.index) * 8 +
+      (aberrates ? 4 : 0) +
       (band ? 2 : 0) +
       (shape ? 1 : 0);
 
   static int _find(
     FinalShaderKind kind,
     FinalShaderModels models, {
-    required bool frost,
     required bool band,
     required bool shape,
     required bool aberrates,
@@ -275,8 +244,6 @@ final class FinalShaderVariant {
     bool draws(FinalShaderVariant variant, FinalShaderModels shaded) =>
         variant.kind == kind &&
         variant.models == shaded &&
-        variant.frost ==
-            (frost && _frostTwins.contains((kind, shaded, shape))) &&
         variant.band == band &&
         variant.shape == shape &&
         (variant.aberrates || !aberrates);

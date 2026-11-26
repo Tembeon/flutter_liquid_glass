@@ -13,6 +13,7 @@ import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/atlas_lease.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
     show transparentPixel;
+import 'package:liquid_glass_renderer/src/rendering/copy_levels.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
@@ -198,10 +199,11 @@ final class GlassFace {
   /// 1 where the frost fades out with visibility.
   double get blurFade => face[_blurFadeAt];
 
-  /// This face over a copy its haze is mixed into. The haze is drawn at full
-  /// strength whatever the glass's visibility, so such glass fades by its
-  /// alpha as frosted glass does, and not to the hazed copy.
-  GlassFace get hazed => blurFade == 1
+  /// This face over a copy it blurs or fills from the copy's levels. The
+  /// blur and the fill are drawn at full strength whatever the glass's
+  /// visibility, so such glass fades by its alpha as frosted glass does, and
+  /// not to the blurred copy.
+  GlassFace get fadedByAlpha => blurFade == 1
       ? this
       : GlassFace._(
           face: List.unmodifiable(<double>[...face]..[_blurFadeAt] = 1),
@@ -610,7 +612,7 @@ final class CopyReading extends GlassReading {
     : origin = sampling.image == null ? Offset.zero : sampling.origin,
       targetShare = sampling.targetShare,
       reduced = sampling.reduced,
-      frost = sampling.frost,
+      copy = sampling.copy,
       size = sampling.size,
       image = sampling.image;
 
@@ -624,8 +626,8 @@ final class CopyReading extends GlassReading {
   /// uBackdropReduced.
   final double reduced;
 
-  /// The frost, in device pixels, the shader's taps add.
-  final double frost;
+  /// uCopy, by CopyLane.
+  final List<double> copy;
 
   /// uSize of a paint; a filter's is the engine's.
   final Size? size;
@@ -640,7 +642,7 @@ final class CopyReading extends GlassReading {
       other.origin == origin &&
       other.targetShare == targetShare &&
       other.reduced == reduced &&
-      other.frost == frost &&
+      listEquals(other.copy, copy) &&
       other.size == size;
 
   @override
@@ -649,7 +651,7 @@ final class CopyReading extends GlassReading {
     origin,
     targetShare,
     reduced,
-    frost,
+    Object.hashAll(copy),
     size,
   );
 }
@@ -764,6 +766,7 @@ final class FinalLayout {
             )
           : null,
       effects = uniformAt(shader, 'uEffects'),
+      copy = uniformAt(shader, 'uCopy'),
       band = variant.band ? uniformAt(shader, 'uBand') : null,
       looks = variant.kind.looks.count;
 
@@ -791,6 +794,9 @@ final class FinalLayout {
 
   /// The float index of uEffects.
   final int effects;
+
+  /// The float index of uCopy.
+  final int copy;
 
   /// uBand, in the band variant.
   final int? band;
@@ -843,6 +849,8 @@ final class GlassShading {
 
   static const _clear = <double>[0, 0, 0, 0];
 
+  static final _noCopy = copyLanes(strip: null, blur: GlassBlur.none);
+
   ui.FragmentShader _write(GlassDraw draw) {
     final shader = shaders[draw.variant];
     final layout = _layouts[draw.variant] ??= FinalLayout(
@@ -863,26 +871,26 @@ final class GlassShading {
       origin,
       targetShare,
       reduced,
-      frost,
+      copy,
       size,
       image,
       solid,
     ) = switch (draw.reading) {
-      BackdropReading() => (Offset.zero, 1, 0.0, 0.0, null, null, _clear),
+      BackdropReading() => (Offset.zero, 1, 0.0, _noCopy, null, null, _clear),
       CopyReading(
         :final origin,
         :final targetShare,
         :final reduced,
-        :final frost,
+        :final copy,
         :final size,
         :final image,
       ) =>
-        (origin, targetShare, reduced, frost, size, image, _clear),
+        (origin, targetShare, reduced, copy, size, image, _clear),
       SolidReading(:final color, :final size) => (
         Offset.zero,
         1,
         0.0,
-        0.0,
+        _noCopy,
         size,
         null,
         <double>[color.r, color.g, color.b, 1],
@@ -927,7 +935,6 @@ final class GlassShading {
       EffectsLane.solidBackdrop: solid,
       ...draw.glow,
       EffectsLane.backdropReduced: [reduced],
-      EffectsLane.backdropFrost: [frost / targetShare],
       EffectsLane.backdropPull: [
         binding.edge.pull,
         binding.edge.pullHeight,
@@ -939,6 +946,7 @@ final class GlassShading {
         binding.edge.aberrationDepth,
       ],
     });
+    put(layout.copy, copy);
     if (layout.band case final at?) put(at, draw.band!.floats);
     // Bound bilinear: up to Flutter 3.47 a filter's input samples as the image
     // here says (see bilinearShaderFilter).

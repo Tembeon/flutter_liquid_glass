@@ -297,11 +297,11 @@ void _resolveLayouts(PlanScenery scene, List<GlassRead> reads) {
     for (var j = 0; j < i; j++) {
       final below = reads[j];
       if (below.source is BackdropRead || !_under(below, read)) continue;
-      // A band under glass that frosts at least as wide stays out of the
-      // glass's copy, and the glass adds the band's frost to its own. NEAR:
-      // a 44 pt glass with 3 px of frost over the hard scroll edge at dpr 3
-      // differs from a copy that holds the band by at most 13 channel
-      // levels on the host.
+      // A band under glass that blurs at least as wide everywhere stays out
+      // of the glass's copy, and the glass adds the band's frost to its own
+      // blur. NEAR: a 44 pt glass with 3 px of frost over the hard scroll
+      // edge at dpr 3 differs from a copy that holds the band by at most 13
+      // channel levels on the host.
       if (below.lead.isBand &&
           below.members.length == 1 &&
           read.leadShaderFrost > 0 &&
@@ -325,17 +325,16 @@ void _resolveLayouts(PlanScenery scene, List<GlassRead> reads) {
       screen: scene.screen,
       clip: read.lead.clip,
       holdsGlass: read.holds.isNotEmpty,
-      glassFrost: read.lead.isBand
-          ? read.bandPainter?.ask.look.need.shaderFrost ?? 0
-          : lead.need.shaderFrost,
-      bandFrost: read.lead.isBand ? lead.need.shaderFrost : null,
+      edgeFrost: read.bandPainter == null ? lead.need.shaderFrost : 0,
       frostLeftOut: frostLeftOut,
       filter: imageRead == null ? null : (imageRead.key, imageRead.blendMode),
       imageBlur: switch (imageRead?.blur) {
         (final x, final y) => math.max(x, y),
         null => 0,
       },
-      haze: read.lead.isBand ? null : lead.need.haze,
+      levels: read.lead.isBand
+          ? read.bandPainter?.ask.look.need.levels
+          : lead.need.levels,
     );
   }
 }

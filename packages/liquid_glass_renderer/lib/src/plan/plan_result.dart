@@ -94,10 +94,9 @@ final class GlassRead {
       if (member.ask.role is GlassSiteRole) member.ask.look.census,
   ];
 
-  /// The frost the shader of the glass it leads draws over the copy, in
-  /// logical pixels: 0 under a band.
-  double get leadShaderFrost =>
-      lead.isBand ? 0 : lead.ask.look.need.shaderFrost;
+  /// The least frost the shader of the glass it leads draws over all of the
+  /// copy it shows, in logical pixels: 0 under a band.
+  double get leadShaderFrost => lead.isBand ? 0 : lead.ask.look.need.leastFrost;
 
   /// Whether what it holds differs from the last frame.
   bool changed = false;
@@ -126,13 +125,14 @@ final class GlassRead {
   int get targets => source is ImageRead ? 0 : sceneTargets;
 
   /// The targets it issues drawn in the scene: its filter's layer, the layers
-  /// that frost its copy and mix its haze, what its copy draws apart of the
-  /// screen, and all of that again for each read it holds that is no image.
+  /// that frost its copy and draw its levels, what its copy draws apart of
+  /// the screen, and all of that again for each read it holds that is no
+  /// image.
   int get sceneTargets => source is BackdropRead ? 1 : _drawnIn(1);
 
   int _drawnIn(int targetShare) {
     var total =
-        1 + inside + layout.frostLayersIn(targetShare) + layout.hazeLayers;
+        1 + inside + layout.frostLayersIn(targetShare) + layout.levelLayers;
     for (final held in holds) {
       if (held.source is ImageRead) continue;
       total += held._drawnIn(layout.share);

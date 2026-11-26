@@ -58,8 +58,8 @@ void main() {
   tearDown(() => glassReadsCopies = false);
 
   testWidgets(
-    'glass whose shader frosts its copy reads as far past clear glass as '
-    'the frost taps reach',
+    'glass that blurs its copy from levels reads as far past clear glass as '
+    'its blur reaches',
     (tester) async {
       final clear = await _askOf(
         tester,
@@ -71,7 +71,7 @@ void main() {
       );
       final need = frosted.look.need;
 
-      expect(need.shaderFrost, greaterThan(0));
+      expect(need.levels?.most, 3);
       expect(_farther(frosted, clear), closeTo(need.reachAt(_dpr), 1e-9));
     },
     skip: skipProperGlassTests,
@@ -96,7 +96,7 @@ void main() {
         ),
       );
 
-      expect(frosted.look.need.shaderFrost, 0);
+      expect(frosted.look.need.levels, isNull);
       expect(
         _farther(frosted, clear),
         closeTo(ImpellerBlur.reach(12, _dpr), 1e-9),

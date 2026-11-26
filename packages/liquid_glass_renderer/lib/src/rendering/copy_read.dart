@@ -2,11 +2,13 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:liquid_glass_renderer/src/plan/impeller.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_levels.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
@@ -28,7 +30,7 @@ final class GlassSampling {
   const GlassSampling({
     required this.origin,
     required this.reduced,
-    this.frost = 0,
+    required this.copy,
     this.image,
     this.size,
     this.holds,
@@ -50,11 +52,9 @@ final class GlassSampling {
   /// a layer.
   final double reduced;
 
-  /// uBackdropFrost: the sigma, in device pixels, the shader's taps frost
-  /// the copy by, 0 for none. A reading takes the sigma of the Impeller blur
-  /// the frost stands for, in the screen's logical pixels, and leaves out
-  /// what the copy's pixels already blur by.
-  final double frost;
+  /// uCopy, by CopyLane: the levels beside the copy and how the glass
+  /// blurs it from them ([copyLanes]).
+  final List<double> copy;
 
   /// The image the shader samples, for glass painted over an image copy.
   /// Null where the glass filters a layer, whose texture the engine binds.
@@ -96,7 +96,8 @@ final class ImagePart {
   }
 
   /// How `backdrop_frost.frag` reads [source] drawn under [toImage] to frost
-  /// it for Impeller's blur by [frost] (see [GlassSampling.frost]).
+  /// it for Impeller's blur by [frost] logical pixels, less what the copy's
+  /// pixels and the frost it holds already blur by.
   ///
   /// [dissolve] is in the screen's logical rows.
   FrostSampling frostSampling(
@@ -123,15 +124,29 @@ sealed class PlacedCopy {
 
   double get _held;
 
-  /// What [glassSampling] stands for by the frost drawn into the copy: 0
-  /// where it holds none.
+  /// The frost, in device pixels, drawn into the copy that a scroll edge
+  /// over it reads: 0 where it holds none.
   double get heldFrost => place.residual(_held);
 
   double _frostLeft(double frost) => place.tapFrost(frost, held: _held);
 
-  /// How the final shader reads the copy to frost it for Impeller's blur by
-  /// [frost] (see [GlassSampling.frost]), less what the copy holds.
-  GlassSampling glassSampling(double frost);
+  /// The size of the texture the copy lies in, in its pixels.
+  Size get _texture;
+
+  List<double> _copyLanes(GlassBlur blur) {
+    final layout = place.layout;
+    return copyLanes(
+      strip: place.levels,
+      blur: blur.adding(layout.frostLeftOut * layout.view.devicePixelRatio),
+      at: place.levelAt,
+      texture: _texture,
+      share: place.share,
+    );
+  }
+
+  /// How the final shader reads the copy to blur it by [blur] from the
+  /// levels beside it.
+  GlassSampling glassSampling(GlassBlur blur);
 }
 
 /// A read's copy in an image held between frames: [rect] of the screen, in
@@ -163,12 +178,15 @@ final class ImageCopy extends PlacedCopy {
   /// The copy is painted in the screen's device pixels; one at fewer pixels
   /// than the screen stands for an image as many times larger.
   @override
-  GlassSampling glassSampling(double frost) {
+  Size get _texture => Size(image.width.toDouble(), image.height.toDouble());
+
+  @override
+  GlassSampling glassSampling(GlassBlur blur) {
     final share = place.share;
     return GlassSampling(
       origin: place.zero,
       reduced: share > 1 ? 1 : 0,
-      frost: _frostLeft(frost),
+      copy: _copyLanes(blur),
       image: image,
       size: Size(
         image.width * share.toDouble(),
@@ -203,12 +221,15 @@ final class CornerRead extends PlacedCopy {
   /// The copy lies in the top-left corner of its layer, at the screen's
   /// pixels or coarser.
   @override
-  GlassSampling glassSampling(double frost) {
+  Size get _texture => _layerSize / place.targetShare.toDouble();
+
+  @override
+  GlassSampling glassSampling(GlassBlur blur) {
     final perTexel = place.fragmentsPerTexel;
     return GlassSampling(
       origin: place.zero,
       reduced: perTexel > 1 ? perTexel.toDouble() : 0,
-      frost: _frostLeft(frost),
+      copy: _copyLanes(blur),
       targetShare: place.targetShare,
       holds: place.holds,
     );
@@ -216,7 +237,7 @@ final class CornerRead extends PlacedCopy {
 
   /// How `backdrop_frost.frag` reads the layer to cover [shown] (screen
   /// logical pixels) pixel by pixel, frosted for Impeller's blur by [frost]
-  /// (see [GlassSampling.frost]) less what the copy holds, or null where
+  /// logical pixels less what the copy holds, or null where
   /// none of [shown] lies in it.
   ///
   /// [dissolve] is in the screen's logical rows.
@@ -237,25 +258,49 @@ final class CornerRead extends PlacedCopy {
   /// fragment.
   late final InPlaceFrost inPlace = frostInPlace(place);
 
-  /// What mixes the copy's haze into it where it lies in the layer, or null
-  /// where it has none.
+  /// What draws the copy's levels beside it where it lies in the layer, or
+  /// null where it carries none.
   ///
   /// Its filters see the pixels of the target the layer is drawn into, as
   /// many times fewer than the layer's own coordinates count as the target
   /// is coarser than the screen.
-  late final CopyHaze? haze = switch ((place.layout.haze, place.haze)) {
-    (final haze?, final layout?) => CopyHaze.of(haze, layout),
+  late final CopyLevelPasses? levels = switch (place.levels) {
+    final strip? => CopyLevelPasses.of(strip, place.levelAt),
+    null => null,
+  };
+
+  /// What blurs the copy where it lies in the layer, by the most its glass
+  /// blurs it, where the layer has no room for the copy's levels: the
+  /// shader then reads it as it is.
+  ///
+  /// NEAR: the glass blurs by one sigma over all of its face, and mixes in
+  /// no fill.
+  late final ui.ImageFilter? _blurInPlace = switch (place.layout.drawnLevels) {
+    final wanted? when wanted.blurs && place.levels == null =>
+      ui.ImageFilter.blur(
+        sigmaX: _impellerSigma(wanted.most),
+        sigmaY: _impellerSigma(wanted.most),
+        tileMode: glassBlurTileMode,
+      ),
     _ => null,
   };
 
-  Size get _layerSize => switch (haze) {
-    final haze? => place.sizeWith(haze.size * place.targetShare.toDouble()),
-    null => place.device.size,
+  // The sigma, in the target's pixels, to ask of Impeller's blur for a blur
+  // by [sigma] logical pixels.
+  double _impellerSigma(double sigma) =>
+      sigma *
+      place.devicePixelRatio /
+      place.targetShare /
+      ImpellerBlur.deliveredFraction;
+
+  late final Size _layerSize = switch ((place.levels, levels)) {
+    (final strip?, _?) => place.sizeWith(place.levelSize(strip)),
+    _ => place.device.size,
   };
 
   /// Adds the layer to [builder] with [filter] as its image filter, in
   /// coordinates [deviceToLocal] takes the screen's device pixels to. The
-  /// copy passes through [inPlace] first, then through its [haze], and it
+  /// copy passes through [inPlace] first, then through its [levels], and it
   /// keeps in [held] what holds between scenes ([ReadCopy.addTo]).
   /// Returns the outermost engine layer.
   ui.TransformEngineLayer addToScene(
@@ -266,7 +311,8 @@ final class CornerRead extends PlacedCopy {
     ui.Path? clip,
   }) {
     final inPlace = this.inPlace.filter;
-    final haze = this.haze;
+    final levels = this.levels;
+    final strip = place.levels;
     final device = place.device;
     final copySize = place.copySize;
     final engine = builder.pushTransform(
@@ -280,12 +326,18 @@ final class CornerRead extends PlacedCopy {
     );
     if (clip != null) builder.pushClipPath(clip, clipBehavior: Clip.hardEdge);
     PinnedLayers.push(builder, filter, device.topLeft, _layerSize);
-    haze?.push(builder, device.topLeft, targetShare: place.targetShare);
+    if (levels != null && strip != null) {
+      levels.push(builder, device.topLeft, place.levelSize(strip));
+    }
+    if (_blurInPlace case final blur?) {
+      PinnedLayers.push(builder, blur, device.topLeft, copySize);
+    }
     inPlace?.push(builder, device.topLeft, copySize);
     final within = inPlace == null ? device.rect : device.topLeft & copySize;
     _copy.addTo(builder, place, within, held);
     inPlace?.pop(builder);
-    haze?.pop(builder);
+    if (_blurInPlace != null) builder.pop();
+    levels?.pop(builder);
     builder.pop();
     if (clip != null) builder.pop();
     builder.pop();

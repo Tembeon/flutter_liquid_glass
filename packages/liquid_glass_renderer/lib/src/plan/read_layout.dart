@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
@@ -27,14 +26,8 @@ const double _blurredCopySigma = 2.5;
 // How many device pixels along each side one pixel of a copy holds that the
 // shader frosts for Impeller's blur by [sigma] device pixels, or null when
 // the frost is too wide for it: the largest whose pixels the frost spans by at
-// most 3.5, then halved while the frost still spans [minTexels] of its pixels
-// and, with [nearBlurScale], to one step past where Impeller's own blur
-// would downsample.
-int? _shaderFrostShare(
-  double sigma, {
-  required double minTexels,
-  bool nearBlurScale = false,
-}) {
+// most 3.5, then halved while the frost still spans [minTexels] of its pixels.
+int? _shaderFrostShare(double sigma, {required double minTexels}) {
   final delivered = sigma * ImpellerBlur.deliveredFraction;
   var share = 1;
   while (share < _shaderFrostMaxShare &&
@@ -42,12 +35,7 @@ int? _shaderFrostShare(
     share *= 2;
   }
   if (delivered <= 0 || delivered / share > _shaderFrostTexels) return null;
-  final floor = nearBlurScale
-      ? 2 * ImpellerBlur.share(sigma)
-      : _shaderFrostMaxShare;
-  while (share < _shaderFrostMaxShare &&
-      share * 2 <= floor &&
-      delivered / (share * 2) >= minTexels) {
+  while (share < _shaderFrostMaxShare && delivered / (share * 2) >= minTexels) {
     share *= 2;
   }
   return share;
@@ -66,67 +54,113 @@ double _frostResidual(double sigma, {required int share}) {
   return sqrt(max(delivered * delivered - carried, 0));
 }
 
+/// What glass blurs the copy it reads by, in logical pixels: the least and
+/// the most sigma of its blur inside the glass, and the sigma of the wide
+/// blur it mixes in, its fill (0 for none). The read lays out the levels
+/// they take beside its copy ([LevelStrip]).
+@immutable
+final class CopyLevels {
+  /// Levels for a blur from [least] to [most] and a fill of [fill].
+  const CopyLevels({this.least = 0, this.most = 0, this.fill = 0});
+
+  /// The least sigma the glass blurs by inside, past its edge's fringe.
+  final double least;
+
+  /// The most sigma the glass blurs by.
+  final double most;
+
+  /// The sigma of the fill, 0 for none.
+  final double fill;
+
+  /// Whether the glass blurs what it shows.
+  bool get blurs => most > 0;
+
+  /// Whether the glass mixes a fill in.
+  bool get fills => fill > 0;
+
+  /// These levels for glass that adds [frost] to its blur, as Gaussians
+  /// add.
+  CopyLevels adding(double frost) => frost <= 0 || !blurs
+      ? this
+      : CopyLevels(
+          least: sqrt(least * least + frost * frost),
+          most: sqrt(most * most + frost * frost),
+          fill: fill,
+        );
+
+  @override
+  bool operator ==(Object other) =>
+      other is CopyLevels &&
+      other.least == least &&
+      other.most == most &&
+      other.fill == fill;
+
+  @override
+  int get hashCode => Object.hash(least, most, fill);
+}
+
 /// What a site needs of a copy of its backdrop: how many device pixels along
-/// each side one pixel of the copy may stand for, and the frost a shader
-/// draws over it.
+/// each side one pixel of the copy may stand for, the frost a scroll edge's
+/// shader draws over it, and the levels glass blurs it from.
 ///
 /// A site states the most a copy may be reduced for it; the read joining
 /// sites takes the least of their shares, and its [ReadLayout] decides the
 /// copy's grid.
 @immutable
 final class CopyNeed {
-  /// A need of [share] device pixels a copy pixel, frosted by [shaderFrost]; by
-  /// default a copy at the screen's pixels with nothing frosted over it.
-  const CopyNeed({this.share = 1, this.shaderFrost = 0, this.haze});
+  /// A need of [share] device pixels a copy pixel, frosted by [shaderFrost]
+  /// and blurred from [levels]; by default a copy at the screen's pixels with
+  /// nothing over it.
+  const CopyNeed({this.share = 1, this.shaderFrost = 0, this.levels});
 
   /// The need of a copy Impeller blurs by at least [sigma] logical pixels
   /// along each axis: halved while the blur spans 2.5 of its pixels, to at
-  /// most [maxShare].
+  /// most [maxShare] and 2.
+  ///
+  /// NEAR: a copy drawn at half size differs from the full one by at most 10
+  /// channel levels on the Pixel 6a (5 in the scroll scene, 10 under the
+  /// crowd of buttons), and by 4 in the host test of white text under 8 px
+  /// of frost at dpr 1. In return the Pixel's rails spend 7 % less on a dot
+  /// or the Liquid tab and 32 % less under the crowd. A quarter size differs
+  /// by 15 on the Liquid tab and saves no more.
   factory CopyNeed.blurred(
     double sigma, {
     required double devicePixelRatio,
     required int maxShare,
   }) {
     var share = 1;
-    while (share * 2 <= maxShare &&
+    while (share * 2 <= min(maxShare, 2) &&
         sigma * devicePixelRatio / (share * 2) >= _blurredCopySigma) {
       share *= 2;
     }
     return CopyNeed(share: share);
   }
 
-  /// The need of glass whose final shader frosts an unblurred copy by
-  /// [sigma] logical pixels, or null where the frost is too wide for its
-  /// taps.
+  /// The need of glass that blurs an unblurred copy from [levels]: halved
+  /// while its least blur spans two pixels of the copy, to at most
+  /// [maxShare], and at least [atLeast].
   ///
-  /// NEAR: the copy is one step coarser than Impeller's own blur would
-  /// take, so a weak frost spans 1 to 2 of its pixels and is drawn into it
-  /// in one pass of nine reads a pixel (latticeTaps in copy_frost.dart), a
-  /// bar's 2.2 logical pixels over a sixteenth of the screen's pixels where
-  /// the finer copy took two passes over a quarter. Text and thin lines are
-  /// drawn into the copy at its scale and land up to half of its pixel from
-  /// where the screen has them. Against what reading the backdrop draws, on
-  /// the test font's blocks (host, dpr 1): 18 levels at a frost of 3, where
-  /// the glass's own taps over a copy at the screen's pixels lay 22, and 21
-  /// at a frost of 8, where the finer copy lay 11. On a Pixel 6a a bar over
-  /// a list at rest differs by at most 10 levels in a few hundred pixels,
-  /// and a slow scroll under it flickers no more (a screen recording's
-  /// frames against their neighbours, 2.85 against 2.86 levels).
+  /// A blur narrower than two of the copy's pixels mixes the copy itself
+  /// in, whose pixels show as the page moves under the glass: against a
+  /// Gaussian under sub-pixel shifts, 29 to 73 levels off below it and 2 to
+  /// 10 above, glass of 64 to 90 points on a replica of the levels.
   ///
-  /// A copy with a [haze] has it mixed in after its frost, where the frost
-  /// is drawn into the copy.
-  static CopyNeed? glassFrost(
-    double sigma, {
+  /// Glass that shows what lies under it sharp inside reads a copy of
+  /// [atLeast] pixels; where it blurs everywhere, a coarser copy loses
+  /// nothing its blur would show.
+  factory CopyNeed.levelled(
+    CopyLevels levels, {
     required double devicePixelRatio,
-    LiquidGlassFixedHaze? haze,
-  }) => switch (_shaderFrostShare(
-    sigma * devicePixelRatio,
-    minTexels: 1,
-    nearBlurScale: true,
-  )) {
-    final share? => CopyNeed(share: share, shaderFrost: sigma, haze: haze),
-    null => null,
-  };
+    required int maxShare,
+    int atLeast = 1,
+  }) {
+    var share = min(atLeast, maxShare);
+    while (share * 2 <= maxShare &&
+        levels.least * devicePixelRatio / (share * 2) >= 2) {
+      share *= 2;
+    }
+    return CopyNeed(share: share, levels: levels);
+  }
 
   /// The need of a scroll edge or fake glass whose frost shader frosts an
   /// unblurred copy by [sigma] logical pixels, or null where the frost is too
@@ -143,27 +177,37 @@ final class CopyNeed {
   /// Device pixels along each side one pixel of the copy may stand for.
   final int share;
 
-  /// The frost a shader draws over the copy, in logical pixels: 0 where the
-  /// copy is blurred instead or nothing frosts it.
+  /// The frost a scroll edge's shader draws over the copy, in logical
+  /// pixels: 0 for glass, which blurs from [levels].
   final double shaderFrost;
 
-  /// The wide blur of the copy mixed into it, or null for none.
-  final LiquidGlassFixedHaze? haze;
+  /// What glass blurs the copy by, or null where it reads it as it is or
+  /// Impeller blurs it.
+  final CopyLevels? levels;
 
-  /// The logical pixels a shader frosting the copy reads around a region on
-  /// a screen of [devicePixelRatio].
+  /// The least frost, in logical pixels, a shader draws over all of the
+  /// copy it shows: a scroll edge's, or the least blur of glass.
+  double get leastFrost => shaderFrost > 0 ? shaderFrost : levels?.least ?? 0;
+
+  /// The logical pixels a shader frosting or blurring the copy reads around a
+  /// region on a screen of [devicePixelRatio]. A blur reads three sigmas
+  /// out; the fill reads the copy's edge for what lies past it.
   ///
   /// A copy drawn at the screen's pixels in place of the ones asked reaches
   /// less: its taps lie at most a sigma wider and its pixel is smaller.
-  double reachAt(double devicePixelRatio) => shaderFrost > 0
-      ? (frostTapReach *
-                    _frostResidual(
-                      shaderFrost * devicePixelRatio,
-                      share: share,
-                    ) +
-                share) /
-            devicePixelRatio
-      : 0;
+  double reachAt(double devicePixelRatio) {
+    if (shaderFrost > 0) {
+      return (frostTapReach *
+                  _frostResidual(
+                    shaderFrost * devicePixelRatio,
+                    share: share,
+                  ) +
+              share) /
+          devicePixelRatio;
+    }
+    final most = levels?.most ?? 0;
+    return most > 0 ? 3 * most + share / devicePixelRatio : 0;
+  }
 
   /// Whether a shader's written-out taps stay smooth drawing a band with this
   /// need for glass with [glass]'s over one copy, on a screen of
@@ -182,48 +226,33 @@ final class CopyNeed {
       other is CopyNeed &&
       other.share == share &&
       other.shaderFrost == shaderFrost &&
-      other.haze == haze;
+      other.levels == levels;
 
   @override
-  int get hashCode => Object.hash(share, shaderFrost, haze);
+  int get hashCode => Object.hash(share, shaderFrost, levels);
 }
 
 /// The frost, in logical pixels, a read's copy holds, frosted once at its own
-/// pixels so the glass over it takes one read per fragment in place of its
-/// taps, or 0 where the glass frosts it.
+/// pixels so the scroll edge or fake glass over it takes one read per
+/// fragment in place of its taps, or 0 where the shader frosts it.
 ///
-/// A copy at the screen's pixels holds none, nor does one holding glass,
-/// which lies at the screen's pixels: there the frost costs more than the
-/// taps it saves. Nor does a copy whose glass a band leads with less frost
-/// ([bandFrost]): the band adds to the frost what it still lacks, so the copy
-/// can't hold more. [glassFrost] is that of the glass reading the copy, 0
-/// where a band reads it alone: the copy then holds the band's frost, and
-/// the band, drawn at the screen's pixels, takes one read of it per
-/// fragment where frosting it there took a frost's reads for each.
+/// Only a copy that every reader frosts by at least [edgeFrost] holds it, at
+/// fewer pixels than the screen's: at the screen's pixels, or holding glass,
+/// which lies at them, the frost costs more than the taps it saves. Glass
+/// blurs from the levels beside its copy, which stays unfrosted, as does the
+/// copy of a band that glass draws.
 ///
 /// Where the frost's program is not loaded yet the copy is drawn unfrosted
-/// and the glass frosts it.
+/// and the shader frosts it.
 ///
-/// NEAR: the glass takes one read for its 12 taps per fragment, over a copy
-/// of a quarter of the screen's pixels along each side where the frost spans
-/// at least one of them. The frost drawn into the copy weighs every pixel of
-/// the copy it reaches (latticeTaps in copy_frost.dart), where the glass's
-/// own taps are sparse: a point under the glass stays one point
-/// (frost_point_test), and white bars lie 13 to 21 levels from what reading
-/// the backdrop draws at a frost of 3 to 12 (backdrop_underlay_frost_test,
-/// host, dpr 1). On a Pixel 6a it costs what the sparse taps it replaced
-/// did: 107 against 106 ms of GPU a second over flat under a tab bar, 52
-/// against 58 over a page of photos (in-launch pairs).
+/// NEAR: the frost drawn into the copy weighs every pixel of the copy it
+/// reaches (latticeTaps in copy_frost.dart), where the shader's own taps
+/// are sparse.
 double _bakedFrost({
   required int share,
   required bool holdsGlass,
-  required double glassFrost,
-  required double? bandFrost,
-}) {
-  if (share < 2 || holdsGlass) return 0;
-  if (bandFrost != null && bandFrost < glassFrost) return 0;
-  return glassFrost > 0 ? glassFrost : bandFrost ?? 0;
-}
+  required double edgeFrost,
+}) => share < 2 || holdsGlass ? 0 : edgeFrost;
 
 // The widest frost, in a copy's pixels squared, eight pairs of them hold:
 // what a copy picked for its frost spans ([CopyNeed]). A copy finer than was
@@ -258,110 +287,193 @@ FrostLattice? frostLatticeOf(double inCopyPixels) {
   return wide <= _frostSquareWidest ? FrostLattice.square : FrostLattice.axes;
 }
 
-/// Where a haze keeps the wide blur of a copy: a strip of pixels under the
-/// copy, each the average of a square cell of it.
+/// Where the levels of a copy lie: one row of cells under the copy in its
+/// texture, which copy_levels.frag writes and the final shader reads
+/// (copy_levels.glsl).
+///
+/// Blur level k averages 2^k x 2^k of the copy's pixels by a tent twice that
+/// wide, and the fill level a cell of its own stride the same way, each on a
+/// grid anchored at the screen: a copy that moves with its glass averages
+/// the same pixels into a cell, and its blur stays put. Cells counted from
+/// the copy's corner part the page another way at each step of the copy,
+/// and the glass flickers in patches as it moves. Levels 1 and 2 average the
+/// copy, the coarser ones and the fill level average level 2, so the levels
+/// take two passes at most.
+///
+/// The row holds the fill level first, then the blur levels from the finest
+/// ([first]) to the coarsest ([last]), each inside a ring of one cell that
+/// repeats its edge, so a bilinear read anywhere over the copy needs no
+/// clamp.
 @immutable
-final class HazeStrip {
-  /// The strip of a copy of [copy] pixels for a wide blur by [sigma] of
-  /// them.
-  ///
-  /// A cell is 0.87 to 1 sigma wide, an even number of pixels: two of the
-  /// copy's pixels share one read of a cell, and the bell
-  /// backdrop_haze_mix.frag draws over six cells makes up the rest of the
-  /// width. Wider cells would be fewer, and would turn a page striped finer
-  /// than two of them into slow bands.
-  ///
-  /// The cells lie on the screen, from [origin], where the copy's top left
-  /// lies counted in its pixels from the screen's: a copy that moves with its
-  /// glass averages the same pixels into a cell, and its wide blur stays put.
-  /// Cells counted from the copy's corner part the page another way at each
-  /// step of the copy, and the glass flickers in patches as it moves (a lens
-  /// carried over text: 0.2 levels on average and up to a level at 2.625
-  /// dpr, every frame, host).
-  factory HazeStrip(double sigma, Size copy, {required Offset origin}) {
-    final cell = (2 * (sigma / 2.3).ceil()).clamp(2, 2 * hazeMostReads);
-    // What an average over a cell blurs by is a twelfth of its side squared.
-    final left = sigma * sigma / (cell * cell) - 1 / 12;
-    final phase = Offset(origin.dx % cell, origin.dy % cell);
-    return HazeStrip._(
-      cell: cell,
-      phase: phase,
-      across: ((phase.dx + copy.width) / cell).ceil(),
-      down: ((phase.dy + copy.height) / cell).ceil(),
-      reach: _reachOf(left),
+final class LevelStrip {
+  /// The strip of a copy of [copy] pixels, its top left at [grid] on the
+  /// screen's grid of its pixels, for glass blurring it from [levels] at
+  /// [pixels] copy pixels a logical pixel; [boxed] where a copy pixel
+  /// averages more than one device pixel.
+  factory LevelStrip(
+    CopyLevels levels, {
+    required double pixels,
+    required bool boxed,
+    required Size copy,
+    required Offset grid,
+  }) {
+    final (:first, :last, :blurs, :fillStride) = choose(
+      levels,
+      pixels: pixels,
+      boxed: boxed,
+    );
+    final cell = 1 << last;
+    final width = (copy.width / cell).ceil() * cell;
+    return LevelStrip._(
+      first: first,
+      last: last,
+      blurs: blurs,
+      fillStride: fillStride,
+      width: width,
+      height: (copy.height / cell).ceil() * cell,
+      fillCells: fillStride > 0 ? (width / fillStride).ceil() + 1 : 0,
+      copy: copy,
+      grid: grid,
     );
   }
 
-  const HazeStrip._({
-    required this.cell,
-    required this.phase,
-    required this.across,
-    required this.down,
-    required this.reach,
+  const LevelStrip._({
+    required this.first,
+    required this.last,
+    required this.blurs,
+    required this.fillStride,
+    required this.width,
+    required this.height,
+    required this.fillCells,
+    required this.copy,
+    required this.grid,
   });
 
-  // How many strip pixels the bell reaches whose weights over six of them,
-  // `(1 - (d / reach)^2)^2` a distance `d` away, are [wide] pixels squared
-  // wide: three at most, the six pixels a fragment reads, where a width
-  // past what they hold gets what they hold.
-  static double _reachOf(double wide) {
-    if (_reaches[wide] case final held?) return held;
-    if (_reaches.length >= 32) _reaches.clear();
-    // The width over the places a fragment takes between two pixels.
-    double widthOf(double reach) {
-      var width = 0.0;
-      for (var place = 0; place < 4; place++) {
-        var total = 0.0;
-        var spread = 0.0;
-        for (var pixel = -2; pixel <= 3; pixel++) {
-          final distance = pixel - place / 4;
-          final inside = max(1 - distance * distance / (reach * reach), 0);
-          final weight = inside * inside;
-          total += weight;
-          spread += weight * distance * distance;
-        }
-        width += spread / total / 4;
-      }
-      return width;
-    }
-
-    var narrow = 1.0;
-    var far = 3.0;
-    if (widthOf(far) > wide) {
-      for (var i = 0; i < 40; i++) {
-        final middle = (narrow + far) / 2;
-        if (widthOf(middle) < wide) {
-          narrow = middle;
-        } else {
-          far = middle;
-        }
-      }
-    }
-    return _reaches[wide] = far;
+  /// The levels a copy carries for glass blurring it from [levels] at
+  /// [pixels] copy pixels a logical pixel: the blur levels from [first] to
+  /// [last], which take in level 2 that the others average, whether the
+  /// glass reads them, and the fill level's stride, 0 for none.
+  ///
+  /// The glass reads the two levels whose blur brackets its own, so the
+  /// least blur picks the finest and the most the coarsest; level 0 is the
+  /// copy itself.
+  static ({int first, int last, bool blurs, int fillStride}) choose(
+    CopyLevels levels, {
+    required double pixels,
+    required bool boxed,
+  }) {
+    final box = boxed ? 1 / 12 : 0.0;
+    final least = levels.least * pixels;
+    final most = levels.most * pixels;
+    final fill = levels.fill * pixels;
+    final blurs = most > 0;
+    final finest = blurs
+        ? min(max(1, _levelBelow(least * least, box)), levelMostDeep)
+        : 2;
+    final coarsest = blurs
+        ? min(max(finest, _levelBelow(most * most, box) + 1), levelMostDeep)
+        : 2;
+    final across = sqrt(max(3 * (fill * fill - box - 8 / 3), 0));
+    return (
+      first: min(finest, 2),
+      last: max(coarsest, 2),
+      blurs: blurs,
+      fillStride: fill > 0
+          ? 4 * (across / 4).round().clamp(1, levelMostPairs - 1)
+          : 0,
+    );
   }
 
-  static final _reaches = <double, double>{};
+  // The deepest level whose read blurs by at most [variance], in copy pixels
+  // squared: level k reads as `box + k^4 / 3`, past level 2 with level 2's
+  // own tent too (copy_levels.glsl).
+  static int _levelBelow(double variance, double box) {
+    final span = 3 * (variance - box);
+    final level = span >= 72 ? span - 8 : min<double>(span, 63);
+    return level < 4 ? 0 : (log(level) / ln2 / 2).floor();
+  }
 
-  /// The side of a cell, in the copy's pixels.
-  final int cell;
+  /// The finest blur level the strip holds.
+  final int first;
 
-  /// How far before the copy's top left the first cell starts, in the copy's
-  /// pixels: less than a cell along each axis.
-  final Offset phase;
+  /// The coarsest blur level the strip holds.
+  final int last;
 
-  /// How many cells the copy reaches into across, which is the strip's width
-  /// in pixels.
-  final int across;
+  /// Whether the glass reads the blur levels, where level 2 may lie in the
+  /// strip only for the fill level to average.
+  final bool blurs;
 
-  /// How many cells the copy reaches into down, which is the strip's height
-  /// in pixels.
-  final int down;
+  /// The fill level's stride in copy pixels, 0 for none.
+  final int fillStride;
+
+  /// The copy's width rounded up to whole cells of [last].
+  final int width;
+
+  /// The copy's height rounded up to whole cells of [last].
+  final int height;
+
+  /// The fill level's cells across, its ring aside.
+  final int fillCells;
+
+  /// The copy's size in its pixels.
+  final Size copy;
+
+  /// Where the copy's top left lies on the screen's grid of its pixels.
+  final Offset grid;
+
+  /// The columns the fill level takes, its ring included.
+  int get fillColumns => fillStride > 0 ? fillCells + 2 : 0;
+
+  /// The column, from the strip's left, the cells of blur level [k] start
+  /// at, past its ring.
+  int columnOf(int k) =>
+      fillColumns +
+      (width >> (first - 1)) -
+      (width >> (k - 1)) +
+      3 * (k - first) +
+      1;
+
+  /// The strip's width in pixels.
+  int get across => columnOf(last + 1) - 1;
+
+  /// The strip's height in pixels: the finest level's cells and its ring.
+  int get down => (height >> first) + 3;
 
   /// The rows a layer keeps under the copy for the strip.
   int get rows => down + ImpellerLayers.spareRows;
 
-  /// How many of the strip's pixels the bell read over it reaches.
-  final double reach;
+  /// The size of what the copy and its strip take from the copy's top left.
+  Size get size => Size(
+    max(copy.width, across.toDouble()),
+    copy.height + rows,
+  );
+
+  /// The passes that draw the levels: one for levels 1 and 2, and one for
+  /// the coarser ones and the fill level.
+  int get passes => passesOf(
+    (first: first, last: last, blurs: blurs, fillStride: fillStride),
+  );
+
+  /// The passes that draw the levels [chosen] ([choose]).
+  static int passesOf(
+    ({int first, int last, bool blurs, int fillStride}) chosen,
+  ) => chosen.last > 2 || chosen.fillStride > 0 ? 2 : 1;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LevelStrip &&
+      other.first == first &&
+      other.last == last &&
+      other.blurs == blurs &&
+      other.fillStride == fillStride &&
+      other.width == width &&
+      other.height == height &&
+      other.copy == copy &&
+      other.grid == grid;
+
+  @override
+  int get hashCode =>
+      Object.hash(first, last, blurs, fillStride, width, height, copy, grid);
 }
 
 /// Where the pixels of one read's copy lie: on which grid, at which boxes and
@@ -378,7 +490,7 @@ final class ReadLayout {
     required this.bakedFrost,
     required this.frostLeftOut,
     required this.filter,
-    required this.haze,
+    required this.levels,
     required this.imageGrid,
     this.room,
     this.imageBox,
@@ -389,7 +501,9 @@ final class ReadLayout {
   /// (logical pixels).
   ///
   /// A copy that holds glass drawn at the screen's pixels lands on the
-  /// screen's own pixels ([atScreen]). An image of a copy that Impeller blurs
+  /// screen's own pixels ([atScreen]). [edgeFrost] is the frost, in logical
+  /// pixels, of the scroll edge or fake glass that leads the read, where no
+  /// glass reads its copy. An image of a copy that Impeller blurs
   /// by [imageBlur] logical pixels lies on the grid its blur samples
   /// ([imageGrid]).
   factory ReadLayout.resolve({
@@ -400,12 +514,11 @@ final class ReadLayout {
     required Rect screen,
     required Rect? clip,
     required bool holdsGlass,
-    required double glassFrost,
-    required double? bandFrost,
+    required double edgeFrost,
     required double frostLeftOut,
     required Object? filter,
     required double imageBlur,
-    LiquidGlassFixedHaze? haze,
+    CopyLevels? levels,
   }) {
     assert(
       askedShare == 1 || askedShare == 2 || askedShare == 4 || askedShare == 8,
@@ -435,35 +548,40 @@ final class ReadLayout {
       share: share,
       reads: reads.intersect(screen),
       footprint: footprint,
-      layer: haze == null || share > 1
+      layer: levels == null || share > 1
           ? layer
-          : _withHazeRows(layer, footprint, cut, haze, view),
+          : _withLevelRows(
+              layer,
+              footprint,
+              cut,
+              levels.adding(frostLeftOut),
+              view,
+            ),
       clip: cut,
       bakedFrost: _bakedFrost(
         share: share,
         holdsGlass: holdsGlass,
-        glassFrost: glassFrost,
-        bandFrost: bandFrost,
+        edgeFrost: edgeFrost,
       ),
       frostLeftOut: frostLeftOut,
       filter: filter,
-      haze: haze,
+      levels: levels,
       imageGrid:
           share * ImpellerBlur.share(imageBlur * devicePixelRatio / share),
     );
   }
 
   // A copy at the screen's pixels fills its layer, which grows down by the
-  // rows its haze keeps its strip in ([HazeStrip]), past the screen or the
-  // clip where it must: they are a small part of the layer. Where the layer
-  // with them would not keep its corner ([ImpellerLayers.keepsCorner]), it
-  // is cut to the clip first. NEAR: as where a clip leaves no room to grow,
-  // its glass reads the copy mirrored at the clip.
-  static DeviceBox _withHazeRows(
+  // rows its levels lie in ([LevelStrip]), past the screen or the clip where
+  // it must: they are a small part of the layer. Where the layer with them
+  // would not keep its corner ([ImpellerLayers.keepsCorner]), it is cut to
+  // the clip first. NEAR: as where a clip leaves no room to grow, its glass
+  // reads the copy mirrored at the clip.
+  static DeviceBox _withLevelRows(
     DeviceBox layer,
     DeviceBox footprint,
     Rect? cut,
-    LiquidGlassFixedHaze haze,
+    CopyLevels levels,
     ViewPixels view,
   ) {
     DeviceBox grown(DeviceBox from) {
@@ -471,10 +589,12 @@ final class ReadLayout {
         footprint.right - from.left,
         footprint.bottom - from.top,
       );
-      final rows = HazeStrip(
-        haze.sigma * view.devicePixelRatio,
-        copy,
-        origin: from.topLeft,
+      final rows = LevelStrip(
+        levels,
+        pixels: view.devicePixelRatio,
+        boxed: false,
+        copy: copy,
+        grid: from.topLeft,
       ).rows;
       return from.downTo(footprint.bottom + rows);
     }
@@ -510,8 +630,8 @@ final class ReadLayout {
   /// The layer the copy is drawn in: [footprint] grown to whole pixels of the
   /// copy, grown where a clip would cut the layer, or the part of it inside a
   /// clip that leaves no room to grow or that cuts a copy smaller than the
-  /// screen; and under a copy at the screen's pixels the rows its [haze]
-  /// keeps its strip in.
+  /// screen; and under a copy at the screen's pixels the rows its [levels]
+  /// lie in.
   final DeviceBox layer;
 
   /// The clip around the read's lead, on the screen, in logical pixels.
@@ -529,9 +649,13 @@ final class ReadLayout {
   /// null for none.
   final Object? filter;
 
-  /// The wide blur of the copy mixed into it over its frost, or null for
-  /// none.
-  final LiquidGlassFixedHaze? haze;
+  /// What the glass reading the copy blurs it by, or null where it reads it
+  /// as it is: the levels it carries beside it.
+  final CopyLevels? levels;
+
+  /// [levels] with the frost [frostLeftOut] the glass adds: the blur its
+  /// levels are laid out for.
+  CopyLevels? get drawnLevels => levels?.adding(frostLeftOut);
 
   /// How many device pixels along each side a cell of the grid holds that an
   /// image of the read starts on and spans whole cells of: the copy's pixels,
@@ -582,7 +706,7 @@ final class ReadLayout {
     bakedFrost: bakedFrost,
     frostLeftOut: frostLeftOut,
     filter: filter,
-    haze: haze,
+    levels: levels,
     imageGrid: imageGrid,
     room: room,
     imageBox: view.cover(room, share: imageGrid).intersect(view.cover(screen)),
@@ -617,10 +741,14 @@ final class ReadLayout {
     return frostLatticeOf(inCopyPixels) == FrostLattice.axes ? 2 : 1;
   }
 
-  /// The layers that mix the copy's [haze] into it, each a pass of the
-  /// frame: one averages the copy into a strip, one reads its wide blur out
-  /// of the strip.
-  int get hazeLayers => haze == null ? 0 : 2;
+  /// The layers that draw the copy's [levels] beside it, each a pass of the
+  /// frame ([LevelStrip.passes]).
+  int get levelLayers => switch (drawnLevels) {
+    final levels? => LevelStrip.passesOf(
+      LevelStrip.choose(levels, pixels: pixels, boxed: share > 1),
+    ),
+    null => 0,
+  };
 
   /// The frost, in logical pixels, that stands for [sigma] over what the
   /// copy left out.
@@ -648,12 +776,12 @@ final class ReadLayout {
 
   /// Whether a copy at this layout draws what one at [other] draws over
   /// the same backdrop: the same frost held and left out, through the same
-  /// image read filter, under the same haze.
+  /// image read filter, with the same levels beside it.
   bool drawsLike(ReadLayout other) =>
       bakedFrost == other.bakedFrost &&
       frostLeftOut == other.frostLeftOut &&
       filter == other.filter &&
-      haze == other.haze;
+      levels == other.levels;
 
   /// Whether an image drawn at this layout serves a read at [next]: it
   /// draws alike on the same pixels, and its room holds all [next] reads.

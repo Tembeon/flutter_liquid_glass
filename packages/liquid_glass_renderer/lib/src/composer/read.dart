@@ -13,7 +13,7 @@ import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/plan/rects.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
     show InPlaceFrost, frostInPlace;
-import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_levels.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
@@ -244,7 +244,7 @@ const _heldLayers = 3;
 
 final class _Tile {
   _Tile(this.copy, this.imageRead)
-    : _pixels = ImagePlace.sizeOf(copy.read.layout);
+    : _pixels = ImagePlace.reservedOf(copy.read.layout);
 
   final ReplayedCopy copy;
   final ImageReadFilter imageRead;
@@ -255,6 +255,9 @@ final class _Tile {
 
   int get width => _pixels.$1;
   int get height => _pixels.$2;
+
+  // The copy and the levels under it, from its top left.
+  Size get reserved => Size(width.toDouble(), height.toDouble());
 
   // Set once packed.
   late ImagePlace place;
@@ -272,9 +275,9 @@ final class _Tile {
 
   late final InPlaceFrost inPlace = frostInPlace(place);
 
-  late final CopyHaze? haze = switch ((layout.haze, place.haze)) {
-    (final haze?, final hazeLayout?) => CopyHaze.of(haze, hazeLayout),
-    _ => null,
+  late final CopyLevelPasses? levels = switch (place.levels) {
+    final strip? => CopyLevelPasses.of(strip, Offset.zero),
+    null => null,
   };
 }
 
@@ -382,19 +385,19 @@ final class _ImageCopies {
     for (final tile in tiles) {
       if (!tile.filtered) {
         final filter = tile.inPlace.filter;
-        final haze = tile.haze;
-        if (filter == null && haze == null) {
+        final levels = tile.levels;
+        if (filter == null && levels == null) {
           add(tile, tile.bounds);
         } else {
           final size = tile.bounds.size;
           b.pushOffset(tile.offset.dx, tile.offset.dy);
-          haze?.push(b, Offset.zero);
+          levels?.push(b, Offset.zero, tile.reserved);
           filter?.push(b, Offset.zero, size);
           b.pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
           tile.copy._replay(b, tile.place, Offset.zero, _layers);
           b.pop();
           filter?.pop(b);
-          haze?.pop(b);
+          levels?.pop(b);
           b.pop();
         }
       } else if (tile.layered) {
@@ -450,16 +453,8 @@ final class _ImageCopies {
         ..pop()
         ..pop();
     }
-    // The last row's hazes keep their strips under it.
-    var rows = height;
-    for (final tile in tiles) {
-      if (tile.filtered) continue;
-      if (tile.haze case final haze?) {
-        rows = max(rows, (tile.offset.dy + haze.size.height).ceil());
-      }
-    }
     final scene = b.build();
-    final image = scene.toImageSync(width, rows);
+    final image = scene.toImageSync(width, height);
     scene.dispose();
     for (final tile in tiles) {
       final id = tile.copy.read.lead.id;

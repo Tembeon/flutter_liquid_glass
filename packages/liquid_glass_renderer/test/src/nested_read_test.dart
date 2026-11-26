@@ -85,7 +85,7 @@ void main() {
     final [glass, sheet] = plan!.reads;
     expect(glass.source, isA<SceneRead>());
     expect(glass.share, 2);
-    expect(glass.layout.bakedFrost, greaterThan(0));
+    expect(glass.layout.levels, isNotNull);
     expect(sheet.source, isA<ImageRead>());
     expect(sheet.holds, contains(glass));
 

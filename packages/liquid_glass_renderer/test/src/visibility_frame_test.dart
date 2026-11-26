@@ -26,8 +26,8 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
       testWidgets(
         'material update matches fresh scene: $mode grouped=$grouped',
         (tester) async {
-          // Until their programs load, copies frost and haze with
-          // stand-ins; the frames compared here have to draw alike.
+          // Until their programs load, copies blur without levels
+          // or fill; the frames compared here have to draw alike.
           await tester.runAsync(precacheLiquidGlass);
           tester.view
             ..physicalSize = const Size(240, 160)

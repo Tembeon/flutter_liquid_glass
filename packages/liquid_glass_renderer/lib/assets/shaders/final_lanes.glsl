@@ -64,7 +64,7 @@ uniform vec4 uRecipes[27];
 #define recipeRingStroke(slot) uRecipes[(slot) * 9 + 8].z
 #define recipeRingInverseRadius(slot) uRecipes[(slot) * 9 + 8].w
 
-uniform highp vec4 uEffects[6];
+uniform highp vec4 uEffects[5];
 #define uSolidBackdrop uEffects[0]
 #define uGlowSpot uEffects[1]
 #define uGlowBox uEffects[2]
@@ -72,7 +72,22 @@ uniform highp vec4 uEffects[6];
 #define uBackdropAberration uEffects[4].xy
 #define uGlowWash uEffects[4].z
 #define uBackdropReduced uEffects[4].w
-#define uBackdropFrost uEffects[5].x
+
+uniform highp vec4 uCopy[7];
+#define uLevelTexture uCopy[0].xy
+#define uLevelGrid uCopy[0].zw
+#define uLevelCopyAt uCopy[1].xy
+#define uLevelRow uCopy[1].z
+#define uLevelBlurAt uCopy[1].w
+#define uLevelWidth uCopy[2].x
+#define uLevelShare uCopy[2].y
+#define uLevelFinest uCopy[2].z
+#define uLevelCoarsest uCopy[2].w
+#define uBlurSigmas uCopy[3]
+#define uBlurDepths uCopy[4].xyz
+#define uFillInverseStride uCopy[4].w
+#define uFillMix uCopy[5].xyz
+#define uFillOffset vec2(uCopy[5].w, uCopy[6].x)
 
 #if FROST_BAND
 uniform highp vec4 uBand[5];

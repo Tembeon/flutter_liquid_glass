@@ -60,8 +60,8 @@ void runVisibilityFadeTests(TestWidgetsFlutterBinding testBinding) {
           'visibility fades $name to the backdrop '
           '(fake=$fake, frost=$frost)',
           (tester) async {
-            // Until their programs load, copies frost and haze with
-            // stand-ins; the frames compared here have to draw alike.
+            // Until their programs load, copies blur without levels
+            // or fill; the frames compared here have to draw alike.
             await tester.runAsync(precacheLiquidGlass);
             tester.view
               ..physicalSize = Size(_width.toDouble(), _height.toDouble())

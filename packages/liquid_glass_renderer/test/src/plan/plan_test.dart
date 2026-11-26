@@ -395,9 +395,12 @@ void main() {
       expect((read.source as ImageRead).held, isTrue);
     });
 
-    FilterLook look(double frost, {ImageReadFilter? imageRead}) => FilterLook(
+    FilterLook look(double blur, {ImageReadFilter? imageRead}) => FilterLook(
       key: 'glass',
-      need: CopyNeed(share: 2, shaderFrost: frost),
+      need: CopyNeed(
+        share: 2,
+        levels: blur > 0 ? CopyLevels(least: blur, most: blur) : null,
+      ),
       imageRead: imageRead,
     );
 
@@ -411,7 +414,7 @@ void main() {
       expect(read.source, const ImageRead(held: true));
     });
 
-    test('a held image goes when the frost baked into it changes', () {
+    test('a held image goes when the levels drawn into it change', () {
       final site = _site(0, const Rect.fromLTWH(20, 200, 200, 90));
       site.takeAsk(site._with(look: look(4)));
       final scene = _Scene([site]);

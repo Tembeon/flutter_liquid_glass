@@ -8,7 +8,7 @@
 #define KIND KIND_TINT
 #define COLOR_MODELS COLOR_MODELS_IOS27
 #define COMPUTED_SHAPE 0
-#define FROST 1
+#define BLUR 1
 #define FROST_BAND 0
 #define ABERRATION 0
 #define GLOW 1

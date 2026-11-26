@@ -58,8 +58,16 @@ final class _GlassPainter implements ReadPainter {
           );
   }
 
+  // Whether the glass shows [copy] blurred or filled from its levels, or
+  // blurred where it lies for want of room for them.
+  static bool _blursOrFills(GlassRead read, PlacedCopy copy) =>
+      switch (copy.place.levels) {
+        final strip? => strip.blurs || strip.fillStride > 0,
+        null => read.layout.drawnLevels?.blurs ?? false,
+      };
+
   GlassDraw _readDraw(GlassRead read, _Frame frame, PlacedCopy copy) {
-    final sampling = copy.glassSampling(frame.shaderFrost);
+    final sampling = copy.glassSampling(frame.blur);
     final look = _bandOf(read);
     final kind = read.geometryKind;
     assert(
@@ -87,9 +95,9 @@ final class _GlassPainter implements ReadPainter {
         : MatrixUtils.transformRect(globalToMatte, holds);
     final draw = GlassDraw(
       variant: variant,
-      face: read.layout.haze == null
-          ? layer._glassFace
-          : layer._hazedFace ??= layer._glassFace.hazed,
+      face: _blursOrFills(read, copy)
+          ? layer._fadedFace ??= layer._glassFace.fadedByAlpha
+          : layer._glassFace,
       glow: layer._glowNow,
       geometry: binding,
       mapping: MatteMapping.of(

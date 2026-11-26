@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 
 /// Decisions a person made once, from the measured trades of how copies are
 /// drawn to the bounds of a frame's plan. Only tests replace them, through
@@ -13,7 +14,7 @@ final class PlanPolicy {
     this.maxTargets = 24,
     this.maxShapes = geometryMaxShapesPerDraw,
     this.shaderFrost = true,
-    this.maxCopyShare = 2,
+    this.maxCopyShare = 4,
     this.passPixels = 345714,
     this.deadWeight = 3 / 7,
     this.imagePasses = 7.438,
@@ -26,19 +27,22 @@ final class PlanPolicy {
   /// `GlassRead.targets` counts them: a frosted read is two or three.
   final int maxTargets;
 
-  /// Whether a frost is drawn from an unblurred copy through a shader;
-  /// without, the copy is blurred or filtered as the backdrop is. Glass
-  /// picks its final shader by it, and fake glass and scroll edge bands
-  /// their copies.
+  /// Whether glass blurs a copy it reads and mixes in its fill from the
+  /// copy's levels, and fake glass and scroll edge bands frost their copies
+  /// through a shader; without, a copy is blurred or filtered as the
+  /// backdrop is and glass draws no fill. Glass picks its final shader by it.
   ///
-  /// NEAR, for glass: the final shader's 12 taps, turned over a 2 x 2 cell
-  /// of pixels except in the tinted variants, are not Impeller's blur, and a
-  /// thin hard edge under the frost shows a faint dither. Over the white
-  /// bars of the host test they differ from the backdrop filter by at most 22
-  /// channel levels over a half-size copy and 36 over a quarter-size one,
-  /// where the blurred half-size copy differs by 4, and by 30 for glass
-  /// scaled 1.2 over a quarter-size copy. In return a frosted copy takes no
-  /// blur passes.
+  /// NEAR, for glass: one bilinear read of a level (`CopyLevelPasses`) is
+  /// not Impeller's blur, and its peak sits up to half a cell of the level
+  /// off, by where the screen's grid falls. Over the white bars of the host
+  /// test at a device pixel ratio of 1, glass blurred all over by the sigma
+  /// Impeller's blur delivers, with no fill (`debugGlassFill`), by 3 to 20
+  /// px over copies of 1 to 4 device px a pixel, differs from the backdrop
+  /// filter by 0.3 to 0.9 channel levels on average, 8 to 12 at the 99th
+  /// percentile and at most 20 to 31. The backdrop draws no fill and one
+  /// sigma for the whole face, so the paths differ by the recipe's ramp and
+  /// fill besides. In return the copy takes at most two passes for its
+  /// levels, whatever the blur and the fill.
   ///
   /// NEAR, for a frost of a copy: the shader weighs every pixel of the copy
   /// the frost reaches (latticeTaps in copy_frost.dart), so a point under
@@ -54,16 +58,11 @@ final class PlanPolicy {
   /// alone, as a band or a glass fades in, keeps it.
   final bool shaderFrost;
 
-  /// How many device pixels along each side one pixel of a copy that
-  /// Impeller blurs stands for at most; a copy the shader frosts takes its
-  /// size from the frost.
-  ///
-  /// NEAR: a copy drawn at half size differs from the full one by at most 10
-  /// channel levels on the Pixel 6a (5 in the scroll scene, 10 under the
-  /// crowd of buttons), and by 4 in the host test of white text under 8 px
-  /// of frost at dpr 1. In return the Pixel's rails spend 7 % less on a dot
-  /// or the Liquid tab and 32 % less under the crowd. A quarter size differs
-  /// by 15 on the Liquid tab and saves no more.
+  /// How many device pixels along each side one pixel of a copy stands for
+  /// at most. A copy Impeller blurs takes at most 2 of them
+  /// ([CopyNeed.blurred]); one glass blurs from its levels takes them from
+  /// its least blur ([CopyNeed.levelled]). 8 gave no clear GPU gain on the
+  /// Pixel 6a.
   final int maxCopyShare;
 
   /// How many device pixels of copy one read is worth: glass beside a read
