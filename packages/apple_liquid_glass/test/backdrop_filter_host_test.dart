@@ -47,13 +47,10 @@ Widget _row(int index) => SizedBox(
         width: 200,
         height: 60,
         child: LiquidGlassLayer(
-          // Another glint strength keeps each in a read of its own.
-          settings:
-              const LiquidGlassSettings.ios27Regular(
-                brightness: Brightness.light,
-              ).copyWith(
-                glintStrength: 0.1 + index / 100,
-              ),
+          // Another refraction keeps each in a read of its own.
+          settings: const LiquidGlassSettings.ios27Regular().copyWith(
+            refractionAmount: 60 + index / 100,
+          ),
           child: const LiquidGlass(
             shape: LiquidRoundedSuperellipse(radius: 20),
             child: SizedBox.expand(),

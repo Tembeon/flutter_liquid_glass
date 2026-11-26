@@ -48,7 +48,7 @@ Widget _scene({required bool glass}) => Directionality(
                 top: 30,
                 child: LiquidGlassLayer(
                   settings: LiquidGlassSettings(
-                    frost: LiquidGlassFrost.sigma(4),
+                    blur: 4,
                   ),
                   child: LiquidGlass(
                     shape: LiquidRoundedSuperellipse.vertical(
@@ -188,9 +188,7 @@ void main() {
         textDirection: TextDirection.ltr,
         child: Center(
           child: LiquidGlassLayer(
-            settings: LiquidGlassSettings.ios27Regular(
-              brightness: Brightness.light,
-            ),
+            settings: LiquidGlassSettings.ios27Regular(),
             // A second shape, so the layer's geometry is an atlas to read.
             child: Row(
               mainAxisSize: MainAxisSize.min,

@@ -82,7 +82,7 @@ void runVisibilityFadeTests(TestWidgetsFlutterBinding testBinding) {
                       child: LiquidGlassLayer(
                         fake: fake,
                         settings: LiquidGlassSettings(
-                          frost: LiquidGlassFrost.sigma(frost),
+                          blur: frost,
                         ),
                         child: ValueListenableBuilder<double>(
                           valueListenable: visibility,

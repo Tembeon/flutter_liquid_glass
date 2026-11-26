@@ -435,7 +435,7 @@ void main() {
       expect(large.lens.pull, 9);
       expect(large.lens.pullDepth, 36);
       expect(large.lens.dispersion, 0);
-      expect(large.frost, const LiquidGlassFrost.sigma(0));
+      expect(large.blur, 0);
       expect(large.refractionAmount, moreOrLessEquals(10.5));
       expect(large.refractionHeight, moreOrLessEquals(7));
       expect(large.lens.aberration, moreOrLessEquals(3.684, epsilon: 1e-3));
@@ -449,7 +449,7 @@ void main() {
       expect(small.refractionAmount, moreOrLessEquals(11.5, epsilon: 1e-2));
       expect(small.refractionHeight, moreOrLessEquals(6.9, epsilon: 1e-2));
       expect(small.lens.aberration, 0);
-      expect(small.frost, const LiquidGlassFrost.sigma(0));
+      expect(small.blur, 0);
 
       final still = await lifted(const GlassLens(small: true), null);
       expect(still.lens.pull, 0);
@@ -485,7 +485,7 @@ void main() {
         const Color.from(alpha: 0.1, red: 1, green: 1, blue: 1),
       );
       expect(knob.visibility, 1);
-      expect(knob.colorModel, const LiquidGlassColorModel.direct());
+      expect(knob.colorModel, _unshadowedRim);
       // The face comes with the glass, by its visibility.
       final rising = await lifted(const GlassLens(small: true), 0.1);
       expect(rising.tint, knob.tint);
@@ -493,7 +493,7 @@ void main() {
 
       final selection = await lifted(const GlassLens(), 1);
       expect(selection.tint.a, 0);
-      expect(selection.colorModel, const LiquidGlassColorModel.direct());
+      expect(selection.colorModel, _unshadowedRim);
     });
 
     testWidgets('each control describes its lens by its own measurement', (
@@ -768,7 +768,7 @@ void main() {
       );
       expect(
         layer().settings,
-        const LiquidGlassSettings.ios27Regular(brightness: .dark),
+        const LiquidGlassSettings.ios27Regular(),
       );
     });
 
@@ -800,7 +800,7 @@ void main() {
         ),
       );
       const clear = LiquidGlassSettings.ios27Clear();
-      const regular = LiquidGlassSettings.ios27Regular(brightness: .light);
+      const regular = LiquidGlassSettings.ios27Regular();
       for (final renderer in [
         const LiquidGlassRenderer(),
         const FakeGlassRenderer(),
@@ -1349,3 +1349,5 @@ class _RenderResolving extends RenderBox with MotionResolveHost {
   @override
   void resolve() => onResolve();
 }
+
+const _unshadowedRim = LiquidGlassColorModel.direct(bevelShadowStrength: 0);

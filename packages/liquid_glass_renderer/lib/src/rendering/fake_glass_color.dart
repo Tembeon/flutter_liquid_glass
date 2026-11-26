@@ -154,69 +154,36 @@ double fakeGlassHighlightLift(GlassRecipe recipe) {
 final class FakeGlassLook {
   /// The look of [settings].
   FakeGlassLook.of(LiquidGlassSettings settings)
-    : frost = settings.frostBase,
-      frostIsFitted = settings.frostIsFitted,
-      glintStrength = settings.glintStrength,
-      contourStrength = settings.contourStrength,
-      contourWidth = settings.contourWidth,
-      contourDirectionality = settings.contourDirectionality,
-      bevelShadowStrength = settings.bevelShadowStrength,
+    : blur = settings.blur,
       sliderPosition = settings.effectiveSliderPosition;
 
-  /// [FittedFrost.frostBase].
-  final double frost;
-
-  /// [FittedFrost.frostIsFitted].
-  final bool frostIsFitted;
-
-  /// [LiquidGlassSettings.glintStrength].
-  final double glintStrength;
-
-  /// [LiquidGlassSettings.contourStrength].
-  final double contourStrength;
-
-  /// [LiquidGlassSettings.contourDirectionality].
-  final double contourDirectionality;
-
-  /// [LiquidGlassSettings.bevelShadowStrength].
-  final double bevelShadowStrength;
+  /// [LiquidGlassSettings.blur].
+  final double? blur;
 
   /// The slider position, clamped to `0` to `1`.
   final double sliderPosition;
 
-  /// [DrawnSettings.contourWidth], which [contourStrength] decides.
-  final double contourWidth;
-
-  /// [FittedFrost.frostSigmaAt] of this look's frost.
-  double frostSigmaAt(double devicePixelRatio, {double? shapeShortSide}) =>
-      frostSigmaOf(
-        frost,
-        fitted: frostIsFitted,
-        devicePixelRatio: devicePixelRatio,
-        shapeShortSide: shapeShortSide,
-      );
+  /// [glassFrostSigma] of glass wearing [model] in this look.
+  double frostSigmaAt(
+    WornColorModel model,
+    double devicePixelRatio, {
+    double? shapeShortSide,
+  }) => glassFrostSigma(
+    blur: blur,
+    sliderPosition: sliderPosition,
+    variant: model.blurredAs.variant,
+    devicePixelRatio: devicePixelRatio,
+    shapeShortSide: shapeShortSide,
+  );
 
   @override
   bool operator ==(Object other) =>
       other is FakeGlassLook &&
-      other.frost == frost &&
-      other.frostIsFitted == frostIsFitted &&
-      other.glintStrength == glintStrength &&
-      other.contourStrength == contourStrength &&
-      other.contourDirectionality == contourDirectionality &&
-      other.bevelShadowStrength == bevelShadowStrength &&
+      other.blur == blur &&
       other.sliderPosition == sliderPosition;
 
   @override
-  int get hashCode => Object.hash(
-    frost,
-    frostIsFitted,
-    glintStrength,
-    contourStrength,
-    contourDirectionality,
-    bevelShadowStrength,
-    sliderPosition,
-  );
+  int get hashCode => Object.hash(blur, sliderPosition);
 }
 
 /// A fake glass backdrop filter, and the frost `full` stands for when it
@@ -281,6 +248,7 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   if (!appearance.shows) return null;
   final visibility = appearance.visibility;
   final sigma = look.frostSigmaAt(
+    appearance.colorModel,
     devicePixelRatio,
     shapeShortSide: shapeShortSide,
   );

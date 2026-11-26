@@ -13,10 +13,7 @@ const _glass = Rect.fromLTWH(40, 40, 120, 70);
 const _clear = LiquidGlassSettings(
   refractionHeight: 0,
   refractionAmount: 0,
-  frost: LiquidGlassFrost.sigma(0),
-  glintStrength: 0,
-  contourStrength: 0,
-  bevelShadowStrength: 0,
+  blur: 0,
 );
 
 Widget _scene(LiquidGlassSettings settings, List<Rect> white) => Directionality(
@@ -34,6 +31,7 @@ Widget _scene(LiquidGlassSettings settings, List<Rect> white) => Directionality(
         Positioned.fill(
           child: LiquidGlassLayer(
             settings: settings,
+            defaultAppearance: appearanceWithoutLighting,
             child: Stack(
               children: [
                 Positioned.fromRect(

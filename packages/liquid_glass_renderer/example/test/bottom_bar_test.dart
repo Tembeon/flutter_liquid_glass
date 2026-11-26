@@ -32,7 +32,9 @@ void main() {
     expect(lens.defaultAppearance?.tint.a, 0);
     expect(
       lens.defaultAppearance?.colorModel,
-      const LiquidGlassColorModel.direct(),
+      isA<LiquidGlassDirectColorModel>()
+          .having((model) => model.saturation, 'saturation', 1)
+          .having((model) => model.vibrancy, 'vibrancy', 0),
     );
   });
 

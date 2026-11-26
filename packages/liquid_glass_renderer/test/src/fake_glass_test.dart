@@ -25,7 +25,7 @@ void main() {
             child: FakeGlass(
               shape: shape,
               settings: const LiquidGlassSettings(
-                frost: LiquidGlassFrost.sigma(0),
+                blur: 0,
               ),
               child: const SizedBox.square(dimension: 80),
             ),
@@ -47,7 +47,7 @@ void main() {
         const Directionality(
           textDirection: TextDirection.ltr,
           child: FakeGlass(
-            settings: LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
+            settings: LiquidGlassSettings(blur: 0),
             shadows: [
               LiquidGlassShadow(
                 offset: Offset(0, 4),
@@ -91,11 +91,11 @@ void main() {
             child: buildWithGridPaper(
               const FakeGlass(
                 settings: LiquidGlassSettings(
-                  frost: LiquidGlassFrost.sigma(0),
-                  glintStrength: 0,
+                  blur: 0,
                 ),
                 appearance: LiquidGlassAppearance(
                   tint: Color.fromARGB(128, 0, 0, 255),
+                  colorModel: LiquidGlassColorModel.direct(glintStrength: 0),
                 ),
                 shape: LiquidRoundedSuperellipse(radius: 40),
                 child: SizedBox.square(dimension: 300),
@@ -107,10 +107,14 @@ void main() {
             child: buildWithGridPaper(
               const FakeGlass(
                 settings: LiquidGlassSettings(
-                  frost: LiquidGlassFrost.sigma(0),
-                  glintStrength: 0,
+                  blur: 0,
                 ),
                 shape: LiquidRoundedSuperellipse(radius: 40),
+                appearance: LiquidGlassAppearance(
+                  colorModel: LiquidGlassColorModel.direct(
+                    glintStrength: 0,
+                  ),
+                ),
                 child: SizedBox.square(
                   dimension: 300,
                   child: ColoredBox(color: Colors.red),
@@ -123,12 +127,14 @@ void main() {
             child: buildWithGridPaper(
               const FakeGlass(
                 settings: LiquidGlassSettings(
-                  frost: LiquidGlassFrost.sigma(0),
-                  glintStrength: 0,
+                  blur: 0,
                 ),
                 appearance: LiquidGlassAppearance(
                   tint: Color.fromARGB(128, 0, 0, 255),
-                  colorModel: LiquidGlassColorModel.direct(saturation: 1.5),
+                  colorModel: LiquidGlassColorModel.direct(
+                    saturation: 1.5,
+                    glintStrength: 0,
+                  ),
                 ),
                 shape: LiquidRoundedSuperellipse(radius: 40),
                 child: SizedBox.square(dimension: 300),
@@ -153,12 +159,14 @@ void main() {
               child: buildWithGridPaper(
                 FakeGlass(
                   settings: const LiquidGlassSettings(
-                    frost: LiquidGlassFrost.sigma(0),
-                    glintStrength: 0,
+                    blur: 0,
                   ),
                   appearance: LiquidGlassAppearance(
                     tint: const Color.fromARGB(128, 0, 0, 255),
                     visibility: visibility,
+                    colorModel: const LiquidGlassColorModel.direct(
+                      glintStrength: 0,
+                    ),
                   ),
                   shadows: const [
                     LiquidGlassShadow(
@@ -189,11 +197,13 @@ void main() {
               child: buildWithGridPaper(
                 FakeGlass(
                   settings: const LiquidGlassSettings(
-                    frost: LiquidGlassFrost.sigma(12),
-                    glintStrength: 0,
+                    blur: 12,
                   ),
                   appearance: LiquidGlassAppearance(
                     visibility: visibility,
+                    colorModel: const LiquidGlassColorModel.direct(
+                      glintStrength: 0,
+                    ),
                   ),
                   shape: const LiquidRoundedSuperellipse(radius: 40),
                   child: const SizedBox.square(dimension: 300),
@@ -218,12 +228,14 @@ void main() {
               child: buildWithGridPaper(
                 FakeGlass(
                   settings: const LiquidGlassSettings(
-                    frost: LiquidGlassFrost.sigma(0),
-                    glintStrength: 0,
+                    blur: 0,
                   ),
                   appearance: LiquidGlassAppearance(
                     tint: const Color.fromARGB(128, 0, 0, 255),
                     visibility: visibility,
+                    colorModel: const LiquidGlassColorModel.direct(
+                      glintStrength: 0,
+                    ),
                   ),
                   shadows: const [
                     LiquidGlassShadow(
@@ -302,7 +314,7 @@ Widget _layerVisibilitySurface(double visibility) => buildWithGridPaper(
   LiquidGlassLayer(
     fake: true,
     settings: _lightingSettings.copyWith(
-      frost: const LiquidGlassFrost.sigma(7),
+      blur: 7,
     ),
     defaultAppearance: _lightingAppearance.copyWith(visibility: visibility),
     child: const Center(
@@ -348,7 +360,7 @@ Widget _comparisonSurface({
   return Center(
     child: LiquidGlassLayer(
       fake: fake,
-      settings: LiquidGlassSettings.ios27Regular(brightness: brightness),
+      settings: const LiquidGlassSettings.ios27Regular(),
       defaultAppearance: LiquidGlassAppearance.ios27Regular(
         brightness: brightness,
       ),
@@ -394,14 +406,14 @@ final glassShadowBlurSupportForTest =
 String _backendGolden(String name) =>
     ui.ImageFilter.isShaderFilterSupported ? name : '${name}_skia';
 
-const _lightingSettings = LiquidGlassSettings(
-  frost: LiquidGlassFrost.sigma(0),
-  glintStrength: 0.25,
-  contourStrength: 0.2,
-  bevelShadowStrength: 0.04,
-);
+const _lightingSettings = LiquidGlassSettings(blur: 0);
 const _lightingAppearance = LiquidGlassAppearance(
   tint: Color.fromARGB(52, 245, 248, 255),
+  colorModel: LiquidGlassColorModel.direct(
+    glintStrength: 0.25,
+    contourStrength: 0.2,
+    bevelShadowStrength: 0.04,
+  ),
 );
 
 class _FakeLightingMatrix extends StatelessWidget {

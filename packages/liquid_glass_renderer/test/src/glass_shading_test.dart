@@ -22,9 +22,7 @@ Widget _scene() => Directionality(
     child: const ColoredBox(
       color: _gray,
       child: LiquidGlassLayer(
-        settings: LiquidGlassSettings.ios27Regular(
-          brightness: Brightness.light,
-        ),
+        settings: LiquidGlassSettings.ios27Regular(),
         backdrop: LiquidGlassBackdrop.solid(_gray),
         child: Stack(
           children: [
@@ -73,9 +71,7 @@ GlassFace _face(Color tint) {
     brightness: Brightness.light,
   );
   return GlassFace.of(
-    settings: const LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.light,
-    ),
+    settings: const LiquidGlassSettings.ios27Regular(),
     appearance: appearance.copyWith(tint: tint).wornByNone,
     colorModels: [appearance.wornByNone.colorModel.recipe!],
     devicePixelRatio: 1,

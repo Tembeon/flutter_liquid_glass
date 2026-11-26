@@ -39,8 +39,7 @@ void main() {
       );
       expect(
         regular.settings,
-        LiquidGlassSettings.ios27Regular(
-          brightness: brightness,
+        const LiquidGlassSettings.ios27Regular(
           sliderPosition: 0.5,
         ),
       );
@@ -152,7 +151,7 @@ void main() {
     );
     expect(
       scope.settings,
-      const LiquidGlassSettings.ios27Regular(brightness: Brightness.dark),
+      const LiquidGlassSettings.ios27Regular(),
     );
     expect(scope.defaultAppearance, appearance);
   });

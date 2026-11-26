@@ -85,7 +85,30 @@ void main() {
           transmissionGamma: _n(2),
         ),
         LiquidGlassColorModel.direct(saturation: _n(1.2), vibrancy: _n(1)),
+        LiquidGlassColorModel.direct(
+          saturation: _n(1.2),
+          brightness: Brightness.dark,
+        ),
+        LiquidGlassColorModel.direct(saturation: _n(1.2), glintStrength: 0),
+        LiquidGlassColorModel.direct(saturation: _n(1.2), contourStrength: 0),
+        LiquidGlassColorModel.direct(
+          saturation: _n(1.2),
+          contourDirectionality: 0,
+        ),
+        LiquidGlassColorModel.direct(
+          saturation: _n(1.2),
+          bevelShadowStrength: 0,
+        ),
       ],
+    );
+    expect(
+      const LiquidGlassColorModel.direct(),
+      const LiquidGlassColorModel.direct(
+        glintStrength: 0.6,
+        contourStrength: 0.43,
+        contourDirectionality: 0.77,
+        bevelShadowStrength: 0.036,
+      ),
     );
     _holdsValue(
       LiquidGlassColorModel.ios27Regular(brightness: _dark()),
@@ -231,6 +254,15 @@ void main() {
           increaseContrast: true,
         )),
         WornColorModel.direct(saturation: _n(1)),
+        const WornColorModel.direct(brightness: Brightness.dark),
+        const WornColorModel.direct(
+          rim: DirectRim(
+            glintStrength: 0.6,
+            contourStrength: 0,
+            contourDirectionality: 0,
+            bevelShadowStrength: 0,
+          ),
+        ),
       ],
     );
   });
@@ -239,47 +271,11 @@ void main() {
     final settings = LiquidGlassSettings(refractionHeight: _n(20));
     _holdsValue(settings, LiquidGlassSettings(refractionHeight: _n(20)), [
       LiquidGlassSettings(refractionHeight: _n(21)),
-      settings.copyWith(frost: LiquidGlassFrost.sigma(_n(9))),
+      settings.copyWith(blur: _n(9)),
       settings.copyWith(sliderPosition: _n(0.5)),
-      settings.copyWith(glintStrength: _n(0.2)),
+      settings.copyWith(refractionFitsShape: false),
     ]);
     expect(settings.copyWith(), settings);
-  });
-
-  test('frosts and hazes compare by variant and by their numbers', () {
-    LiquidGlassFrost regular() => const LiquidGlassFrost.ios27Regular();
-    _holdsValue(
-      LiquidGlassFrost.sigma(_n(4)),
-      LiquidGlassFrost.sigma(_n(4)),
-      [
-        LiquidGlassFrost.sigma(_n(5)),
-        regular(),
-        const LiquidGlassFrost.ios27Clear(),
-      ],
-    );
-    expect(regular(), isNot(const LiquidGlassFrost.ios27Clear()));
-    expect(regular().hashCode, regular().hashCode);
-
-    _holdsValue(
-      LiquidGlassHaze(lighten: _n(0.5)),
-      LiquidGlassHaze(lighten: _n(0.5)),
-      [
-        LiquidGlassHaze(lighten: _n(0.6)),
-        LiquidGlassHaze(darken: _n(0.5)),
-        LiquidGlassHaze(lighten: _n(0.5), sigma: _n(4)),
-        LiquidGlassHaze(lighten: _n(0.5), cover: _n(1)),
-        const LiquidGlassHaze.none(),
-        const LiquidGlassHaze.ios27Clear(),
-      ],
-    );
-    expect(
-      const LiquidGlassHaze.ios27Regular(brightness: Brightness.light),
-      isNot(const LiquidGlassHaze.ios27Regular(brightness: Brightness.dark)),
-    );
-    expect(
-      const LiquidGlassHaze.ios27Regular(brightness: Brightness.light),
-      isNot(const LiquidGlassHaze.ios27Clear()),
-    );
   });
 }
 

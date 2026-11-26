@@ -104,7 +104,12 @@ class LoupeTabBar extends StatefulWidget {
     refractionAmount: 10,
     refractionFitsShape: false,
     lens: LensSettings(dispersion: -.3, shrink: 0.14),
-    frost: LiquidGlassFrost.sigma(0),
+    blur: 0,
+  );
+
+  /// The color of the loupe's lens: plain, with a darker contour than
+  /// glass's own.
+  static const loupeColorModel = LiquidGlassColorModel.direct(
     contourStrength: .3,
   );
 
@@ -615,6 +620,7 @@ class _LoupeTabBarState extends State<LoupeTabBar>
                     fake: widget.fake,
                     defaultAppearance: LiquidGlassAppearance(
                       visibility: visibility,
+                      colorModel: LoupeTabBar.loupeColorModel,
                     ),
                     child: const LiquidGlass(
                       key: LoupeTabBar.loupeKey,

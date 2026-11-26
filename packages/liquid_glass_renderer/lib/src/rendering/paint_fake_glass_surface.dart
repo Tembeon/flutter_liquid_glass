@@ -5,6 +5,7 @@ import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_recipe_groups.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
@@ -15,10 +16,14 @@ import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
-/// Extra logical pixels required for the portion of the contour that lies
-/// outside the shape's nominal bounds.
-double fakeGlassSurfaceOutset(FakeGlassLook look) =>
-    math.max<double>(look.contourWidth + 1, 0);
+/// How far past its shape fake glass wearing [model] draws, in logical
+/// pixels: a pixel past the direct model's contour, or as far for an iOS 27
+/// recipe, whose dark specular is narrower, and for any model.
+double fakeGlassSurfaceOutset([WornColorModel? model]) =>
+    (model == null || model.recipe != null
+        ? GlassRim.contourWidth
+        : model.rim.contourWidth) +
+    1;
 
 final _noSuperellipse = List<double>.filled(SquircleLane.values.length, 0);
 
@@ -176,7 +181,7 @@ void paintFakeGlassContourRing(
     ..save()
     ..clipPath(
       Path.from(shape.getOuterPath(bounds))
-        ..addRect(bounds.inflate(fakeGlassSurfaceOutset(look)))
+        ..addRect(bounds.inflate(fakeGlassSurfaceOutset(appearance.colorModel)))
         ..fillType = PathFillType.evenOdd,
     );
   paintFakeGlassSurface(
@@ -236,7 +241,7 @@ void paintFakeGlassSurface(
       ..._noSuperellipse,
     ],
   ]);
-  final contourOutset = fakeGlassSurfaceOutset(look);
+  final contourOutset = fakeGlassSurfaceOutset(appearance.colorModel);
   canvas.drawRect(
     shaderQuad(
       (Offset.zero & size).inflate(glintOnly ? 0 : contourOutset),
@@ -285,7 +290,11 @@ void paintFakeGlassFieldBody(
     ..clipPath(
       LiquidGlassSilhouette.path(
         edge,
-      ).outside(edge.getBounds().inflate(fakeGlassSurfaceOutset(look) + 1)),
+      ).outside(
+        edge.getBounds().inflate(
+          fakeGlassSurfaceOutset(appearance.colorModel) + 1,
+        ),
+      ),
     );
   paint(exteriorOnly: true);
   canvas.restore();
@@ -326,7 +335,7 @@ void _paintFakeGlassFieldSurface(
       field.edge,
       paint
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2 * fakeGlassSurfaceOutset(look),
+        ..strokeWidth = 2 * fakeGlassSurfaceOutset(appearance.colorModel),
     );
     return;
   }
@@ -350,7 +359,7 @@ bool _drawsLight(FakeGlassLook look, WornAppearance appearance) {
   if (!appearance.shows) return false;
   return switch (appearance.colorModel.recipe) {
     final worn? => recipeOf(worn, look.sliderPosition).rimHighlight.opacity > 0,
-    null => look.glintStrength > 0,
+    null => appearance.colorModel.rim.glintStrength > 0,
   };
 }
 
@@ -360,7 +369,7 @@ bool _drawsLight(FakeGlassLook look, WornAppearance appearance) {
 bool fakeGlassDrawsContour(FakeGlassLook look, WornAppearance appearance) =>
     switch (appearance.colorModel.recipe) {
       final worn? => _specularOf(recipeOf(worn, look.sliderPosition)) != null,
-      null => look.contourWidth > 0,
+      null => appearance.colorModel.rim.contourWidth > 0,
     };
 
 DarkSpecularRecipe? _specularOf(GlassRecipe recipe) {
@@ -379,6 +388,7 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
 }) {
   final visibility = appearance.visibility;
   final colorModel = appearance.colorModel;
+  final rim = colorModel.rim;
   final worn = colorModel.recipe;
   final recipe = worn == null ? null : recipeOf(worn, look.sliderPosition);
   final faceEmission = recipe?.face.fill ?? const Color(0x00000000);
@@ -399,12 +409,12 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
 
   return {
     FakeSurfaceLane.tint: _color8(fakeGlassSurfaceTint(appearance)),
-    FakeSurfaceLane.glintStrength: [look.glintStrength * directVisibility],
-    FakeSurfaceLane.contourStrength: [look.contourStrength * directVisibility],
-    FakeSurfaceLane.contourWidth: [look.contourWidth],
-    FakeSurfaceLane.contourDirectionality: [look.contourDirectionality],
+    FakeSurfaceLane.glintStrength: [rim.glintStrength * directVisibility],
+    FakeSurfaceLane.contourStrength: [rim.contourStrength * directVisibility],
+    FakeSurfaceLane.contourWidth: [rim.contourWidth],
+    FakeSurfaceLane.contourDirectionality: [rim.contourDirectionality],
     FakeSurfaceLane.bevelStrength: [
-      look.bevelShadowStrength * directVisibility,
+      rim.bevelShadowStrength * directVisibility,
     ],
     FakeSurfaceLane.pixelSize: [1 / math.max(devicePixelRatio, 0.01)],
     FakeSurfaceLane.exteriorOnly: [if (exteriorOnly) 1 else 0],

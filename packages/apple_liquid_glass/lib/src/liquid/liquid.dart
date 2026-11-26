@@ -174,10 +174,8 @@ Color? _tintOf(GlassFrame frame, Color? own) {
 /// the farthest 1 / 19 of its height from its place, along the way
 /// [LensSettings.aberration] describes, fading over 0.2 of the
 /// height from the edge; a small one parts none. Under the glass the lens
-/// pulls in its surroundings by its [GlassLens.pull]. Its rim is lit as at
-/// rest. Bend, pull and parting grow with the lift. The glass shades
-/// nothing itself: the shadow regular glass carries inside its rim is off,
-/// and the lens's own shadows are drawn over it ([LensShadowLaw]).
+/// pulls in its surroundings by its [GlassLens.pull]. Bend, pull and
+/// parting grow with the lift.
 ///
 /// The parting's reach is in points like every length here, 3.68 on the
 /// tab bar's lens. Around that lens's rounded end a host capture puts red
@@ -205,9 +203,7 @@ LiquidGlassSettings _lensSettings(
   final l = lift.clamp(0.0, 1.0);
   final small = lens.small;
   final settings = base.copyWith(
-    frost: LiquidGlassFrost.sigma(small ? 6 * (1 - l) : 0),
-    haze: const LiquidGlassHaze.none(),
-    bevelShadowStrength: 0,
+    blur: small ? 6 * (1 - l) : 0,
     lens: base.lens.copyWith(
       pull: lens.pull * l,
       pullDepth: lens.pullHeight,
@@ -240,10 +236,22 @@ LiquidGlassSettings _lensSettings(
 /// channel: a tenth of white lies over what the lens shows, under its
 /// shadows and its rim light. On the iPhone 16 Pro references a held slider
 /// thumb over a black page shows 25 of 255.
-LiquidGlassAppearance _lensAppearance(GlassLens lens, double visibility) =>
-    lens.small
-    ? LiquidGlassAppearance(tint: _smallLensFace, visibility: visibility)
-    : LiquidGlassAppearance(visibility: visibility);
+///
+/// Its rim is lit as at rest in [brightness]. The glass shades nothing
+/// itself: the shadow regular glass carries inside its rim is off, and the
+/// lens's own shadows are drawn over it ([LensShadowLaw]).
+LiquidGlassAppearance _lensAppearance(
+  GlassLens lens,
+  double visibility,
+  Brightness brightness,
+) => LiquidGlassAppearance(
+  tint: lens.small ? _smallLensFace : const Color(0x00000000),
+  visibility: visibility,
+  colorModel: LiquidGlassColorModel.direct(
+    brightness: brightness,
+    bevelShadowStrength: 0,
+  ),
+);
 
 const _smallLensFace = Color.from(alpha: 0.1, red: 1, green: 1, blue: 1);
 
@@ -273,6 +281,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
         ? _lensAppearance(
             widget.details.lens,
             GlassFrame.glassnessAt(frame.lift),
+            _brightness,
           )
         : tint == null
         ? _material.appearance

@@ -64,6 +64,7 @@ void main() {
           textDirection: TextDirection.ltr,
           child: LiquidGlassLayer(
             settings: settingsWithoutLighting,
+            defaultAppearance: appearanceWithoutLighting,
             child: Stack(
               children: [
                 ValueListenableBuilder<double>(

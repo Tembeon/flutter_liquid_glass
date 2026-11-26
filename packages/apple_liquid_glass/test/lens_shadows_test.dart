@@ -6,7 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart'
-    show LiquidGlass, LiquidGlassContentBend, LiquidGlassLayer;
+    show LiquidGlass, LiquidGlassContentBend, LiquidGlassDirectColorModel;
 
 import 'glass_shown.dart';
 
@@ -221,12 +221,14 @@ void main() {
       expect(findShown(LensShadows), findsOneWidget);
       final glass = tester.widget<LiquidGlass>(findShown(LiquidGlass));
       expect(glass.frame!.value.shadows, isEmpty);
-      final settings = tester
-          .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
-          .frame!
-          .value
-          .settings;
-      expect(settings.bevelShadowStrength, 0);
+      expect(
+        glass.frame!.value.appearance!.colorModel,
+        isA<LiquidGlassDirectColorModel>().having(
+          (model) => model.bevelShadowStrength,
+          'bevelShadowStrength',
+          0,
+        ),
+      );
       for (final role in GlassRole.values) {
         final shadows = LiquidGlassRenderer.shadowsOf(
           role,

@@ -96,9 +96,7 @@ void main() {
       const glass = KeyedSubtree(
         key: glassKey,
         child: LiquidGlassLayer(
-          settings: LiquidGlassSettings.ios27Regular(
-            brightness: Brightness.light,
-          ),
+          settings: LiquidGlassSettings.ios27Regular(),
           child: LiquidGlass(
             shape: LiquidRoundedSuperellipse(radius: 28),
             child: SizedBox.expand(),
@@ -145,9 +143,7 @@ void main() {
     addTearDown(tester.view.reset);
     glassReadsCopies = true;
     addTearDown(() => glassReadsCopies = false);
-    const settings = LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.light,
-    );
+    const settings = LiquidGlassSettings.ios27Regular();
 
     Widget glassAt(double left) => Positioned(
       key: ValueKey(left),
@@ -180,7 +176,12 @@ void main() {
               width: 200,
               height: 90,
               child: LiquidGlassLayer(
-                settings: settings.copyWith(glintStrength: 1),
+                settings: settings.copyWith(),
+                defaultAppearance: const LiquidGlassAppearance(
+                  colorModel: LiquidGlassColorModel.direct(
+                    glintStrength: 1,
+                  ),
+                ),
                 child: const LiquidGlass(
                   shape: LiquidRoundedSuperellipse(radius: 28),
                   child: SizedBox.expand(),
@@ -227,9 +228,7 @@ void main() {
                 child: ColoredBox(color: Color(0xFF204060)),
               ),
               LiquidGlassLayer(
-                settings: const LiquidGlassSettings.ios27Regular(
-                  brightness: Brightness.light,
-                ),
+                settings: const LiquidGlassSettings.ios27Regular(),
                 child: RepaintBoundary(
                   child: Align(
                     alignment: Alignment.topLeft,
@@ -333,9 +332,7 @@ void main() {
       double alpha = 1,
       bool lower = true,
     }) {
-      const settings = LiquidGlassSettings.ios27Regular(
-        brightness: Brightness.light,
-      );
+      const settings = LiquidGlassSettings.ios27Regular();
       return Directionality(
         textDirection: TextDirection.ltr,
         child: MediaQuery(
@@ -354,7 +351,12 @@ void main() {
                   child: Opacity(
                     opacity: alpha,
                     child: LiquidGlassLayer(
-                      settings: settings.copyWith(glintStrength: glint),
+                      settings: settings.copyWith(),
+                      defaultAppearance: LiquidGlassAppearance(
+                        colorModel: LiquidGlassColorModel.direct(
+                          glintStrength: glint,
+                        ),
+                      ),
                       child: const LiquidGlass(
                         shape: LiquidRoundedSuperellipse(radius: 28),
                         child: SizedBox.expand(),

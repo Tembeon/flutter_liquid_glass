@@ -234,7 +234,7 @@ Widget _scene({
           fake: fake,
           settings: const LiquidGlassSettings(
             refractionHeight: 10,
-            frost: LiquidGlassFrost.sigma(0),
+            blur: 0,
           ),
           child: const LiquidGlass(
             shape: shape,
@@ -262,7 +262,7 @@ Widget _scene({
               fake: fake,
               settings: const LiquidGlassSettings(
                 refractionHeight: 18,
-                frost: LiquidGlassFrost.sigma(4),
+                blur: 4,
               ),
               defaultAppearance: const LiquidGlassAppearance(
                 tint: Color(0x403090FF),

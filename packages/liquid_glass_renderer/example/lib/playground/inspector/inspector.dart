@@ -347,7 +347,7 @@ String settingsSource(LiquidGlassSettings settings) {
   return 'const LiquidGlassSettings(\n${fields.join('\n')}\n)';
 }
 
-Map<String, Object> _arguments(LiquidGlassSettings settings) => {
+Map<String, Object?> _arguments(LiquidGlassSettings settings) => {
   'refractionHeight': settings.refractionHeight,
   'refractionAmount': settings.refractionAmount,
   'refractionFitsShape': settings.refractionFitsShape,
@@ -356,37 +356,16 @@ Map<String, Object> _arguments(LiquidGlassSettings settings) => {
   'backdropPullDepth': settings.lens.pullDepth,
   'aberration': settings.lens.aberration,
   'aberrationDepth': settings.lens.aberrationDepth,
-  'frost': settings.frost,
   'dispersion': settings.lens.dispersion,
-  'glintStrength': settings.glintStrength,
-  'contourStrength': settings.contourStrength,
-  'contourDirectionality': settings.contourDirectionality,
-  'bevelShadowStrength': settings.bevelShadowStrength,
   'sliderPosition': settings.sliderPosition,
-  'haze': settings.haze,
+  'blur': settings.blur,
 };
 
-String _literal(Object value) => switch (value) {
+String _literal(Object? value) => switch (value) {
   final double v =>
     v
         .toStringAsFixed(3)
         .replaceFirst(RegExp(r'0+$'), '')
         .replaceFirst(RegExp(r'\.$'), '.0'),
-  LiquidGlassFixedFrost(:final sigma) =>
-    'LiquidGlassFrost.sigma(${_literal(sigma)})',
-  LiquidGlassIos27RegularFrost() => 'LiquidGlassFrost.ios27Regular()',
-  LiquidGlassIos27ClearFrost() => 'LiquidGlassFrost.ios27Clear()',
-  LiquidGlassFixedHaze(
-    :final sigma,
-    :final lighten,
-    :final darken,
-    :final cover,
-  ) =>
-    'LiquidGlassHaze(sigma: ${_literal(sigma)}, '
-        'lighten: ${_literal(lighten)}, darken: ${_literal(darken)}, '
-        'cover: ${_literal(cover)})',
-  LiquidGlassIos27RegularHaze(:final brightness) =>
-    'LiquidGlassHaze.ios27Regular(brightness: $brightness)',
-  LiquidGlassIos27ClearHaze() => 'LiquidGlassHaze.ios27Clear()',
   _ => '$value',
 };

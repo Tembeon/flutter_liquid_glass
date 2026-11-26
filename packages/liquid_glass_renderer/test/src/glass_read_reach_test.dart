@@ -63,11 +63,11 @@ void main() {
     (tester) async {
       final clear = await _askOf(
         tester,
-        const LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
+        const LiquidGlassSettings(blur: 0),
       );
       final frosted = await _askOf(
         tester,
-        const LiquidGlassSettings(frost: LiquidGlassFrost.sigma(3)),
+        const LiquidGlassSettings(blur: 3),
       );
       final need = frosted.look.need;
 
@@ -84,14 +84,14 @@ void main() {
       final clear = await _askOf(
         tester,
         const LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(0),
+          blur: 0,
           lens: LensSettings(dispersion: 0.3),
         ),
       );
       final frosted = await _askOf(
         tester,
         const LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(12),
+          blur: 12,
           lens: LensSettings(dispersion: 0.3),
         ),
       );

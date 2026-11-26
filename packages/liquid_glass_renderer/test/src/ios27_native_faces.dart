@@ -102,7 +102,6 @@ Widget nativeFaceScene(
   brightness == null
       ? LiquidGlassSettings.ios27Clear(sliderPosition: slider)
       : LiquidGlassSettings.ios27Regular(
-          brightness: brightness,
           sliderPosition: slider,
         ),
   switch ((brightness, tint)) {

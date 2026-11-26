@@ -2,9 +2,8 @@
 /// what lies behind it.
 ///
 /// `LiquidShape` and its kinds give the outline, `LiquidGlassSettings` the
-/// optics (refraction, frost, glint, contour), `LiquidGlassFrost` how far
-/// the glass blurs what it shows, `LiquidGlassHaze` the wide blur mixed into
-/// it, `LiquidGlassAppearance` and `LiquidGlassColorModel` the color,
+/// optics (the lens and the blur), `LiquidGlassAppearance` and
+/// `LiquidGlassColorModel` the color, the material and the lit rim,
 /// `LiquidGlassMaterial` settings, an appearance and shadows that belong
 /// together, `LiquidGlassBackdrop` where the
 /// glass takes what it shows through, `LiquidGlassBackdropFilter` what a
@@ -50,19 +49,7 @@ export 'src/painting/liquid_glass_color_model.dart'
 export 'src/painting/liquid_glass_content_bend.dart'
     show LiquidGlassContentBend;
 export 'src/painting/liquid_glass_field.dart' show LiquidGlassField;
-export 'src/painting/liquid_glass_frost.dart'
-    show
-        LiquidGlassFixedFrost,
-        LiquidGlassFrost,
-        LiquidGlassIos27ClearFrost,
-        LiquidGlassIos27RegularFrost;
 export 'src/painting/liquid_glass_glow.dart' show LiquidGlassGlow;
-export 'src/painting/liquid_glass_haze.dart'
-    show
-        LiquidGlassFixedHaze,
-        LiquidGlassHaze,
-        LiquidGlassIos27ClearHaze,
-        LiquidGlassIos27RegularHaze;
 export 'src/painting/liquid_glass_layer_frame.dart' show LiquidGlassLayerFrame;
 export 'src/painting/liquid_glass_material.dart' show LiquidGlassMaterial;
 export 'src/painting/liquid_glass_settings.dart' show LiquidGlassSettings;

@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:meta/meta.dart';
 
 /// A layer draws this many glass shapes in one cluster, the shapes whose
@@ -144,6 +143,36 @@ abstract final class GlassGlint {
 
   /// How strongly the direct model's glint amplifies the face's chroma.
   static const double directVibrancy = 2.85;
+}
+
+/// The rim the direct color model draws, fitted to iOS 27: the glint inside
+/// the silhouette, the dark contour outside it and the inner bevel shadow,
+/// in logical pixels.
+@internal
+abstract final class GlassRim {
+  /// Width of the glint line inward from the silhouette, in logical pixels.
+  static const double glintWidth = 1.2;
+
+  /// Angular spread of the glint: `0.5`, measured on iOS 27, fades it
+  /// linearly with the normal's component perpendicular to the light axis.
+  static const double glintWrap = 0.5;
+
+  /// Energy of the glint opposite the light-facing rim, relative to it.
+  static const double glintOppositeStrength = 1;
+
+  /// Width of the dark contour outside the silhouette, in logical pixels.
+  static const double contourWidth = 0.75;
+
+  /// Distance over which the inner bevel shadow fades inward, in logical
+  /// pixels.
+  static const double bevelShadowDepth = 16;
+
+  /// Displacement of the inner bevel shadow along the light, in logical
+  /// pixels.
+  static const double bevelShadowOffset = 6;
+
+  /// How strongly the inner bevel shadow follows the light direction.
+  static const double bevelShadowDirectionality = 0.5;
 }
 
 /// How far the final shader shifts the backdrop at a glass's edge, which the

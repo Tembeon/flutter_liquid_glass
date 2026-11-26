@@ -5,7 +5,6 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 
@@ -39,9 +38,6 @@ extension DrawnSettings on LiquidGlassSettings {
   /// so the RGBA8 code range is spent only on reachable displacement.
   double get effectiveDisplacementScale =>
       math.max(1e-3, effectiveRefractionAmount);
-
-  /// The width of the dark contour in logical pixels; `0` without one.
-  double get contourWidth => contourStrength > 0 ? GlassRim.contourWidth : 0;
 }
 
 /// A [LiquidShape] as the shaders take it.

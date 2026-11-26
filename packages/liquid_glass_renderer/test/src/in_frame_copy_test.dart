@@ -34,9 +34,7 @@ Widget _scene({
   Color? tint,
 }) {
   Widget glass(Rect rect, {double frost = 0, Color? tint}) => LiquidGlassLayer(
-    settings: const LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.light,
-    ).copyWith(frost: LiquidGlassFrost.sigma(frost)),
+    settings: const LiquidGlassSettings.ios27Regular().copyWith(blur: frost),
     child: Stack(
       children: [
         Positioned.fromRect(

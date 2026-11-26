@@ -39,9 +39,7 @@ class _Pills extends StatelessWidget {
   Widget _layer(List<Widget> pills) => LiquidGlassLayer(
     fake: fake,
     defaultAppearance: _appearance,
-    settings: const LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.dark,
-    ),
+    settings: const LiquidGlassSettings.ios27Regular(),
     child: Stack(children: pills),
   );
 
@@ -121,9 +119,7 @@ void main() {
   }
 
   test('the FakeGlass filter takes its color from the appearance alone', () {
-    const settings = LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.dark,
-    );
+    const settings = LiquidGlassSettings.ios27Regular();
     String colorOf(double worn, double shortSide) {
       final filter = fakeGlassBackdropFilterParts(
         FakeGlassLook.of(settings),

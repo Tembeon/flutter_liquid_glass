@@ -22,10 +22,10 @@ import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
 
-const _settings = LiquidGlassSettings(
-  frost: LiquidGlassFrost.sigma(8),
-  refractionAmount: 30,
-  glintStrength: 0.5,
+const _settings = LiquidGlassSettings(blur: 8, refractionAmount: 30);
+
+const _appearance = LiquidGlassAppearance(
+  colorModel: LiquidGlassColorModel.direct(glintStrength: 0.5),
 );
 
 const _shape = LiquidRoundedSuperellipse(radius: 28);
@@ -88,6 +88,7 @@ Widget _glass({bool fake = false}) => _background(
   LiquidGlassLayer(
     fake: fake,
     settings: _settings,
+    defaultAppearance: _appearance,
     child: const LiquidGlass(
       shape: _shape,
       child: SizedBox(width: 220, height: 90),
@@ -98,6 +99,7 @@ Widget _glass({bool fake = false}) => _background(
 Widget _blendGroup() => _background(
   LiquidGlassLayer(
     settings: _settings,
+    defaultAppearance: _appearance,
     child: LiquidGlassBlendGroup(
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -119,6 +121,7 @@ Widget _twoLayers() => _background(
     children: [
       LiquidGlassLayer(
         settings: _settings,
+        defaultAppearance: _appearance,
         child: LiquidGlass(
           shape: _shape,
           child: SizedBox(width: 160, height: 80),
@@ -127,6 +130,7 @@ Widget _twoLayers() => _background(
       SizedBox(width: 16),
       LiquidGlassLayer(
         settings: _settings,
+        defaultAppearance: _appearance,
         child: LiquidGlass(
           shape: _shape,
           child: SizedBox(width: 160, height: 80),
@@ -139,6 +143,7 @@ Widget _twoLayers() => _background(
 Widget _nestedLayers() => _background(
   const LiquidGlassLayer(
     settings: _settings,
+    defaultAppearance: _appearance,
     child: LiquidGlass(
       shape: _shape,
       child: SizedBox(
@@ -147,6 +152,7 @@ Widget _nestedLayers() => _background(
         child: Center(
           child: LiquidGlassLayer(
             settings: _settings,
+            defaultAppearance: _appearance,
             child: LiquidGlass(
               shape: LiquidRoundedSuperellipse(radius: 20),
               child: SizedBox(width: 120, height: 70),

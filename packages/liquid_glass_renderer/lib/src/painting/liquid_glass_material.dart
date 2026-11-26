@@ -35,10 +35,7 @@ final class LiquidGlassMaterial {
     bool increaseContrast = false,
     Color? tint,
   }) => LiquidGlassMaterial(
-    settings: LiquidGlassSettings.ios27Regular(
-      brightness: brightness,
-      sliderPosition: sliderPosition,
-    ),
+    settings: LiquidGlassSettings.ios27Regular(sliderPosition: sliderPosition),
     appearance: LiquidGlassAppearance.ios27Regular(
       brightness: brightness,
       increaseContrast: increaseContrast,

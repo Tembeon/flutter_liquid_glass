@@ -71,6 +71,7 @@ Widget _scene({
           child: LiquidGlassLayer(
             fake: fake,
             settings: settingsWithoutLighting,
+            defaultAppearance: appearanceWithoutLighting,
             child: groupedGlass,
           ),
         ),
@@ -108,6 +109,7 @@ Widget _twoShapeScene({
         child: LiquidGlassLayer(
           fake: fake,
           settings: settingsWithoutLighting,
+          defaultAppearance: appearanceWithoutLighting,
           child: Stack(
             children: [
               Positioned(left: 32, top: 48, child: clipped),
@@ -153,6 +155,7 @@ Widget _retainedMotionScene({
         child: LiquidGlassLayer(
           fake: fake,
           settings: settingsWithoutLighting,
+          defaultAppearance: appearanceWithoutLighting,
           child: Stack(
             children: [
               Positioned(

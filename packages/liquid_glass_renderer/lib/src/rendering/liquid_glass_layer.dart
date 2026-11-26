@@ -7,7 +7,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_recipe_groups.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
@@ -145,12 +144,34 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       glassPolicy.shaderFrost && settings.lens.dispersion == 0;
 
   // Whether the glass frosts what it shows anywhere.
-  bool get _frosts => settings.frostBase > 0;
+  bool get _frosts => settings.frostBaseOf(_blurModel) > 0;
+
+  // The color model whose blur the glass takes: its own, or its first
+  // shape's.
+  WornColorModel get _blurModel =>
+      (_usesShapeAppearances && _shapeAppearances.isNotEmpty
+              ? _shapeAppearances.first
+              : _uniformAppearance ?? defaultWornByNone)
+          .colorModel;
+
+  // The rim the glass's direct models light: the first one's among its
+  // shapes, which the face holds for all of them.
+  DirectRim get _rim {
+    final shaded = _usesShapeAppearances
+        ? _shapeAppearances
+        : [_uniformAppearance ?? defaultWornByNone];
+    for (final appearance in shaded) {
+      if (appearance.colorModel.recipe == null) {
+        return appearance.colorModel.rim;
+      }
+    }
+    return DirectRim.none;
+  }
 
   // What the glass blurs a copy it reads by and mixes into it, in iOS's
   // units of blur: its recipe's (BlurRecipe, BlurFillRecipe), worn at the
-  // size of its smallest shape as its frost was. A frost of a fixed sigma
-  // blurs by it all over, and a haze of a fixed mix mixes that in.
+  // size of its smallest shape as its frost was. A blur the settings give
+  // blurs by it all over and mixes nothing in.
   ({BlurRecipe blur, BlurFillRecipe fill}) get _blurRecipes {
     if (debugGlassFill == false) {
       return (
@@ -169,28 +190,19 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final key = (settings, look, slider);
     final held = _heldBlurRecipes;
     if (held != null && held.key == key) return held.recipes;
-    final recipe = recipeOf(look, slider);
-    final recipes = (
-      blur: switch (settings.frost) {
-        LiquidGlassFixedFrost(:final sigma) => BlurRecipe(
+    final recipes = switch (settings.blur) {
+      final sigma? => (
+        blur: BlurRecipe(
           radius: max(sigma, 0) / ios27BlurUnit,
           stops: _flatBlur,
         ),
-        _ => recipe.blur,
-      },
-      fill: switch (settings.haze) {
-        LiquidGlassFixedHaze() => switch (settings.drawnHaze) {
-          final haze? => BlurFillRecipe(
-            radius: haze.sigma / ios27BlurUnit,
-            lighten: haze.lighten,
-            darken: haze.darken,
-            cover: haze.cover,
-          ),
-          null => BlurFillRecipe.none,
-        },
-        _ => recipe.blurFill,
-      },
-    );
+        fill: BlurFillRecipe.none,
+      ),
+      null => () {
+        final recipe = recipeOf(look, slider);
+        return (blur: recipe.blur, fill: recipe.blurFill);
+      }(),
+    };
     _heldBlurRecipes = (key: key, recipes: recipes);
     return recipes;
   }
@@ -206,34 +218,17 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   ];
 
   // The look whose recipe the glass blurs by: its own, at the size of its
-  // smallest shape; for the direct model, which has none, the iOS 27 look
-  // its frost and haze name.
+  // smallest shape; for the direct model, which has none, regular glass of
+  // its scheme.
   RecipeLook get _blurLook {
-    final worn = _usesShapeAppearances && _shapeAppearances.isNotEmpty
-        ? _shapeAppearances.first
-        : _uniformAppearance ?? defaultWornByNone;
-    final side = _shapeShortSide;
-    if (worn.colorModel.recipe case final look?) {
-      return (
-        variant: look.variant,
-        brightness: look.brightness,
-        shortSide: side,
-        greyTint: look.greyTint,
-        increaseContrast: look.increaseContrast,
-      );
-    }
-    final clear =
-        settings.frost is LiquidGlassIos27ClearFrost ||
-        settings.haze is LiquidGlassIos27ClearHaze;
+    final model = _blurModel;
+    final (:variant, :brightness) = model.blurredAs;
     return (
-      variant: clear ? GlassVariant.clear : GlassVariant.regular,
-      brightness: switch (settings.haze) {
-        LiquidGlassIos27RegularHaze(:final brightness) => brightness,
-        _ => Brightness.light,
-      },
-      shortSide: side,
-      greyTint: false,
-      increaseContrast: false,
+      variant: variant,
+      brightness: brightness,
+      shortSide: _shapeShortSide,
+      greyTint: model.recipe?.greyTint ?? false,
+      increaseContrast: model.recipe?.increaseContrast ?? false,
     );
   }
 
@@ -338,6 +333,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       colorModels: slots,
       devicePixelRatio: devicePixelRatio,
       blurs: _frosts,
+      rim: _rim,
       edges: _recipeEdges,
     );
   }
@@ -367,16 +363,18 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   double _shapeShortSide = frostFitShortSides.largest;
 
   double _frostSigmaForCurrentShapes() {
-    final inputs = (settings, devicePixelRatio, _shapeShortSide);
+    final model = _blurModel;
+    final inputs = (settings, devicePixelRatio, _shapeShortSide, model);
     if (inputs == _frostInputs) return _frostSigma;
     _frostInputs = inputs;
     return _frostSigma = settings.frostSigmaAt(
+      model,
       devicePixelRatio,
       shapeShortSide: _shapeShortSide,
     );
   }
 
-  (LiquidGlassSettings, double, double)? _frostInputs;
+  (LiquidGlassSettings, double, double, WornColorModel)? _frostInputs;
   double _frostSigma = 0;
 
   // iOS captures what lies under glass at half the screen's pixels, which a
@@ -396,7 +394,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       levels,
       devicePixelRatio: dpr,
       maxShare: glassPolicy.maxCopyShare,
-      atLeast: settings.frostIsFitted && dpr >= _coarseCopyMinRatio
+      atLeast: settings.blur == null && dpr >= _coarseCopyMinRatio
           ? _coarseCopyShare
           : 1,
     );
@@ -529,6 +527,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   GeometryNeed get _need => GeometryNeed.of(
     settings,
     devicePixelRatio: devicePixelRatio,
+    rim: _rim,
     edges: _recipeEdges,
   );
 

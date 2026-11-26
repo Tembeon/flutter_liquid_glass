@@ -1,15 +1,14 @@
 import 'dart:math' as math;
-import 'dart:ui' show Brightness;
 
+import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
 import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
 import 'package:liquid_glass_renderer/src/painting/lens_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_frost.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_haze.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:meta/meta.dart';
 
 /// The short sides, in logical pixels, where the fitted frost response of
-/// [FittedFrost.frostSigmaAt] bends: it rises from `small` through
+/// [glassFrostSigma] bends: it rises from `small` through
 /// the toolbar's and a large control's, and grows no more past `largest`.
 @internal
 const frostFitShortSides = (
@@ -30,7 +29,7 @@ const _frostFitSigmas = (
 
 // Smallest non-zero base blur, in logical pixels, used as a floor and by
 // clear glass at tinted slider positions. A fitted frost is raised further,
-// per device, at render time ([FittedFrost.frostSigmaAt]).
+// per device, at render time ([glassFrostSigma]).
 const double _minBlurPassSigma = 2.1;
 
 // Base frost of regular glass at slider position `0`, in logical pixels.
@@ -44,129 +43,61 @@ const double _regularFrostAtClear = 4.5;
 // (frost_floor_test.dart).
 const double _frostFloorDevicePx = 5.8;
 
-// iOS 27's blur radius in the middle of a panel's glass, in
-// [ios27BlurUnit]s.
-const double _ios27PanelBlurRadius = 4;
-
-// The fraction of the blur in the middle of the glass that one sigma for
-// all of it takes: against captures of native glass it fits best between
-// 0.75 (a card) and 0.9 (a capsule).
-const double _hazedFrostFraction = 0.85;
-
-/// The optics and lighting of the glass a layer draws.
+/// The optics of the glass a layer draws: its lens, and how far it blurs
+/// what lies under it.
 ///
-/// This object contains the optical profile and shared surface lighting.
-/// Per-shape color response and materialization belong to
-/// [LiquidGlassAppearance]. The renderer derives the glint, the dark contour
-/// and the inner bevel shadow from the same SDF, so these controls remain
-/// stable across toolbars, capsules, and tabs.
+/// The color, the material and the lit rim of each shape belong to its
+/// [LiquidGlassAppearance] and its [LiquidGlassColorModel]: settings of one
+/// lens draw any of them.
 ///
-/// [sliderPosition] is stored once: a [frost] and a [haze] fitted to iOS 27
-/// follow it, so a copy at another position ([copyWith]) is the glass of
-/// that position.
-///
-/// Lighting strengths are display-referred. The defaults of the unnamed
-/// constructor may be retuned before 1.0; the version-named presets
-/// (`ios27*`) track Apple's appearance on that OS version.
+/// The defaults of the unnamed constructor may be retuned before 1.0; the
+/// version-named presets (`ios27*`) track Apple's glass on that OS version.
 /// `LiquidGlassMaterial` gives settings with the appearance and the shadows
 /// that match them.
 @immutable
 final class LiquidGlassSettings {
-  /// Creates settings from optical and lighting controls.
+  /// Creates settings from optical controls.
   ///
-  /// The defaults are the light iOS 27 regular glass
-  /// ([LiquidGlassSettings.ios27Regular]). Distances are logical pixels;
-  /// strengths use the `0` to `1` range.
+  /// The defaults are iOS 27 regular glass's
+  /// ([LiquidGlassSettings.ios27Regular]). Distances are logical pixels.
   const LiquidGlassSettings({
     this.refractionHeight = _defaultRefractionHeight,
     this.refractionAmount = _defaultRefractionAmount,
     this.refractionFitsShape = true,
     this.lens = LensSettings.none,
-    this.frost = const LiquidGlassFrost.ios27Regular(),
-    this.glintStrength = _defaultGlintStrength,
-    this.contourStrength = _lightContourStrength,
-    this.contourDirectionality = _lightContourDirectionality,
-    this.bevelShadowStrength = _regularBevelShadowStrength,
     this.sliderPosition = 0,
-    this.haze = const LiquidGlassHaze.ios27Regular(
-      brightness: Brightness.light,
-    ),
+    this.blur,
   });
 
-  /// Settings fitted to iOS 27 regular glass (`Glass.regular`, which Apple
-  /// also uses for toolbars and `.glass` buttons) in [brightness], at the
-  /// Liquid Glass slider position [sliderPosition].
+  /// The lens of iOS 27 regular glass (`Glass.regular`, which Apple also
+  /// uses for toolbars and `.glass` buttons) at the Liquid Glass slider
+  /// position [sliderPosition]: the 20 pt / 60 pt bevel, fitted to smaller
+  /// shapes ([refractionFitsShape]), and the [blur] of the glass's look
+  /// unless one is given.
   ///
   /// This is a useful starting point, not a universal Apple-material preset:
   /// platform materials vary with appearance, control role, and accessibility
-  /// settings. Pass a [frost] when the surrounding design needs a clearer or
-  /// softer surface.
-  ///
-  /// The lighting is the measured iOS 27 rim: a 1.2 pt glint on both walls
-  /// along the light axis, a 0.75 pt dark contour outside the silhouette
-  /// that concentrates where the glint fades, and a faint inner shadow cast
-  /// by the rim, fitted on the Reduce Motion off references. In dark mode
-  /// the contour is stronger and vanishes entirely where the normal faces
-  /// the light axis. The light ones are the defaults of the unnamed
-  /// constructor.
-  ///
-  /// [frost] defaults to [LiquidGlassFrost.ios27Regular], and [haze] is
-  /// [LiquidGlassHaze.ios27Regular] of [brightness].
-  const LiquidGlassSettings.ios27Regular({
-    required Brightness brightness,
-    this.sliderPosition = 0,
-    this.frost = const LiquidGlassFrost.ios27Regular(),
-  }) : refractionHeight = _defaultRefractionHeight,
-       refractionAmount = _defaultRefractionAmount,
-       refractionFitsShape = true,
-       lens = LensSettings.none,
-       glintStrength = _defaultGlintStrength,
-       contourStrength = brightness == Brightness.dark
-           ? 0.88
-           : _lightContourStrength,
-       contourDirectionality = brightness == Brightness.dark
-           ? 1
-           : _lightContourDirectionality,
-       bevelShadowStrength = _regularBevelShadowStrength,
-       haze = brightness == Brightness.dark
-           ? const LiquidGlassHaze.ios27Regular(brightness: Brightness.dark)
-           : const LiquidGlassHaze.ios27Regular(brightness: Brightness.light);
+  /// settings.
+  const LiquidGlassSettings.ios27Regular({this.sliderPosition = 0, this.blur})
+    : refractionHeight = _defaultRefractionHeight,
+      refractionAmount = _defaultRefractionAmount,
+      refractionFitsShape = true,
+      lens = LensSettings.none;
 
-  /// Settings fitted to iOS 27 `Glass.clear`, identical in light and dark,
-  /// at the Liquid Glass slider position [sliderPosition].
-  ///
-  /// Clear glass has the same glint line and angular falloff as regular glass;
-  /// its brighter glint comes from its color model. The contour exists only
-  /// where the normal is perpendicular to the light axis, and there is no
-  /// inner shadow. The Liquid Glass slider only blurs clear glass:
-  /// [frost] defaults to [LiquidGlassFrost.ios27Clear], and [haze] is
-  /// [LiquidGlassHaze.ios27Clear]. Pair it with
-  /// [LiquidGlassAppearance.ios27Clear].
-  ///
-  /// The lens is the full 20 pt / 60 pt bevel on glass from 93 points on its
-  /// short side and narrows with smaller glass; see [refractionFitsShape].
-  /// At slider 0 the glass is completely clear and unblurred. Pass a
-  /// [frost] to override, for example `LiquidGlassFrost.sigma(0)` for
-  /// unsoftened glass at every position.
-  const LiquidGlassSettings.ios27Clear({
-    this.sliderPosition = 0,
-    this.frost = const LiquidGlassFrost.ios27Clear(),
-  }) : refractionHeight = _defaultRefractionHeight,
-       refractionAmount = _defaultRefractionAmount,
-       refractionFitsShape = false,
-       lens = LensSettings.none,
-       glintStrength = _defaultGlintStrength,
-       contourStrength = 0.36,
-       contourDirectionality = 1,
-       bevelShadowStrength = 0,
-       haze = const LiquidGlassHaze.ios27Clear();
+  /// The lens of iOS 27 `Glass.clear` at the Liquid Glass slider position
+  /// [sliderPosition]: the full 20 pt / 60 pt bevel on glass from 93 points
+  /// on its short side, narrowing with smaller glass; see
+  /// [refractionFitsShape]. Pair it with [LiquidGlassAppearance.ios27Clear],
+  /// whose glass the slider alone blurs unless a [blur] is given: at slider
+  /// 0 it is completely clear and unblurred.
+  const LiquidGlassSettings.ios27Clear({this.sliderPosition = 0, this.blur})
+    : refractionHeight = _defaultRefractionHeight,
+      refractionAmount = _defaultRefractionAmount,
+      refractionFitsShape = false,
+      lens = LensSettings.none;
 
   static const double _defaultRefractionHeight = 20;
   static const double _defaultRefractionAmount = 60;
-  static const double _defaultGlintStrength = 0.6;
-  static const double _lightContourStrength = 0.43;
-  static const double _lightContourDirectionality = 0.77;
-  static const double _regularBevelShadowStrength = 0.036;
 
   /// Width of the refracting bevel in logical pixels, measured inward from
   /// the silhouette.
@@ -220,86 +151,44 @@ final class LiquidGlassSettings {
   /// default, does none of these.
   final LensSettings lens;
 
-  /// How far the glass blurs the backdrop.
-  ///
-  /// The default, [LiquidGlassFrost.ios27Regular], follows
-  /// [sliderPosition], the size of the glass and the display, and under a
-  /// [haze] it is the little blur iOS 27 leaves the backdrop itself. A
-  /// [LiquidGlassFrost.sigma] is drawn as given; the renderer may round the
-  /// blur it applies.
-  final LiquidGlassFrost frost;
-
-  /// Strength of the glint along the light axis.
-  ///
-  /// The glint recolors the face instead of adding white: it pulls the lit
-  /// material toward a target brighter than SDR white carrying the face's own
-  /// chroma amplified, so glass over color glints in that color. The light,
-  /// dark and clear presets all use `0.6`: the reference rim is a soft, low
-  /// plateau, and higher values overexpose the first pixel inside the
-  /// silhouette.
-  final double glintStrength;
-
-  /// Peak absorption of the dark contour just outside the silhouette, which
-  /// is 0.75 logical pixels wide. `0` removes the contour.
-  final double contourStrength;
-
-  /// How strongly the contour concentrates where the glint fades.
-  ///
-  /// `0` darkens the whole silhouette evenly. `1` keeps the contour only where
-  /// the normal is perpendicular to the light axis and removes it where the
-  /// glint sits, as in iOS 27 dark mode.
-  final double contourDirectionality;
-
-  /// Fraction of the light transmitted through the glass that the inner
-  /// shadow cast by the rim absorbs at its peak. The glass's own emission is
-  /// not shaded. The shadow falls 6 pt below the lit top wall, stays at the
-  /// rim on the sides and is absent at the bottom, as on iOS 27.
-  final double bevelShadowStrength;
-
   /// Position of the iOS 27 Liquid Glass slider in Settings, from `0`
   /// (Clear) to `1` (Tinted). It is not a color: a shape's color is its
   /// [LiquidGlassAppearance.tint].
   ///
   /// Apps set this themselves; the renderer does not read the system value.
-  /// The slider makes the iOS 27 neutral wash more opaque and strengthens the
-  /// dark contour; the glint is unchanged, and the direct color model ignores
-  /// it. A [frost] and a [haze] fitted to iOS 27 follow it; ones given as
-  /// numbers do not.
+  /// The slider makes the iOS 27 neutral wash more opaque and strengthens
+  /// its dark contour, and a [blur] left null follows it; the direct color
+  /// model ignores it.
   final double sliderPosition;
 
-  /// The wide blur of the backdrop mixed into what the glass shows through,
-  /// drawn where the glass reads a copy of the backdrop.
+  /// How far the glass blurs what it shows, as the sigma of a Gaussian in
+  /// logical pixels, or null, the default, for iOS 27's blur of each
+  /// shape's look.
   ///
-  /// The default is the haze of light iOS 27 regular glass, which follows
-  /// [sliderPosition]. Pass [LiquidGlassHaze.none] for glass frosted by
-  /// [frost] alone.
-  final LiquidGlassHaze haze;
+  /// Null follows [sliderPosition], the size of the glass and the display,
+  /// and where the glass reads a copy of what lies under it, it also mixes
+  /// in the wide blur iOS 27 fills that glass with. A number blurs the whole
+  /// face by that much and fills nothing; `0` does not blur. The renderer
+  /// may round the blur it applies.
+  final double? blur;
 
-  /// Returns a copy with the supplied controls replaced.
+  /// Returns a copy with the supplied controls replaced. A [blur] given
+  /// replaces this one; settings that blur as their look does are made
+  /// anew.
   LiquidGlassSettings copyWith({
     double? refractionHeight,
     double? refractionAmount,
     bool? refractionFitsShape,
     LensSettings? lens,
-    LiquidGlassFrost? frost,
-    double? glintStrength,
-    double? contourStrength,
-    double? contourDirectionality,
-    double? bevelShadowStrength,
     double? sliderPosition,
-    LiquidGlassHaze? haze,
+    double? blur,
   }) => LiquidGlassSettings(
     refractionHeight: refractionHeight ?? this.refractionHeight,
     refractionAmount: refractionAmount ?? this.refractionAmount,
     refractionFitsShape: refractionFitsShape ?? this.refractionFitsShape,
     lens: lens ?? this.lens,
-    frost: frost ?? this.frost,
-    glintStrength: glintStrength ?? this.glintStrength,
-    contourStrength: contourStrength ?? this.contourStrength,
-    contourDirectionality: contourDirectionality ?? this.contourDirectionality,
-    bevelShadowStrength: bevelShadowStrength ?? this.bevelShadowStrength,
     sliderPosition: sliderPosition ?? this.sliderPosition,
-    haze: haze ?? this.haze,
+    blur: blur ?? this.blur,
   );
 
   @override
@@ -310,13 +199,8 @@ final class LiquidGlassSettings {
           other.refractionAmount == refractionAmount &&
           other.refractionFitsShape == refractionFitsShape &&
           other.lens == lens &&
-          other.frost == frost &&
-          other.glintStrength == glintStrength &&
-          other.contourStrength == contourStrength &&
-          other.contourDirectionality == contourDirectionality &&
-          other.bevelShadowStrength == bevelShadowStrength &&
           other.sliderPosition == sliderPosition &&
-          other.haze == haze;
+          other.blur == blur;
 
   @override
   int get hashCode => Object.hash(
@@ -324,103 +208,82 @@ final class LiquidGlassSettings {
     refractionAmount,
     refractionFitsShape,
     lens,
-    frost,
-    glintStrength,
-    contourStrength,
-    contourDirectionality,
-    bevelShadowStrength,
     sliderPosition,
-    haze,
+    blur,
   );
 
   @override
   String toString() =>
       'LiquidGlassSettings($refractionHeight, $refractionAmount, '
-      '$refractionFitsShape, $lens, '
-      '$frost, $glintStrength, $contourStrength, '
-      '$contourDirectionality, $bevelShadowStrength, $sliderPosition, $haze)';
+      '$refractionFitsShape, $lens, $sliderPosition, $blur)';
 }
 
-/// What a [LiquidGlassSettings.frost] and [LiquidGlassSettings.haze] come to
-/// at the settings' slider position, for glass of a size on a display.
+/// The one blur, in logical pixels, that glass blurs what it shows by where
+/// a single blur stands in for iOS 27's: [blur] as given (a negative one as
+/// `0`), or else iOS 27's for glass of [variant] at [sliderPosition], whose
+/// short side is [shapeShortSide] logical pixels (toolbar size without one),
+/// on a display of [devicePixelRatio] device pixels per logical pixel.
+///
+/// iOS 27's grows with the short side and is raised for the display; `0`
+/// stays `0`. Pass the smaller axis scale when [devicePixelRatio] is not
+/// uniform.
 @internal
-extension FittedFrost on LiquidGlassSettings {
-  /// Whether [LiquidGlassSettings.frost] is fitted to iOS 27, which the
-  /// renderer draws as iOS 27 does, and not a [LiquidGlassFrost.sigma],
-  /// which it draws as given.
-  bool get frostIsFitted => frost is! LiquidGlassFixedFrost;
+double glassFrostSigma({
+  required double? blur,
+  required double sliderPosition,
+  required GlassVariant variant,
+  required double devicePixelRatio,
+  double? shapeShortSide,
+}) => frostSigmaOf(
+  glassFrostBase(blur: blur, sliderPosition: sliderPosition, variant: variant),
+  fitted: blur == null,
+  devicePixelRatio: devicePixelRatio,
+  shapeShortSide: shapeShortSide,
+);
 
-  /// The frost at toolbar size (94 pt) before the display raises it, in
-  /// logical pixels: what [frostSigmaAt] grows with the glass.
-  double get frostBase => switch (frost) {
-    LiquidGlassFixedFrost(:final sigma) => sigma,
-    LiquidGlassIos27RegularFrost() => ios27RegularFrost(sliderPosition),
-    LiquidGlassIos27ClearFrost() =>
-      sliderPosition <= 0
-          ? 0
-          : math.max(_minBlurPassSigma, ios27ClearFrost(sliderPosition)),
-  };
+/// [glassFrostSigma] at toolbar size before the display raises it.
+@internal
+double glassFrostBase({
+  required double? blur,
+  required double sliderPosition,
+  required GlassVariant variant,
+}) => switch ((blur, variant)) {
+  (final sigma?, _) => math.max(0, sigma),
+  (null, GlassVariant.regular) => ios27RegularFrost(sliderPosition),
+  (null, GlassVariant.clear) =>
+    sliderPosition <= 0
+        ? 0
+        : math.max(_minBlurPassSigma, ios27ClearFrost(sliderPosition)),
+};
 
-  /// What [LiquidGlassSettings.haze] mixes in at the slider position, or
-  /// null where it changes nothing.
-  LiquidGlassFixedHaze? get drawnHaze => drawnHazeOf(haze, sliderPosition);
+/// The blur of [LiquidGlassSettings] for glass wearing a color model.
+@internal
+extension GlassFrost on LiquidGlassSettings {
+  /// [glassFrostSigma] of glass wearing [model].
+  double frostSigmaAt(
+    WornColorModel model,
+    double devicePixelRatio, {
+    double? shapeShortSide,
+  }) => glassFrostSigma(
+    blur: blur,
+    sliderPosition: sliderPosition,
+    variant: model.blurredAs.variant,
+    devicePixelRatio: devicePixelRatio,
+    shapeShortSide: shapeShortSide,
+  );
 
-  /// The blur sigma, in logical pixels, that glass whose short side is
-  /// [shapeShortSide] logical pixels blurs the backdrop by where it draws its
-  /// haze, on a display of [devicePixelRatio] device pixels per logical
-  /// pixel.
-  ///
-  /// A [LiquidGlassFrost.sigma] renders as given (a negative one as `0`); a
-  /// fitted frost as its factory documents. Without [shapeShortSide] the
-  /// value at toolbar size is used. A regular frost given no haze keeps the
-  /// one blur of [frostSigmaAt].
-  double hazedFrostSigmaAt(double devicePixelRatio, {double? shapeShortSide}) {
-    switch (frost) {
-      case LiquidGlassFixedFrost(:final sigma):
-        return math.max<double>(0, sigma);
-      case LiquidGlassIos27ClearFrost():
-        if (sliderPosition <= 0) return 0;
-        return _hazedFrostFraction *
-            ios27BlurUnit *
-            1.5 *
-            sliderPosition.clamp(0.0, sliderMiddleTick);
-      case LiquidGlassIos27RegularFrost():
-        if (drawnHaze == null) {
-          return frostSigmaAt(devicePixelRatio, shapeShortSide: shapeShortSide);
-        }
-        final side = shapeShortSide != null && shapeShortSide > 0
-            ? shapeShortSide
-            : frostFitShortSides.toolbar;
-        return _hazedFrostFraction *
-            ios27BlurUnit *
-            _ios27PanelBlurRadius *
-            ios27PanelProgress(side);
-    }
-  }
-
-  /// The blur sigma, in logical pixels, that the frost renders with on a
-  /// display of [devicePixelRatio] device pixels per logical pixel, for glass
-  /// whose short side is [shapeShortSide] logical pixels, where the glass
-  /// draws no haze and one blur stands in for both.
-  ///
-  /// A [LiquidGlassFrost.sigma] renders as given (a negative one as `0`).
-  /// A fitted frost grows with the short side and is raised for the display
-  /// as [LiquidGlassFrost.ios27Regular] documents; `0` stays `0`. Without
-  /// [shapeShortSide] the toolbar value is used. Pass the smaller axis scale
-  /// when [devicePixelRatio] is not uniform.
-  double frostSigmaAt(double devicePixelRatio, {double? shapeShortSide}) =>
-      frostSigmaOf(
-        frostBase,
-        fitted: frostIsFitted,
-        devicePixelRatio: devicePixelRatio,
-        shapeShortSide: shapeShortSide,
-      );
+  /// [glassFrostBase] of glass wearing [model].
+  double frostBaseOf(WornColorModel model) => glassFrostBase(
+    blur: blur,
+    sliderPosition: sliderPosition,
+    variant: model.blurredAs.variant,
+  );
 }
 
 /// Backdrop blur of iOS 27 regular glass, in logical pixels, at toolbar size
 /// for the Liquid Glass slider position [sliderPosition] where one blur
-/// stands in for the haze: 4.5, 6.9 and 18.7 pt at 0, 0.5 and 1
-/// ([LiquidGlassFrost.ios27Regular]).
+/// stands in for iOS 27's: 4.5, 6.9 and 18.7 pt at 0, 0.5 and 1
+/// ([glassFrostSigma]).
 @internal
 double ios27RegularFrost(double sliderPosition) {
   final amount = sliderPosition.clamp(0.0, 1.0);
@@ -430,8 +293,8 @@ double ios27RegularFrost(double sliderPosition) {
 
 /// Apple's measured backdrop blur of iOS 27 `.clear` glass, in logical
 /// pixels, for the Liquid Glass slider position [sliderPosition]: 0.35, 1.28
-/// and 16.4 pt at 0, 0.5 and 1 ([LiquidGlassFrost.ios27Clear], which draws
-/// none at `0` and floors tinted positions at `2.1`).
+/// and 16.4 pt at 0, 0.5 and 1 ([glassFrostSigma] draws none at `0` and
+/// floors tinted positions at `2.1`).
 @internal
 double ios27ClearFrost(double sliderPosition) {
   final amount = sliderPosition.clamp(0.0, 1.0);
@@ -439,38 +302,8 @@ double ios27ClearFrost(double sliderPosition) {
   return 0.35 * math.exp(2.6 * upTo + 5.1 * past);
 }
 
-/// The rim every glass draws, fitted to iOS 27 and shared by every preset:
-/// the glint inside the silhouette, the dark contour outside it and the
-/// inner bevel shadow, in logical pixels.
-@internal
-abstract final class GlassRim {
-  /// Width of the glint line inward from the silhouette, in logical pixels.
-  static const double glintWidth = 1.2;
-
-  /// Angular spread of the glint: `0.5`, measured on iOS 27, fades it
-  /// linearly with the normal's component perpendicular to the light axis.
-  static const double glintWrap = 0.5;
-
-  /// Energy of the glint opposite the light-facing rim, relative to it.
-  static const double glintOppositeStrength = 1;
-
-  /// Width of the dark contour outside the silhouette, in logical pixels.
-  static const double contourWidth = 0.75;
-
-  /// Distance over which the inner bevel shadow fades inward, in logical
-  /// pixels.
-  static const double bevelShadowDepth = 16;
-
-  /// Displacement of the inner bevel shadow along the light, in logical
-  /// pixels.
-  static const double bevelShadowOffset = 6;
-
-  /// How strongly the inner bevel shadow follows the light direction.
-  static const double bevelShadowDirectionality = 0.5;
-}
-
-/// [FittedFrost.frostSigmaAt] of settings whose frost at toolbar size is
-/// [frost], fitted to iOS 27 where [fitted] ([FittedFrost.frostIsFitted]).
+/// [glassFrostSigma] of a blur at toolbar size of [frost], fitted to iOS 27
+/// where [fitted].
 @internal
 double frostSigmaOf(
   double frost, {

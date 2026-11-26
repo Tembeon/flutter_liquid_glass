@@ -51,12 +51,10 @@ const _wide = Rect.fromLTWH(20, 60, 260, 60);
 Widget _glass(Rect rect) => Positioned.fromRect(
   rect: rect,
   child: LiquidGlassLayer(
-    // Other highlights keep each in a read of its own.
-    settings:
-        const LiquidGlassSettings.ios27Regular(brightness: Brightness.light)
-            .copyWith(
-              glintStrength: rect.width / 1000,
-            ),
+    // Other refractions keep each in a read of its own.
+    settings: const LiquidGlassSettings.ios27Regular().copyWith(
+      refractionAmount: 60 + rect.width / 1000,
+    ),
     child: const LiquidGlass(
       shape: LiquidRoundedSuperellipse(radius: 20),
       child: SizedBox.expand(),

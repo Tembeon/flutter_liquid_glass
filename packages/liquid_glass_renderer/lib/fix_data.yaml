@@ -88,17 +88,7 @@ transforms:
       - kind: 'rename'
         newName: 'sliderPosition'
 
-  - title: 'Rename to glintStrength'
-    date: 2026-11-17
-    element:
-      uris: ['liquid_glass_renderer.dart']
-      field: 'highlight'
-      inClass: 'LiquidGlassSettings'
-    changes:
-      - kind: 'rename'
-        newName: 'glintStrength'
-
-  - title: 'Rename tintAmount and highlight'
+  - title: 'Rename to sliderPosition'
     date: 2026-11-17
     element:
       uris: ['liquid_glass_renderer.dart']
@@ -108,11 +98,8 @@ transforms:
       - kind: 'renameParameter'
         oldName: 'tintAmount'
         newName: 'sliderPosition'
-      - kind: 'renameParameter'
-        oldName: 'highlight'
-        newName: 'glintStrength'
 
-  - title: 'Rename tintAmount and highlight'
+  - title: 'Rename to sliderPosition'
     date: 2026-11-17
     element:
       uris: ['liquid_glass_renderer.dart']
@@ -122,9 +109,6 @@ transforms:
       - kind: 'renameParameter'
         oldName: 'tintAmount'
         newName: 'sliderPosition'
-      - kind: 'renameParameter'
-        oldName: 'highlight'
-        newName: 'glintStrength'
 
   - title: 'Rename to sliderPosition'
     date: 2026-11-17
@@ -148,7 +132,7 @@ transforms:
         oldName: 'tintAmount'
         newName: 'sliderPosition'
 
-  - title: 'Use ios27Regular(brightness: Brightness.light)'
+  - title: 'Rename to ios27Regular'
     date: 2026-11-17
     element:
       uris: ['liquid_glass_renderer.dart']
@@ -157,14 +141,8 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'ios27Regular'
-      - kind: 'addParameter'
-        index: 0
-        name: 'brightness'
-        style: 'required_named'
-        argumentValue:
-          expression: 'Brightness.light'
 
-  - title: 'Use ios27Regular(brightness: Brightness.dark)'
+  - title: 'Rename to ios27Regular'
     date: 2026-11-17
     element:
       uris: ['liquid_glass_renderer.dart']
@@ -173,12 +151,6 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'ios27Regular'
-      - kind: 'addParameter'
-        index: 0
-        name: 'brightness'
-        style: 'required_named'
-        argumentValue:
-          expression: 'Brightness.dark'
 
   - title: 'Use ios27Regular(brightness: Brightness.light)'
     date: 2026-11-17

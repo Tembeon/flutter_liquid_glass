@@ -176,7 +176,7 @@ void main() {
         await tester.pumpWidget(
           glass(
             settings: const LiquidGlassSettings(
-              frost: LiquidGlassFrost.sigma(8),
+              blur: 8,
             ),
           ),
         );
@@ -191,7 +191,7 @@ void main() {
     );
 
     testWidgets(
-      'rebuilds the filter only when settings change the shader uniforms',
+      'rebuilds the filter only when its settings or rim change its uniforms',
       (tester) async {
         await tester.pumpWidget(glass());
         await tester.pumpAndSettle();
@@ -205,7 +205,7 @@ void main() {
         await tester.pumpWidget(
           glass(
             settings: const LiquidGlassSettings(
-              frost: LiquidGlassFrost.sigma(8),
+              blur: 8,
             ),
           ),
         );
@@ -217,9 +217,9 @@ void main() {
 
         await tester.pumpWidget(
           glass(
-            settings: const LiquidGlassSettings(
-              frost: LiquidGlassFrost.sigma(8),
-              glintStrength: 0.3,
+            settings: const LiquidGlassSettings(blur: 8),
+            appearance: const LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(glintStrength: 0.3),
             ),
           ),
         );

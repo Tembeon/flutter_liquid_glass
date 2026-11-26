@@ -13,9 +13,7 @@ Widget _glass(Size size) => Directionality(
   textDirection: TextDirection.ltr,
   child: Center(
     child: LiquidGlassLayer(
-      settings: const LiquidGlassSettings.ios27Regular(
-        brightness: Brightness.light,
-      ),
+      settings: const LiquidGlassSettings.ios27Regular(),
       backdrop: const LiquidGlassBackdrop.solid(Color(0xFF808080)),
       child: SizedBox.fromSize(
         size: size,

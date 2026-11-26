@@ -51,12 +51,9 @@ Widget _scene({double shift = 0, double opacity = 1}) => Directionality(
             opacity: opacity,
             child: LiquidGlassLayer(
               fake: true,
-              settings:
-                  const LiquidGlassSettings.ios27Regular(
-                    brightness: Brightness.light,
-                  ).copyWith(
-                    frost: const LiquidGlassFrost.sigma(6),
-                  ),
+              settings: const LiquidGlassSettings.ios27Regular().copyWith(
+                blur: 6,
+              ),
               child: const LiquidGlass(
                 shape: LiquidRoundedSuperellipse(radius: 30),
                 child: SizedBox.expand(),

@@ -38,11 +38,9 @@ void main() {
         if (element.widget is LiquidGlass) builds++;
       };
       addTearDown(() => debugOnRebuildDirtyWidget = null);
-      Widget layer({double glint = 1, double visibility = 1}) =>
+      Widget layer({double height = 20, double visibility = 1}) =>
           LiquidGlassLayer(
-            settings: const LiquidGlassSettings().copyWith(
-              glintStrength: glint,
-            ),
+            settings: LiquidGlassSettings(refractionHeight: height),
             defaultAppearance: LiquidGlassAppearance(visibility: visibility),
             child: const LiquidGlass(
               shape: LiquidOval(),
@@ -51,9 +49,9 @@ void main() {
           );
       await tester.pumpWidget(layer());
       builds = 0;
-      await tester.pumpWidget(layer(glint: 0.5));
+      await tester.pumpWidget(layer(height: 10));
       expect(builds, 0);
-      await tester.pumpWidget(layer(glint: 0.5, visibility: 0.5));
+      await tester.pumpWidget(layer(height: 10, visibility: 0.5));
       expect(builds, 1);
     });
 
@@ -427,6 +425,7 @@ void main() {
                     settings: settingsWithoutLighting.copyWith(
                       refractionHeight: height.toDouble(),
                     ),
+                    defaultAppearance: appearanceWithoutLighting,
                     child: const LiquidGlass(
                       shape: LiquidRoundedSuperellipse(
                         radius: 100,
@@ -462,6 +461,7 @@ void main() {
                       ),
                       defaultAppearance: LiquidGlassAppearance(
                         tint: Colors.blue.withValues(alpha: 0.5),
+                        colorModel: unlitDirect,
                       ),
                       child: LiquidGlass(
                         shape: LiquidRoundedSuperellipse(
@@ -492,6 +492,7 @@ void main() {
                       ),
                       defaultAppearance: LiquidGlassAppearance(
                         tint: Colors.blue.withValues(alpha: 0.5),
+                        colorModel: unlitDirect,
                       ),
                       child: LiquidGlassBlendGroup(
                         child: LiquidGlass(
@@ -543,8 +544,7 @@ void main() {
                         height: 220,
                         child: LiquidGlassLayer(
                           settings: const LiquidGlassSettings.ios27Regular(
-                            brightness: Brightness.light,
-                            frost: LiquidGlassFrost.sigma(0),
+                            blur: 0,
                           ),
                           child: LiquidGlassBlendGroup(
                             blend: 36,
@@ -619,7 +619,7 @@ void main() {
                 name: background == Colors.black ? 'black' : 'white',
                 child: ColoredBox(
                   color: background,
-                  child: Center(
+                  child: const Center(
                     child: SizedBox(
                       width: 340,
                       height: 220,
@@ -627,16 +627,17 @@ void main() {
                         // Deliberately exaggerated, isolated material so the
                         // golden proves that the directional bevel follows
                         // the smooth-union SDF instead of a shape bounds box.
-                        settings:
-                            const LiquidGlassSettings.ios27Regular(
-                              brightness: Brightness.light,
-                              frost: LiquidGlassFrost.sigma(0),
-                            ).copyWith(
-                              glintStrength: 0,
-                              contourStrength: 0,
-                              bevelShadowStrength: .12,
-                            ),
-                        child: const LiquidGlassBlendGroup(
+                        settings: LiquidGlassSettings.ios27Regular(
+                          blur: 0,
+                        ),
+                        defaultAppearance: LiquidGlassAppearance(
+                          colorModel: LiquidGlassColorModel.direct(
+                            glintStrength: 0,
+                            contourStrength: 0,
+                            bevelShadowStrength: .12,
+                          ),
+                        ),
+                        child: LiquidGlassBlendGroup(
                           blend: 36,
                           child: Stack(
                             children: [
@@ -716,6 +717,7 @@ void main() {
                     settings: settingsWithoutLighting,
                     defaultAppearance: LiquidGlassAppearance(
                       tint: Colors.red.withValues(alpha: 0.5),
+                      colorModel: unlitDirect,
                     ),
                     child: LiquidGlassBlendGroup(
                       blend: blend,
@@ -816,6 +818,7 @@ void main() {
                   ),
                   defaultAppearance: LiquidGlassAppearance(
                     tint: Colors.cyan.withValues(alpha: .25),
+                    colorModel: unlitDirect,
                   ),
                   child: LiquidGlassBlendGroup(
                     child: Center(
@@ -889,6 +892,7 @@ void main() {
                     ),
                     defaultAppearance: LiquidGlassAppearance(
                       tint: Colors.cyan.withValues(alpha: .25),
+                      colorModel: unlitDirect,
                     ),
                     child: LiquidGlass(
                       shape: const LiquidRoundedRectangle(radius: 28),
@@ -970,7 +974,7 @@ void main() {
             // Direct glass draws nothing past its edge, so the bucket of
             // its filter stays inside the shadow's tail.
             const glass = LiquidGlass(
-              appearance: LiquidGlassAppearance(),
+              appearance: appearanceWithoutLighting,
               shadows: [
                 LiquidGlassShadow(
                   offset: Offset(0, 4),
@@ -986,6 +990,7 @@ void main() {
                 home: Center(
                   child: LiquidGlassLayer(
                     settings: settingsWithoutLighting,
+                    defaultAppearance: appearanceWithoutLighting,
                     child: grouped
                         ? const LiquidGlassBlendGroup(blend: 0, child: glass)
                         : glass,
@@ -1134,6 +1139,7 @@ void main() {
                   ),
                   defaultAppearance: LiquidGlassAppearance(
                     tint: Colors.cyan.withValues(alpha: .25),
+                    colorModel: unlitDirect,
                   ),
                   child: Transform.translate(
                     offset: value,
@@ -1181,6 +1187,7 @@ void main() {
                 settings: settingsWithoutLighting.copyWith(
                   refractionHeight: 18,
                 ),
+                defaultAppearance: appearanceWithoutLighting,
                 child: Stack(
                   children: [
                     ValueListenableBuilder<Offset>(
@@ -1228,7 +1235,7 @@ void main() {
           final settings = ValueNotifier(
             settingsWithoutLighting.copyWith(refractionHeight: 18),
           );
-          final appearance = ValueNotifier(const LiquidGlassAppearance());
+          final appearance = ValueNotifier(appearanceWithoutLighting);
           addTearDown(settings.dispose);
           addTearDown(appearance.dispose);
 
@@ -1355,6 +1362,7 @@ void main() {
                 settings: settingsWithoutLighting.copyWith(
                   refractionHeight: 18,
                 ),
+                defaultAppearance: appearanceWithoutLighting,
                 child: LiquidGlassBlendGroup(
                   child: Row(
                     children: [
@@ -1364,13 +1372,17 @@ void main() {
                           appearance: LiquidGlassAppearance(
                             tint: Colors.cyan,
                             visibility: value,
+                            colorModel: unlitDirect,
                           ),
                           shape: const LiquidRoundedRectangle(radius: 20),
                           child: const SizedBox(width: 100, height: 80),
                         ),
                       ),
                       const LiquidGlass(
-                        appearance: LiquidGlassAppearance(tint: Colors.orange),
+                        appearance: LiquidGlassAppearance(
+                          tint: Colors.orange,
+                          colorModel: unlitDirect,
+                        ),
                         shape: LiquidRoundedRectangle(radius: 20),
                         child: SizedBox(width: 100, height: 80),
                       ),
@@ -1429,7 +1441,7 @@ Widget _blendPairScene({
   final left = center.dx - width / 2;
   return buildWithGridPaper(
     LiquidGlassLayer(
-      settings: const LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
+      settings: const LiquidGlassSettings(blur: 0),
       defaultAppearance: LiquidGlassAppearance(
         tint: Colors.blue.withValues(alpha: 0.25),
       ),
@@ -1493,8 +1505,7 @@ Widget _appearanceBlendScene({
   return buildWithGridPaper(
     LiquidGlassLayer(
       settings: const LiquidGlassSettings.ios27Regular(
-        brightness: Brightness.light,
-        frost: LiquidGlassFrost.sigma(0),
+        blur: 0,
       ),
       defaultAppearance: white,
       child: LiquidGlassBlendGroup(
@@ -1550,8 +1561,7 @@ Widget _transparentTintBlendScene() {
   return buildWithGridPaper(
     const LiquidGlassLayer(
       settings: LiquidGlassSettings.ios27Regular(
-        brightness: Brightness.light,
-        frost: LiquidGlassFrost.sigma(0),
+        blur: 0,
       ),
       defaultAppearance: toolbar,
       child: LiquidGlassBlendGroup(
@@ -1588,6 +1598,7 @@ Widget _transformGlass() => LiquidGlassLayer(
   ),
   defaultAppearance: LiquidGlassAppearance(
     tint: Colors.cyan.withValues(alpha: .25),
+    colorModel: unlitDirect,
   ),
   child: const LiquidGlass(
     shape: LiquidRoundedRectangle(radius: 28),
@@ -1618,7 +1629,7 @@ Widget _dprOpticsRegressionScene() => Directionality(
           refractionAmount: 64,
           lens: const LensSettings(dispersion: .5),
         ),
-        defaultAppearance: const LiquidGlassAppearance(),
+        defaultAppearance: const LiquidGlassAppearance(colorModel: unlitDirect),
         child: const LiquidGlass(
           shape: LiquidRoundedSuperellipse(radius: 80),
           child: SizedBox(width: 400, height: 220),
@@ -1659,11 +1670,12 @@ Widget _coordinateRegressionScene() => Stack(
       top: 250,
       child: LiquidGlassLayer(
         settings: settingsWithoutLighting.copyWith(
-          frost: const LiquidGlassFrost.sigma(5),
+          blur: 5,
           refractionHeight: 60,
         ),
         defaultAppearance: LiquidGlassAppearance(
           tint: Colors.white.withValues(alpha: .08),
+          colorModel: unlitDirect,
         ),
         child: const LiquidGlass(
           shape: LiquidRoundedRectangle(radius: 48),

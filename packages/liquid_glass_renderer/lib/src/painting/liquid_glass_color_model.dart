@@ -52,11 +52,27 @@ sealed class LiquidGlassColorModel {
 
   /// Applies the tint, [saturation], [transmissionGamma] and [vibrancy]
   /// directly, per channel, with no response to the backdrop or to the size
-  /// of the glass.
+  /// of the glass, and lights its rim by [glintStrength], [contourStrength],
+  /// [contourDirectionality] and [bevelShadowStrength].
+  ///
+  /// The rim is iOS 27's: a 1.2 pt glint on both walls along the light axis,
+  /// a 0.75 pt dark contour outside the silhouette that concentrates where
+  /// the glint fades, and a faint inner shadow cast by the rim. A strength
+  /// left null is regular glass's in [brightness]; dark glass's contour is
+  /// stronger and vanishes where the normal faces the light axis. The glass
+  /// blurs and fills what it shows as regular glass of [brightness] does.
+  ///
+  /// The shapes of one layer light their rims alike, by the first direct
+  /// model among them.
   const factory LiquidGlassColorModel.direct({
     double saturation,
     double transmissionGamma,
     double vibrancy,
+    Brightness brightness,
+    double? glintStrength,
+    double? contourStrength,
+    double? contourDirectionality,
+    double? bevelShadowStrength,
   }) = LiquidGlassDirectColorModel._;
 
   /// The iOS 27 regular material (`Glass.regular`) in [brightness], which
@@ -107,7 +123,28 @@ final class LiquidGlassDirectColorModel extends LiquidGlassColorModel {
     this.saturation = 1,
     this.transmissionGamma = 1,
     this.vibrancy = 0,
-  }) : super._();
+    this.brightness = Brightness.light,
+    double? glintStrength,
+    double? contourStrength,
+    double? contourDirectionality,
+    double? bevelShadowStrength,
+  }) : glintStrength = glintStrength ?? _regularGlintStrength,
+       contourStrength =
+           contourStrength ??
+           (brightness == Brightness.dark
+               ? _darkContourStrength
+               : _lightContourStrength),
+       contourDirectionality =
+           contourDirectionality ??
+           (brightness == Brightness.dark ? 1 : _lightContourDirectionality),
+       bevelShadowStrength = bevelShadowStrength ?? _regularBevelShadowStrength,
+       super._();
+
+  static const double _regularGlintStrength = 0.6;
+  static const double _lightContourStrength = 0.43;
+  static const double _darkContourStrength = 0.88;
+  static const double _lightContourDirectionality = 0.77;
+  static const double _regularBevelShadowStrength = 0.036;
 
   /// Saturation applied to transmitted backdrop content.
   final double saturation;
@@ -118,21 +155,69 @@ final class LiquidGlassDirectColorModel extends LiquidGlassColorModel {
   /// Backdrop-aware chroma lift.
   final double vibrancy;
 
+  /// The scheme of the glass, whose rim and blur it takes.
+  final Brightness brightness;
+
+  /// Strength of the glint along the light axis.
+  ///
+  /// The glint recolors the face instead of adding white: it pulls the lit
+  /// material toward a target brighter than SDR white carrying the face's own
+  /// chroma amplified, so glass over color glints in that color. iOS 27
+  /// glass glints at `0.6` in both schemes: the reference rim is a soft, low
+  /// plateau, and higher values overexpose the first pixel inside the
+  /// silhouette.
+  final double glintStrength;
+
+  /// Peak absorption of the dark contour just outside the silhouette, which
+  /// is 0.75 logical pixels wide. `0` removes the contour.
+  final double contourStrength;
+
+  /// How strongly the contour concentrates where the glint fades.
+  ///
+  /// `0` darkens the whole silhouette evenly. `1` keeps the contour only where
+  /// the normal is perpendicular to the light axis and removes it where the
+  /// glint sits, as in iOS 27 dark mode.
+  final double contourDirectionality;
+
+  /// Fraction of the light transmitted through the glass that the inner
+  /// shadow cast by the rim absorbs at its peak. The glass's own emission is
+  /// not shaded. The shadow falls 6 pt below the lit top wall, stays at the
+  /// rim on the sides and is absent at the bottom, as on iOS 27.
+  final double bevelShadowStrength;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is LiquidGlassDirectColorModel &&
           other.saturation == saturation &&
           other.transmissionGamma == transmissionGamma &&
-          other.vibrancy == vibrancy;
+          other.vibrancy == vibrancy &&
+          other.brightness == brightness &&
+          other.glintStrength == glintStrength &&
+          other.contourStrength == contourStrength &&
+          other.contourDirectionality == contourDirectionality &&
+          other.bevelShadowStrength == bevelShadowStrength;
 
   @override
-  int get hashCode => Object.hash(saturation, transmissionGamma, vibrancy);
+  int get hashCode => Object.hash(
+    saturation,
+    transmissionGamma,
+    vibrancy,
+    brightness,
+    glintStrength,
+    contourStrength,
+    contourDirectionality,
+    bevelShadowStrength,
+  );
 
   @override
   String toString() =>
       'LiquidGlassColorModel.direct(saturation: $saturation, '
-      'transmissionGamma: $transmissionGamma, vibrancy: $vibrancy)';
+      'transmissionGamma: $transmissionGamma, vibrancy: $vibrancy, '
+      'brightness: $brightness, glintStrength: $glintStrength, '
+      'contourStrength: $contourStrength, '
+      'contourDirectionality: $contourDirectionality, '
+      'bevelShadowStrength: $bevelShadowStrength)';
 }
 
 /// The [LiquidGlassColorModel] of iOS 27 regular glass
@@ -202,6 +287,60 @@ typedef RecipeLook = ({
   bool increaseContrast,
 });
 
+/// The rim the direct model lights ([LiquidGlassColorModel.direct]); none
+/// for an iOS 27 recipe, whose rim is its own.
+@internal
+@immutable
+final class DirectRim {
+  /// A rim of these strengths.
+  const DirectRim({
+    required this.glintStrength,
+    required this.contourStrength,
+    required this.contourDirectionality,
+    required this.bevelShadowStrength,
+  });
+
+  /// No rim.
+  static const none = DirectRim(
+    glintStrength: 0,
+    contourStrength: 0,
+    contourDirectionality: 0,
+    bevelShadowStrength: 0,
+  );
+
+  /// [LiquidGlassDirectColorModel.glintStrength].
+  final double glintStrength;
+
+  /// [LiquidGlassDirectColorModel.contourStrength].
+  final double contourStrength;
+
+  /// [LiquidGlassDirectColorModel.contourDirectionality].
+  final double contourDirectionality;
+
+  /// [LiquidGlassDirectColorModel.bevelShadowStrength].
+  final double bevelShadowStrength;
+
+  /// The width of the dark contour in logical pixels; `0` without one.
+  double get contourWidth => contourStrength > 0 ? GlassRim.contourWidth : 0;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DirectRim &&
+          other.glintStrength == glintStrength &&
+          other.contourStrength == contourStrength &&
+          other.contourDirectionality == contourDirectionality &&
+          other.bevelShadowStrength == bevelShadowStrength;
+
+  @override
+  int get hashCode => Object.hash(
+    glintStrength,
+    contourStrength,
+    contourDirectionality,
+    bevelShadowStrength,
+  );
+}
+
 /// A [LiquidGlassColorModel] as glass of one size and tint wears it
 /// ([WearColorModel.wornAt]): the constants the shaders take.
 @internal
@@ -212,13 +351,17 @@ final class WornColorModel {
     this.saturation = 1,
     this.transmissionGamma = 1,
     this.vibrancy = 0,
+    this._brightness = Brightness.light,
+    this.rim = DirectRim.none,
   }) : recipe = null;
 
   /// The iOS 27 recipe of [recipe] (`GlassRecipe.of`).
   const WornColorModel.recipe(RecipeLook this.recipe)
     : saturation = 1,
       transmissionGamma = 1,
-      vibrancy = 0;
+      vibrancy = 0,
+      rim = DirectRim.none,
+      _brightness = Brightness.light;
 
   /// What the iOS 27 recipe takes, or null for the direct model.
   final RecipeLook? recipe;
@@ -233,6 +376,19 @@ final class WornColorModel {
   /// Backdrop-aware chroma lift; `0` for a recipe.
   final double vibrancy;
 
+  /// The rim the direct model lights; none for a recipe.
+  final DirectRim rim;
+
+  final Brightness _brightness;
+
+  /// The variant and scheme of iOS 27 glass whose blur and fill the glass
+  /// takes: the recipe's, or regular glass of the direct model's scheme.
+  ({GlassVariant variant, Brightness brightness}) get blurredAs =>
+      switch (recipe) {
+        final look? => (variant: look.variant, brightness: look.brightness),
+        null => (variant: GlassVariant.regular, brightness: _brightness),
+      };
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -240,15 +396,24 @@ final class WornColorModel {
           other.recipe == recipe &&
           other.saturation == saturation &&
           other.transmissionGamma == transmissionGamma &&
-          other.vibrancy == vibrancy;
+          other.vibrancy == vibrancy &&
+          other.rim == rim &&
+          other._brightness == _brightness;
 
   @override
-  int get hashCode =>
-      Object.hash(recipe, saturation, transmissionGamma, vibrancy);
+  int get hashCode => Object.hash(
+    recipe,
+    saturation,
+    transmissionGamma,
+    vibrancy,
+    rim,
+    _brightness,
+  );
 
   @override
   String toString() =>
-      'WornColorModel($recipe, $saturation, $transmissionGamma, $vibrancy)';
+      'WornColorModel($recipe, $saturation, $transmissionGamma, $vibrancy, '
+      '$_brightness)';
 }
 
 /// Wears a color model at a size.
@@ -274,18 +439,8 @@ extension WearColorModel on LiquidGlassColorModel {
         ? recipeSizes.panel
         : shortSide.clamp(recipeSizes.control, recipeSizes.panel);
     switch (this) {
-      case LiquidGlassDirectColorModel(
-        :final saturation,
-        :final transmissionGamma,
-        :final vibrancy,
-      ):
-        return saturation == 1 && transmissionGamma == 1 && vibrancy == 0
-            ? _plainDirect
-            : WornColorModel.direct(
-                saturation: saturation,
-                transmissionGamma: transmissionGamma,
-                vibrancy: vibrancy,
-              );
+      case final LiquidGlassDirectColorModel direct:
+        return direct == _plain ? _plainDirect : _wearDirect(direct);
       case LiquidGlassIos27ClearColorModel(:final increaseContrast):
         return _wear((
           variant: GlassVariant.clear,
@@ -316,7 +471,23 @@ extension WearColorModel on LiquidGlassColorModel {
     return _worn[look] ??= WornColorModel.recipe(look);
   }
 
-  static const _plainDirect = WornColorModel.direct();
+  static WornColorModel _wearDirect(LiquidGlassDirectColorModel direct) =>
+      WornColorModel.direct(
+        saturation: direct.saturation,
+        transmissionGamma: direct.transmissionGamma,
+        vibrancy: direct.vibrancy,
+        brightness: direct.brightness,
+        rim: DirectRim(
+          glintStrength: direct.glintStrength,
+          contourStrength: direct.contourStrength,
+          contourDirectionality: direct.contourDirectionality,
+          bevelShadowStrength: direct.bevelShadowStrength,
+        ),
+      );
+
+  static const _plain = LiquidGlassDirectColorModel._();
+
+  static final _plainDirect = _wearDirect(_plain);
 
   static final _worn = <RecipeLook, WornColorModel>{};
 }

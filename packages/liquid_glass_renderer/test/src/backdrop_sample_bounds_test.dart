@@ -9,7 +9,10 @@ import 'shared.dart';
 void main() {
   // 6 device px of frost at 3x: nonzero, so the filter composes a blur
   // pass.
-  const blurred = LiquidGlassSettings(glintStrength: 0);
+  const blurred = LiquidGlassSettings();
+  const unglinted = LiquidGlassAppearance(
+    colorModel: LiquidGlassColorModel.direct(glintStrength: 0),
+  );
 
   const glass = LiquidGlass(
     shape: LiquidRoundedSuperellipse(radius: 40),
@@ -69,7 +72,11 @@ void main() {
     (tester) async {
       await pump(
         tester,
-        const LiquidGlassLayer(settings: settingsWithoutLighting, child: glass),
+        const LiquidGlassLayer(
+          settings: settingsWithoutLighting,
+          defaultAppearance: appearanceWithoutLighting,
+          child: glass,
+        ),
       );
       final layer = glassLayer(tester);
       expect(layer.debugBackdropSampleBounds, layer.debugFilterBounds);
@@ -82,7 +89,13 @@ void main() {
     (tester) async {
       await pump(
         tester,
-        clipped(const LiquidGlassLayer(settings: blurred, child: glass)),
+        clipped(
+          const LiquidGlassLayer(
+            settings: blurred,
+            defaultAppearance: unglinted,
+            child: glass,
+          ),
+        ),
       );
       final layer = glassLayer(tester);
       final clip = clipInLayer(tester, layer);
@@ -101,7 +114,11 @@ void main() {
     (tester) async {
       await pump(
         tester,
-        LiquidGlassLayer(settings: blurred, child: clipped(glass)),
+        LiquidGlassLayer(
+          settings: blurred,
+          defaultAppearance: unglinted,
+          child: clipped(glass),
+        ),
       );
       final layer = glassLayer(tester);
       final clip = clipInLayer(tester, layer);
@@ -125,8 +142,12 @@ void main() {
           clipped(
             LiquidGlassLayer(
               settings: LiquidGlassSettings(
-                glintStrength: 0,
-                frost: LiquidGlassFrost.sigma(frost),
+                blur: frost,
+              ),
+              defaultAppearance: const LiquidGlassAppearance(
+                colorModel: LiquidGlassColorModel.direct(
+                  glintStrength: 0,
+                ),
               ),
               child: glass,
             ),
@@ -166,6 +187,7 @@ void main() {
         tester,
         LiquidGlassLayer(
           settings: blurred,
+          defaultAppearance: unglinted,
           child: scroll(contentHeight: 130),
         ),
       );
@@ -176,6 +198,7 @@ void main() {
         tester,
         LiquidGlassLayer(
           settings: blurred,
+          defaultAppearance: unglinted,
           child: scroll(contentHeight: 400),
         ),
       );

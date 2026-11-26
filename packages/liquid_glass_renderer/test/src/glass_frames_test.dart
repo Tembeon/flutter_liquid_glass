@@ -7,7 +7,7 @@ import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_ob
 import 'package:material_ui/material_ui.dart';
 
 Widget _glass() => const LiquidGlassLayer(
-  settings: LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+  settings: LiquidGlassSettings.ios27Regular(),
   child: SizedBox(
     width: 120,
     height: 60,

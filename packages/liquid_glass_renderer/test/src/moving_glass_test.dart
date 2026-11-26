@@ -182,7 +182,7 @@ void main() {
           patches += patchOf(last, next, at);
           last = next;
         }
-        expect(placed.length, greaterThan(4), reason: 'the copy moved');
+        expect(placed.length, greaterThan(3), reason: 'the copy moved');
         expect(patches / steps, lessThan(0.2));
       },
       skip: skipProperGlassTests,

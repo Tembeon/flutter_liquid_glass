@@ -430,6 +430,7 @@ Widget _buildScene({required Offset offset, required GlobalKey captureKey}) {
             ),
             defaultAppearance: const LiquidGlassAppearance(
               tint: Color(0x4020A0FF),
+              colorModel: unlitDirect,
             ),
             child: Center(
               child: Transform.translate(
@@ -443,6 +444,7 @@ Widget _buildScene({required Offset offset, required GlobalKey captureKey}) {
                       child: LiquidGlass(
                         appearance: LiquidGlassAppearance(
                           tint: Color(0xC0FF6048),
+                          colorModel: unlitDirect,
                         ),
                         shape: LiquidRoundedSuperellipse(
                           radius: 28,
@@ -483,6 +485,7 @@ Widget _buildLayerInLayerScene({
               ),
               defaultAppearance: const LiquidGlassAppearance(
                 tint: Color(0x4020A0FF),
+                colorModel: unlitDirect,
               ),
               child: Center(
                 child: LiquidGlass(
@@ -498,6 +501,7 @@ Widget _buildLayerInLayerScene({
                         ),
                         defaultAppearance: const LiquidGlassAppearance(
                           tint: Color(0xC0FF6048),
+                          colorModel: unlitDirect,
                         ),
                         child: const LiquidGlass(
                           shape: LiquidRoundedSuperellipse(
@@ -549,6 +553,7 @@ Widget _buildScrollingScene({
                       ),
                       defaultAppearance: const LiquidGlassAppearance(
                         tint: Color(0x4020A0FF),
+                        colorModel: unlitDirect,
                       ),
                       child: LiquidGlass(
                         shape: const LiquidRoundedSuperellipse(radius: 32),
@@ -603,6 +608,7 @@ Widget _buildNestedGlassScrollingScene({
             ),
             defaultAppearance: const LiquidGlassAppearance(
               tint: Color(0x4020A0FF),
+              colorModel: unlitDirect,
             ),
             child: SizedBox.expand(
               child: CustomScrollView(
@@ -628,6 +634,7 @@ Widget _buildNestedGlassScrollingScene({
                                 ),
                                 defaultAppearance: const LiquidGlassAppearance(
                                   tint: Color(0x80FF6048),
+                                  colorModel: unlitDirect,
                                 ),
                                 child: LiquidGlass(
                                   shape: const LiquidRoundedSuperellipse(

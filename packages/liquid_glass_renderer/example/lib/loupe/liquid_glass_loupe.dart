@@ -82,7 +82,7 @@ class LiquidGlassLoupe extends StatelessWidget {
     this.magnification = 1.25,
     this.focalPointOffset = Offset.zero,
     this.settings = defaultSettings,
-    this.appearance = const LiquidGlassAppearance(),
+    this.appearance = defaultAppearance,
     this.shadows = const [],
     this.child,
   }) : assert(magnification > 0, 'magnification must be positive');
@@ -90,13 +90,17 @@ class LiquidGlassLoupe extends StatelessWidget {
   /// Glass optics measured on the iOS 27 loupe (Reduce Motion off): a clear
   /// lens with a narrow bevel (8 pt wide, 34.5 pt at the edge, measured on
   /// the magnified content), slight dispersion that bends blue more than red,
-  /// no frost and a hairline rim.
+  /// and no frost.
   static const LiquidGlassSettings defaultSettings = LiquidGlassSettings(
     refractionHeight: 8,
     refractionAmount: 34.5,
     lens: LensSettings(dispersion: -0.06),
-    frost: LiquidGlassFrost.sigma(0),
-    contourStrength: 0.08,
+    blur: 0,
+  );
+
+  /// The color of the iOS 27 loupe: plain, with a hairline rim.
+  static const LiquidGlassAppearance defaultAppearance = LiquidGlassAppearance(
+    colorModel: LiquidGlassColorModel.direct(contourStrength: 0.08),
   );
 
   /// The source whose content is magnified.

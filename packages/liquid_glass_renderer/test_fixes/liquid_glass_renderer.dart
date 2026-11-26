@@ -37,15 +37,16 @@ Widget backdropGroups() {
 LiquidGlassSettings slider(LiquidGlassSettings base) {
   final light = LiquidGlassSettings.ios27RegularLight(tintAmount: 0.5);
   final dark = LiquidGlassSettings.ios27RegularDark();
-  final regular = LiquidGlassSettings.ios27Regular(
-    brightness: Brightness.dark,
-    tintAmount: 1,
-  );
+  final regular = LiquidGlassSettings.ios27Regular(tintAmount: 1);
   final clear = LiquidGlassSettings.ios27Clear(tintAmount: 0.25);
-  const plain = LiquidGlassSettings(tintAmount: 0.5, highlight: 0.4);
+  const plain = LiquidGlassSettings(tintAmount: 0.5);
   return base.copyWith(
-    tintAmount: light.tintAmount + dark.tintAmount + clear.tintAmount,
-    highlight: regular.highlight + plain.highlight,
+    tintAmount:
+        light.tintAmount +
+        dark.tintAmount +
+        regular.tintAmount +
+        clear.tintAmount +
+        plain.tintAmount,
   );
 }
 

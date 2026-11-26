@@ -152,7 +152,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   bool get encodesGeometry => false;
 
   @override
-  double get materialOutset => fakeGlassSurfaceOutset(_look);
+  double get materialOutset => fakeGlassSurfaceOutset();
 
   late FakeGlassLook _look = FakeGlassLook.of(settings);
 
@@ -162,6 +162,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     // when the sigma does, and a new filter object is a new backdrop saveLayer
     // paint.
     final sigma = _look.frostSigmaAt(
+      _sharedModel,
       devicePixelRatio,
       shapeShortSide: shortSide,
     );

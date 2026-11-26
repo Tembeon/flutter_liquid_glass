@@ -106,8 +106,9 @@ final class GlassFace {
   const GlassFace._({required this.face, required this.colorModels});
 
   /// The material of [appearance] under [settings], its color model in one
-  /// of the slots [colorModels] fill, its rim reaching as far as the [edges]
-  /// of the recipes it draws ([recipeEdges]).
+  /// of the slots [colorModels] fill, its direct model's rim lit by [rim],
+  /// reaching as far as that rim and the [edges] of the recipes it draws
+  /// ([recipeEdges]).
   ///
   /// Colors go in at 8 bits a channel. The shader fades the whole material
   /// with visibility, so the color factors go in at full strength. Frosted
@@ -120,12 +121,13 @@ final class GlassFace {
     required List<RecipeLook> colorModels,
     required double devicePixelRatio,
     required bool blurs,
+    DirectRim rim = DirectRim.none,
     ({double inward, double outward}) edges = (inward: 0, outward: 0),
   }) {
     final dpr = devicePixelRatio;
     final tint = appearance.tint;
     final model = appearance.colorModel;
-    final contour = (settings.contourStrength.clamp(0.0, 1.0) * 255).round();
+    final contour = (rim.contourStrength.clamp(0.0, 1.0) * 255).round();
     return GlassFace._(
       face: laneBlock(FaceLane.values, {
         FaceLane.tint: [
@@ -136,18 +138,18 @@ final class GlassFace {
         ],
         FaceLane.displacementScale: [settings.effectiveDisplacementScale * dpr],
         FaceLane.dispersion: [settings.lens.dispersion],
-        FaceLane.glintStrength: [settings.glintStrength],
+        FaceLane.glintStrength: [rim.glintStrength],
         FaceLane.backdropScale: [1 - settings.effectiveBackdropShrink],
         FaceLane.saturation: [model.saturation],
         FaceLane.contourAlpha: [contour / 255],
         FaceLane.rimReach: [
-          rimReach(settings, devicePixelRatio: dpr, recipeReach: edges.inward),
+          rimReach(rim, devicePixelRatio: dpr, recipeReach: edges.inward),
         ],
         FaceLane.glintWidth: [GlassRim.glintWidth * dpr],
-        FaceLane.edgeWidth: [settings.contourWidth * dpr],
-        FaceLane.contourDirectionality: [settings.contourDirectionality],
+        FaceLane.edgeWidth: [rim.contourWidth * dpr],
+        FaceLane.contourDirectionality: [rim.contourDirectionality],
         FaceLane.vibrancy: [model.vibrancy],
-        FaceLane.bevelShadowStrength: [settings.bevelShadowStrength],
+        FaceLane.bevelShadowStrength: [rim.bevelShadowStrength],
         FaceLane.bevelShadowDepth: [GlassRim.bevelShadowDepth * dpr],
         FaceLane.bevelShadowOffset: [GlassRim.bevelShadowOffset * dpr],
         FaceLane.colorModelCode: [colorModelCode(model, colorModels)],
@@ -155,7 +157,12 @@ final class GlassFace {
         FaceLane.blurFade: [if (blurs) 1 else 0],
         FaceLane.transmissionGamma: [model.transmissionGamma],
         FaceLane.readDepth: [
-          readDepth(settings, devicePixelRatio: dpr, recipeReach: edges.inward),
+          readDepth(
+            settings,
+            rim: rim,
+            devicePixelRatio: dpr,
+            recipeReach: edges.inward,
+          ),
         ],
       }),
       colorModels: List.unmodifiable(<double>[
@@ -221,71 +228,74 @@ final class GlassFace {
   int get hashCode => Object.hash(face[0], displacement, blurFade);
 }
 
-/// How deep inside the edge of glass drawn with [settings] its rim lighting
-/// and contour reach, in device pixels: the glint's bleed, the contour's
-/// half pixel and the bevel shadow's strip, each only where it draws, and
-/// the edges of its recipes, [recipeReach] logical pixels deep.
+/// How deep inside the edge of glass its [rim] lighting and contour reach,
+/// in device pixels: the glint's bleed, the contour's half pixel and the
+/// bevel shadow's strip, each only where it draws, and the edges of its
+/// recipes, [recipeReach] logical pixels deep.
 @internal
 double rimReach(
-  LiquidGlassSettings settings, {
+  DirectRim rim, {
   required double devicePixelRatio,
   double recipeReach = 0,
 }) {
   final dpr = devicePixelRatio;
-  var rim = 0.0;
-  if (settings.glintStrength > 0) {
-    rim = max(rim, GlassRim.glintWidth * dpr * GlassGlint.bleedReach);
+  var reach = 0.0;
+  if (rim.glintStrength > 0) {
+    reach = max(reach, GlassRim.glintWidth * dpr * GlassGlint.bleedReach);
   }
-  if (settings.contourStrength > 0 && settings.contourWidth > 0) {
-    rim = max(rim, 0.5);
+  if (rim.contourWidth > 0) {
+    reach = max(reach, 0.5);
   }
-  if (settings.bevelShadowStrength >= 0.001) {
-    rim = max(
-      rim,
+  if (rim.bevelShadowStrength >= 0.001) {
+    reach = max(
+      reach,
       _saturatingSmoothstep(
         (GlassRim.bevelShadowDepth + GlassRim.bevelShadowOffset) * dpr,
       ),
     );
   }
-  return max(rim, recipeReach * dpr);
+  return max(reach, recipeReach * dpr);
 }
 
-/// How deep into glass drawn with [settings] the final shader reads its
-/// geometry, in device pixels: a pixel past the bevel and the rim, deeper
-/// than which only coverage reads the distance.
+/// How deep into glass drawn with [settings] and [rim] the final shader
+/// reads its geometry, in device pixels: a pixel past the bevel and the
+/// rim, deeper than which only coverage reads the distance.
 @internal
 double readDepth(
   LiquidGlassSettings settings, {
+  required DirectRim rim,
   required double devicePixelRatio,
   double recipeReach = 0,
 }) =>
     max(
       settings.effectiveRefractionHeight * devicePixelRatio,
       rimReach(
-        settings,
+        rim,
         devicePixelRatio: devicePixelRatio,
         recipeReach: recipeReach,
       ),
     ) +
     1;
 
-/// All a change of settings or recipes asks of the geometry of glass drawn
-/// with them at a [devicePixelRatio]: how deep into the glass the final
-/// shader reads it ([inward]), how far its contour or dark specular reaches
-/// out ([contourOutset]) and whether its shapes lean ([leans]).
+/// All a change of settings, rim or recipes asks of the geometry of glass
+/// drawn with them at a [devicePixelRatio]: how deep into the glass the
+/// final shader reads it ([inward]), how far its contour or dark specular
+/// reaches out ([contourOutset]) and whether its shapes lean ([leans]).
 @internal
 @immutable
 final class GeometryNeed {
-  /// The need of glass drawn with [settings] and recipes whose [edges]
-  /// reach as far as [recipeEdges] gives, at [devicePixelRatio].
+  /// The need of glass drawn with [settings], [rim] and recipes whose
+  /// [edges] reach as far as [recipeEdges] gives, at [devicePixelRatio].
   factory GeometryNeed.of(
     LiquidGlassSettings settings, {
     required double devicePixelRatio,
+    DirectRim rim = DirectRim.none,
     ({double inward, double outward}) edges = (inward: 0, outward: 0),
   }) {
     final dpr = devicePixelRatio;
     final exactInward = readDepth(
       settings,
+      rim: rim,
       devicePixelRatio: dpr,
       recipeReach: edges.inward,
     );
@@ -293,10 +303,7 @@ final class GeometryNeed {
     while (inward < exactInward) {
       inward *= _inwardBucketGrowth;
     }
-    final outset = max(
-      settings.contourWidth <= 0 ? 0.0 : settings.contourWidth,
-      edges.outward,
-    );
+    final outset = max(rim.contourWidth, edges.outward);
     return GeometryNeed._(
       devicePixelRatio: dpr,
       inward: inward,

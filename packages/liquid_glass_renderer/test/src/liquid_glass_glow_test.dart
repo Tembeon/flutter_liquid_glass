@@ -43,9 +43,7 @@ Widget _scene(
         child: ColoredBox(
           color: _gray,
           child: LiquidGlassLayer(
-            settings: const LiquidGlassSettings.ios27Regular(
-              brightness: Brightness.light,
-            ),
+            settings: const LiquidGlassSettings.ios27Regular(),
             fake: fake,
             // A paint over a solid color: no backdrop filter, so every
             // render of the process draws.
@@ -222,9 +220,7 @@ void main() {
       Directionality(
         textDirection: TextDirection.ltr,
         child: LiquidGlassLayer(
-          settings: const LiquidGlassSettings.ios27Regular(
-            brightness: Brightness.light,
-          ),
+          settings: const LiquidGlassSettings.ios27Regular(),
           child: Stack(
             children: [
               Positioned.fromRect(

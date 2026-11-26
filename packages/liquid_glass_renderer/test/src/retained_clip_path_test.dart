@@ -40,7 +40,7 @@ void main() {
               builder: (context, color, _) => LiquidGlassLayer(
                 fake: true,
                 settings: const LiquidGlassSettings(
-                  frost: LiquidGlassFrost.sigma(0),
+                  blur: 0,
                 ),
                 defaultAppearance: LiquidGlassAppearance(tint: color),
                 child: ClipPath(
@@ -95,7 +95,7 @@ void main() {
               builder: (context, color, _) => LiquidGlassLayer(
                 fake: true,
                 settings: const LiquidGlassSettings(
-                  frost: LiquidGlassFrost.sigma(0),
+                  blur: 0,
                 ),
                 defaultAppearance: LiquidGlassAppearance(tint: color),
                 child: ClipPath(
@@ -135,7 +135,7 @@ void main() {
             child: LiquidGlassLayer(
               fake: true,
               settings: const LiquidGlassSettings(
-                frost: LiquidGlassFrost.sigma(0),
+                blur: 0,
               ),
               child: ValueListenableBuilder(
                 valueListenable: shift,

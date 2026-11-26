@@ -14,9 +14,7 @@ import 'package:liquid_glass_test/liquid_glass_test.dart';
 
 import '../shared.dart';
 
-const _settings = LiquidGlassSettings.ios27Regular(
-  brightness: Brightness.light,
-);
+const _settings = LiquidGlassSettings.ios27Regular();
 
 const _background = Color(0xFF204060);
 

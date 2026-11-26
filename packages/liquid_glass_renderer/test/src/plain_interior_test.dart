@@ -29,9 +29,9 @@ Widget _scene(double shrink) => Directionality(
         ),
         Positioned.fill(
           child: LiquidGlassLayer(
-            settings: const LiquidGlassSettings.ios27Regular(
-              brightness: Brightness.light,
-            ).copyWith(lens: LensSettings(shrink: shrink)),
+            settings: const LiquidGlassSettings.ios27Regular().copyWith(
+              lens: LensSettings(shrink: shrink),
+            ),
             child: Stack(
               children: [
                 Positioned.fromRect(

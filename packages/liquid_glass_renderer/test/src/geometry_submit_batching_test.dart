@@ -17,7 +17,12 @@ void main() {
 /// page of its own. Over copies the other two share a read, and one atlas.
 Widget _scene(double t) {
   Widget layer(double width, {bool tinted = false}) => LiquidGlassLayer(
-    settings: const LiquidGlassSettings(contourStrength: 0.3),
+    settings: const LiquidGlassSettings(),
+    defaultAppearance: const LiquidGlassAppearance(
+      colorModel: LiquidGlassColorModel.direct(
+        contourStrength: 0.3,
+      ),
+    ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -29,7 +34,12 @@ Widget _scene(double t) {
         LiquidGlass(
           shape: const LiquidOval(),
           appearance: tinted
-              ? const LiquidGlassAppearance(tint: Color(0x552060FF))
+              ? const LiquidGlassAppearance(
+                  tint: Color(0x552060FF),
+                  colorModel: LiquidGlassColorModel.direct(
+                    contourStrength: 0.3,
+                  ),
+                )
               : null,
           child: const SizedBox(width: 44, height: 44),
         ),

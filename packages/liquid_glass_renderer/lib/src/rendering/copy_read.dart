@@ -286,12 +286,11 @@ final class CornerRead extends PlacedCopy {
   /// NEAR: the glass blurs by one sigma over all of its face, and mixes in
   /// no fill.
   late final ui.ImageFilter? _blurInPlace = switch (place.layout.drawnLevels) {
-    final wanted? when place.blursInPlace =>
-      ui.ImageFilter.blur(
-        sigmaX: _impellerSigma(wanted.most),
-        sigmaY: _impellerSigma(wanted.most),
-        tileMode: glassBlurTileMode,
-      ),
+    final wanted? when place.blursInPlace => ui.ImageFilter.blur(
+      sigmaX: _impellerSigma(wanted.most),
+      sigmaY: _impellerSigma(wanted.most),
+      tileMode: glassBlurTileMode,
+    ),
     _ => null,
   };
 

@@ -75,13 +75,10 @@ Widget _pairScene({
               child: LiquidGlassLayer(
                 // Glass of one look joins one filter; [apart] gives the
                 // second glass a look of its own, so each reads its copy.
-                settings:
-                    const LiquidGlassSettings.ios27Regular(
-                      brightness: Brightness.light,
-                    ).copyWith(
-                      frost: LiquidGlassFrost.sigma(frost),
-                      refractionHeight: apart && key == null ? 12 : null,
-                    ),
+                settings: const LiquidGlassSettings.ios27Regular().copyWith(
+                  blur: frost,
+                  refractionHeight: apart && key == null ? 12 : null,
+                ),
                 child: Stack(
                   children: [
                     Positioned.fromRect(
@@ -245,12 +242,9 @@ Widget _scene({
               child: _following(
                 glassFollows,
                 LiquidGlassLayer(
-                  settings:
-                      const LiquidGlassSettings.ios27Regular(
-                        brightness: Brightness.light,
-                      ).copyWith(
-                        frost: LiquidGlassFrost.sigma(frost),
-                      ),
+                  settings: const LiquidGlassSettings.ios27Regular().copyWith(
+                    blur: frost,
+                  ),
                   child: Stack(
                     children: [
                       Positioned.fromRect(
@@ -270,12 +264,9 @@ Widget _scene({
         if (pair)
           Positioned.fill(
             child: LiquidGlassLayer(
-              settings:
-                  const LiquidGlassSettings.ios27Regular(
-                    brightness: Brightness.light,
-                  ).copyWith(
-                    frost: const LiquidGlassFrost.sigma(0),
-                  ),
+              settings: const LiquidGlassSettings.ios27Regular().copyWith(
+                blur: 0,
+              ),
               child: Stack(
                 children: [
                   Positioned.fromRect(
@@ -569,9 +560,7 @@ void main() {
                       width: 50,
                       height: 40,
                       child: LiquidGlassLayer(
-                        settings: LiquidGlassSettings.ios27Regular(
-                          brightness: Brightness.light,
-                        ),
+                        settings: LiquidGlassSettings.ios27Regular(),
                         child: LiquidGlass(
                           shape: LiquidRoundedSuperellipse(radius: 20),
                           child: SizedBox.expand(),
@@ -739,18 +728,14 @@ void main() {
               child: Transform(
                 transform: Matrix4.diagonal3Values(1, 1.2, 1),
                 child: layer(
-                  const LiquidGlassSettings.ios27Regular(
-                    brightness: Brightness.light,
-                  ).copyWith(frost: const LiquidGlassFrost.sigma(8)),
+                  const LiquidGlassSettings.ios27Regular().copyWith(blur: 8),
                   const Rect.fromLTWH(30, 40, 200, 90),
                 ),
               ),
             ),
             Positioned.fill(
               child: layer(
-                const LiquidGlassSettings.ios27Regular(
-                  brightness: Brightness.light,
-                ).copyWith(frost: const LiquidGlassFrost.sigma(0)),
+                const LiquidGlassSettings.ios27Regular().copyWith(blur: 0),
                 const Rect.fromLTWH(80, 60, 100, 60),
               ),
             ),

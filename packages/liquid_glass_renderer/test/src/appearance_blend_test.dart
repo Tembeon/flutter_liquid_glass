@@ -37,9 +37,7 @@ class _MergedAppearances extends StatelessWidget {
   Widget build(BuildContext context) => ColoredBox(
     color: const Color(0xFF8C8C8C),
     child: LiquidGlassLayer(
-      settings: const LiquidGlassSettings.ios27Regular(
-        brightness: Brightness.dark,
-      ),
+      settings: const LiquidGlassSettings.ios27Regular(),
       child: LiquidGlassBlendGroup(
         blend: 24,
         child: Stack(

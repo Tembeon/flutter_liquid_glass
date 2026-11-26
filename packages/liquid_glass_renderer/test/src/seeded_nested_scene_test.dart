@@ -242,10 +242,12 @@ Widget _nestedForeground(bool fake, ValueNotifier<Offset> translation) =>
       fake: fake,
       settings: const LiquidGlassSettings(
         refractionHeight: 18,
-        frost: LiquidGlassFrost.sigma(4),
-        glintStrength: 0,
+        blur: 4,
       ),
-      defaultAppearance: const LiquidGlassAppearance(tint: Color(0x4020A0FF)),
+      defaultAppearance: const LiquidGlassAppearance(
+        tint: Color(0x4020A0FF),
+        colorModel: LiquidGlassColorModel.direct(glintStrength: 0),
+      ),
       child: Stack(
         children: [
           Positioned(
@@ -265,6 +267,9 @@ Widget _nestedForeground(bool fake, ValueNotifier<Offset> translation) =>
                       shape: LiquidRoundedRectangle(radius: 16),
                       appearance: LiquidGlassAppearance(
                         tint: Color(0xC0FF6048),
+                        colorModel: LiquidGlassColorModel.direct(
+                          glintStrength: 0,
+                        ),
                       ),
                       child: ColoredBox(
                         color: Color(0xC0FF6048),

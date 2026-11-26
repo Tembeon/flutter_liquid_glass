@@ -188,12 +188,7 @@ Future<void> warmLiquidGlassPipelines(
     for (final brightness in Brightness.values) {
       for (final sigma in _frostSigmas) {
         final parts = fakeGlassBackdropFilterParts(
-          FakeGlassLook.of(
-            LiquidGlassSettings.ios27Regular(
-              brightness: brightness,
-              frost: LiquidGlassFrost.sigma(sigma),
-            ),
-          ),
+          FakeGlassLook.of(LiquidGlassSettings(blur: sigma)),
           LiquidGlassAppearance.ios27Regular(
             brightness: brightness,
           ).wornByNone,
@@ -257,9 +252,7 @@ Future<void> warmLiquidGlassPipelines(
 
 const _fakeGlassShape = LiquidRoundedSuperellipse(radius: 6);
 
-final _fakeLook = FakeGlassLook.of(
-  const LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
-);
+final _fakeLook = FakeGlassLook.of(const LiquidGlassSettings());
 
 ui.ImageFilter _blur(double sigma) => ui.ImageFilter.blur(
   sigmaX: sigma,

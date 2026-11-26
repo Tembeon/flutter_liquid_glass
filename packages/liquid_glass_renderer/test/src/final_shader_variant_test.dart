@@ -23,9 +23,7 @@ Widget _scene(List<LiquidGlassAppearance?> appearances) => Directionality(
       child: ColoredBox(
         color: _gray,
         child: LiquidGlassLayer(
-          settings: const LiquidGlassSettings.ios27Regular(
-            brightness: Brightness.light,
-          ),
+          settings: const LiquidGlassSettings.ios27Regular(),
           // A paint over a solid color, not a backdrop filter: flutter_tester
           // renders only a process's first backdrop filter reliably.
           backdrop: const LiquidGlassBackdrop.solid(_gray),

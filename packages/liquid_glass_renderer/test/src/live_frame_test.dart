@@ -29,9 +29,7 @@ Widget _scene({required Widget glass, required Rect at, bool fake = false}) =>
             child: ColoredBox(
               color: _gray,
               child: LiquidGlassLayer(
-                settings: const LiquidGlassSettings.ios27Regular(
-                  brightness: Brightness.light,
-                ),
+                settings: const LiquidGlassSettings.ios27Regular(),
                 backdrop: const LiquidGlassBackdrop.solid(_gray),
                 fake: fake,
                 child: Stack(

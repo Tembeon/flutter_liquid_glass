@@ -85,7 +85,7 @@ void main() {
               LiquidGlassLayer(
                 fake: fake,
                 settings: const LiquidGlassSettings(
-                  frost: LiquidGlassFrost.sigma(8),
+                  blur: 8,
                 ),
                 defaultAppearance: const LiquidGlassAppearance(
                   tint: Color(0x80FF0000),

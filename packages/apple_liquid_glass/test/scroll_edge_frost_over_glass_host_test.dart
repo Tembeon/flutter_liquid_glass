@@ -17,7 +17,7 @@ import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_levels.dart';
 
-const _light = LiquidGlassSettings.ios27Regular(brightness: Brightness.light);
+const _light = LiquidGlassSettings.ios27Regular();
 
 const _key = ValueKey('page');
 

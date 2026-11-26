@@ -100,7 +100,7 @@ void main() {
                 ),
               )
             : (
-                LiquidGlassSettings.ios27Regular(brightness: brightness),
+                const LiquidGlassSettings.ios27Regular(),
                 LiquidGlassAppearance.ios27Regular(
                   brightness: brightness,
                   increaseContrast: increaseContrast,

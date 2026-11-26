@@ -36,12 +36,9 @@ Widget _scene(List<List<int>> layers) => Directionality(
         for (final shapes in layers)
           Positioned.fill(
             child: LiquidGlassLayer(
-              settings:
-                  const LiquidGlassSettings.ios27Regular(
-                    brightness: Brightness.light,
-                  ).copyWith(
-                    frost: const LiquidGlassFrost.sigma(0),
-                  ),
+              settings: const LiquidGlassSettings.ios27Regular().copyWith(
+                blur: 0,
+              ),
               child: Stack(
                 children: [
                   for (final i in shapes)

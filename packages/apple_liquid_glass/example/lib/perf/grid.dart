@@ -295,7 +295,6 @@ class _Scene extends StatelessWidget {
               height: 150,
               child: const LiquidGlassLayer(
                 settings: LiquidGlassSettings.ios27Regular(
-                  brightness: Brightness.light,
                 ),
                 child: LiquidGlass(
                   shape: LiquidRoundedSuperellipse(radius: 28),
@@ -317,9 +316,8 @@ class _Scene extends StatelessWidget {
             child: LiquidGlassLayer(
               settings:
                   const LiquidGlassSettings.ios27Regular(
-                    brightness: Brightness.light,
                   ).copyWith(
-                    frost: const LiquidGlassFrost.sigma(0),
+                    blur: 0,
                   ),
               child: Column(
                 children: [

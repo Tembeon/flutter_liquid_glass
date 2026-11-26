@@ -7,7 +7,6 @@ import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
-import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/widgets/composer_install.dart';
@@ -100,7 +99,7 @@ class FakeGlass extends StatelessWidget {
     final clipped = OptimizedClip(
       shape: shape,
       clipBehavior: Clip.antiAlias,
-      outset: fakeGlassSurfaceOutset(FakeGlassLook.of(settings)),
+      outset: fakeGlassSurfaceOutset(shown.wornByNone.colorModel),
       child: MultiShaderBuilder(
         (_, shaders, _) => raw(shaders[ShaderKeys.fakeGlassSurface]),
         assetKeys: ShaderKeys.fakeSurfaceAssets,

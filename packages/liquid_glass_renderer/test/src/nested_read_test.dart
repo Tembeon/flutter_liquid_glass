@@ -22,10 +22,10 @@ Widget _glass(Rect rect, double glint, {double frost = 1.5}) =>
       rect: rect,
       child: LiquidGlassLayer(
         // A frost that a copy at half the screen's pixels bakes in place.
-        settings: LiquidGlassSettings.ios27Regular(
-          brightness: Brightness.light,
-          frost: LiquidGlassFrost.sigma(frost),
-        ).copyWith(glintStrength: glint),
+        settings: LiquidGlassSettings.ios27Regular(blur: frost),
+        defaultAppearance: LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(glintStrength: glint),
+        ),
         child: const LiquidGlass(
           shape: LiquidRoundedSuperellipse(radius: 30),
           child: SizedBox.expand(),

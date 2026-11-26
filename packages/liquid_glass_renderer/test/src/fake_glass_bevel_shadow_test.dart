@@ -83,10 +83,7 @@ Future<({double top, double bottom, double side, double middle})> _innerShadow(
 }
 
 void main() {
-  final base = const LiquidGlassSettings.ios27Regular(
-    brightness: Brightness.light,
-    frost: LiquidGlassFrost.sigma(0),
-  ).copyWith(glintStrength: 0, contourStrength: 0);
+  const base = LiquidGlassSettings.ios27Regular(blur: 0);
 
   testWidgets(
     'FakeGlass of an iOS 27 look draws its ring shadow below the top wall '
@@ -96,7 +93,7 @@ void main() {
       final real = await _innerShadow(tester, base, fake: false);
       final noBevel = await _innerShadow(
         tester,
-        base.copyWith(bevelShadowStrength: 0),
+        base,
       );
 
       // iOS 27 darkens white about 4 levels there.
@@ -140,17 +137,23 @@ void main() {
   testWidgets(
     'FakeGlass of the direct model draws the bevel shadow it is given',
     (tester) async {
-      const direct = LiquidGlassAppearance();
-      final preset = await _innerShadow(tester, base, appearance: direct);
+      LiquidGlassAppearance direct({double? bevel}) => LiquidGlassAppearance(
+        colorModel: LiquidGlassColorModel.direct(
+          glintStrength: 0,
+          contourStrength: 0,
+          bevelShadowStrength: bevel,
+        ),
+      );
+      final preset = await _innerShadow(tester, base, appearance: direct());
       final none = await _innerShadow(
         tester,
-        base.copyWith(bevelShadowStrength: 0),
-        appearance: direct,
+        base,
+        appearance: direct(bevel: 0),
       );
       final strong = await _innerShadow(
         tester,
-        base.copyWith(bevelShadowStrength: 0.15),
-        appearance: direct,
+        base,
+        appearance: direct(bevel: 0.15),
       );
 
       expect(none.top, closeTo(0, 0.6));

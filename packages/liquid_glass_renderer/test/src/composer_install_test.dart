@@ -17,7 +17,7 @@ import 'package:material_ui/material_ui.dart';
 import 'shared.dart';
 
 Widget _glass() => const LiquidGlassLayer(
-  settings: LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+  settings: LiquidGlassSettings.ios27Regular(),
   child: SizedBox(
     width: 120,
     height: 60,

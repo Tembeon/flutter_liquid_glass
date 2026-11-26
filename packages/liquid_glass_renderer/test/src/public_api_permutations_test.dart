@@ -79,7 +79,7 @@ void main() {
     await tester.pumpWidget(
       const CupertinoApp(
         home: FakeGlass(
-          settings: LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
+          settings: LiquidGlassSettings(blur: 0),
           shape: LiquidOval(),
           child: SizedBox.square(dimension: 80),
         ),
