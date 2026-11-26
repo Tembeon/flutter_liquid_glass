@@ -80,5 +80,6 @@ export 'src/raw/switch.dart'
     show GlassSwitchBuilder, GlassSwitchDetails, RawGlassSwitch;
 export 'src/raw/text_field.dart'
     show GlassTextFieldBuilder, GlassTextFieldDetails, RawGlassTextField;
+export 'src/raw/tooltip_scope.dart' show RawTooltipScope;
 export 'src/raw/wheel.dart'
     show GlassWheelRowBuilder, GlassWheelSelectionBuilder, RawGlassWheel;

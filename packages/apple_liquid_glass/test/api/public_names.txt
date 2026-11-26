@@ -430,6 +430,7 @@ RawGlassSwipeActions
 RawGlassSwitch
 RawGlassTextField
 RawGlassWheel
+RawTooltipScope
 RectSprings
 RenderListenable
 RenderListening

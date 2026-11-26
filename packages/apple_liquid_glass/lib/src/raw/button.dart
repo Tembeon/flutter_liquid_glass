@@ -1,6 +1,7 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/raw/source.dart';
+import 'package:apple_liquid_glass/src/raw/tooltip_scope.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -111,7 +112,7 @@ class RawGlassButton extends StatefulWidget {
 }
 
 class _RawGlassButtonState extends State<RawGlassButton>
-    with ControlStates<RawGlassButton> {
+    with ControlStates<RawGlassButton>, RawTooltipClaim<RawGlassButton> {
   late final GlassPress _press = GlassPress(
     clock: MotionClockScope.of(context),
   );
@@ -167,6 +168,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
         autofocus: widget.autofocus,
         semantics: SemanticsProperties(
           label: widget.semanticLabel,
+          tooltip: tooltip,
           button: true,
         ),
         reach: glassButtonReach,

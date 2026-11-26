@@ -174,6 +174,44 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('a glass button under a tooltip reads as one button named by '
+      'the message', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: GlassScope(
+          renderer: const FlatGlassRenderer(),
+          child: Overlay(
+            initialEntries: [
+              OverlayEntry(
+                builder: (context) => Center(
+                  child: GlassTooltip(
+                    message: 'New letter',
+                    child: GlassButton(
+                      onPressed: () {},
+                      child: const SizedBox.square(dimension: 24),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    final node = find.semantics.byPredicate(
+      (node) => node.tooltip == 'New letter',
+    );
+    expect(node, findsOne);
+    expect(
+      node.evaluate().single.flagsCollection.isButton,
+      isTrue,
+      reason: 'the tooltip names the button, not a node around it',
+    );
+    semantics.dispose();
+  });
+
   testWidgets('a closed tooltip puts no layer around its child', (
     tester,
   ) async {

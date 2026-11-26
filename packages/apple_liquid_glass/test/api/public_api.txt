@@ -4186,6 +4186,17 @@ class RawGlassWheel extends StatefulWidget
   final WidgetStatesController? statesController
   final int value
   overrides: createState
+final class RawTooltipScope extends InheritedWidget
+  const RawTooltipScope({
+    required String message,
+    required ValueNotifier<int> claims,
+    required Widget child,
+    Key? key,
+  })
+  final ValueNotifier<int> claims
+  static RawTooltipScope? maybeOf(BuildContext context)
+  final String message
+  overrides: updateShouldNotify
 class RenderScrollEdge extends RenderBox
   RenderScrollEdge({
     required GlassScrollEdgeDetails details,
@@ -5344,6 +5355,7 @@ class RawGlassSwipeActions (see package:apple_liquid_glass/apple_liquid_glass.da
 class RawGlassSwitch (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassTextField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassWheel (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawTooltipScope (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwipeGroup (see package:apple_liquid_glass/apple_liquid_glass.dart)
 
 # package:apple_liquid_glass/surfaces.dart
