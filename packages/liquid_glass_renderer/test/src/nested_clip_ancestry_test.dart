@@ -33,8 +33,6 @@ void main() {
             // layer, empty: Flutter 3.50's Impeller draws no glass there at
             // all.
             glassReadsCopies = true;
-            addTearDown(() => glassReadsCopies = false);
-
             Future<Uint8List> render({required bool clipAboveLayer}) async {
               final key = GlobalKey();
               const glass = OverflowBox(

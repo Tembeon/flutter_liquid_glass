@@ -122,10 +122,6 @@ void main() {
     MotionClock.debugReset();
     glassReadsCopies = true;
   });
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassPolicy = const PlanPolicy();
-  });
 
   for (final (dpr, hard, near) in [
     (2.625, true, 13),

@@ -48,10 +48,6 @@ void main() {
     glassReadsCopies = true;
   });
 
-  tearDown(() {
-    glassReadsCopies = false;
-  });
-
   testWidgets('joins three disjoint buttons on a real frame', (tester) async {
     if (skipProperGlassTests) return;
     var sites = 0;

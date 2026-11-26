@@ -24,9 +24,7 @@ void runWholeLayerFakeBlurTests(SubmittedSceneCapture binding) {
         '${animated ? "FadeTransition" : "Opacity"} (copies=$copies)', (
       tester,
     ) async {
-      final readsCopies = glassReadsCopies;
       glassReadsCopies = copies;
-      addTearDown(() => glassReadsCopies = readsCopies);
       final oldSize = (binding.captureWidth, binding.captureHeight);
       binding
         ..captureWidth = 240

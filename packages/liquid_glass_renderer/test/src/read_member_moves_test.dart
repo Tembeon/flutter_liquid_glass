@@ -149,10 +149,6 @@ int _readLayersOf(WidgetTester tester, _CapturingView view) {
 
 void main() {
   setUp(() => glassReadsCopies = true);
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassPolicy = const PlanPolicy();
-  });
 
   test('a painter role is equal for the same painter at the same place', () {
     final painter = _Painter();

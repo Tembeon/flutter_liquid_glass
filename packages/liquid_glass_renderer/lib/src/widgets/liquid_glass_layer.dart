@@ -15,6 +15,8 @@ import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart'
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_precache.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
 
+const LiquidGlassBackdrop _defaultBackdrop = LiquidGlassBackdrop.read();
+
 /// Represents a layer of multiple [LiquidGlass] shapes or
 /// [LiquidGlassBlendGroup]s that have shared [LiquidGlassSettings] and will be
 /// rendered together.
@@ -77,7 +79,7 @@ class LiquidGlassLayer extends StatefulWidget {
     this.defaultAppearance,
     this.fake = false,
     this.field,
-    this.backdrop = const LiquidGlassBackdrop.read(),
+    this.backdrop = _defaultBackdrop,
     super.key,
   }) : frame = null;
 
@@ -96,7 +98,7 @@ class LiquidGlassLayer extends StatefulWidget {
     required ValueListenable<LiquidGlassLayerFrame> this.frame,
     required this.child,
     this.fake = false,
-    this.backdrop = const LiquidGlassBackdrop.read(),
+    this.backdrop = _defaultBackdrop,
     super.key,
   }) : settings = null,
        field = null,
@@ -183,7 +185,7 @@ class LiquidGlassLayer extends StatefulWidget {
         DiagnosticsProperty(
           'backdrop',
           backdrop,
-          defaultValue: const LiquidGlassBackdrop.read(),
+          defaultValue: _defaultBackdrop,
         ),
       )
       ..add(DiagnosticsProperty('frame', frame, defaultValue: null));

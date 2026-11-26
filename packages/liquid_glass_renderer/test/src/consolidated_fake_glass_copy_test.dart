@@ -1,8 +1,6 @@
 @Tags(['composer'])
 library;
 
-import 'dart:typed_data';
-
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
@@ -71,31 +69,7 @@ RenderConsolidatedFakeGlassLayer _glass(WidgetTester tester) =>
       find.byType(ConsolidatedFakeGlassLayer),
     );
 
-Future<Uint8List> _pixels(WidgetTester tester) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(boundary.toImage))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
-}
-
-int _difference(Uint8List a, Uint8List b) {
-  var largest = 0;
-  for (var i = 0; i < a.length; i++) {
-    final d = (a[i] - b[i]).abs();
-    if (d > largest) largest = d;
-  }
-  return largest;
-}
-
 void main() {
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassPolicy = const PlanPolicy();
-  });
-
   testWidgets(
     'grouped fake glass over a copy draws what reading the '
     'backdrop draws',
@@ -110,7 +84,7 @@ void main() {
       glassReadsCopies = false;
       await tester.pumpWidget(_scene());
       await tester.pump();
-      final reading = await _pixels(tester);
+      final reading = await boundaryPixels(tester, find.byKey(_key));
       expect(_glass(tester).debugDrewOverCopy, isFalse);
 
       glassReadsCopies = true;
@@ -125,10 +99,10 @@ void main() {
         ),
         isEmpty,
       );
-      final copied = await _pixels(tester);
+      final copied = await boundaryPixels(tester, find.byKey(_key));
       // NEAR: a blur Impeller downsamples takes other taps over a copy than
       // over the whole backdrop; at 2 px of frost the two do not differ.
-      expect(_difference(reading, copied), lessThanOrEqualTo(20));
+      expect(largestDifference(reading, copied), lessThanOrEqualTo(20));
     },
     skip: skipProperGlassTests,
     tags: 'macos_pixels',

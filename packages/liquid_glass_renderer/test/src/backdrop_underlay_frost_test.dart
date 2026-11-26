@@ -9,10 +9,6 @@ import 'shared.dart';
 import 'underlay_scene.dart';
 
 void main() {
-  tearDown(() {
-    debugGlassPolicy = const PlanPolicy();
-  });
-
   testWidgets('frosted glass over its blurred copy draws what reading the '
       'backdrop draws', (tester) async {
     debugGlassPolicy = const PlanPolicy(shaderFrost: false, maxCopyShare: 1);

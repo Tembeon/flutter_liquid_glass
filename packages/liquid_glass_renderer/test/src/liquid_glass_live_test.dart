@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
@@ -68,16 +67,6 @@ Widget _layer({
       : LiquidGlassLayer.live(frame: live, backdrop: backdrop, child: child);
 }
 
-Future<Uint8List> _capture(WidgetTester tester) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(boundary.toImage))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
-}
-
 void main() {
   setUp(() {
     debugOnRebuildDirtyWidget = null;
@@ -102,7 +91,7 @@ void main() {
       ),
     );
     await tester.pump();
-    final fixed = await _capture(tester);
+    final fixed = await boundaryPixels(tester, find.byKey(_key));
 
     final shape = ValueNotifier(_first);
     final layer = ValueNotifier(
@@ -135,7 +124,7 @@ void main() {
     );
     await tester.pump();
     debugOnRebuildDirtyWidget = null;
-    final live = await _capture(tester);
+    final live = await boundaryPixels(tester, find.byKey(_key));
 
     expect(rebuilt, isEmpty);
     var differing = 0;

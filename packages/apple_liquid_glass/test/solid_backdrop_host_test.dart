@@ -134,8 +134,6 @@ const _photoColor = Color(0xFF20D040);
 
 void main() {
   setUp(() => glassReadsCopies = true);
-  tearDown(() => glassReadsCopies = false);
-
   testWidgets('a control on a row reads nothing and looks the same', (
     tester,
   ) async {

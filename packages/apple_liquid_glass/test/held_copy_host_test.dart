@@ -167,10 +167,6 @@ void main() {
     // rows under each are layers drawn apart, six targets a read.
     debugGlassPolicy = const PlanPolicy(maxTargets: 64);
   });
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassPolicy = const PlanPolicy();
-  });
 
   testWidgets('a scrolled read adds fewer layers once they hold', (
     tester,

@@ -132,8 +132,6 @@ int _filledSlots(WidgetTester tester) {
 
 void main() {
   setUp(() => glassReadsCopies = true);
-  tearDown(() => glassReadsCopies = false);
-
   group('a frame nothing changed', () {
     testWidgets('makes no filter, picture or image and replays nothing', (
       tester,
@@ -190,7 +188,6 @@ void main() {
       // measured price a button with a haze, three passes a frame, is due
       // one in the frame after the first that is listened to, which plans.
       debugGlassPolicy = const PlanPolicy(imagePasses: 30);
-      addTearDown(() => debugGlassPolicy = const PlanPolicy());
       final controller = ScrollController();
       addTearDown(controller.dispose);
       await tester.pumpWidget(_screen(controller));

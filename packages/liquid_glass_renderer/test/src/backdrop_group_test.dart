@@ -10,9 +10,7 @@ import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 void main() {
   group('glass reading its backdrop directly', () {
     setUp(() {
-      final readsCopies = glassReadsCopies;
       glassReadsCopies = false;
-      addTearDown(() => glassReadsCopies = readsCopies);
     });
 
     Widget glass() => const LiquidGlassLayer(

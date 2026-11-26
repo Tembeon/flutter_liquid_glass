@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
@@ -67,16 +66,6 @@ Widget _scene(
   ),
 );
 
-Future<Uint8List> _capture(WidgetTester tester) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(boundary.toImage))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
-}
-
 Future<Uint8List> _render(
   WidgetTester tester,
   List<(Rect, ValueListenable<LiquidGlassShapeFrame>)> glass, {
@@ -88,7 +77,7 @@ Future<Uint8List> _render(
   addTearDown(tester.view.reset);
   await tester.pumpWidget(_scene(glass, fake: fake));
   await tester.pump();
-  return _capture(tester);
+  return boundaryPixels(tester, find.byKey(_key));
 }
 
 (double, double, double) _at(Uint8List rgba, Offset p) {
@@ -150,7 +139,7 @@ void main() {
     const shift = Offset(10, 6);
     await tester.pumpWidget(_scene([(_glass.shift(shift), frame)]));
     await tester.pump();
-    final after = await _capture(tester);
+    final after = await boundaryPixels(tester, find.byKey(_key));
 
     for (final p in [_spot, const Offset(100, 100), const Offset(60, 120)]) {
       _expectClose(_at(after, p + shift), _at(before, p), '$p');

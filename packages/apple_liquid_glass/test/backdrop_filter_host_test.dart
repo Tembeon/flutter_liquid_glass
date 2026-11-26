@@ -111,8 +111,6 @@ bool _glassOverFourthRow(Uint8List pixels, {required double scrolled}) {
 
 void main() {
   setUp(() => glassReadsCopies = true);
-  tearDown(() => glassReadsCopies = false);
-
   testWidgets('glass scrolled over a copy builds no backdrop filter', (
     tester,
   ) async {

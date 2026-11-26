@@ -148,10 +148,6 @@ double _meanInBand(Uint8List a, Uint8List b, double dpr) {
 
 void main() {
   setUp(MotionClock.debugReset);
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassPolicy = const PlanPolicy();
-  });
 
   for (final dpr in [2.625, 3.0]) {
     testWidgets('the band at $dpr frosts a copy drawn in the frame over '

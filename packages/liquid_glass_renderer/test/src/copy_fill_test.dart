@@ -13,6 +13,8 @@ import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
+import 'shared.dart';
+
 const _key = ValueKey('screen');
 const _glass = Rect.fromLTWH(50, 100, 200, 44);
 
@@ -215,11 +217,22 @@ void main() {
       imageBlur: null,
       levels: const CopyLevels(fill: 15.5),
     );
-    // Sixty rows of the copy are fifteen of level 2, its ring and a spare
-    // row.
+    Rect withRows(Rect copy) => Rect.fromLTRB(
+      copy.left,
+      copy.top,
+      copy.right,
+      copy.bottom +
+          LevelStrip(
+            const CopyLevels(fill: 15.5),
+            devicePixelRatio: 1,
+            share: 1,
+            copy: copy.size,
+            grid: copy.topLeft,
+          ).rows,
+    );
     final whole = read(share: 1);
     expect(whole.footprint, const Rect.fromLTWH(50, 100, 200, 60));
-    expect(whole.layer, const Rect.fromLTRB(50, 100, 250, 179));
+    expect(whole.layer, withRows(whole.footprint.rect));
     expect(CornerPlace.inFrame(whole).passes, 2);
     // A smaller copy lies in its layer's corner, with rows to spare.
     final corner = read(share: 2);
@@ -228,23 +241,19 @@ void main() {
     // layer for leaves it whole, and the rows fit under it.
     expect(
       read(share: 1, clip: const Rect.fromLTRB(0, 110, 300, 400)).layer,
-      const Rect.fromLTRB(50, 100, 250, 179),
+      withRows(whole.footprint.rect),
     );
     // With the rows past the clip's bottom too, the layer would be cut to
     // the clip: it starts at the clip, and keeps the rows of what is left.
     expect(
       read(share: 1, clip: const Rect.fromLTRB(0, 113, 300, 160)).layer,
-      const Rect.fromLTRB(50, 113, 250, 176),
+      withRows(const Rect.fromLTRB(50, 113, 250, 160)),
     );
   });
 
   group('drawn into a copy', () {
     setUp(() {
       glassReadsCopies = true;
-    });
-    tearDown(() {
-      glassReadsCopies = false;
-      debugGlassPolicy = const PlanPolicy();
     });
 
     void sized(WidgetTester tester) {
@@ -356,12 +365,7 @@ void main() {
       );
       final frame = await _row(tester, settings, inFrame: true);
       final image = await _row(tester, settings, inFrame: false);
-      var largest = 0;
-      for (var i = 0; i < frame.length; i++) {
-        final d = (frame[i] - image[i]).abs();
-        if (d > largest) largest = d;
-      }
-      expect(largest, lessThanOrEqualTo(6));
+      expect(largestDifference(frame, image), lessThanOrEqualTo(6));
     }, tags: 'composer');
   });
 }

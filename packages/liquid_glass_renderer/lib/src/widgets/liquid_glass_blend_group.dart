@@ -8,6 +8,8 @@ import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
 
+const double _defaultBlend = 20;
+
 /// A widget that groups multiple liquid glass shapes for blending.
 ///
 /// Every [LiquidGlass] below it blends with the others, down to the next
@@ -26,7 +28,7 @@ class LiquidGlassBlendGroup extends StatefulWidget {
   /// Creates a new [LiquidGlassBlendGroup].
   const LiquidGlassBlendGroup({
     required this.child,
-    this.blend = 20.0,
+    this.blend = _defaultBlend,
     super.key,
   });
 
@@ -45,7 +47,9 @@ class LiquidGlassBlendGroup extends StatefulWidget {
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
-    properties.add(DoubleProperty('blend', blend, defaultValue: 20.0));
+    properties.add(
+      DoubleProperty('blend', blend, defaultValue: _defaultBlend),
+    );
   }
 }
 

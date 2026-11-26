@@ -1,7 +1,9 @@
 import 'dart:io' show File, Platform;
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
@@ -43,6 +45,32 @@ void expectGeneratedFile(String path, String text) {
 Future<void> expectMacOSGolden(Object? actual, String path) async {
   if (!Platform.isMacOS) return;
   await expectLater(actual, matchesGoldenFile(path));
+}
+
+/// The pixels of the repaint boundary [boundary] finds, drawn at
+/// [pixelRatio].
+Future<Uint8List> boundaryPixels(
+  WidgetTester tester,
+  Finder boundary, {
+  double pixelRatio = 1,
+}) async {
+  final render = tester.renderObject<RenderRepaintBoundary>(boundary);
+  final image = (await tester.runAsync(
+    () => render.toImage(pixelRatio: pixelRatio),
+  ))!;
+  final bytes = (await tester.runAsync(image.toByteData))!;
+  image.dispose();
+  return bytes.buffer.asUint8List();
+}
+
+/// The largest channel difference between two frames.
+int largestDifference(List<int> a, List<int> b) {
+  var largest = 0;
+  for (var i = 0; i < a.length; i++) {
+    final d = (a[i] - b[i]).abs();
+    if (d > largest) largest = d;
+  }
+  return largest;
 }
 
 final testScenarioConstraints = BoxConstraints.tight(const Size(500, 500));
@@ -96,5 +124,4 @@ Widget buildWithGridPaper(Widget child) {
 /// with a filter always are, for tests of how images are shared and held.
 void copyIntoImages() {
   debugGlassPolicy = const PlanPolicy(maxTargets: 0);
-  addTearDown(() => debugGlassPolicy = const PlanPolicy());
 }

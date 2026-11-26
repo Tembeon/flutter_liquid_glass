@@ -98,8 +98,6 @@ Future<Color> _pixel(WidgetTester tester, Offset at) async {
 
 void main() {
   setUp(() => glassReadsCopies = true);
-  tearDown(() => glassReadsCopies = false);
-
   group('a container of a type nobody registered', () {
     testWidgets('keeps glass away from what it holds on its copy', (
       tester,

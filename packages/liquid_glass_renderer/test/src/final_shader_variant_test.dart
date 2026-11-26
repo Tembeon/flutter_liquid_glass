@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
@@ -47,16 +45,6 @@ Widget _scene(List<LiquidGlassAppearance?> appearances) => Directionality(
     ),
   ),
 );
-
-Future<Uint8List> _capture(WidgetTester tester) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(boundary.toImage))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
-}
 
 RenderLiquidGlassLayer _layer(WidgetTester tester) =>
     tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().toSet().single;
@@ -160,7 +148,7 @@ void main() {
       RenderLiquidGlassLayer.debugShaderVariants = false;
       await tester.pumpWidget(_scene(appearances));
       await tester.pump();
-      final general = await _capture(tester);
+      final general = await boundaryPixels(tester, find.byKey(_key));
 
       RenderLiquidGlassLayer.debugShaderVariants = true;
       await tester.pumpWidget(const SizedBox());
@@ -177,14 +165,8 @@ void main() {
         ),
         isTrue,
       );
-      final variant = await _capture(tester);
-
-      var largest = 0;
-      for (var i = 0; i < general.length; i++) {
-        final d = (general[i] - variant[i]).abs();
-        if (d > largest) largest = d;
-      }
-      expect(largest, lessThanOrEqualTo(1));
+      final variant = await boundaryPixels(tester, find.byKey(_key));
+      expect(largestDifference(general, variant), lessThanOrEqualTo(1));
     }, skip: skipProperGlassTests);
   }
 }

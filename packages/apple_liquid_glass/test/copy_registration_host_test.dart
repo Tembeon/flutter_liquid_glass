@@ -137,7 +137,6 @@ void main() {
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
       glassReadsCopies = true;
-      addTearDown(() => glassReadsCopies = false);
       final (bar, text) = await _centers(tester, dpr, glass: false);
       final (frostedBar, frostedText) = await _centers(
         tester,
@@ -160,7 +159,6 @@ void main() {
     tester.view.devicePixelRatio = dpr;
     addTearDown(tester.view.reset);
     glassReadsCopies = true;
-    addTearDown(() => glassReadsCopies = false);
     // The copy holds two device pixels a side here; a third of a logical
     // pixel is half of one of its own.
     for (final (halves, shift) in [(0, 0.0), (1, 1.0)]) {

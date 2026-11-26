@@ -112,7 +112,6 @@ void main() {
         if (!levels) debugGlassPolicy = const PlanPolicy(shaderFrost: false);
         addTearDown(() {
           glassReadsCopies = copies;
-          debugGlassPolicy = const PlanPolicy();
         });
         tester.view
           ..physicalSize = _view * _dpr

@@ -123,8 +123,6 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       glassReadsCopies = true;
-      addTearDown(() => glassReadsCopies = false);
-
       await tester.pumpWidget(places(glassFirst: true));
       for (var i = 0; i < 60; i++) {
         await tester.pump(const Duration(milliseconds: 16));
@@ -142,7 +140,6 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     glassReadsCopies = true;
-    addTearDown(() => glassReadsCopies = false);
     const settings = LiquidGlassSettings.ios27Regular();
 
     Widget glassAt(double left) => Positioned(
@@ -213,7 +210,6 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     glassReadsCopies = true;
-    addTearDown(() => glassReadsCopies = false);
     final width = ValueNotifier<double>(100);
     addTearDown(width.dispose);
 
@@ -403,8 +399,6 @@ void main() {
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
         glassReadsCopies = true;
-        addTearDown(() => glassReadsCopies = false);
-
         await tester.pumpWidget(scene());
         for (var i = 0; i < 60; i++) {
           await tester.pump(const Duration(milliseconds: 16));

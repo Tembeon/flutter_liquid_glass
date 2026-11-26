@@ -361,10 +361,6 @@ Future<Map<_Backdrop, _Difference>> _cell(
 
 void main() {
   setUp(() => glassReadsCopies = true);
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassPolicy = const PlanPolicy();
-  });
 
   // flutter_tester draws only a process's first backdrop filter reliably,
   // so this test comes first and draws one glass.

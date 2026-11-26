@@ -1,7 +1,6 @@
 @Tags(['composer'])
 library;
 
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
@@ -145,30 +144,7 @@ Widget _scene({
 LiquidGlassBackdropFilterLayer _band(WidgetTester tester) =>
     tester.layers.whereType<LiquidGlassBackdropFilterLayer>().single;
 
-Future<Uint8List> _pixels(WidgetTester tester) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(boundary.toImage))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
-}
-
-int _difference(Uint8List a, Uint8List b) {
-  var largest = 0;
-  for (var i = 0; i < a.length; i++) {
-    final d = (a[i] - b[i]).abs();
-    if (d > largest) largest = d;
-  }
-  return largest;
-}
-
 void main() {
-  tearDown(() {
-    glassReadsCopies = false;
-  });
-
   testWidgets(
     'the band over a copy drawn in the very frame what lies under '
     'it changed draws what reading the backdrop draws',
@@ -181,7 +157,7 @@ void main() {
       // reliably, so the reference reads the backdrop first.
       glassReadsCopies = false;
       await tester.pumpWidget(_scene());
-      final reading = await _pixels(tester);
+      final reading = await boundaryPixels(tester, find.byKey(_key));
       expect(_band(tester).serves, isFalse);
 
       glassReadsCopies = true;
@@ -192,10 +168,22 @@ void main() {
       expect(_band(tester).serves, isTrue);
       expect(tester.layers.whereType<BackdropFilterLayer>(), isEmpty);
       // The copy reads as far as the blur's reach, the backdrop reads the pass.
-      expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(2));
+      expect(
+        largestDifference(
+          reading,
+          await boundaryPixels(tester, find.byKey(_key)),
+        ),
+        lessThanOrEqualTo(2),
+      );
 
       await tester.pumpWidget(_scene(band: false));
-      expect(_difference(reading, await _pixels(tester)), greaterThan(40));
+      expect(
+        largestDifference(
+          reading,
+          await boundaryPixels(tester, find.byKey(_key)),
+        ),
+        greaterThan(40),
+      );
     },
     skip: skipProperGlassTests,
   );

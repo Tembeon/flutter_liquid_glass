@@ -46,7 +46,6 @@ void runSeededNestedTests(SubmittedSceneCapture binding) {
         // draws a level apart from the read of the scene (NEAR): every frame
         // compared here reads the scene.
         debugGlassPolicy = const PlanPolicy(imagePasses: 10000000);
-        addTearDown(() => debugGlassPolicy = const PlanPolicy());
         final translation = ValueNotifier<Offset>(Offset.zero);
         addTearDown(translation.dispose);
         final opacity = AnimationController(vsync: tester, value: 1);
@@ -138,12 +137,12 @@ void runSeededNestedTests(SubmittedSceneCapture binding) {
           'original moved scene stays stable on the following frame',
         );
         expect(
-          _maxDifference(originalStatic, originalMoved),
+          largestDifference(originalStatic, originalMoved),
           greaterThan(10),
           reason: 'The translation must visibly change the reference scene.',
         );
         expect(
-          _maxDifference(originalStatic, background),
+          largestDifference(originalStatic, background),
           greaterThan(10),
           reason: 'An empty or invisible fixture must not pass.',
         );
@@ -323,15 +322,6 @@ void _expectPixels(
         'max=$maxError at (${worstIndex ~/ 4 % 240},'
         '${worstIndex ~/ 4 ~/ 240}) channel=${worstIndex % 4}.',
   );
-}
-
-int _maxDifference(Uint8List a, Uint8List b) {
-  var result = 0;
-  for (var i = 0; i < a.length; i++) {
-    final difference = (a[i] - b[i]).abs();
-    if (difference > result) result = difference;
-  }
-  return result;
 }
 
 class _Background extends CustomPainter {

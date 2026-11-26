@@ -81,9 +81,7 @@ void runGeometrySubmitBatchingTests() {
       'the atlases of a frame are drawn page by page while its scene is built '
       '(copies=$copies)',
       (tester) async {
-        final readsCopies = glassReadsCopies;
         glassReadsCopies = copies;
-        addTearDown(() => glassReadsCopies = readsCopies);
         tester.view
           ..physicalSize = const Size(900, 900)
           ..devicePixelRatio = 3;

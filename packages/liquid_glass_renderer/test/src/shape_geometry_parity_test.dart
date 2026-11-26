@@ -1,7 +1,5 @@
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
@@ -63,18 +61,6 @@ Widget _shape(LiquidShape shape, Size size) => SizedBox.fromSize(
   size: size,
   child: LiquidGlass(shape: shape, child: const SizedBox.expand()),
 );
-
-Future<Uint8List> _capture(WidgetTester tester) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(
-    () => boundary.toImage(pixelRatio: tester.view.devicePixelRatio),
-  ))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
-}
 
 RenderLiquidGlassLayer _layer(WidgetTester tester) =>
     tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().toSet().single;
@@ -142,13 +128,21 @@ void main() {
         await tester.pump();
         expect(_layer(tester).debugGeometry, isA<ComputedGeometry>());
         expect(_layer(tester).gpuGeometryRenderer.debugRenderCount, 0);
-        final computed = await _capture(tester);
+        final computed = await boundaryPixels(
+          tester,
+          find.byKey(_key),
+          pixelRatio: tester.view.devicePixelRatio,
+        );
 
         await tester.pumpWidget(const SizedBox());
         await tester.pumpWidget(_scene(glass, beside: true));
         await tester.pump();
         expect(_layer(tester).debugGeometry, isA<AtlasGeometry>());
-        final atlas = await _capture(tester);
+        final atlas = await boundaryPixels(
+          tester,
+          find.byKey(_key),
+          pixelRatio: tester.view.devicePixelRatio,
+        );
 
         final width = (_view.width * dpr).round();
         var seen = 0;

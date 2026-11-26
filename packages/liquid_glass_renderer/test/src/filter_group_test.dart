@@ -99,7 +99,6 @@ Future<(Uint8List, int)> _draw(
   debugGlassPolicy = groups
       ? const PlanPolicy()
       : const PlanPolicy(maxShapes: 0);
-  addTearDown(() => debugGlassPolicy = const PlanPolicy());
   await tester.pumpWidget(
     View(view: view, child: const SizedBox()),
     wrapWithView: false,
@@ -151,8 +150,6 @@ void main() {
     glassReadsCopies = true;
     GroupAtlas.debugRenders = 0;
   });
-  tearDown(() => glassReadsCopies = false);
-
   Future<void> expectSame(
     WidgetTester tester,
     List<Widget> children, {

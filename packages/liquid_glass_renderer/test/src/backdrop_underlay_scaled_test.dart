@@ -13,7 +13,6 @@ void main() {
     'backdrop draws',
     (tester) async {
       debugGlassPolicy = const PlanPolicy(shaderFrost: false, maxCopyShare: 1);
-      addTearDown(() => debugGlassPolicy = const PlanPolicy());
       expect(
         await underlayParity(tester, frost: 8, scale: 1.2),
         // NEAR: Impeller blurs a scaled canvas with other taps, 7 levels

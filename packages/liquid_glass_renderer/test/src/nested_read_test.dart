@@ -36,8 +36,6 @@ Widget _glass(Rect rect, double glint, {double frost = 2}) =>
 void main() {
   setUp(() => glassReadsCopies = true);
   tearDown(() {
-    glassReadsCopies = false;
-    debugGlassPolicy = const PlanPolicy();
     GlassComposer.debugOnPlan = null;
   });
 

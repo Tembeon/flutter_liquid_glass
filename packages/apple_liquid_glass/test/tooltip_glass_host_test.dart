@@ -70,8 +70,6 @@ void main() {
     MotionClock.debugReset();
     glassReadsCopies = true;
   });
-  tearDown(() => glassReadsCopies = false);
-
   testWidgets('glass beside a closed and an open tooltip reads a copy', (
     tester,
   ) async {

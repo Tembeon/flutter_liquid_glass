@@ -2,7 +2,6 @@
 library;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:material_ui/material_ui.dart';
@@ -52,16 +51,6 @@ const _content = Align(
   ),
 );
 
-Future<Uint8List> _capture(WidgetTester tester) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(boundary.toImage))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
-}
-
 int _differing(Uint8List a, Uint8List b) {
   var differing = 0;
   for (var i = 0; i < a.length; i++) {
@@ -108,7 +97,7 @@ Future<void> _drawsWhereFixedGlassDoes(
     ),
   );
   await tester.pump();
-  final fixed = await _capture(tester);
+  final fixed = await boundaryPixels(tester, find.byKey(_key));
 
   final frame = ValueNotifier(const LiquidGlassShapeFrame(shape: _shape));
   addTearDown(frame.dispose);
@@ -141,7 +130,7 @@ Future<void> _drawsWhereFixedGlassDoes(
   debugOnRebuildDirtyWidget = null;
 
   expect(rebuilt, isEmpty);
-  expect(_differing(fixed, await _capture(tester)), 0);
+  expect(_differing(fixed, await boundaryPixels(tester, find.byKey(_key))), 0);
 }
 
 void main() {
@@ -207,7 +196,7 @@ void main() {
       ),
     );
     await tester.pump();
-    final fixed = await _capture(tester);
+    final fixed = await boundaryPixels(tester, find.byKey(_key));
 
     final frame = ValueNotifier(
       const LiquidGlassShapeFrame(
@@ -239,7 +228,10 @@ void main() {
     debugOnRebuildDirtyWidget = null;
 
     expect(rebuilt, isEmpty);
-    expect(_differing(fixed, await _capture(tester)), 0);
+    expect(
+      _differing(fixed, await boundaryPixels(tester, find.byKey(_key))),
+      0,
+    );
   }, skip: skipProperGlassTests);
 
   testWidgets('a grouped live shape draws at its frame rect', (tester) async {
@@ -264,7 +256,7 @@ void main() {
       ),
     );
     await tester.pump();
-    final fixed = await _capture(tester);
+    final fixed = await boundaryPixels(tester, find.byKey(_key));
 
     final frame = ValueNotifier(const LiquidGlassShapeFrame(shape: _shape));
     addTearDown(frame.dispose);
@@ -281,7 +273,10 @@ void main() {
     );
     await tester.pump();
 
-    expect(_differing(fixed, await _capture(tester)), 0);
+    expect(
+      _differing(fixed, await boundaryPixels(tester, find.byKey(_key))),
+      0,
+    );
   }, skip: skipProperGlassTests);
 
   testWidgets('a live glass is hit where it was laid out', (tester) async {

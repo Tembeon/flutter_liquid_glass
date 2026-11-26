@@ -61,8 +61,6 @@ void main() {
     MotionClock.debugReset();
     glassReadsCopies = true;
   });
-  tearDown(() => glassReadsCopies = false);
-
   testWidgets('glass beside no toast and beside a shown one reads a copy', (
     tester,
   ) async {

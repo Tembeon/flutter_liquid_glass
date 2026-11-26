@@ -12,9 +12,7 @@ void main() {
   // backdrop; glass that reads a copy draws it through the read's filter.
   group('glass reading its backdrop', () {
     setUp(() {
-      final readsCopies = glassReadsCopies;
       glassReadsCopies = false;
-      addTearDown(() => glassReadsCopies = readsCopies);
     });
 
     RenderLiquidGlassLayer findLayer(WidgetTester tester) {

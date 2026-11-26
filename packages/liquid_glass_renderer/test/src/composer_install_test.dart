@@ -62,7 +62,6 @@ void main() {
       glassReadsCopies = true;
       addTearDown(() {
         installsGlassComposer = true;
-        glassReadsCopies = false;
       });
       await tester.pumpWidget(
         Directionality(textDirection: TextDirection.ltr, child: _glass()),
@@ -93,7 +92,6 @@ void main() {
     glassReadsCopies = true;
     addTearDown(() {
       installsGlassComposer = true;
-      glassReadsCopies = false;
     });
     tester.view
       ..physicalSize = const Size(260, 200)

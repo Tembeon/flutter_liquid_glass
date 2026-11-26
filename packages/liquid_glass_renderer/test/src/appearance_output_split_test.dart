@@ -34,12 +34,10 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
       '(copies=$copies, retained=$retained)',
       (tester) async {
         glassReadsCopies = copies;
-        addTearDown(() => glassReadsCopies = false);
         // A read that holds still moves to an image the next frame, which
         // draws a level apart from the read of the scene (NEAR): every frame
         // compared here reads the scene.
         debugGlassPolicy = const PlanPolicy(imagePasses: 10000000);
-        addTearDown(() => debugGlassPolicy = const PlanPolicy());
         tester.view
           ..physicalSize = const Size(240, 180)
           ..devicePixelRatio = 1;

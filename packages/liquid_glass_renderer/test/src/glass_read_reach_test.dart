@@ -55,8 +55,6 @@ double _farther(SiteAsk frosted, SiteAsk clear) =>
 
 void main() {
   setUp(() => glassReadsCopies = true);
-  tearDown(() => glassReadsCopies = false);
-
   testWidgets(
     'glass that blurs its copy from levels reads as far past clear glass as '
     'its blur reaches',

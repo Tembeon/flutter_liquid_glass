@@ -173,10 +173,6 @@ void main() {
   setUp(() {
     glassReadsCopies = true;
   });
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassPolicy = const PlanPolicy();
-  });
 
   testWidgets('a soft edge joins the glass over it', (tester) async {
     if (!ui.ImageFilter.isShaderFilterSupported) return;
