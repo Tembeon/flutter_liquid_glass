@@ -206,10 +206,6 @@ Future<void> warmLiquidGlassPipelines(
       // what a layer over a solid backdrop draws, whatever they hold.
       solids.add(shader);
     }
-    // A copy read pins its final shader's filter over the copy drawn
-    // through its passes: levels with a fill in two passes and without one
-    // in one, Impeller's blur where the layer has no room for levels, and
-    // the copy's frost in one pass and in a pass an axis.
     final copy = _copyPicture(shapesAtlas!);
     owned.add(copy.dispose);
     CopyLevelPasses? levelsOf(CopyLevels levels) => CopyLevelPasses.of(
@@ -242,8 +238,6 @@ Future<void> warmLiquidGlassPipelines(
       if (read.levels != null) drawn.add(ShaderKeys.copyLevels);
       if (read.frost case final frost?) drawn.add(frost.program);
     }
-    // A band frosts its copy as a backdrop filter, and a held image is
-    // painted frosted.
     final band = GlassShaderPrograms.cached(
       ShaderKeys.backdropFrost,
     )?.fragmentShader();
@@ -253,7 +247,6 @@ Future<void> warmLiquidGlassPipelines(
       solids.add(band);
       drawn.add(ShaderKeys.backdropFrost);
     }
-    // Bent content parted by its program, and bent as a mesh.
     final bent = [
       for (final aberration in const [2.0, 0.0])
         (content: LiquidGlassBentContent(), aberration: aberration),

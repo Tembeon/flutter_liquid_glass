@@ -12,7 +12,6 @@ void main() {
     await tester.runAsync(precacheLiquidGlass);
     expect(debugWarmUpDraws, isNull, reason: 'warm-up is opt-in');
     await tester.runAsync(() => precacheLiquidGlass(warmUp: true));
-    // Every program full glass loads, drawn as glass draws it.
     expect(debugWarmUpDraws?.programs, unorderedEquals(FullGlass.programs));
     // Every final shader alone and over each frost sigma, the band's frost,
     // the fake glass filters twice each; every final shader over a plain
