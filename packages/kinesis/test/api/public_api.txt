@@ -1592,10 +1592,12 @@ class SliverMotionList extends StatefulWidget
     LayoutMotion? motion,
     void Function(LayoutChange)? onLayout,
     Object? raised,
+    Set<Object> lowered = ...,
     Key? key,
   })
   final List<Object> ids
   final Widget Function(BuildContext, Object) itemBuilder
+  final Set<Object> lowered
   final LayoutMotion? motion
   final void Function(LayoutChange)? onLayout
   final LayoutPlanner planner

@@ -12,10 +12,12 @@ class _List extends StatefulWidget {
     this.controller,
     this.planner = const LayoutPlanner.flip(),
     this.raised,
+    this.lowered = const {},
   });
 
   final List<String> ids;
   final String? raised;
+  final Set<Object> lowered;
   final ScrollController? controller;
   final LayoutPlanner planner;
 
@@ -44,6 +46,7 @@ class _ListState extends State<_List> {
               ids: ids,
               planner: widget.planner,
               raised: widget.raised,
+              lowered: widget.lowered,
               itemBuilder: (context, id) => GestureDetector(
                 key: ValueKey(id as String),
                 behavior: HitTestBehavior.opaque,
@@ -256,6 +259,20 @@ void main() {
     expect(
       _paintIndex(_layer(tester, 'a')),
       lessThan(_paintIndex(_layer(tester, 'b'))),
+    );
+  });
+
+  testWidgets('a lowered row is drawn below the rows before it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _List(ids: ['a', 'b', 'c'], lowered: {'b'}));
+    expect(
+      _paintIndex(_layer(tester, 'b')),
+      lessThan(_paintIndex(_layer(tester, 'a'))),
+    );
+    expect(
+      _paintIndex(_layer(tester, 'a')),
+      lessThan(_paintIndex(_layer(tester, 'c'))),
     );
   });
 }
