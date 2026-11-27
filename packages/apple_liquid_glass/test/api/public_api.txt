@@ -282,6 +282,7 @@ final class GlassBarButton extends GlassBarItem
     GlassMenuOrder menuOrder = ...,
     bool selected = ...,
     Widget? badge,
+    Color? tint,
   })
   final Widget? badge
   final Widget? icon
@@ -291,6 +292,7 @@ final class GlassBarButton extends GlassBarItem
   final void Function()? onPressed
   final bool selected
   final String? semanticLabel
+  final Color? tint
 enum GlassBarButtonKind
   icon,
   label,
@@ -368,6 +370,7 @@ sealed class GlassBarItem extends GlassBarEntry
     GlassMenuOrder menuOrder,
     bool selected,
     Widget? badge,
+    Color? tint,
   })
   const factory GlassBarItem.prominent({
     LocalKey? key,

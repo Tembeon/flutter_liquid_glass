@@ -152,6 +152,7 @@ sealed class GlassBarItem extends GlassBarEntry {
     GlassMenuOrder menuOrder,
     bool selected,
     Widget? badge,
+    Color? tint,
   }) = GlassBarButton;
 
   /// Creates a button in a capsule of its own, tinted with the theme's
@@ -189,6 +190,7 @@ final class GlassBarButton extends GlassBarItem {
     this.menuOrder = GlassMenuOrder.automatic,
     this.selected = false,
     this.badge,
+    this.tint,
   }) : assert(icon != null || label != null, 'an icon or a label'),
        super._();
 
@@ -234,6 +236,12 @@ final class GlassBarButton extends GlassBarItem {
   /// bell alone in its capsule draws its 18.33 point badge 6.5 in from the
   /// capsule's corner (iOS 27.2 simulator).
   final Widget? badge;
+
+  /// The color of the button's glyph or label, and of its capsule while
+  /// [selected], as UIKit's `tintColor` on an item and SwiftUI's `tint` on
+  /// a toolbar button; null for the bar's. A disabled button keeps the
+  /// disabled color.
+  final Color? tint;
 }
 
 /// A button in a capsule of its own, tinted with the theme's primary color,

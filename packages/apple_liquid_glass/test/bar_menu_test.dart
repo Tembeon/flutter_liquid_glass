@@ -179,6 +179,56 @@ void main() {
     expect(badge.center.dy, moreOrLessEquals(bell.top - 2.5, epsilon: 0.01));
   });
 
+  testWidgets('a tinted bar item draws its glyph in its tint, and a '
+      'selected one its capsule', (tester) async {
+    tester.view.physicalSize = const Size(402 * 3, 874 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    const red = Color(0xFFFF3B30);
+    await tester.pumpWidget(
+      _app(
+        GlassPageScaffold(
+          navigationBar: GlassNavigationBar(
+            title: const Text('Bar'),
+            trailing: [
+              GlassBarItem(
+                icon: const SizedBox.square(key: Key('trash'), dimension: 22),
+                semanticLabel: 'Delete',
+                tint: red,
+                onPressed: () {},
+              ),
+              const GlassBarSpacer(),
+              GlassBarItem(
+                icon: const SizedBox.square(key: Key('heart'), dimension: 22),
+                semanticLabel: 'Like',
+                tint: red,
+                selected: true,
+                onPressed: () {},
+              ),
+            ],
+          ),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    final trash = IconTheme.of(tester.element(find.byKey(const Key('trash'))));
+    expect(trash.color?.toARGB32(), red.toARGB32());
+    final capsule = tester.widget<DecoratedBox>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is DecoratedBox &&
+            widget.decoration is ShapeDecoration &&
+            (widget.decoration as ShapeDecoration).shape is StadiumBorder,
+      ),
+    );
+    expect(
+      (capsule.decoration as ShapeDecoration).color?.toARGB32(),
+      red.toARGB32(),
+    );
+  });
+
   testWidgets("a toolbar item's menu opens upward with its first entry "
       'next to the item, or in its order with menuOrder fixed', (tester) async {
     tester.view.physicalSize = const Size(402 * 3, 874 * 3);

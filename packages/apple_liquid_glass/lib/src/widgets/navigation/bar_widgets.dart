@@ -532,14 +532,16 @@ class _BarItem extends StatelessWidget {
             if (!enabled) WidgetState.disabled,
           });
     final selected = item is GlassBarButton && item.selected;
+    final own = item is GlassBarButton ? item.tint : null;
     final tint = GlassDynamicColor.resolve(
-      GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
+      own ?? GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
       context,
     );
     final color = selected && enabled
         ? GlassTheme.contentColorOf(context)(tint)
         : GlassDynamicColor.resolve(
-            styled ??
+            (enabled ? own : null) ??
+                styled ??
                 (enabled
                     ? GlassTheme.labelColorOf(context)
                     : _disabledIconColor),
