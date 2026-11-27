@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,6 +42,23 @@ void main() {
       const Color(0xFFFFFFFF),
     );
     expect(find.bySemanticsLabel('6'), findsOneWidget);
+  });
+
+  testWidgets('a count reads in the locale: grouped in English, in the '
+      "app's own digits through its localizations", (tester) async {
+    await tester.pumpWidget(_app(const GlassBadge.count(1234)));
+    expect(find.text('1,234'), findsOneWidget);
+    await tester.pumpWidget(
+      Localizations(
+        locale: const Locale('ar'),
+        delegates: const [
+          DefaultWidgetsLocalizations.delegate,
+          _ArabicDigits.delegate,
+        ],
+        child: _app(const GlassBadge.count(12)),
+      ),
+    );
+    expect(find.text('١٢'), findsOneWidget);
   });
 
   testWidgets('a long text grows up to 64 points; zero and an empty text '
@@ -116,4 +134,31 @@ void main() {
     expect(paragraph.textDirection, TextDirection.rtl);
     expect(paragraph.didExceedMaxLines, isFalse);
   });
+}
+
+class _ArabicDigits extends DefaultGlassLocalizations {
+  const _ArabicDigits();
+
+  static const delegate = _ArabicDigitsDelegate();
+
+  @override
+  String formatDecimal(int number) => number
+      .toString()
+      .split('')
+      .map((digit) => String.fromCharCode(0x0660 + int.parse(digit)))
+      .join();
+}
+
+class _ArabicDigitsDelegate extends LocalizationsDelegate<GlassLocalizations> {
+  const _ArabicDigitsDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<GlassLocalizations> load(Locale locale) =>
+      SynchronousFuture(const _ArabicDigits());
+
+  @override
+  bool shouldReload(_ArabicDigitsDelegate old) => false;
 }

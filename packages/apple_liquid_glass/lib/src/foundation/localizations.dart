@@ -96,6 +96,11 @@ abstract class GlassLocalizations {
   /// The value of a slider at [fraction] of its range, 0 to 1.
   String percentValue(double fraction);
 
+  /// [number] in the locale's digits and grouping, as a badge's count
+  /// shows it (UIKit localizes `Badge.count`); Flutter's
+  /// `MaterialLocalizations.formatDecimal`.
+  String formatDecimal(int number);
+
   /// The name of [month], 1 for January to 12 for December.
   String monthName(int month);
 
@@ -253,6 +258,17 @@ class DefaultGlassLocalizations extends GlassLocalizations {
 
   @override
   String percentValue(double fraction) => '${(fraction * 100).round()}%';
+
+  @override
+  String formatDecimal(int number) {
+    final digits = number.abs().toString();
+    final grouped = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) grouped.write(',');
+      grouped.write(digits[i]);
+    }
+    return number < 0 ? '-$grouped' : '$grouped';
+  }
 
   static const List<String> _months = [
     'January',

@@ -660,7 +660,12 @@ class GlassButton extends StatelessWidget {
   /// The look, over the theme's and the button's defaults.
   final GlassButtonStyle? style;
 
-  /// Where the button writes its states, or null for its own.
+  /// Where the button writes its states, or null for its own. Its pressed
+  /// state is UIKit's touch events: on while a finger holds the button
+  /// (`isHeld`), off as it slides away (`touchDragExit`) and on as it comes
+  /// back (`touchDragEnter`), and off at a lift away from it
+  /// (`touchUpOutside`) or a cancel (`touchCancel`), where [onPressed]
+  /// does not run.
   final WidgetStatesController? statesController;
 
   /// The button's focus node, or null for its own.

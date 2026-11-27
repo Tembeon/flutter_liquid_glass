@@ -96,7 +96,9 @@ class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle> {
 /// it is a dot 10 points across, so it does not cover the glyph (this
 /// package's own).
 class GlassBadge extends StatelessWidget {
-  /// A badge showing [count]; a count of zero or less shows no badge.
+  /// A badge showing [count] in the locale's digits and grouping
+  /// ([GlassLocalizations.formatDecimal]), as UIKit localizes
+  /// `Badge.count`; a count of zero or less shows no badge.
   const GlassBadge.count(int this.count, {this.style, super.key}) : text = null;
 
   /// A badge showing [text]; an empty text shows no badge.
@@ -138,7 +140,10 @@ class GlassBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!_visible) return const SizedBox.shrink();
-    final label = count?.toString() ?? text;
+    final label = switch (count) {
+      final count? => GlassLocalizations.of(context).formatDecimal(count),
+      null => text,
+    };
     final look = (style ?? const GlassBadgeStyle()).merge(
       GlassBadgeStyle.maybeOf(context),
     );
