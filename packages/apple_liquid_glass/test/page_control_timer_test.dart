@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -20,7 +21,9 @@ class _Stories extends StatefulWidget {
 
 class _StoriesState extends State<_Stories> {
   late int page = widget.page;
-  double? shown;
+  ValueListenable<GlassPageControlPose>? pose;
+
+  double? get shown => pose?.value.progress;
 
   void show(int next) => setState(() => page = next);
 
@@ -36,7 +39,7 @@ class _StoriesState extends State<_Stories> {
           timer: widget.timer,
           style: GlassPageControlStyle(
             builder: (context, details) {
-              shown = details.progress;
+              pose = details.pose;
               return const SizedBox.expand();
             },
           ),

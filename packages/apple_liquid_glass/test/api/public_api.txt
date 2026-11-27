@@ -1761,12 +1761,14 @@ final class GlassPageControlPose
     required double platter,
     required int page,
     AxisDirection direction = ...,
+    double? progress,
   })
   final AxisDirection direction
   final List<double> fills
   final List<Rect> indicators
   final int page
   final double platter
+  final double? progress
   overrides: ==, hashCode
 class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle>
   const GlassPageControlStyle({

@@ -46,7 +46,9 @@ final class GlassPageControlDetails {
   final MotionSelection<GlassPageControlPose> pose;
 
   /// How far the current page has progressed, 0 to 1, or null for plain
-  /// dots.
+  /// dots. Under a [GlassPageControlTimer] it is where the timer stood when
+  /// the look was built; the pose's [GlassPageControlPose.progress] moves
+  /// with it.
   final double? progress;
 
   /// The states the control is in: [WidgetState.disabled] while it ignores
@@ -70,12 +72,14 @@ final class GlassPageControlPose {
     required this.platter,
     required this.page,
     this.direction = AxisDirection.right,
+    this.progress,
   });
 
   factory GlassPageControlPose._of(
     PageControlMotion motion, {
     required GlassPageControlBackground background,
     required AxisDirection direction,
+    required double? progress,
   }) {
     final rects = motion.indicatorRects(
       rtl: axisDirectionIsReversed(direction),
@@ -83,6 +87,7 @@ final class GlassPageControlPose {
     final vertical = axisDirectionToAxis(direction) == Axis.vertical;
     return GlassPageControlPose(
       direction: direction,
+      progress: progress,
       indicators: vertical
           ? [
               for (final r in rects)
@@ -120,12 +125,18 @@ final class GlassPageControlPose {
   /// progress fills an indicator this way.
   final AxisDirection direction;
 
+  /// How far the current page has progressed as the control moves, 0 to
+  /// 1: the control's progress, or its timer's, which moves every frame;
+  /// null for plain indicators.
+  final double? progress;
+
   @override
   bool operator ==(Object other) =>
       other is GlassPageControlPose &&
       other.platter == platter &&
       other.page == page &&
       other.direction == direction &&
+      other.progress == progress &&
       listEquals(other.indicators, indicators) &&
       listEquals(other.fills, fills);
 
@@ -134,6 +145,7 @@ final class GlassPageControlPose {
     platter,
     page,
     direction,
+    progress,
     Object.hashAll(indicators),
     Object.hashAll(fills),
   );
@@ -332,7 +344,6 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
         ControlStates<RawGlassPageControl>,
         ControlledValue<RawGlassPageControl> {
   late PageControlMotion _motion = _create();
-  late MotionSelection<double> _timerProgress = _timerProgressOf();
   GlassPageControlTimer? _timer;
   AxisDirection _direction = AxisDirection.right;
   late MotionSelection<GlassPageControlPose> _pose = _poseOf();
@@ -355,9 +366,6 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
 
   static bool _showsProgress(RawGlassPageControl widget) =>
       widget.progress != null || widget.timer != null;
-
-  MotionSelection<double> _timerProgressOf() =>
-      _motion.select((motion) => motion.timerProgress);
 
   @override
   void dispose() {
@@ -416,11 +424,14 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   MotionSelection<GlassPageControlPose> _poseOf() {
     final background = widget.backgroundStyle;
     final direction = _direction;
+    final progress = widget.progress;
+    final timed = widget.timer != null;
     return _motion.select(
       (m) => GlassPageControlPose._of(
         m,
         background: background,
         direction: direction,
+        progress: progress ?? (timed ? m.timerProgress : null),
       ),
     );
   }
@@ -464,12 +475,15 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
       _motion = _create();
       _pose = _poseOf();
       _touched = _touchedOf();
-      _timerProgress = _timerProgressOf();
       _takeTimer();
       _follow(_directionIn(context));
       return;
     }
     if (!identical(widget.timer, oldWidget.timer)) _takeTimer();
+    if (widget.progress != oldWidget.progress ||
+        (widget.timer == null) != (oldWidget.timer == null)) {
+      _pose = _poseOf();
+    }
     if (widget.backgroundStyle != oldWidget.backgroundStyle) {
       _motion.platterless = _platterless;
       _pose = _poseOf();
@@ -548,24 +562,19 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
         reach: glassTargetReach,
         child: SizedBox.fromSize(
           size: _size,
-          child: withStates((context, states) {
-            Widget look(double? progress) => widget.builder(
+          child: withStates(
+            (context, states) => widget.builder(
               context,
               GlassPageControlDetails(
                 pose: _pose,
-                progress: progress,
+                progress:
+                    widget.progress ??
+                    (_timer == null ? null : _motion.timerProgress),
                 states: states,
                 statesListenable: widgetStates,
               ),
-            );
-            if (widget.progress != null || _timer == null) {
-              return look(widget.progress);
-            }
-            return ValueListenableBuilder<double>(
-              valueListenable: _timerProgress,
-              builder: (context, progress, _) => look(progress),
-            );
-          }),
+            ),
+          ),
         ),
       ),
     );
