@@ -13,7 +13,10 @@ Future<void> _frames(WidgetTester tester, int count) async {
   }
 }
 
-Widget _app({required ValueChanged<Object?> onResult}) => WidgetsApp(
+Widget _app({
+  required ValueChanged<Object?> onResult,
+  VoidCallback? onDismissed,
+}) => WidgetsApp(
   color: const Color(0xFF000000),
   builder: (context, _) => GlassScope(
     renderer: const FlatGlassRenderer(),
@@ -25,6 +28,7 @@ Widget _app({required ValueChanged<Object?> onResult}) => WidgetsApp(
               showGlassFullScreen<String>(
                 context,
                 semanticLabel: 'Player',
+                onDismissed: onDismissed,
                 builder: (context) => const Center(child: Text('cover')),
               ).then(onResult),
             ),
@@ -55,7 +59,10 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     Object? result = 'none';
-    await tester.pumpWidget(_app(onResult: (value) => result = value));
+    var dismissed = 0;
+    await tester.pumpWidget(
+      _app(onResult: (value) => result = value, onDismissed: () => dismissed++),
+    );
     await tester.tap(find.text('below'));
     await tester.pump();
     double top() => tester
@@ -86,6 +93,7 @@ void main() {
     await _frames(tester, 60);
     expect(find.text('cover'), findsNothing);
     expect(result, 'done');
+    expect(dismissed, 1);
   });
 
   testWidgets('over a glass page its bar stays put and shown while the '

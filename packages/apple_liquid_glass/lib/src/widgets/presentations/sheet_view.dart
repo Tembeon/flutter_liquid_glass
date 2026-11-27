@@ -202,6 +202,14 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     _deliver();
   }
 
+  @override
+  void invalidateDetents() {
+    if (_dismissing) return;
+    if (_layout(_now, widget.motion.lastLayout?.size, resolve: true)) {
+      _publish();
+    }
+  }
+
   void _deliver() {
     final motion = _motion;
     if (motion == null) return;
@@ -245,10 +253,11 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     if (_layout(t, widget.motion.lastLayout?.size)) _publish();
   }
 
-  bool _layout(double t, Size? size) {
+  bool _layout(double t, Size? size, {bool resolve = false}) {
     if (size == null) return false;
     widget.motion.layout(
       t,
+      resolve: resolve,
       SheetLayout(
         size: size,
         padding: _padding,

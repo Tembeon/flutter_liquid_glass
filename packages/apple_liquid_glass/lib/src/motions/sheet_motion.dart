@@ -498,10 +498,14 @@ final class SheetMotion extends Motion with Presented, PredictiveBack {
   /// to its largest detent while the keyboard shows and back to the
   /// selected one when it hides, neither reported as a [SheetDetentChanged].
   /// Otherwise a later layout keeps the detent the sheet rests at or heads
-  /// to; one that changes nothing but the selected detent does nothing.
-  void layout(double t, SheetLayout layout) {
+  /// to; one that changes nothing but the selected detent does nothing,
+  /// unless [resolve] asks for the detents to be resolved again (a custom
+  /// resolver that reads other state).
+  void layout(double t, SheetLayout layout, {bool resolve = false}) {
     final last = _layout;
-    if (last != null && layout.copyWith(selected: last.selected) == last) {
+    if (!resolve &&
+        last != null &&
+        layout.copyWith(selected: last.selected) == last) {
       return;
     }
     _layout = layout;

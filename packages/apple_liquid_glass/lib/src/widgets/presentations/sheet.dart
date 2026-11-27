@@ -154,6 +154,10 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
 /// down with the gesture and dismisses it on commit. `onDetentChanged`
 /// hears the detents the user picks; a [GlassSheetController] passed as
 /// `controller` reads and sets the detent from outside the sheet.
+/// `onDismissed` runs once the sheet has gone, however it closed, as
+/// SwiftUI's `sheet(onDismiss:)` and the completion of UIKit's dismissal
+/// do; the returned future completes earlier, when the sheet starts to
+/// close.
 ///
 /// The band at the sheet's top, where a tap cycles the detents, is also
 /// the sheet's detent control for the keyboard and screen readers: a
@@ -195,6 +199,7 @@ Future<T?> showGlassSheet<T>(
   ValueChanged<GlassSheetDetent>? onDetentChanged,
   GlassSheetController? controller,
   VoidCallback? onDismissAttempt,
+  VoidCallback? onDismissed,
   PresentationLevel level = PresentationLevel.window,
 }) {
   assert(detents.isNotEmpty, 'a sheet rests at a detent');
@@ -229,6 +234,7 @@ Future<T?> showGlassSheet<T>(
             motion.isLaidOut ? _SheetLook.dimmingOpacity * motion.dimming : 0,
         modal: (motion) => !motion.isLaidOut || motion.dimming > 0,
         onVeto: onDismissAttempt == null ? null : (_) => onDismissAttempt(),
+        onDismissed: onDismissed == null ? null : (_) => onDismissed(),
         semanticsLabel: semanticLabel,
         semanticsRole: SemanticsRole.dialog,
         barrierLabel: isDismissible
@@ -283,6 +289,12 @@ abstract interface class GlassSheet {
 
   /// Moves the sheet to [detent] on the sheet's spring.
   void animateTo(GlassSheetDetent detent);
+
+  /// Resolves the custom detents again, as UIKit's `invalidateDetents`:
+  /// for a [GlassSheetDetent.custom] whose resolver reads something that
+  /// changed. The sheet moves to the new height of its detent on its
+  /// spring.
+  void invalidateDetents();
 
   /// The sheet around [context]; [context] rebuilds when its detent
   /// changes.
@@ -347,6 +359,10 @@ class GlassSheetController extends ChangeNotifier {
   /// Moves the sheet to [detent] on the sheet's spring; does nothing with
   /// no sheet attached.
   void animateTo(GlassSheetDetent detent) => _sheet?.animateTo(detent);
+
+  /// See [GlassSheet.invalidateDetents]; does nothing with no sheet
+  /// attached.
+  void invalidateDetents() => _sheet?.invalidateDetents();
 
   void _attach(_SheetViewState sheet) {
     assert(_sheet == null, 'a GlassSheetController serves one sheet at a time');

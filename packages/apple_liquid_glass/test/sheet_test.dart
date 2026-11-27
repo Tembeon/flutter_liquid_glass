@@ -164,6 +164,70 @@ void main() {
 
   setUp(MotionClock.debugReset);
 
+  testWidgets('onDismissed runs once the sheet has gone, after its future '
+      'completed at the start of the close', (tester) async {
+    _phone(tester);
+    var dismissed = 0;
+    var completed = false;
+    await tester.pumpWidget(
+      _app(
+        onPresent: (context) => unawaited(
+          showGlassSheet<void>(
+            context,
+            detents: const [GlassSheetDetent.medium],
+            onDismissed: () => dismissed++,
+            builder: _content,
+          ).then((_) => completed = true),
+        ),
+      ),
+    );
+    await tester.tap(find.text('present'));
+    await _settle(tester);
+    Navigator.of(tester.element(find.byKey(_contentKey))).pop();
+    await tester.pump(_frame);
+    expect(completed, isTrue);
+    expect(dismissed, 0);
+    await _settle(tester);
+    expect(dismissed, 1);
+  });
+
+  testWidgets('invalidateDetents resolves a custom detent again and the '
+      'sheet moves to its new height', (tester) async {
+    _phone(tester);
+    var height = 300.0;
+    final controller = GlassSheetController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _app(
+        onPresent: (context) => unawaited(
+          showGlassSheet<void>(
+            context,
+            controller: controller,
+            detents: [
+              GlassSheetDetent.custom(
+                (maximum) => height,
+                identifier: 'notes',
+              ),
+            ],
+            builder: _content,
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('present'));
+    await _settle(tester);
+    final before = _sheet(tester).height;
+    height = 400;
+    await _settle(tester);
+    expect(_sheet(tester).height, before);
+    controller.invalidateDetents();
+    await _settle(tester);
+    expect(
+      _sheet(tester).height,
+      moreOrLessEquals(before + 100 * 386 / 402, epsilon: 0.1),
+    );
+  });
+
   testWidgets('a controller reads and sets the detent from outside while '
       'the sheet is up, and hears every change', (tester) async {
     _phone(tester);

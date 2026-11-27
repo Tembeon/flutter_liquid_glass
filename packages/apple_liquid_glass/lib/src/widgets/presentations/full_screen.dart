@@ -20,7 +20,8 @@ import 'package:kinesis/kinesis.dart';
 /// with the gesture. Once
 /// it covers the screen the page below stops building and painting, as
 /// UIKit takes the presenter's view out of the window, and comes back as
-/// the page leaves. Screen readers hear it as a route named
+/// the page leaves. `onDismissed` runs once the page has gone, as SwiftUI's
+/// `fullScreenCover(onDismiss:)` does. Screen readers hear it as a route named
 /// [semanticLabel]. The [context] needs a [Navigator] above it; with
 /// `level` at its default the page covers the whole app, bars and tabs
 /// included.
@@ -43,18 +44,28 @@ Future<T?> showGlassFullScreen<T>(
   BuildContext context, {
   required WidgetBuilder builder,
   String? semanticLabel,
+  VoidCallback? onDismissed,
   PresentationLevel level = PresentationLevel.window,
 }) => showPresentation(
   context,
-  _FullScreenRoute<T>(builder: builder, semanticLabel: semanticLabel),
+  _FullScreenRoute<T>(
+    builder: builder,
+    semanticLabel: semanticLabel,
+    onDismissed: onDismissed,
+  ),
   level: level,
 );
 
 class _FullScreenRoute<T> extends PresentationPageRoute<T> {
-  _FullScreenRoute({required this.builder, this.semanticLabel});
+  _FullScreenRoute({
+    required this.builder,
+    this.semanticLabel,
+    this.onDismissed,
+  });
 
   final WidgetBuilder builder;
   final String? semanticLabel;
+  final VoidCallback? onDismissed;
 
   @override
   late final Presentation<T, FullScreenMotion> presentation = Presentation(
@@ -72,6 +83,7 @@ class _FullScreenRoute<T> extends PresentationPageRoute<T> {
     modal: (motion) => true,
     semanticsLabel: semanticLabel,
     semanticsRole: SemanticsRole.dialog,
+    onDismissed: onDismissed == null ? null : (_) => onDismissed!(),
   );
 }
 
