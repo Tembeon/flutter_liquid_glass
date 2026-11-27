@@ -299,12 +299,12 @@ final class SheetMotion extends Motion with Presented, PredictiveBack {
   /// The radius of the bottom corners of a floating sheet, in unscaled
   /// pixels: the display's less [inset] (62 - 8 = 54 on an iPhone 16 Pro),
   /// [fallbackDisplayRadius] less it where the platform reports none, and
-  /// never under [minimumFloatingRadius]; [preferredRadius] instead,
+  /// never under [minimumBottomRadius]; [preferredRadius] instead,
   /// where the app gives one.
   double get floatingRadius =>
       preferredRadius ??
       math.max(
-        minimumFloatingRadius,
+        minimumBottomRadius,
         (displayRadius ?? fallbackDisplayRadius) - inset,
       );
 
@@ -312,10 +312,12 @@ final class SheetMotion extends Motion with Presented, PredictiveBack {
   /// (UIKit `preferredCornerRadius`), or null for the display's law.
   double? preferredRadius;
 
-  /// The least radius of a floating sheet's corners: UIKit's minimum
-  /// floating radius, 32 (read from UIKit, notes private), which a display
-  /// of tighter corners than 40 points reaches.
-  static const double minimumFloatingRadius = 32;
+  /// The least radius of a sheet's bottom corners: 20, the minimum UIKit
+  /// gives the bottom corners of an edge-attached sheet, which every iPhone
+  /// sheet is, the inset medium one included (read from UIKit's code; its
+  /// 32 on all four corners is for iPad and other floating sheets). A
+  /// display of tighter corners than 28 points reaches it.
+  static const double minimumBottomRadius = 20;
 
   /// The radius the bottom corners turn to as the sheet docks: the
   /// display's, 0 where the platform reports none.

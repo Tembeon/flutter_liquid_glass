@@ -328,8 +328,13 @@ enum GlassTabAccessoryPlacement {
 /// not. The wide bar is read from UIKit and checked against the iOS 27.2
 /// simulator in landscape; its unhosted tabs' content is centred where a
 /// lost capture put the glyph 3 points nearer the leading edge, and a wide
-/// bar searching without the focus is not measured. Not ported: the bar in
-/// a sheet. Not measured: the focus ring and hover response, which are
+/// bar searching without the focus is not measured. In a sheet that
+/// reaches the screen's bottom, as every iPhone sheet does, UIKit places
+/// the bar as it does outside one, 21 points from the sides and bottom
+/// (read from UIKit's code and an iOS 27.2 simulator sheet); the smaller
+/// minimums it gives a sheet (18 at the sides, 13 below) show only in a
+/// sheet that ends above the home indicator, which this bar does not
+/// follow. Not measured: the focus ring and hover response, which are
 /// approximations of the platform.
 class GlassTabBar extends StatelessWidget {
   /// Creates a tab bar showing [selectedIndex] selected.
