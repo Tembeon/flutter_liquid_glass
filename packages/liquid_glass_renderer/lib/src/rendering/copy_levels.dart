@@ -195,6 +195,7 @@ final class CopyLevelPasses extends PinnedPasses {
         bounds.right,
         bounds.bottom,
       ]);
+      putUniform(shader, 'uCopySize', [strip.copy.width, strip.copy.height]);
       // The shader holds other uniforms by the time a scene takes its
       // filter.
       return inputShaderFilterNow(shader);

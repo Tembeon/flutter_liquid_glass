@@ -10,7 +10,12 @@
 // and the fill level; every other pixel passes through.
 //
 // Each cell is the tent read in bilinear pairs: two neighbours weighed w0
-// and w1 are one read between them, w1 / (w0 + w1) of the way.
+// and w1 are one read between them, w1 / (w0 + w1) of the way. A source
+// pixel weighs as much as it lies inside the copy, so a cell the copy's edge
+// cuts averages what the copy holds and changes smoothly as the copy moves;
+// the ring around each level holds the cells next to it, not a repeat of
+// the edge, so the strip moving a cell along the screen's grid changes
+// nothing a read sees.
 
 precision mediump float;
 
@@ -35,6 +40,8 @@ uniform highp vec3 uPass;
 uniform highp vec3 uSource;
 // The rect the pass reads inside, in the layer's pixels.
 uniform highp vec4 uBounds;
+// The copy's size in its pixels.
+uniform highp vec2 uCopySize;
 
 uniform sampler2D uCopy;
 
@@ -76,11 +83,7 @@ void main() {
         fragColor = texture(uCopy, at * invSize);
         return;
     }
-    highp vec2 cell = clamp(
-        vec2(local.x - start, local.y) - kLevelRing,
-        vec2(0.0),
-        cells - 1.0
-    );
+    highp vec2 cell = vec2(local.x - start, local.y) - kLevelRing;
     // The cell's middle among the source's pixels, and how far the tent
     // reaches in them.
     highp vec2 middle =
@@ -88,6 +91,9 @@ void main() {
         uSource.z;
     highp float spread = stride / uSource.z;
     highp vec2 first = floor(middle - spread - 0.5) + 1.0;
+    // The copy among the source's pixels.
+    highp vec2 copyFrom = (uGrid - uSource.xy) / uSource.z;
+    highp vec2 copyTo = copyFrom + uCopySize / uSource.z;
     highp vec2 pairs = ceil((ceil(middle + spread - 0.5) - first) / 2.0);
     highp vec4 sum = vec4(0.0);
     highp float total = 0.0;
@@ -101,11 +107,11 @@ void main() {
         highp vec2 w0 = vec2(
             tent(t.x, middle.x, spread),
             tent(t.y, middle.y, spread)
-        );
+        ) * clamp(min(t + 1.0, copyTo) - max(t, copyFrom), 0.0, 1.0);
         highp vec2 w1 = vec2(
             tent(t.x + 1.0, middle.x, spread),
             tent(t.y + 1.0, middle.y, spread)
-        );
+        ) * clamp(min(t + 2.0, copyTo) - max(t + 1.0, copyFrom), 0.0, 1.0);
         highp vec2 weight = w0 + w1;
         highp vec2 read = t + 0.5 + w1 / max(weight, vec2(1e-6));
         highp float w = weight.x * weight.y;
@@ -118,5 +124,7 @@ void main() {
             column = 0.0;
         }
     }
-    fragColor = sum / max(total, 1e-6);
+    fragColor = total > 1e-6
+        ? sum / total
+        : texture(uCopy, clamp(middle, uBounds.xy, uBounds.zw) * invSize);
 }
