@@ -8,19 +8,32 @@ import 'package:flutter_test/flutter_test.dart';
 const _frame = Duration(milliseconds: 16);
 
 class _List extends StatefulWidget {
-  const _List({this.editing = true, this.reorders = true, this.grips = true});
+  const _List({
+    this.editing = true,
+    this.reorders = true,
+    this.grips = true,
+    this.count = 4,
+    this.deletes = false,
+    this.menus = false,
+  });
 
   final bool editing;
   final bool reorders;
   final bool grips;
+  final int count;
+  final bool deletes;
+  final bool menus;
 
   @override
   State<_List> createState() => _ListState();
 }
 
 class _ListState extends State<_List> {
-  List<String> ids = ['One', 'Two', 'Three', 'Four'];
+  late List<String> ids = widget.count == 4
+      ? ['One', 'Two', 'Three', 'Four']
+      : [for (var i = 0; i < widget.count; i++) 'Row $i'];
   final List<(int, int)> moves = [];
+  final List<String> deleted = [];
 
   void reorder(int from, int to) {
     moves.add((from, to));
@@ -28,33 +41,43 @@ class _ListState extends State<_List> {
   }
 
   @override
-  Widget build(BuildContext context) => MediaQuery(
-    data: const MediaQueryData(size: Size(402, 874)),
-    child: Directionality(
-      textDirection: TextDirection.ltr,
-      child: GlassScope(
-        renderer: const FlatGlassRenderer(),
-        child: GlassListEditing(
-          editing: widget.editing,
-          child: CustomScrollView(
-            slivers: [
-              GlassSliverListSection(
-                ids: ids,
-                itemCount: ids.length,
-                onReorderItem: widget.reorders ? reorder : null,
-                itemBuilder: (context, i) => GlassListRow(
-                  key: ValueKey(ids[i]),
-                  title: Text(ids[i]),
-                  detail: const Text('94'),
-                  showsReorderControl: widget.grips,
-                ),
-              ),
-            ],
+  Widget build(BuildContext context) {
+    Widget list = GlassListEditing(
+      editing: widget.editing,
+      child: CustomScrollView(
+        slivers: [
+          GlassSliverListSection(
+            ids: ids,
+            itemCount: ids.length,
+            onReorderItem: widget.reorders ? reorder : null,
+            itemBuilder: (context, i) => GlassListRow(
+              key: ValueKey(ids[i]),
+              title: Text(ids[i]),
+              detail: const Text('94'),
+              value: ids[i],
+              onDelete: widget.deletes ? () => deleted.add(ids[i]) : null,
+              showsReorderControl: widget.grips,
+            ),
           ),
-        ),
+        ],
       ),
-    ),
-  );
+    );
+    if (widget.menus) {
+      list = GlassListContextMenu(
+        menuBuilder: (context, values) => [
+          GlassMenuItem(title: 'Water', onPressed: () {}),
+        ],
+        child: list,
+      );
+    }
+    return WidgetsApp(
+      color: const Color(0xFF000000),
+      builder: (context, _) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(size: const Size(402, 874)),
+        child: GlassScope(renderer: const FlatGlassRenderer(), child: list),
+      ),
+    );
+  }
 }
 
 void _view(WidgetTester tester) {
@@ -274,5 +297,81 @@ void main() {
     await _frames(tester, 40);
     expect(tester.state<_ListState>(find.byType(_List)).moves, [(1, 2)]);
     semantics.dispose();
+  });
+
+  test('a row gives way when the held center passes the edge the two will '
+      'share after the swap, not the middle of the taller one', () {
+    const heights = <double?>[53, 69.33, 53, 53];
+    ({int at, double slotTop}) at(double center) => ListReorder.place(
+      heights.length,
+      (i) => heights[i],
+      at: 0,
+      slotTop: 206,
+      center: center,
+    );
+    expect(at(275).at, 0);
+    expect(at(275.4).at, 1);
+    expect(at(275.4).slotTop, moreOrLessEquals(275.33));
+    expect(at(328.2).at, 1);
+    expect(at(328.4).at, 2);
+    expect(at(328.4).slotTop, moreOrLessEquals(328.33));
+    ({int at, double slotTop}) up(double center) => ListReorder.place(
+      heights.length,
+      (i) => heights[i],
+      at: 2,
+      slotTop: 328.33,
+      center: center,
+    );
+    expect(up(328.4).at, 2);
+    expect(up(328.33 - 69.33 + 53 - 0.1).at, 1);
+    expect(up(328.33 - 69.33 + 53 + 0.1).at, 2);
+  });
+
+  testWidgets('in a long lazy list a held row asks nothing of the rows out '
+      'of view', (tester) async {
+    _view(tester);
+    await tester.pumpWidget(const _List(count: 100));
+    final finger = await tester.startGesture(tester.getCenter(_grip('Row 3')));
+    await tester.pump();
+    for (var i = 0; i < 12; i++) {
+      await finger.moveBy(const Offset(0, 12));
+      await tester.pump(_frame);
+    }
+    await finger.up();
+    await _frames(tester, 40);
+    expect(tester.state<_ListState>(find.byType(_List)).moves, [(3, 6)]);
+  });
+
+  testWidgets('a grip inside a row that deletes drags with sideways drift '
+      'and leaves the Delete strip shut', (tester) async {
+    _view(tester);
+    await tester.pumpWidget(const _List(deletes: true));
+    final finger = await tester.startGesture(tester.getCenter(_grip('One')));
+    await tester.pump();
+    for (var i = 0; i < 8; i++) {
+      await finger.moveBy(const Offset(-6, 8));
+      await tester.pump(_frame);
+    }
+    await finger.up();
+    await _frames(tester, 40);
+    final state = tester.state<_ListState>(find.byType(_List));
+    expect(state.moves, [(0, 1)]);
+    expect(find.text('Delete'), findsNothing);
+    expect(state.deleted, isEmpty);
+  });
+
+  testWidgets('a grip held still under a list context menu neither grows the '
+      'row nor opens the menu', (tester) async {
+    _view(tester);
+    await tester.pumpWidget(const _List(menus: true));
+    final rest = tester.getRect(_row('Two'));
+    final finger = await tester.startGesture(tester.getCenter(_grip('Two')));
+    await _frames(tester, 70);
+    expect(find.text('Water'), findsNothing);
+    expect(tester.getRect(_row('Two')).size, rest.size);
+    await finger.up();
+    await _frames(tester, 40);
+    expect(find.text('Water'), findsNothing);
+    expect(tester.state<_ListState>(find.byType(_List)).moves, isEmpty);
   });
 }

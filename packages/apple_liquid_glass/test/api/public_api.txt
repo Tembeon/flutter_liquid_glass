@@ -3736,7 +3736,8 @@ abstract final class ListReorder
     required double distance,
   })
   static ({int at, double slotTop}) place(
-    List<double?> heights, {
+    int count,
+    double? Function(int) heightOf, {
     required int at,
     required double slotTop,
     required double center,

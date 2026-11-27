@@ -176,7 +176,9 @@ class _RawGlassListState extends State<RawGlassList> {
     final order = List.of(_shown);
     final at = order.indexOf(id);
     final place = ListReorder.place(
-      [for (final row in order) _motion.laidOut(row)?.height],
+      order.length,
+      (i) =>
+          _motion.contains(order[i]) ? _motion.laidOut(order[i])?.height : null,
       at: at,
       slotTop: _slotTop,
       center: top + laid.height / 2,

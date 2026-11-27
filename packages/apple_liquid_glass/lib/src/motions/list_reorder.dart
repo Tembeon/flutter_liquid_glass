@@ -39,31 +39,34 @@ abstract final class ListReorder {
           ),
   );
 
-  /// Where a held row stands among rows of [heights] (its own included at
-  /// [at], a row not laid out null) once its center reaches [center]: a
-  /// neighbor gives way when the center passes the edge between the two as
-  /// they will stand after the swap, the far side of the neighbor's room.
-  /// [slotTop] is where the held row's place starts; the answer gives the
-  /// new index and place. Upward swaps mirror the downward ones UIKit was
-  /// captured making.
+  /// Where a held row stands among [count] rows once its center reaches
+  /// [center]: a neighbor gives way when the center passes the edge between
+  /// the two as they will stand after the swap, the far side of the
+  /// neighbor's room. [heightOf] gives the height of the row at an index in
+  /// the order the drag started from (the held row's own at [at]), or null
+  /// for one not laid out, which stops the walk; it is asked only for the
+  /// rows next to the held one, outward. [slotTop] is where the held row's
+  /// place starts; the answer gives the new index and place. Upward swaps
+  /// mirror the downward ones UIKit was captured making.
   static ({int at, double slotTop}) place(
-    List<double?> heights, {
+    int count,
+    double? Function(int index) heightOf, {
     required int at,
     required double slotTop,
     required double center,
   }) {
-    final own = heights[at]!;
+    final own = heightOf(at)!;
     var index = at;
     var slot = slotTop;
-    while (index + 1 < heights.length) {
-      final next = heights[index + 1];
+    while (index + 1 < count) {
+      final next = heightOf(index + 1);
       if (next == null || center < slot + next) break;
       slot += next;
       index++;
     }
     if (index != at) return (at: index, slotTop: slot);
     while (index > 0) {
-      final previous = heights[index - 1];
+      final previous = heightOf(index - 1);
       if (previous == null) break;
       final above = slot - previous;
       if (center > above + own) break;
