@@ -61,6 +61,37 @@ Object? _dayCell(WidgetTester tester, String day, String name) {
 }
 
 void main() {
+  testWidgets("the week starts on the locale's first weekday unless the "
+      'picker sets its own', (tester) async {
+    Future<double> left(String weekday, {int? first}) async {
+      await tester.pumpWidget(
+        _App(
+          home: Localizations(
+            locale: const Locale('en', 'GB'),
+            delegates: const [
+              DefaultWidgetsLocalizations.delegate,
+              _MondayFirst.delegate,
+            ],
+            child: Center(
+              child: GlassDatePicker(
+                value: DateTime(2026, 11, 27),
+                onChanged: (_) {},
+                firstDayOfWeek: first,
+              ),
+            ),
+          ),
+        ),
+      );
+      return tester.getCenter(find.text(weekday)).dx;
+    }
+
+    expect(await left('MON'), lessThan(await left('SUN')));
+    expect(
+      await left('SUN', first: DateTime.sunday),
+      lessThan(await left('MON', first: DateTime.sunday)),
+    );
+  });
+
   setUp(MotionClock.debugReset);
 
   group('GlassDatePicker', () {
@@ -1428,4 +1459,27 @@ void main() {
     await show(rounds: false);
     expect(find.text('12:07'), findsOneWidget);
   });
+}
+
+class _MondayFirst extends DefaultGlassLocalizations {
+  const _MondayFirst();
+
+  static const delegate = _MondayFirstDelegate();
+
+  @override
+  int get firstDayOfWeek => DateTime.monday;
+}
+
+class _MondayFirstDelegate extends LocalizationsDelegate<GlassLocalizations> {
+  const _MondayFirstDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<GlassLocalizations> load(Locale locale) =>
+      SynchronousFuture(const _MondayFirst());
+
+  @override
+  bool shouldReload(_MondayFirstDelegate old) => false;
 }

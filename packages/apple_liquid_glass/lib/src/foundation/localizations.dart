@@ -101,6 +101,11 @@ abstract class GlassLocalizations {
   /// simulator capture); Flutter's `MaterialLocalizations.formatDecimal`.
   String formatDecimal(int number);
 
+  /// The weekday a calendar's week starts on, as a [DateTime] weekday, as
+  /// UIKit takes it from the locale's calendar (`firstWeekday`); Flutter's
+  /// `MaterialLocalizations.firstDayOfWeekIndex`.
+  int get firstDayOfWeek;
+
   /// The name of [month], 1 for January to 12 for December.
   String monthName(int month);
 
@@ -258,6 +263,9 @@ class DefaultGlassLocalizations extends GlassLocalizations {
 
   @override
   String percentValue(double fraction) => '${(fraction * 100).round()}%';
+
+  @override
+  int get firstDayOfWeek => DateTime.sunday;
 
   @override
   String formatDecimal(int number) {

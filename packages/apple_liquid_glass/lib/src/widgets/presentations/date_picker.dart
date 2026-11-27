@@ -102,7 +102,7 @@ class GlassCompactDatePicker extends StatefulWidget {
     this.minimumDate,
     this.maximumDate,
     this.use24HourFormat,
-    this.firstDayOfWeek = DateTime.sunday,
+    this.firstDayOfWeek,
     this.today,
     this.semanticLabel,
     super.key,
@@ -156,8 +156,9 @@ class GlassCompactDatePicker extends StatefulWidget {
   /// setting on iOS), as UIKit follows the locale's.
   final bool? use24HourFormat;
 
-  /// The first column of the calendar, as a [DateTime] weekday.
-  final int firstDayOfWeek;
+  /// The first column of the calendar, as a [DateTime] weekday; null for
+  /// the locale's ([GlassLocalizations.firstDayOfWeek]).
+  final int? firstDayOfWeek;
 
   /// The day to tint as today; null for the current day.
   final DateTime? today;

@@ -105,7 +105,7 @@ class DatePickerPlacement
 class DefaultGlassLocalizations extends GlassLocalizations
   const DefaultGlassLocalizations()
   static const LocalizationsDelegate<GlassLocalizations> delegate
-  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, columnDividerLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, countDownHoursUnit, countDownMinutesUnit, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, editMenuMoreLabel, formatDecimal, hideSidebarLabel, hideYearPickerLabel, hourLabel, incrementLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showSidebarLabel, showYearPickerLabel, weekdayAbbreviation, yearLabel
+  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, columnDividerLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, countDownHoursUnit, countDownMinutesUnit, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, editMenuMoreLabel, firstDayOfWeek, formatDecimal, hideSidebarLabel, hideYearPickerLabel, hourLabel, incrementLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showSidebarLabel, showYearPickerLabel, weekdayAbbreviation, yearLabel
 final class EditMenuMotion
   EditMenuMotion({required MotionClock clock})
   static const double hiddenScale
@@ -811,12 +811,12 @@ class GlassCompactDatePicker extends StatefulWidget
     DateTime? minimumDate,
     DateTime? maximumDate,
     bool? use24HourFormat,
-    int firstDayOfWeek = ...,
+    int? firstDayOfWeek,
     DateTime? today,
     String? semanticLabel,
     Key? key,
   })
-  final int firstDayOfWeek
+  final int? firstDayOfWeek
   final DateTime? maximumDate
   final DateTime? minimumDate
   final int minuteInterval
@@ -902,7 +902,7 @@ class GlassDatePicker extends StatelessWidget
     required void Function(DateTime)? onChanged,
     DateTime? minimumDate,
     DateTime? maximumDate,
-    int firstDayOfWeek = ...,
+    int? firstDayOfWeek,
     DateTime? today,
     GlassDatePickerStyle? style,
     FocusNode? focusNode,
@@ -912,7 +912,7 @@ class GlassDatePicker extends StatelessWidget
   })
   final bool autofocus
   @internal final bool defersDays
-  final int firstDayOfWeek
+  final int? firstDayOfWeek
   final FocusNode? focusNode
   static const double maxTextScale
   final DateTime? maximumDate
@@ -1437,6 +1437,7 @@ abstract class GlassLocalizations
   abstract String get dayPeriodLabel
   abstract String get decrementLabel
   abstract String get editMenuMoreLabel
+  abstract int get firstDayOfWeek
   abstract String formatDecimal(int number)
   abstract String get hideSidebarLabel
   abstract String get hideYearPickerLabel
@@ -1805,6 +1806,10 @@ class GlassPageControlTimer extends ChangeNotifier
   bool resetsToInitialPageAfterEnd
   void resume()
   bool Function(int)? shouldAdvanceToPage
+enum GlassPageIndexDisplay
+  automatic,
+  always,
+  never,
 class GlassPageRoute<T> extends PresentationPageRoute<T>
   GlassPageRoute({
     required Widget Function(BuildContext) builder,
@@ -1837,6 +1842,23 @@ class GlassPageScrollPhysics extends ScrollPhysics
   const GlassPageScrollPhysics({ScrollPhysics? parent})
   static const ({Cubic curve, Duration duration}) turnFromCode
   overrides: allowImplicitScrolling, applyBoundaryConditions, applyPhysicsToUserOffset, applyTo, createBallisticSimulation, spring
+class GlassPageView extends StatefulWidget
+  const GlassPageView({
+    required List<Widget> children,
+    PageController? controller,
+    void Function(int)? onPageChanged,
+    GlassPageIndexDisplay indexDisplay = ...,
+    GlassPageControlBackground backgroundStyle = ...,
+    String? semanticLabel,
+    Key? key,
+  })
+  final GlassPageControlBackground backgroundStyle
+  final List<Widget> children
+  final PageController? controller
+  final GlassPageIndexDisplay indexDisplay
+  final void Function(int)? onPageChanged
+  final String? semanticLabel
+  overrides: createState
 class GlassPlainButtonStyle extends GlassButtonStyle
   factory GlassPlainButtonStyle.from(GlassButtonStyle style)
   const GlassPlainButtonStyle({
@@ -4137,6 +4159,7 @@ final class PageControlMotion extends Motion
   int get count
   double fillOpacity(int index)
   List<Rect> indicatorRects({required bool rtl})
+  bool get isScrubbing
   bool get isTiming
   bool get isTouched
   final void Function(PageControlEvent)? onEvent
@@ -5946,9 +5969,11 @@ class GlassNavigationBar (see package:apple_liquid_glass/apple_liquid_glass.dart
 class GlassNavigationBarStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageControl (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageControlStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassPageIndexDisplay (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageRoute (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageScrollPhysics (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPageView (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPlainButtonStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPopUpButton (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassPopUpButtonBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)

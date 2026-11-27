@@ -153,9 +153,11 @@ GlassPageControlDetails
 GlassPageControlPose
 GlassPageControlStyle
 GlassPageControlTimer
+GlassPageIndexDisplay
 GlassPageRoute
 GlassPageScaffold
 GlassPageScrollPhysics
+GlassPageView
 GlassPlainButtonStyle
 GlassPlatformScope
 GlassPopUpButton

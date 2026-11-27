@@ -82,7 +82,7 @@ class GlassDatePicker extends StatelessWidget {
     required this.onChanged,
     this.minimumDate,
     this.maximumDate,
-    this.firstDayOfWeek = DateTime.sunday,
+    this.firstDayOfWeek,
     this.today,
     this.style,
     this.focusNode,
@@ -104,8 +104,9 @@ class GlassDatePicker extends StatelessWidget {
   /// The latest moment that can be picked; null for no limit.
   final DateTime? maximumDate;
 
-  /// The first column of the calendar, as a [DateTime] weekday.
-  final int firstDayOfWeek;
+  /// The first column of the calendar, as a [DateTime] weekday; null for
+  /// the locale's ([GlassLocalizations.firstDayOfWeek]).
+  final int? firstDayOfWeek;
 
   /// The day to tint as today; null for the current day.
   final DateTime? today;
@@ -146,7 +147,8 @@ class GlassDatePicker extends StatelessWidget {
           onChanged: onChanged,
           minimumDate: minimumDate,
           maximumDate: maximumDate,
-          firstDayOfWeek: firstDayOfWeek,
+          firstDayOfWeek:
+              firstDayOfWeek ?? GlassLocalizations.of(context).firstDayOfWeek,
           today: today,
           focusNode: focusNode,
           autofocus: autofocus,
