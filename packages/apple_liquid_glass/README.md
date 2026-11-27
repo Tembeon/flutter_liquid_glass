@@ -301,10 +301,11 @@ library can also be imported alone.
 | `GlassPopUpButton` | A button that shows its selected item and picks another from a menu. |
 | `GlassSwitch` | A switch. |
 | `GlassSlider` | A slider, optionally with ticks. |
-| `GlassStepper` | A stepper with a minus and a plus half, or icons of your own. |
+| `GlassStepper` | A stepper with a minus and a plus half, or icons of your own; `GlassStepper.custom` steps through anything with its own callbacks. |
 | `GlassSegmentedControl` | A segmented control of `GlassSegment`s. |
 | `GlassPageControl` | A page control that looks and steps like `UIPageControl`, across or on end; `GlassPageControlTimer` turns its pages by itself. |
 | `GlassSearchField` | A search field. |
+| `GlassSearchController`, `GlassSearchScope` | A search's query and open state; `GlassSearchController.of(context)` reads the search a page belongs to. |
 | `GlassSearchIcon`, `GlassCloseIcon` | The search magnifier and the close cross. |
 | `GlassListSection` | One section of a list: header, rows on a card, footer; inset grouped, grouped or plain (`GlassListLayout`). |
 | `GlassSliverListSection` | A list section as a sliver that builds its rows lazily. |
@@ -314,7 +315,7 @@ library can also be imported alone.
 | `GlassDatePicker` | A month calendar date picker, in place. |
 | `GlassTimePicker` | Hour and minute wheels, with an AM/PM wheel in 12-hour time. |
 | `GlassCountDownPicker`, `GlassMonthYearPicker` | A timer's hours and minutes, and a month and year, on wheels. |
-| `GlassProgressView`, `GlassActivityIndicator` | A progress bar and a spinner. |
+| `GlassProgressView`, `GlassActivityIndicator` | A progress bar, of a value or over a time interval (`GlassProgressView.timer`), and a spinner. |
 | `GlassSliverRefreshControl` | Pull to refresh at the top of a scroll view. |
 | `GlassBadge` | A badge on a tab: a count, a short text or a dot. |
 
