@@ -242,7 +242,7 @@ void main() {
     expect(_sidebar, findsOneWidget);
   });
 
-  testWidgets('the band above the sidebar\'s rows takes every hit its '
+  testWidgets("the band above the sidebar's rows takes every hit its "
       'button leaves, and the app fills it, as a bar does', (tester) async {
     final controller = GlassTabController();
     addTearDown(controller.dispose);
@@ -483,7 +483,7 @@ void main() {
     expect(pill('One'), isNull);
   });
 
-  testWidgets('a page open beside a list tab\'s list knows it stands '
+  testWidgets("a page open beside a list tab's list knows it stands "
       'beside it, and not while the list is hidden', (tester) async {
     for (final list in [GlassTabListMode.beside, GlassTabListMode.hidden]) {
       final controller = GlassTabController();

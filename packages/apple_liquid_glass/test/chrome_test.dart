@@ -191,7 +191,7 @@ void main() {
   });
 
   testWidgets('a scroll view with a start of its own takes the status '
-      'bar\'s tap', (tester) async {
+      "bar's tap", (tester) async {
     final controller = ScrollController();
     addTearDown(controller.dispose);
     var starts = 0;

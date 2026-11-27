@@ -52,6 +52,12 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+// The view of a navigator's navigation bar; its toolbar has a view of its
+// own.
+final _navigationBar = find.byWidgetPredicate(
+  (widget) => widget is GlassBarView && widget.kind != GlassBarKind.toolbar,
+);
+
 void main() {
   setUp(MotionClock.debugReset);
 
@@ -132,7 +138,7 @@ void main() {
       _app(navigator, _page('Home', trailing: [_icon('plus')])),
     );
     await tester.pump();
-    expect(find.byType(GlassBarView), findsOneWidget);
+    expect(_navigationBar, findsOneWidget);
     expect(tester.getCenter(find.byKey(const Key('plus'))).dx, 364);
 
     unawaited(
@@ -146,14 +152,14 @@ void main() {
     for (var i = 0; i < 4; i++) {
       await tester.pump(_frame);
     }
-    expect(find.byType(GlassBarView), findsOneWidget);
+    expect(_navigationBar, findsOneWidget);
     expect(
       tester.getCenter(find.text('Next')).dx,
       greaterThan(201),
       reason: 'the page is still sliding in',
     );
     await _settle(tester);
-    expect(find.byType(GlassBarView), findsOneWidget);
+    expect(_navigationBar, findsOneWidget);
     expect(tester.getCenter(find.byKey(const Key('share'))).dx, 364);
     expect(find.byKey(const Key('plus')), findsNothing);
     final back = find.bySemanticsLabel('Home');
@@ -201,7 +207,7 @@ void main() {
         ),
       );
       await _settle(tester);
-      final bar = find.byType(GlassBarView);
+      final bar = _navigationBar;
       for (final text in ['Home', 'Back', 'Root']) {
         expect(
           find.descendant(of: bar, matching: find.text(text)),
@@ -675,7 +681,7 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.byType(GlassBarView), findsNWidgets(3));
+    expect(_navigationBar, findsNWidgets(3));
     expect(find.byKey(const Key('left')), findsOneWidget);
     expect(find.byKey(const Key('right')), findsOneWidget);
   });
@@ -766,7 +772,7 @@ void main() {
     double glass() => tester
         .widgetList<GlassSurface>(
           find.descendant(
-            of: find.byType(GlassBarView),
+            of: _navigationBar,
             matching: find.byType(GlassSurface),
           ),
         )

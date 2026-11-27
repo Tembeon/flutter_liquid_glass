@@ -346,8 +346,12 @@ final class GlassBarHost {
 
   static final Expando<GlassBarHost> _hosts = Expando('GlassBarHost');
 
-  /// The key of the one bar view, which moves between the pages' slots.
+  /// The keys of the navigation bar's view and the toolbar's, which move
+  /// between the pages' slots.
   final GlobalKey viewKey = GlobalKey(debugLabel: 'GlassBarView');
+  final GlobalKey toolbarViewKey = GlobalKey(
+    debugLabel: 'GlassBarView toolbar',
+  );
 
   /// The page whose slot draws the bars: the topmost live glass page.
   ValueListenable<GlassPageBarLink?> get painter => _painter;

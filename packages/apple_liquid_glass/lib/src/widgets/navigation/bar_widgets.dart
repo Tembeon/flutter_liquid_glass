@@ -24,14 +24,20 @@ class GlassOwnBars extends StatelessWidget {
   Widget build(BuildContext context) => _LinkScope(link: null, child: child);
 }
 
-/// The z-slot a glass page route gives its navigator's bars: an
-/// [OverlayPortal] around the page's content, whose overlay child is the
-/// bar view while the page is the host's painter.
+/// The z-slot a glass page route gives its navigator's bars: two
+/// [OverlayPortal]s around the page's content, whose overlay children are
+/// the navigation bar's view and the toolbar's while the page is the
+/// host's painter.
 ///
-/// The overlay child paints right above the route's page and below every
-/// later route, inherits the route's themes, direction and media query,
-/// and is neither painted nor hit while the route is offstage. It sits
+/// The overlay children paint right above the route's page and below every
+/// later route, inherit the route's themes, direction and media query,
+/// and are neither painted nor hit while the route is offstage. They sit
 /// outside the page's card and swipe: the bars stay while the page moves.
+/// A screen reader reads the navigation bar, then the page, then the
+/// toolbar, as VoiceOver reads a UIKit page. An overlay child is read as a
+/// child of its portal's node, by where it stands: the navigation bar's
+/// stands over the bar's band alone, so it is read before the page beside
+/// it, and the toolbar's is read inside the page's node, after the page.
 @internal
 class GlassBarSlot extends StatefulWidget {
   /// Gives [link]'s page a slot around [child].
@@ -49,12 +55,14 @@ class GlassBarSlot extends StatefulWidget {
 
 class _GlassBarSlotState extends State<GlassBarSlot> {
   final _portal = OverlayPortalController();
+  final _toolbarPortal = OverlayPortalController();
   ValueListenable<GlassPageBarLink?>? _painter;
 
   @override
   void initState() {
     super.initState();
     _portal.show();
+    _toolbarPortal.show();
     _follow();
   }
 
@@ -84,19 +92,95 @@ class _GlassBarSlotState extends State<GlassBarSlot> {
   Widget build(BuildContext context) {
     final link = widget.link;
     final host = link.host;
+    Widget bar(GlassBarKind kind, GlobalKey key) =>
+        identical(host.painter.value, link)
+        ? KeyedSubtree(
+            key: key,
+            child: GlassBarView(host: host, kind: kind),
+          )
+        : const SizedBox.shrink();
+    // A portal reads its overlay child as a child of its own child's node,
+    // ordered by where they stand, and each overlay child covers the whole
+    // screen: the page's node starts at the bar's row, under the status bar,
+    // so the navigation bar comes before it, and ends a point short of the
+    // bottom, so the toolbar comes after it.
     return _LinkScope(
       link: link,
       child: OverlayPortal(
         controller: _portal,
-        overlayChildBuilder: (context) => identical(host.painter.value, link)
-            ? KeyedSubtree(
-                key: host.viewKey,
-                child: GlassBarView(host: host),
-              )
-            : const SizedBox.shrink(),
-        child: widget.child,
+        overlayChildBuilder: (context) =>
+            bar(GlassBarKind.navigation, host.viewKey),
+        child: _PageSemantics(
+          top: math.max(1, BarRoom.rowTopOf(context)),
+          child: OverlayPortal(
+            controller: _toolbarPortal,
+            overlayChildBuilder: (context) =>
+                bar(GlassBarKind.toolbar, host.toolbarViewKey),
+            child: _PageSemantics(bottom: 1, child: widget.child),
+          ),
+        ),
       ),
     );
+  }
+}
+
+/// The node of a page under its bars, [top] points short of its box's top
+/// and [bottom] short of its bottom.
+class _PageSemantics extends SingleChildRenderObjectWidget {
+  const _PageSemantics({required super.child, this.top = 0, this.bottom = 0});
+
+  final double top;
+  final double bottom;
+
+  @override
+  _RenderPageSemantics createRenderObject(BuildContext context) =>
+      _RenderPageSemantics(top: top, bottom: bottom);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderPageSemantics renderObject,
+  ) => renderObject
+    ..top = top
+    ..bottom = bottom;
+}
+
+class _RenderPageSemantics extends RenderProxyBox {
+  _RenderPageSemantics({required this._top, required this._bottom});
+
+  double _top;
+  double get top => _top;
+  set top(double value) {
+    if (value == _top) return;
+    _top = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  double _bottom;
+  double get bottom => _bottom;
+  set bottom(double value) {
+    if (value == _bottom) return;
+    _bottom = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  @override
+  Rect get semanticBounds {
+    final top = math.min(_top, size.height);
+    return Rect.fromLTRB(
+      0,
+      top,
+      size.width,
+      math.max(top, size.height - _bottom),
+    );
+  }
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    config
+      ..isSemanticBoundary = true
+      ..explicitChildNodes = true;
   }
 }
 
@@ -110,11 +194,19 @@ class _GlassBarSlotState extends State<GlassBarSlot> {
 @internal
 class GlassBarView extends StatelessWidget {
   /// Creates the view of [host].
-  const GlassBarView({required this.host, this.only, this.sides, super.key})
-    : assert(only == null || sides != null, 'One bar needs its sides');
+  const GlassBarView({
+    required this.host,
+    this.only,
+    this.sides,
+    this.kind,
+    super.key,
+  }) : assert(only == null || sides != null, 'One bar needs its sides');
 
   /// The bars.
   final GlassBarHost host;
+
+  /// The one bar to draw in its place on the screen, or null for both.
+  final GlassBarKind? kind;
 
   /// The one bar to draw in the given box, or null for both in their
   /// places on the screen.
@@ -149,7 +241,6 @@ class GlassBarView extends StatelessWidget {
         child: _Band(bar: bar),
       );
     }
-    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
     final navigation = host._bars[GlassBarKind.navigation]!;
     final toolbar = host._bars[GlassBarKind.toolbar]!;
     final top = BarRoom.rowTopOf(context);
@@ -160,31 +251,41 @@ class GlassBarView extends StatelessWidget {
       height: GlassNavigationBar.height,
     );
     final bottom = BarRoom.sidesOf(context, inset: toolbar.sideInset);
+    final kind = this.kind;
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Positioned(
-          top: top,
-          left: row.left - navigation.sideInset,
-          right: row.right - navigation.sideInset,
-          height: GlassNavigationBar.height,
-          child: _Band(bar: navigation),
-        ),
-        Positioned(
-          bottom: keyboard > 0
-              ? keyboard + GlassToolbar.keyboardInset
-              : GlassToolbar.bottomInset,
-          left: bottom.left - toolbar.sideInset,
-          right: bottom.right - toolbar.sideInset,
-          height: GlassBarMetrics.toolbar.capsuleHeight,
-          child: _Band(bar: toolbar),
-        ),
+        if (kind != GlassBarKind.toolbar)
+          Positioned(
+            top: top,
+            left: row.left - navigation.sideInset,
+            right: row.right - navigation.sideInset,
+            height: GlassNavigationBar.height,
+            child: _Band(bar: navigation),
+          ),
+        if (kind != GlassBarKind.navigation)
+          Positioned(
+            bottom: toolbarBottomOf(context),
+            left: bottom.left - toolbar.sideInset,
+            right: bottom.right - toolbar.sideInset,
+            height: GlassBarMetrics.toolbar.capsuleHeight,
+            child: _Band(bar: toolbar),
+          ),
       ],
     );
   }
 
   /// The prominent capsule's tint without a primary color (device).
   static const _prominentColor = Color(0xFF0088FF);
+
+  /// How far the toolbar's capsules stand above the screen's bottom: over
+  /// a keyboard where one shows.
+  static double toolbarBottomOf(BuildContext context) {
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    return keyboard > 0
+        ? keyboard + GlassToolbar.keyboardInset
+        : GlassToolbar.bottomInset;
+  }
 }
 
 /// Cuts off what moves above the clipped box's top, and nothing below: a

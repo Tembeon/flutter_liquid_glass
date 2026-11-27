@@ -178,10 +178,20 @@ void main() {
     expect(back, isNonNegative, reason: '$order');
     expect(back, lessThan(order.indexOf('Settings')));
     expect(order.indexOf('Settings'), lessThan(order.indexOf('Row 0')));
+    final node = tester.semantics.simulatedAccessibilityTraversal().firstWhere(
+      (node) => node.label.contains('Library'),
+    );
+    expect(
+      (Offset.zero & const Size(402, 874)).contains(
+        globalRect(tester, node).center,
+      ),
+      isTrue,
+      reason: 'the page slid in, and so did its nodes',
+    );
     semantics.dispose();
   });
 
-  testWidgets('the item padding is where the bar\'s outer items stand, '
+  testWidgets("the item padding is where the bar's outer items stand, "
       'after the window buttons on the same gap', (tester) async {
     await _phone(tester);
     late EdgeInsets padding;
@@ -214,6 +224,62 @@ void main() {
     // A custom item stands 4 inside its capsule.
     expect(leading.left, padding.left + 4);
     expect(402 - trailing.right, padding.right + 4);
+  });
+
+  testWidgets('a pushed page reads its toolbar after its rows', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      WidgetsApp(
+        navigatorKey: navigator,
+        color: const Color(0xFF000000),
+        pageRouteBuilder: <T>(settings, builder) =>
+            GlassPageRoute<T>(builder: builder, settings: settings),
+        builder: (context, child) => GlassScope(
+          renderer: const FlatGlassRenderer(),
+          child: child!,
+        ),
+        home: _page(title: const Text('Library')),
+      ),
+    );
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(
+          builder: (context) => GlassPageScaffold(
+            navigationBar: const GlassNavigationBar(title: Text('Notes')),
+            toolbar: GlassToolbar(
+              items: [
+                GlassBarItem(
+                  label: const Text('Share'),
+                  semanticLabel: 'Share',
+                  onPressed: () {},
+                ),
+              ],
+            ),
+            child: ListView(
+              children: [
+                for (var i = 0; i < 4; i++)
+                  SizedBox(height: 50, child: Text('Row $i')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    for (var i = 0; i < 90; i++) {
+      await tester.pump(_frame);
+    }
+    final order = [
+      for (final node in tester.semantics.simulatedAccessibilityTraversal())
+        node.label,
+    ];
+    final back = order.indexWhere((label) => label.contains('Library'));
+    expect(back, lessThan(order.indexOf('Row 0')), reason: '$order');
+    expect(order.indexOf('Row 3'), lessThan(order.indexOf('Share')));
+    semantics.dispose();
   });
 
   testWidgets('the inline title sits on the center when it fits, else from '
