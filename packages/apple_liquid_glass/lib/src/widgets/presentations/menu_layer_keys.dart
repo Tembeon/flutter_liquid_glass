@@ -45,11 +45,33 @@ class MenuLayerKeys {
   String _typed = '';
   Duration? _typedAt;
 
+  // Whether a Shortcuts above the menu binds the key to an intent of the
+  // app's, which then goes first.
+  static bool _bound(
+    FocusNode node,
+    KeyEvent event,
+    HardwareKeyboard keyboard,
+  ) {
+    var bound = false;
+    node.context?.visitAncestorElements((element) {
+      final widget = element.widget;
+      if (widget is Shortcuts &&
+          widget.shortcuts.keys.any(
+            (activator) => activator.accepts(event, keyboard),
+          )) {
+        bound = true;
+      }
+      return !bound;
+    });
+    return bound;
+  }
+
   /// A letter typed while the menu has the keyboard moves the focus to the
   /// next enabled row whose title starts with what was typed within the
   /// last second, as UIKit's type select does (`allowsTypeSelect`): one
   /// letter again steps on to the next such row, more letters narrow the
-  /// match from the focused row.
+  /// match from the focused row. A key an app binds with `Shortcuts` keeps
+  /// its intent.
   KeyEventResult typeSelect(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
@@ -61,7 +83,8 @@ class MenuLayerKeys {
         keyboard.isControlPressed ||
         keyboard.isMetaPressed ||
         keyboard.isAltPressed ||
-        !_layer.current) {
+        !_layer.current ||
+        _bound(node, event, keyboard)) {
       return KeyEventResult.ignored;
     }
     final at = event.timeStamp;
