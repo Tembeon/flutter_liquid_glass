@@ -119,7 +119,8 @@ class NavigationPopMotion {
   /// points; a finger that drifts farther first gives the pop up (read
   /// from UIKit's code; the recorded swipes run straight).
   static double edgeDrift(double elapsed) => math.max(
-    10 / math.tan(math.pi / 2 - edgeAngleWindow / 2) *
+    10 /
+        math.tan(math.pi / 2 - edgeAngleWindow / 2) *
         (1 - elapsed / edgeAngleDecay),
     20,
   );

@@ -378,8 +378,7 @@ final class SliderMotion extends Motion {
 
   /// The track height, thinner while stretched.
   double get currentTrackHeight =>
-      (thumbless ? thumblessTrackHeight : trackHeight) -
-      squish * stretch.abs();
+      (thumbless ? thumblessTrackHeight : trackHeight) - squish * stretch.abs();
 
   /// Whether a press at [x] grabs the thumb.
   bool hitsThumb(double x) =>
