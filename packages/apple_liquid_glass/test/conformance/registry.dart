@@ -1181,6 +1181,21 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'showGlassFullScreen',
+    covers: const ['showGlassFullScreen'],
+    kind: Kind.overlay,
+    dismissible: false,
+    marker: find.text(overlayText),
+    inside: find.text('Inside'),
+    build: (probe, {required enabled}) => Opener(
+      show: (context) => showGlassFullScreen<void>(
+        context,
+        semanticLabel: 'Cover',
+        builder: (context) => _content(probe),
+      ),
+    ),
+  ),
+  Entry(
     'showGlassPopover',
     covers: const ['showGlassPopover'],
     kind: Kind.overlay,

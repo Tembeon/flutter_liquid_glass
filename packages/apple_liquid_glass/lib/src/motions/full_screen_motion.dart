@@ -11,10 +11,9 @@ final class FullScreenMotion extends PresentedProgress {
   /// Creates the motion of a page [height] points tall that is not shown
   /// yet, on [clock].
   FullScreenMotion({required double height, super.clock})
-    : super(openSpring: spring, restDistance: MotionRest.scale(height));
+    : super(openSpring: _spring, restDistance: MotionRest.scale(height));
 
-  /// The spring the page slides up and down on.
-  static const spring = Spring.response(0.344, dampingRatio: 1);
+  static const _spring = Spring.response(0.344, dampingRatio: 1);
 
   @override
   bool get needsFullFrameRate => true;

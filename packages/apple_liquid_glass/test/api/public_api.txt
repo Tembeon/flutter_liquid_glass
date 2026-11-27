@@ -139,7 +139,6 @@ final class FlexLaw
 typedef FlexValues = ({double driftX, double driftY, double scaleX, double scaleY})
 final class FullScreenMotion extends PresentedProgress
   FullScreenMotion({required double height, MotionClock? clock})
-  static const Spring spring
   overrides: needsFullFrameRate
 final class Glass
   const Glass.clear({Color? tint})

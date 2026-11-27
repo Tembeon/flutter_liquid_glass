@@ -11,11 +11,13 @@ import 'package:kinesis/kinesis.dart';
 /// SwiftUI: `fullScreenCover`. Flutter: a `fullscreenDialog` page route.
 ///
 /// [builder] builds the page, on [GlassColors.systemBackground] unless it
-/// paints its own; `Navigator.pop(context, result)` inside it closes the
-/// page with a result. The page slides up over the one below on UIKit's
-/// critically damped spring of response 0.344 and back down on the same
-/// spring when it closes. No swipe closes it: Back and `Navigator.pop`
-/// do, and Android's predictive back slides it down with the gesture. Once
+/// paints its own, its text 17 points in the label color unless it sets
+/// its own; `Navigator.pop(context, result)` inside it closes the page with
+/// a result. The page slides up over the one below on UIKit's critically
+/// damped spring of response 0.344 and back down on the same spring when
+/// it closes. No touch closes it: Back, Escape, a screen reader's dismiss
+/// and `Navigator.pop` do, and Android's predictive back slides it down
+/// with the gesture. Once
 /// it covers the screen the page below stops building and painting, as
 /// UIKit takes the presenter's view out of the window, and comes back as
 /// the page leaves. Screen readers hear it as a route named
@@ -62,7 +64,11 @@ class _FullScreenRoute<T> extends PresentationPageRoute<T> {
     ),
     builder: (context, motion) =>
         _FullScreenPage(motion: motion, builder: builder),
-    dismiss: const DismissPolicy({DismissTrigger.back}),
+    dismiss: const DismissPolicy({
+      DismissTrigger.back,
+      DismissTrigger.escape,
+      DismissTrigger.accessibility,
+    }),
     modal: (motion) => true,
     semanticsLabel: semanticLabel,
     semanticsRole: SemanticsRole.dialog,
@@ -102,7 +108,18 @@ class _FullScreenPageState extends State<_FullScreenPage> {
     translateY: _drop,
     child: ColoredBox(
       color: GlassDynamicColor.resolve(GlassColors.systemBackground, context),
-      child: Builder(builder: widget.builder),
+      child: DefaultTextStyle(
+        style: GlassTextScale.of(context).resolve(
+          TextStyle(
+            fontSize: 17,
+            color: GlassDynamicColor.resolve(
+              GlassTheme.labelColorOf(context),
+              context,
+            ),
+          ),
+        ),
+        child: Builder(builder: widget.builder),
+      ),
     ),
   );
 }
