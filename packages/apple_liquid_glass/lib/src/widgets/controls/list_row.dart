@@ -261,12 +261,17 @@ class _GlassListRowState extends State<GlassListRow> {
         widget.showsReorderControl &&
         RawGlassList.reordersOf(context);
     final edits = edit != null || grip;
+    final menus = value == null ? null : GlassListContextMenu.maybeOf(context);
+    final primary = menus?.onPrimaryAction;
     final row = RawGlassListRow(
       onPressed: edit == _EditKind.select
           ? () => editing!.toggle(value!)
           : edits
           ? null
-          : widget.onPressed,
+          : widget.onPressed ??
+                (primary == null || (editing?.editing ?? false)
+                    ? null
+                    : () => primary({value!})),
       onLongPress: edits ? null : widget.onLongPress,
       enabled: widget.enabled,
       selected: edit == _EditKind.select
@@ -312,7 +317,10 @@ class _GlassListRowState extends State<GlassListRow> {
         picked: picked,
       ),
     );
-    if (edit != _EditKind.delete) return row;
+    final held = menus == null
+        ? row
+        : _held(context, menus, row, editing: editing, value: value!);
+    if (edit != _EditKind.delete) return held;
     return GlassSwipeActions(
       fullSwipe: false,
       openOn: _confirm,
@@ -323,6 +331,30 @@ class _GlassListRowState extends State<GlassListRow> {
           onPressed: widget.onDelete!,
         ),
       ],
+      child: held,
+    );
+  }
+
+  // A held row acts on the selection it is in, or on itself.
+  static Widget _held(
+    BuildContext context,
+    GlassListContextMenu menus,
+    Widget row, {
+    required GlassListEditing? editing,
+    required Object value,
+  }) {
+    final selected =
+        editing != null &&
+        editing.editing &&
+        editing.selects &&
+        editing.selection.contains(value);
+    final entries = menus.menuBuilder(
+      context,
+      selected ? editing.selection : {value},
+    );
+    return GlassContextMenu(
+      menuChildren: entries,
+      enabled: entries.isNotEmpty,
       child: row,
     );
   }

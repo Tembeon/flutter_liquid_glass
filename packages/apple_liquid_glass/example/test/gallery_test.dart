@@ -496,6 +496,17 @@ void galleryTests({bool onDevice = false}) {
       findsOneWidget,
     );
     await choose('Off');
+    await _bring(tester, find.text('Monstera'), page);
+    final hold = await tester.startGesture(
+      tester.getCenter(find.text('Monstera')),
+    );
+    await _frames(tester);
+    await hold.up();
+    await _frames(tester);
+    expect(find.text('Water Monstera'), findsOneWidget);
+    await tester.tapAt(const Offset(8, 8));
+    await _frames(tester);
+    expect(find.text('Water Monstera'), findsNothing);
     await _back(tester);
 
     for (final (component, knobs) in const [

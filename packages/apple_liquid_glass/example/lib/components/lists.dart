@@ -121,9 +121,11 @@ class _ListPageState extends State<ListPage> {
           'The rows the knobs make',
           'Every row here is one GlassListRow with the parts turned on '
               'above. In editing a GlassListEditing above the section '
-              'gives each row its minus, plus or selection ring.',
+              'gives each row its minus, plus or selection ring. Hold a row '
+              'for a GlassListContextMenu: over the whole selection when '
+              'the row is selected in editing.',
           flush: true,
-          child: _editing(
+          child: _menus(
             GlassListSection(
               layout: _layout,
               showsSeparators: _separators,
@@ -263,6 +265,24 @@ class _ListPageState extends State<ListPage> {
       ],
     );
   }
+
+  Widget _menus(Widget list) => GlassListContextMenu(
+    menuBuilder: (context, values) => [
+      GlassMenuItem(
+        title: values.length == 1
+            ? 'Water ${values.single}'
+            : 'Water ${values.length} plants',
+        icon: const Icon(CupertinoIcons.drop),
+        onPressed: () {},
+      ),
+      GlassMenuItem(
+        title: 'Move to the porch',
+        icon: const Icon(CupertinoIcons.sun_max),
+        onPressed: () {},
+      ),
+    ],
+    child: _editing(list),
+  );
 
   Widget _editing(Widget list) => GlassListEditing(
     editing: _edit != _Edit.off,

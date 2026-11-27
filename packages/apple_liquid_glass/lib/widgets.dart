@@ -53,6 +53,7 @@ export 'src/widgets/controls/date_picker.dart'
 export 'src/widgets/controls/list.dart'
     show
         GlassListBackground,
+        GlassListContextMenu,
         GlassListEditing,
         GlassListLayout,
         GlassListRow,

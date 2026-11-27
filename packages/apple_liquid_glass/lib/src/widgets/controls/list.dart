@@ -6,6 +6,8 @@ import 'package:apple_liquid_glass/src/widgets/controls/list_accessory.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/list_style.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/swipe_actions.dart';
+import 'package:apple_liquid_glass/src/widgets/presentations/menu_anchor.dart';
+import 'package:apple_liquid_glass/src/widgets/presentations/menu_entries.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/sheet.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
@@ -126,6 +128,52 @@ class GlassListEditing extends InheritedWidget {
       editing != oldWidget.editing ||
       !setEquals(selection, oldWidget.selection) ||
       onSelectionChanged != oldWidget.onSelectionChanged;
+}
+
+/// Context menus over the list rows below it by their values, as SwiftUI's
+/// context menus over a list's selection.
+///
+/// UIKit: `UICollectionViewDelegate`
+/// `contextMenuConfigurationForItemsAt:point:`. SwiftUI:
+/// `contextMenu(forSelectionType:menu:primaryAction:)`. Flutter: none.
+///
+/// A [GlassListRow] with a value below it, held, opens a [GlassContextMenu]
+/// of the entries [menuBuilder] gives for the values it acts on: the whole
+/// selection of a [GlassListEditing] that selects when the held row is in
+/// it, the row's own value otherwise. No entries, no menu. [onPrimaryAction]
+/// runs with the row's value on a tap of a row without an `onPressed` of
+/// its own, out of editing, as SwiftUI's primary action on iOS.
+///
+/// Fidelity. Which values a menu acts on follows SwiftUI's documentation;
+/// the hold, the menu and its preview of the held row are
+/// [GlassContextMenu]'s. Not captured: how UIKit previews several selected
+/// rows held together.
+class GlassListContextMenu extends InheritedWidget {
+  /// Gives the rows below context menus of [menuBuilder]'s entries.
+  const GlassListContextMenu({
+    required this.menuBuilder,
+    required super.child,
+    this.onPrimaryAction,
+    super.key,
+  });
+
+  /// The entries of the menu over the values of the rows a held row acts
+  /// on.
+  final List<GlassMenuEntry> Function(BuildContext context, Set<Object> values)
+  menuBuilder;
+
+  /// Called with a tapped row's value, out of editing, for a row without
+  /// an `onPressed` of its own; null for rows a tap leaves alone.
+  final ValueChanged<Set<Object>>? onPrimaryAction;
+
+  /// The menus around [context], or null.
+  static GlassListContextMenu? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<GlassListContextMenu>();
+
+  @override
+  bool updateShouldNotify(GlassListContextMenu oldWidget) =>
+      menuBuilder != oldWidget.menuBuilder ||
+      onPrimaryAction != oldWidget.onPrimaryAction;
 }
 
 // A card's margin from the list's edges, past the safe area's sides as

@@ -1305,6 +1305,17 @@ class GlassListBackground extends StatelessWidget
   final Widget? child
   final Color color
   overrides: build
+class GlassListContextMenu extends InheritedWidget
+  const GlassListContextMenu({
+    required List<GlassMenuEntry> Function(BuildContext, Set<Object>) menuBuilder,
+    required Widget child,
+    void Function(Set<Object>)? onPrimaryAction,
+    Key? key,
+  })
+  static GlassListContextMenu? maybeOf(BuildContext context)
+  final List<GlassMenuEntry> Function(BuildContext, Set<Object>) menuBuilder
+  final void Function(Set<Object>)? onPrimaryAction
+  overrides: updateShouldNotify
 class GlassListEditing extends InheritedWidget
   const GlassListEditing({
     required bool editing,
@@ -6033,6 +6044,7 @@ class GlassEditMenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassFloatingTabBar (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassListAccessory (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListBackground (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassListContextMenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListEditing (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassListLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListRow (see package:apple_liquid_glass/apple_liquid_glass.dart)
