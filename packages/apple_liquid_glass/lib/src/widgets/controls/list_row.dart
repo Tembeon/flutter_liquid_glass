@@ -219,11 +219,57 @@ class _GlassListRowState extends State<GlassListRow> {
   // The width of the leading slot, which moves the separator's start.
   final _leadingWidth = ValueNotifier<double>(_Metrics.leadingWidth);
 
+  // The change into and out of editing, and the controls it shows while it
+  // runs, kept until the row rests out of editing.
+  late final ListEditMotion _edit = ListEditMotion(
+    clock: MotionClockScope.of(context),
+  );
+  late final MotionSelection<double> _editProgress = _edit.select(
+    (m) => m.progress.valueAt(m.now).clamp(0.0, 1.0),
+  );
+  late final MotionSelection<bool> _editGone = _edit.select(
+    (m) => m.restsOut,
+  );
+  bool? _editing;
+  _EditKind? _shownEdit;
+  bool _shownGrip = false;
+  bool _listening = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_listening) return;
+    _listening = true;
+    _editGone.addListener(_editEnded);
+  }
+
   @override
   void dispose() {
+    _editGone.removeListener(_editEnded);
     _confirm.dispose();
     _leadingWidth.dispose();
     super.dispose();
+  }
+
+  void _editEnded() {
+    if (!mounted || !_editGone.value || (_editing ?? false)) return;
+    if (_shownEdit == null && !_shownGrip) return;
+    setState(() {
+      _shownEdit = null;
+      _shownGrip = false;
+    });
+  }
+
+  // Into or out of editing: at once at the first build, on the table
+  // spring after.
+  void _syncEdit({required _EditKind? edit, required bool grip}) {
+    final editing = edit != null || grip;
+    if (edit != null) _shownEdit = edit;
+    if (grip) _shownGrip = true;
+    if (_editing == editing) return;
+    final first = _editing == null;
+    _editing = editing;
+    _edit.edit(_edit.clock.now, editing: editing, animated: !first);
   }
 
   void _measureLeading(double t, Size size) => _leadingWidth.value = size.width;
@@ -261,6 +307,7 @@ class _GlassListRowState extends State<GlassListRow> {
         widget.showsReorderControl &&
         RawGlassList.reordersOf(context);
     final edits = edit != null || grip;
+    _syncEdit(edit: edit, grip: grip);
     final menus = value == null ? null : GlassListContextMenu.maybeOf(context);
     final primary = menus?.onPrimaryAction;
     final row = RawGlassListRow(
@@ -409,7 +456,6 @@ class _GlassListRowState extends State<GlassListRow> {
     final inset = place?.layout.contentInset ?? GlassListSection.contentInset;
     final padding = look.contentPadding?.resolve(Directionality.of(context));
     final start = switch (padding) {
-      _ when edit != null => _Metrics.editingInset,
       null => inset,
       final padding =>
         Directionality.of(context) == TextDirection.ltr
@@ -429,6 +475,17 @@ class _GlassListRowState extends State<GlassListRow> {
     final trailing = edit == null && !grip ? widget.trailing : null;
     final mark = chevron || info || check;
     final accessory = trailing != null || mark;
+    final restEnd = check
+        ? _Metrics.checkmarkInset
+        : info && !chevron
+        ? _Metrics.infoInset
+        : accessory
+        ? _Metrics.accessoryInset
+        : end;
+    final editStart = _shownEdit != null ? _Metrics.editingInset : start;
+    final editEnd = _shownGrip
+        ? _Metrics.gripEndInset + _Metrics.gripWidth + _Metrics.gripGap
+        : restEnd;
     // A row that highlights has more than the card's color under its control.
     final highlights =
         widget.onPressed != null || widget.selected || edit == _EditKind.select;
@@ -494,19 +551,13 @@ class _GlassListRowState extends State<GlassListRow> {
       constraints: BoxConstraints(
         minHeight: look.minRowHeight ?? _Metrics.minRowHeight,
       ),
-      child: Padding(
-        padding: EdgeInsetsDirectional.only(
-          start: start,
-          end: check
-              ? _Metrics.checkmarkInset
-              : info && !chevron
-              ? _Metrics.infoInset
-              : accessory
-              ? _Metrics.accessoryInset
-              : grip
-              ? _Metrics.gripEndInset + _Metrics.gripWidth + _Metrics.gripGap
-              : end,
-        ),
+      child: _EditPadding(
+        start: start,
+        editStart: editStart,
+        end: restEnd,
+        editEnd: editEnd,
+        progress: _editProgress,
+        direction: Directionality.of(context),
         child: Row(
           children: [
             Expanded(child: text),
@@ -530,6 +581,8 @@ class _GlassListRowState extends State<GlassListRow> {
         ? _RowSeparator(
             color: color(look.separatorColor),
             textStart: start,
+            editTextStart: editStart,
+            edit: _editProgress,
             indent: look.separatorIndent,
             endIndent: look.separatorEndIndent ?? inset,
             leadingWidth: leading == null ? null : _leadingWidth,
@@ -537,41 +590,58 @@ class _GlassListRowState extends State<GlassListRow> {
             child: row,
           )
         : row;
-    final marked = edit == null && !grip
-        ? surface
-        : Stack(
-            children: [
-              surface,
-              if (edit != null)
-                PositionedDirectional(
-                  start: 0,
-                  width: _Metrics.editingInset,
-                  top: 0,
-                  bottom: 0,
-                  child: _EditMark(
-                    kind: edit,
-                    picked: picked,
-                    onPressed: switch (edit) {
-                      _EditKind.delete => _confirm.ping,
-                      _EditKind.insert => widget.onInsert,
-                      _EditKind.select => null,
-                    },
+    final shownEdit = _shownEdit;
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final slide = _Metrics.editingInset - start;
+    final marked = Stack(
+      children: [
+        surface,
+        if (shownEdit != null)
+          PositionedDirectional(
+            start: 0,
+            width: _Metrics.editingInset,
+            top: 0,
+            bottom: 0,
+            child: IgnorePointer(
+              ignoring: edit == null,
+              child: MotionTransition(
+                offset: _edit.select(
+                  (m) => Offset(
+                    (rtl ? 1 : -1) *
+                        slide *
+                        (1 - m.progress.valueAt(m.now).clamp(0.0, 1.0)),
+                    0,
                   ),
                 ),
-              if (grip)
-                PositionedDirectional(
-                  end: 0,
-                  width: _Metrics.gripWidth + _Metrics.gripEndInset,
-                  top: 0,
-                  bottom: 0,
-                  child: RawGlassReorderHandle(
-                    child: _Grip(
-                      color: GlassTheme.tertiaryLabelColorOf(context),
-                    ),
-                  ),
+                opacity: _editProgress,
+                child: _EditMark(
+                  kind: shownEdit,
+                  picked: picked,
+                  onPressed: switch (edit) {
+                    _EditKind.delete => _confirm.ping,
+                    _EditKind.insert => widget.onInsert,
+                    _EditKind.select || null => null,
+                  },
                 ),
-            ],
-          );
+              ),
+            ),
+          ),
+        if (_shownGrip)
+          PositionedDirectional(
+            end: 0,
+            width: _Metrics.gripWidth + _Metrics.gripEndInset,
+            top: 0,
+            bottom: 0,
+            child: MotionTransition(
+              opacity: _editProgress,
+              child: RawGlassReorderHandle(
+                enabled: grip,
+                child: _Grip(color: GlassTheme.tertiaryLabelColorOf(context)),
+              ),
+            ),
+          ),
+      ],
+    );
     if (!highlights) return marked;
     return GlassHighlightPaint.of(
       context,

@@ -299,8 +299,13 @@ class RawGlassReorderHandle extends StatefulWidget {
   const RawGlassReorderHandle({
     required this.child,
     this.semanticLabel,
+    this.enabled = true,
     super.key,
   });
+
+  /// Whether the handle drags its row; turned off while a finger drags,
+  /// the drag is cancelled and the rows go back.
+  final bool enabled;
 
   /// What shows the handle, such as the three lines of UIKit's grip.
   final Widget child;
@@ -326,7 +331,7 @@ class _RawGlassReorderHandleState extends State<RawGlassReorderHandle> {
   @override
   Widget build(BuildContext context) {
     final item = _item = _ReorderItem.maybeOf(context);
-    if (item == null || !item.reorders) return widget.child;
+    if (item == null || !item.reorders || !widget.enabled) return widget.child;
     final strings = GlassLocalizations.of(context);
     final position = item.position ?? 0;
     final count = item.state.widget.ids.length;

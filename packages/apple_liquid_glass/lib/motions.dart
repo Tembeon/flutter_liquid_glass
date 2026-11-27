@@ -47,7 +47,7 @@ export 'src/motions/lens_values.dart' show LensEvent, LensSelected, LensSlot;
 export 'src/motions/list_highlight.dart' show ListRowHighlight;
 export 'src/motions/list_reorder.dart' show ListReorder;
 export 'src/motions/list_row_animation.dart'
-    show GlassListRowAnimation, ListRowPlanner;
+    show GlassListRowAnimation, ListEditMotion, ListRowPlanner;
 export 'src/motions/menu_context_hold.dart' show ContextHold;
 export 'src/motions/menu_event.dart'
     show MenuActivated, MenuEvent, MenuHighlightChanged;

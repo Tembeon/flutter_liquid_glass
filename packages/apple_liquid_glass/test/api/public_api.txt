@@ -3745,6 +3745,11 @@ base class LiquidGlassRenderer extends GlassRenderer
     LiquidGlassMaterial material,
   )
   overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode
+final class ListEditMotion extends Motion
+  ListEditMotion({MotionClock? clock})
+  void edit(double t, {required bool editing, required bool animated})
+  late final MotionValue<double> progress
+  bool get restsOut
 abstract final class ListReorder
   ListReorder()
   static void giveWay(void Function() change)
@@ -4506,9 +4511,11 @@ class RawGlassReorderHandle extends StatefulWidget
   const RawGlassReorderHandle({
     required Widget child,
     String? semanticLabel,
+    bool enabled = ...,
     Key? key,
   })
   final Widget child
+  final bool enabled
   final String? semanticLabel
   overrides: createState
 class RawGlassSearchField extends StatefulWidget
@@ -5905,6 +5912,7 @@ class LensEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class LensMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class LensSelected (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef LensSlot (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class ListEditMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ListReorder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ListRowHighlight (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ListRowPlanner (see package:apple_liquid_glass/apple_liquid_glass.dart)

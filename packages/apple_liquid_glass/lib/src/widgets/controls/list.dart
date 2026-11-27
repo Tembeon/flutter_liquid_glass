@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
@@ -15,7 +16,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
-import 'package:kinesis/motion.dart' show RenderListening;
+import 'package:kinesis/motion.dart'
+    show MotionSelect, MotionSelection, RenderListening;
 import 'package:kinesis/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 
@@ -85,11 +87,16 @@ class GlassListBackground extends StatelessWidget {
 /// indent while editing. One scope above a list's sections holds one
 /// selection across them.
 ///
-/// Fidelity. The places and colors are UIKit 27.2's (list API passport); the
-/// change switches at once, where UIKit moves the rows on a critically
-/// damped spring of response 0.3, and the minus of a row showing its Delete
-/// action does not turn. Rows reorder by hand in a [GlassSliverListSection]
-/// with `onReorderItem`, whose rows then show UIKit's reorder control.
+/// The change into and out of editing runs on UIKit's table spring,
+/// critically damped at 0.3: the text moves, the edit control slides in
+/// from the start and fades in, and the reorder control fades in; the
+/// accessories hide and show at once.
+///
+/// Fidelity. The places, colors and spring are UIKit 27.2's (list API
+/// passport); the minus of a row showing its Delete action does not turn.
+/// Rows reorder by hand in a [GlassSliverListSection] with
+/// `onReorderItem`, whose rows then show UIKit's reorder control. NEAR:
+/// UIKit also fades its accessories out and in.
 class GlassListEditing extends InheritedWidget {
   /// Puts the rows below into editing while [editing].
   const GlassListEditing({

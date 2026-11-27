@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -165,6 +167,7 @@ void main() {
     await _settle(tester);
     expect(log, ['inserted']);
     await tester.pumpWidget(list(editing: false));
+    await _settle(tester);
     expect(_marks, findsNothing);
     final row = tester.getRect(find.byType(GlassListRow));
     expect(tester.getTopLeft(find.text('One')).dx - row.left, 20);
@@ -263,5 +266,46 @@ void main() {
     expect(_marks, findsNothing);
     final row = tester.getRect(find.byType(GlassListRow));
     expect(tester.getTopLeft(find.text('One')).dx - row.left, 20);
+  });
+
+  testWidgets('going into editing moves the text to 60 on the table spring, '
+      'critically damped at 0.3, with the control sliding and fading in; '
+      'coming out moves it all back', (tester) async {
+    Widget list({required bool editing}) => _app(
+      GlassListEditing(
+        editing: editing,
+        child: GlassListSection(
+          children: [GlassListRow(title: const Text('One'), onDelete: () {})],
+        ),
+      ),
+    );
+    await tester.pumpWidget(list(editing: false));
+    final row = tester.getRect(find.byType(GlassListRow));
+    double text() => tester.getTopLeft(find.text('One')).dx - row.left;
+    expect(text(), 20);
+    await tester.pumpWidget(list(editing: true));
+    final start = tester.binding.clock.now();
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(_frame);
+    }
+    final t = tester.binding.clock.now().difference(start).inMicroseconds / 1e6;
+    const omega = 2 * math.pi / 0.3;
+    final p = 1 - (1 + omega * t) * math.exp(-omega * t);
+    expect(text(), moreOrLessEquals(20 + 40 * p, epsilon: 1.5));
+    expect(_marks, findsOneWidget);
+    expect(_markBox(tester, 0).left - row.left, lessThan(19.17));
+    await _settle(tester);
+    expect(text(), moreOrLessEquals(60));
+    expect(_markBox(tester, 0).left - row.left, moreOrLessEquals(19.17));
+    await tester.pumpWidget(list(editing: false));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(_frame);
+    }
+    expect(text(), greaterThan(21));
+    expect(text(), lessThan(59));
+    expect(_marks, findsOneWidget);
+    await _settle(tester);
+    expect(text(), moreOrLessEquals(20));
+    expect(_marks, findsNothing);
   });
 }

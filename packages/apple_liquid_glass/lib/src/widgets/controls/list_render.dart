@@ -5,6 +5,8 @@ class _RowSeparator extends SingleChildRenderObjectWidget {
   const _RowSeparator({
     required this.color,
     required this.textStart,
+    required this.editTextStart,
+    required this.edit,
     required this.indent,
     required this.endIndent,
     required this.leadingWidth,
@@ -14,6 +16,8 @@ class _RowSeparator extends SingleChildRenderObjectWidget {
 
   final Color color;
   final double textStart;
+  final double editTextStart;
+  final ValueListenable<double>? edit;
   final double? indent;
   final double endIndent;
   final ValueListenable<double>? leadingWidth;
@@ -24,6 +28,8 @@ class _RowSeparator extends SingleChildRenderObjectWidget {
       _RenderRowSeparator(
         color: color,
         textStart: textStart,
+        editTextStart: editTextStart,
+        edit: edit,
         indent: indent,
         endIndent: endIndent,
         leadingWidth: leadingWidth,
@@ -39,6 +45,8 @@ class _RowSeparator extends SingleChildRenderObjectWidget {
     renderObject.color = color;
     renderObject
       ..textStart = textStart
+      ..editTextStart = editTextStart
+      ..edit = edit
       ..indent = indent
       ..endIndent = endIndent;
     renderObject.leadingWidth = leadingWidth;
@@ -51,6 +59,8 @@ class _RenderRowSeparator extends RenderProxyBox {
   _RenderRowSeparator({
     required this._color,
     required this._textStart,
+    required this._editTextStart,
+    required this._edit,
     required this._indent,
     required this._endIndent,
     required this._leadingWidth,
@@ -75,6 +85,25 @@ class _RenderRowSeparator extends RenderProxyBox {
   set textStart(double value) {
     if (value == _textStart) return;
     _textStart = value;
+    markNeedsPaint();
+  }
+
+  // Where the content starts in editing, and how far into editing the row
+  // is: the text's start moves between the two.
+  double _editTextStart;
+  double get editTextStart => _editTextStart;
+  set editTextStart(double value) {
+    if (value == _editTextStart) return;
+    _editTextStart = value;
+    markNeedsPaint();
+  }
+
+  ValueListenable<double>? _edit;
+  ValueListenable<double>? get edit => _edit;
+  set edit(ValueListenable<double>? value) {
+    if (identical(value, _edit)) return;
+    _edit = value;
+    _hear();
     markNeedsPaint();
   }
 
@@ -121,6 +150,7 @@ class _RenderRowSeparator extends RenderProxyBox {
 
   void _hear() => _follow.hear([
     if (_leadingWidth case final width?) (width, markNeedsPaint),
+    if (_edit case final edit?) (edit, markNeedsPaint),
   ]);
 
   @override
@@ -140,9 +170,13 @@ class _RenderRowSeparator extends RenderProxyBox {
     super.paint(context, offset);
     final end = _endIndent;
     final ltr = _direction == TextDirection.ltr;
-    final text = switch (_leadingWidth) {
+    final content = switch (_edit) {
       null => _textStart,
-      final width => _textStart + width.value + _Metrics.leadingGap,
+      final edit => lerpDouble(_textStart, _editTextStart, edit.value)!,
+    };
+    final text = switch (_leadingWidth) {
+      null => content,
+      final width => content + width.value + _Metrics.leadingGap,
     };
     final start = _indent ?? math.max(text, _Metrics.separatorStart);
     final left = ltr ? start : end;
@@ -545,5 +579,187 @@ class _RenderLiftShadow extends RenderProxyBox {
       canvas.restore();
     }
     super.paint(context, offset);
+  }
+}
+
+/// A row's content inset at its start and end, moving from [start] and
+/// [end] to [editStart] and [editEnd] as the row goes into editing
+/// ([progress]), laid out again each frame of the change.
+class _EditPadding extends SingleChildRenderObjectWidget {
+  const _EditPadding({
+    required this.start,
+    required this.editStart,
+    required this.end,
+    required this.editEnd,
+    required this.progress,
+    required this.direction,
+    required Widget super.child,
+  });
+
+  final double start;
+  final double editStart;
+  final double end;
+  final double editEnd;
+  final ValueListenable<double> progress;
+  final TextDirection direction;
+
+  @override
+  _RenderEditPadding createRenderObject(BuildContext context) =>
+      _RenderEditPadding(
+        start: start,
+        editStart: editStart,
+        end: end,
+        editEnd: editEnd,
+        progress: progress,
+        direction: direction,
+        following: followsMotion(context),
+      );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderEditPadding renderObject,
+  ) {
+    renderObject
+      ..start = start
+      ..editStart = editStart
+      ..end = end
+      ..editEnd = editEnd
+      ..progress = progress
+      ..direction = direction
+      ..following = followsMotion(context);
+  }
+}
+
+class _RenderEditPadding extends RenderShiftedBox {
+  _RenderEditPadding({
+    required this._start,
+    required this._editStart,
+    required this._end,
+    required this._editEnd,
+    required this._progress,
+    required this._direction,
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following),
+       super(null) {
+    _hear();
+  }
+
+  double _start;
+  double get start => _start;
+  set start(double value) {
+    if (value == _start) return;
+    _start = value;
+    markNeedsLayout();
+  }
+
+  double _editStart;
+  double get editStart => _editStart;
+  set editStart(double value) {
+    if (value == _editStart) return;
+    _editStart = value;
+    markNeedsLayout();
+  }
+
+  double _end;
+  double get end => _end;
+  set end(double value) {
+    if (value == _end) return;
+    _end = value;
+    markNeedsLayout();
+  }
+
+  double _editEnd;
+  double get editEnd => _editEnd;
+  set editEnd(double value) {
+    if (value == _editEnd) return;
+    _editEnd = value;
+    markNeedsLayout();
+  }
+
+  ValueListenable<double> _progress;
+  ValueListenable<double> get progress => _progress;
+  set progress(ValueListenable<double> value) {
+    if (identical(value, _progress)) return;
+    _progress = value;
+    _hear();
+    markNeedsLayout();
+  }
+
+  TextDirection _direction;
+  TextDirection get direction => _direction;
+  set direction(TextDirection value) {
+    if (value == _direction) return;
+    _direction = value;
+    markNeedsLayout();
+  }
+
+  final MotionFollow _follow;
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
+  void _hear() => _follow.hear([(_progress, markNeedsLayout)]);
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _follow.attach();
+  }
+
+  @override
+  void detach() {
+    _follow.detach();
+    super.detach();
+  }
+
+  EdgeInsets get _insets {
+    final p = _progress.value;
+    final start = lerpDouble(_start, _editStart, p)!;
+    final end = lerpDouble(_end, _editEnd, p)!;
+    return _direction == TextDirection.ltr
+        ? EdgeInsets.only(left: start, right: end)
+        : EdgeInsets.only(left: end, right: start);
+  }
+
+  @override
+  double computeMinIntrinsicHeight(double width) =>
+      child?.getMinIntrinsicHeight(math.max(0, width - _insets.horizontal)) ??
+      0;
+
+  @override
+  double computeMaxIntrinsicHeight(double width) =>
+      child?.getMaxIntrinsicHeight(math.max(0, width - _insets.horizontal)) ??
+      0;
+
+  @override
+  double computeMinIntrinsicWidth(double height) =>
+      (child?.getMinIntrinsicWidth(height) ?? 0) + _insets.horizontal;
+
+  @override
+  double computeMaxIntrinsicWidth(double height) =>
+      (child?.getMaxIntrinsicWidth(height) ?? 0) + _insets.horizontal;
+
+  @override
+  Size computeDryLayout(covariant BoxConstraints constraints) {
+    final insets = _insets;
+    final inner = child?.getDryLayout(constraints.deflate(insets)) ?? Size.zero;
+    return constraints.constrain(
+      Size(inner.width + insets.horizontal, inner.height),
+    );
+  }
+
+  @override
+  void performLayout() {
+    final insets = _insets;
+    final child = this.child;
+    if (child == null) {
+      size = constraints.constrain(Size(insets.horizontal, 0));
+      return;
+    }
+    child.layout(constraints.deflate(insets), parentUsesSize: true);
+    (child.parentData! as BoxParentData).offset = Offset(insets.left, 0);
+    size = constraints.constrain(
+      Size(child.size.width + insets.horizontal, child.size.height),
+    );
   }
 }

@@ -126,3 +126,33 @@ final class ListRowPlanner extends LayoutPlanner {
   @override
   int get hashCode => animation.hashCode;
 }
+
+/// A list row's change into and out of editing: [progress] runs from 0,
+/// out of editing, to 1 on UIKit's table spring, critically damped at 0.3,
+/// which moves the content, slides and fades the edit control in and
+/// fades the reorder control (list API passport, `setEditing(_:animated:)`).
+final class ListEditMotion extends Motion {
+  /// Creates the motion of a row out of editing.
+  ListEditMotion({super.clock});
+
+  static const _table = Spring.response(0.3, dampingRatio: 1);
+
+  /// How far the row has gone into editing.
+  late final progress = own(MotionValue<double>(0));
+
+  /// The row goes into editing, or out of it, at time [t]: on the spring
+  /// when [animated], at once otherwise.
+  void edit(double t, {required bool editing, required bool animated}) {
+    advance(t);
+    final target = editing ? 1.0 : 0.0;
+    if (animated) {
+      progress.retarget(t, target, spring: _table);
+    } else {
+      progress.snap(t, target);
+    }
+  }
+
+  /// Whether the row rests out of editing.
+  bool get restsOut =>
+      progress.target == 0 && progress.valueAt(now) <= MotionRest.opacity;
+}

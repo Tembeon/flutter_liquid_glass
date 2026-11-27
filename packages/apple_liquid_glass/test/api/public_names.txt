@@ -324,6 +324,7 @@ LiquidOval
 LiquidRoundedRectangle
 LiquidRoundedSuperellipse
 LiquidShape
+ListEditMotion
 ListReorder
 ListRowHighlight
 ListRowPlanner
