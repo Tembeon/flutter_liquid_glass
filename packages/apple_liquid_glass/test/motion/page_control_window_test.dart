@@ -14,16 +14,20 @@ void main() {
     const near = PageControlTuning.windowNearScale;
     const far = PageControlTuning.windowFarScale;
     expect(scales(), [1, 1, 1, 1, 1, 1, near, far, 0, 0, 0, 0]);
-    motion.setPage(0, 5);
+    motion.setPage(1, 5);
+    motion.advance(2);
     expect(scales(), [1, 1, 1, 1, 1, 1, near, far, 0, 0, 0, 0]);
-    motion.setPage(0, 6);
+    motion.setPage(3, 6);
+    motion.advance(4);
     expect(scales(), [0, far, near, 1, 1, 1, 1, near, far, 0, 0, 0]);
-    motion.setPage(0, 9);
+    motion.setPage(5, 9);
+    motion.advance(6);
     expect(scales(), [0, 0, 0, 0, far, near, 1, 1, 1, 1, 1, 1]);
     final rects = motion.indicatorRects(rtl: false);
     expect(rects[4].center.dx, moreOrLessEquals(19, epsilon: 0.2));
     expect(rects[11].center.dx, moreOrLessEquals(142.67, epsilon: 0.2));
-    motion.setPage(0, 7);
+    motion.setPage(7, 7);
+    motion.advance(8);
     expect(scales(), [0, 0, 0, 0, far, near, 1, 1, 1, 1, 1, 1]);
   });
 

@@ -134,7 +134,7 @@ final class PageControlMotion extends Motion {
   late final _window = own(
     MotionValue<double>(
       0,
-      restDistance: () => MotionRest.length / PageControlTuning.pitch,
+      restDistance: () => MotionRest.scale(PageControlTuning.pitch),
     ),
   );
 
