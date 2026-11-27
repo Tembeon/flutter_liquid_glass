@@ -73,6 +73,12 @@ int largestDifference(List<int> a, List<int> b) {
   return largest;
 }
 
+/// The most a channel of glass over a held image of its copy may differ
+/// from the same glass over the copy drawn in the frame: the two routes
+/// round apart, by one level in one channel of one pixel where the copy
+/// holds two device pixels a side (visibility_frame_test on macOS).
+const heldImageDrift = 1;
+
 final testScenarioConstraints = BoxConstraints.tight(const Size(500, 500));
 
 const settingsWithoutLighting = LiquidGlassSettings(blur: 0);

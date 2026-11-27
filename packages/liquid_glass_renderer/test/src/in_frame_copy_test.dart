@@ -194,7 +194,10 @@ void main() {
         pixelRatio: pixelRatio,
         second: false,
       );
-      expect(largestDifference(image, inFrame), lessThanOrEqualTo(1));
+      expect(
+        largestDifference(image, inFrame),
+        lessThanOrEqualTo(heldImageDrift),
+      );
     }, skip: skipProperGlassTests);
 
     // Both copies draw the lower glass as it lies inside the upper glass's

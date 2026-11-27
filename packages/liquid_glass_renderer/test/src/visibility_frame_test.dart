@@ -147,7 +147,11 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
             expect(layer.debugPageImage, same(page));
             progress.value = 1;
             final restored = await capture();
-            expect(restored, orderedEquals(before));
+            expect(
+              largestDifference(restored, before),
+              lessThanOrEqualTo(heldImageDrift),
+              reason: 'Restored glass reads a held image of its copy.',
+            );
             // Zero changes contributor membership; restoration may rebuild
             // once, but the nonzero animation above must stay uniform-only.
             expect(renderer.debugRenderCount, renderCount + 1);
@@ -160,9 +164,12 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
           await tester.pumpAndSettle();
           final reference = await capture();
           expect(
-            animated,
-            orderedEquals(reference),
-            reason: 'Retained material inputs must match a fresh static frame.',
+            largestDifference(animated, reference),
+            lessThanOrEqualTo(heldImageDrift),
+            reason:
+                'Retained material inputs must match a fresh static frame, '
+                'which reads its copy from the scene where the retained '
+                'frame reads a held image of it.',
           );
           if (hidden != null) {
             await tester.pumpWidget(
