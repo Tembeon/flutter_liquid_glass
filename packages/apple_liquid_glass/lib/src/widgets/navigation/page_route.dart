@@ -55,10 +55,12 @@ part 'package:apple_liquid_glass/src/widgets/navigation/page_route_zoom.dart';
 /// card's shadow; popped, it shrinks back into the source on UIKit's zoom-out
 /// spring (iPhone 16 Pro recordings, replayed). A drag within 22.5 degrees
 /// of down or of the trailing side (UIKit's cones, read from its code)
-/// shrinks the page under the finger after 13.5 points, and a
-/// release past 132.5 points or at 1050 points a second pops it into the
-/// source; short of that it returns. The source hides while the page shows.
-/// Without an attached source the page slides.
+/// shrinks the page under the finger after 13.5 points, and a release
+/// pops it into the source when its travel along the drag, less UIKit's
+/// 10 point slop, plus 0.099 s of its release speed (UIKit's pan
+/// velocity: the last two moves, weighed 0.2 and 0.8) passes 150 points,
+/// as UIKit's code has it; short of that it returns. The source hides
+/// while the page shows. Without an attached source the page slides.
 ///
 /// To assistive technology the page is a route of its own, as a
 /// `CupertinoPageRoute`'s page is, named by [title], which screen readers

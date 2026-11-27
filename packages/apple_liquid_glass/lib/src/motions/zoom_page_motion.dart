@@ -51,8 +51,9 @@ class ZoomPageTuning {
     this.sidewaysWidthRate = 0.00156,
     this.sidewaysHeightRate = 0.00168,
     this.sidewaysGain = 0.95,
-    this.dismissDistance = 132.5,
-    this.dismissVelocity = 1050,
+    this.panSlop = 10,
+    this.dismissThreshold = 150,
+    this.dismissProjection = 0.099,
   });
 
   /// The spring the container's center and width travel on toward the
@@ -155,16 +156,21 @@ class ZoomPageTuning {
   /// The share of sideways finger travel the page's center follows.
   final double sidewaysGain;
 
-  /// The finger travel past which a released page zooms back into its
-  /// source: device drags held still at 70, 110 and 125 points return, at
-  /// 140, 150 and 300 they dismiss.
-  final double dismissDistance;
+  /// The travel UIKit's pan takes out of the drag's translation once it
+  /// begins, in points (its 10 point slop, read from its code).
+  final double panSlop;
 
-  /// The release speed along the drag, in points per second, past which
-  /// a page zooms back into its source whatever its travel: a 70 point
-  /// flick leaving at about 900 points per second returned, a 100 point
-  /// one at about 1200 dismissed.
-  final double dismissVelocity;
+  /// The projected translation past which a released page zooms back into
+  /// its source: the translation along the drag's axis less [panSlop],
+  /// plus [dismissProjection] times the release speed along it, over 150
+  /// points (read from UIKit's code; eight injected drags on the iOS 27.2
+  /// simulator ended as it says, and the device drags do when their holds
+  /// kept the drag's speed, as synthesized holds do).
+  final double dismissThreshold;
+
+  /// The seconds of release speed added to the translation: a 0.99
+  /// deceleration's projection, 0.99 / (1 - 0.99) / 1000.
+  final double dismissProjection;
 
   /// The measured tuning.
   static const standard = ZoomPageTuning();
@@ -264,6 +270,14 @@ final class ZoomPageMotion extends PageMotion with Sourced {
   Offset? _dragFrom;
   Offset _dragDelta = Offset.zero;
   bool _dragMoved = false;
+  // The drag's axis toward the dismissal, set as it passes the slop.
+  Offset _axis = Offset.zero;
+  // UIKit's pan velocity: one sample per move, its displacement over the
+  // time since the move before, the last two weighed 0.2 and 0.8.
+  double _lastMove = 0;
+  Offset _lastAt = Offset.zero;
+  Offset? _sample;
+  Offset? _earlierSample;
 
   static double _length() => MotionRest.length;
   static double _opacity() => MotionRest.opacity;
@@ -420,7 +434,23 @@ final class ZoomPageMotion extends PageMotion with Sourced {
     _dragFrom = position;
     _dragDelta = Offset.zero;
     _dragMoved = false;
+    _axis = Offset.zero;
+    _lastMove = t;
+    _lastAt = position;
+    _sample = null;
+    _earlierSample = null;
     changed();
+  }
+
+  /// The release velocity UIKit's pan reports: the last move's speed at
+  /// 0.2 and the one before at 0.8; a lift adds no sample, so a finger
+  /// that rested without moving keeps the speed it had (read from UIKit's
+  /// code).
+  Offset get _panVelocity {
+    final last = _sample;
+    if (last == null) return Offset.zero;
+    final earlier = _earlierSample;
+    return earlier == null ? last : last * 0.2 + earlier * 0.8;
   }
 
   /// The dragging finger is at [position] at time [t].
@@ -429,25 +459,34 @@ final class ZoomPageMotion extends PageMotion with Sourced {
     final from = _dragFrom;
     if (from == null) return;
     _dragDelta = position - from;
-    if (_pastSlop(_dragDelta)) _dragMoved = true;
+    if (position != _lastAt) {
+      final dt = t - _lastMove;
+      _earlierSample = _sample;
+      _sample = dt < 0.001 ? Offset.zero : (position - _lastAt) / dt;
+      _lastMove = t;
+      _lastAt = position;
+    }
+    if (!_dragMoved && _pastSlop(_dragDelta)) {
+      _dragMoved = true;
+      _axis = _dragDelta.dy.abs() >= _dragDelta.dx.abs()
+          ? const Offset(0, 1)
+          : Offset(_dragDelta.dx.sign, 0);
+    }
     _set(t, dragFrame(_page, from, _dragDelta));
   }
 
-  /// The finger left the page at time [t] moving at [velocity] points per
-  /// second; returns whether the page zooms back into its source (the
-  /// shell then pops the page and [leave] runs) or returns to full screen.
-  bool dragEnd(double t, Offset velocity) {
+  /// The finger left the page at time [t]; returns whether the page zooms
+  /// back into its source (the shell then pops the page and [leave] runs)
+  /// or returns to full screen, as [ZoomPageTuning.dismissThreshold] says.
+  bool dragEnd(double t) {
     advance(t);
     if (_dragFrom == null) return false;
-    final d = _dragDelta.distance;
-    final along = d == 0
-        ? 0.0
-        : (velocity.dx * _dragDelta.dx + velocity.dy * _dragDelta.dy) / d;
-    final exit = ProjectionExit(
-      threshold: tuning.dismissDistance,
-      flickVelocity: tuning.dismissVelocity,
-    );
-    if (_dragMoved && exit.passes(d, along)) return true;
+    final travel = _dragDelta.dx * _axis.dx + _dragDelta.dy * _axis.dy;
+    final speed = _panVelocity.dx * _axis.dx + _panVelocity.dy * _axis.dy;
+    final projected =
+        math.max(0, travel - tuning.panSlop) +
+        tuning.dismissProjection * speed;
+    if (_dragMoved && projected > tuning.dismissThreshold) return true;
     stay(t);
     return false;
   }

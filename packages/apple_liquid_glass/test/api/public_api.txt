@@ -5604,7 +5604,7 @@ final class ZoomPageMotion extends PageMotion with Sourced
   bool get coversBackdrop
   double get dimming
   double displayRadius
-  bool dragEnd(double t, Offset velocity)
+  bool dragEnd(double t)
   Rect dragFrame(Rect page, Offset from, Offset delta)
   void dragStart(double t, Offset position)
   void dragUpdate(double t, Offset position)

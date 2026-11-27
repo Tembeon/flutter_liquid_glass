@@ -76,8 +76,8 @@ class _ZoomState extends State<_Zoom> {
     motion.dragStart(t, from);
   }
 
-  void _released(double t, Offset velocity) {
-    final dismisses = motion.dragEnd(t, velocity);
+  void _released(double t) {
+    final dismisses = motion.dragEnd(t);
     route.endInteraction();
     if (!dismisses) return;
     route._lifted = t;
@@ -289,12 +289,12 @@ final class _ZoomDrag extends Interaction {
         if (!_dragging) return const InteractionUpdate(fails: true);
         _dragging = false;
         motion.dragUpdate(input.time, input.position);
-        _zoom._released(input.time, input.velocity);
+        _zoom._released(input.time);
       case PointerCancelInput() when _touching:
         _touching = false;
         if (_dragging) {
           _dragging = false;
-          _zoom._released(input.time, Offset.zero);
+          _zoom._released(input.time);
         }
         return const InteractionUpdate(fails: true);
       default:

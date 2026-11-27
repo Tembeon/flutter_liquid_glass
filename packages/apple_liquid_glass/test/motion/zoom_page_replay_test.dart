@@ -158,16 +158,8 @@ void main() {
           }
           if (dismissed == null && t >= lift) {
             final last = touches.last;
-            final pan = PanVelocityTracker();
-            for (final p in touches.sublist(0, touches.length - 1)) {
-              pan.addPosition(p[0], Offset(p[1], p[2]));
-            }
-            final velocity = pan.velocityAtLift(
-              last[0],
-              Offset(last[1], last[2]),
-            );
             motion.dragUpdate(lift, Offset(last[1], last[2]));
-            dismissed = motion.dragEnd(lift, velocity);
+            dismissed = motion.dragEnd(lift);
             if (dismissed) _close(motion, lift, _card);
           }
           motion.advance(t);
@@ -198,6 +190,30 @@ void main() {
   });
 
   group('motion', () {
+    test("a release pops the page when its travel less 10 plus 0.099 s of "
+        "UIKit's pan velocity passes 150 (read from UIKit's code)", () {
+      bool releases(List<(double, double)> moves) {
+        final motion = _opened(-10, _card, _page);
+        motion.advance(0);
+        motion.dragStart(0, const Offset(200, 300));
+        for (final (t, y) in moves) {
+          motion.advance(t);
+          motion.dragUpdate(t, Offset(200, 300 + y));
+        }
+        final end = moves.last.$1 + 0.5;
+        motion.advance(end);
+        return motion.dragEnd(end);
+      }
+
+      List<(double, double)> steady(double to, double speed) => [
+        for (var y = 10.0; y <= to; y += 10) (y / speed, y),
+      ];
+      expect(releases(steady(150, 260)), isTrue, reason: '140 + 25.7');
+      expect(releases([...steady(148, 260), (1, 149), (1.25, 150)]), isFalse);
+      expect(releases(steady(100, 800)), isTrue, reason: '90 + 79');
+      expect(releases(steady(70, 670)), isFalse, reason: '60 + 66');
+    });
+
     test("a committed preview grows as UIKit's commit runs: the size on "
         '0.5 / 0.7 with a kick, the center and the page on a critically '
         'damped 0.35, the preview out over 0.14 s, the backdrop covered from '
