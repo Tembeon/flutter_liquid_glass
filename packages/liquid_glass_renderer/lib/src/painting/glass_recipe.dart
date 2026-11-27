@@ -202,6 +202,12 @@ const double _captureMargin = 16;
 // The capture margin of clear glass up to the slider's middle tick.
 const double _clearMargin = 8 / 15;
 
+// The screen's pixels along each side of a pixel of iOS's capture: clear
+// glass's at a scale of 1/2, and regular glass's under Reduce Transparency
+// at 1/8.
+const int _clearCaptureShare = 2;
+const int _transparencyCaptureShare = 8;
+
 final class _Law {
   _Law({
     required this.variant,
@@ -234,12 +240,14 @@ final class _Law {
       double radius,
       List<double> strengths, {
       double? margin,
+      int? captureShare,
     }) => BlurRecipe(
       radius: radius,
       stops: [
         for (var i = 0; i < 4; i++) (depth: depths[i], strength: strengths[i]),
       ],
       margin: margin,
+      captureShare: captureShare,
     );
     if (reduceTransparency && !lifted) {
       if (clear) {
@@ -247,15 +255,21 @@ final class _Law {
           50,
           [1, 1, 1, 1],
           margin: slider > sliderMiddleTick ? _captureMargin : _clearMargin,
+          captureShare: _clearCaptureShare,
         );
       }
       final radius = 35 + 15 * grown;
-      return ramp(radius, [
-        1,
-        1,
-        5 / radius,
-        5 / radius,
-      ], margin: _captureMargin);
+      return ramp(
+        radius,
+        [
+          1,
+          1,
+          5 / radius,
+          5 / radius,
+        ],
+        margin: _captureMargin,
+        captureShare: _transparencyCaptureShare,
+      );
     }
     if (clear) {
       final on = slider > 0 ? 1.0 : 0.0;

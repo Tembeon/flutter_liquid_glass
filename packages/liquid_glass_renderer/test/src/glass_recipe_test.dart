@@ -245,6 +245,21 @@ void main() {
       expect(_of(variant: GlassVariant.clear, slider: 1).blur.margin, isNull);
     });
 
+    test("captures at iOS's scale: 1/8 on regular glass, 1/2 on clear glass; "
+        'glass outside it picks its own', () {
+      expect(_of(reduceTransparency: true).blur.captureShare, 8);
+      expect(_of(shortSide: 44, reduceTransparency: true).blur.captureShare, 8);
+      expect(
+        _of(
+          variant: GlassVariant.clear,
+          reduceTransparency: true,
+        ).blur.captureShare,
+        2,
+      );
+      expect(_of().blur.captureShare, isNull);
+      expect(_of(variant: GlassVariant.clear).blur.captureShare, isNull);
+    });
+
     test('lays a nearly flat face, its fill rising to the middle tick and '
         'falling past it', () {
       for (final (slider, alpha) in [

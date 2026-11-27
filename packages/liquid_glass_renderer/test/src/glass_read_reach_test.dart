@@ -139,6 +139,7 @@ void main() {
         share: need.share,
       );
       expect(levels.margin, 16);
+      expect(need.share, 8);
       expect(cell, greaterThan(16));
       expect(3 * levels.most, greaterThan(cell));
       expect(

@@ -167,7 +167,9 @@ sealed class CopyNeed {
   /// The need of glass that blurs an unblurred copy from [levels]: halved
   /// while its least blur spans two pixels of the copy, to at most
   /// [maxShare]. Glass whose blur follows iOS 27's [fittedBlur] reads at
-  /// least half the screen's pixels on a screen of 2.5 or more.
+  /// least half the screen's pixels on a screen of 2.5 or more, and glass
+  /// whose recipe gives iOS's [captureShare] is drawn at least that coarse,
+  /// [maxShare] or not.
   ///
   /// A blur narrower than two of the copy's pixels mixes the copy itself
   /// in, whose pixels show as the page moves under the glass: against a
@@ -184,11 +186,12 @@ sealed class CopyNeed {
     required double devicePixelRatio,
     required int maxShare,
     bool fittedBlur = false,
+    int? captureShare,
   }) {
     final atLeast = fittedBlur && devicePixelRatio >= _coarseCopyMinRatio
         ? _coarseCopyShare
         : 1;
-    var share = min(atLeast, maxShare);
+    var share = max(min(atLeast, maxShare), captureShare ?? 1);
     while (share * 2 <= maxShare &&
         levels.least * devicePixelRatio / (share * 2) >= 2) {
       share *= 2;

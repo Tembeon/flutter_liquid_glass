@@ -20,8 +20,13 @@ typedef BlurStop = ({double depth, double strength});
 @immutable
 final class BlurRecipe {
   /// A blur of [radius] by the ramp [stops], reading [margin] past the
-  /// glass.
-  const BlurRecipe({required this.radius, required this.stops, this.margin});
+  /// glass from a capture at [captureShare].
+  const BlurRecipe({
+    required this.radius,
+    required this.stops,
+    this.margin,
+    this.captureShare,
+  });
 
   /// The widest blur, in iOS's units of blur.
   final double radius;
@@ -37,19 +42,31 @@ final class BlurRecipe {
   /// middle tick).
   final double? margin;
 
+  /// How many of the screen's pixels along each side iOS averages into one
+  /// pixel of its capture of what lies under the glass, the inverse of its
+  /// capture scale: the copy is drawn at least that coarse. Null where the
+  /// renderer picks the copy's pixels from the blur alone: outside Reduce
+  /// Transparency, where it does not follow iOS's scale yet (1/2 to 1/8 by
+  /// size and slider).
+  final int? captureShare;
+
   @override
   bool operator ==(Object other) =>
       other is BlurRecipe &&
       other.radius == radius &&
       other.margin == margin &&
+      other.captureShare == captureShare &&
       listEquals(other.stops, stops);
 
   @override
-  int get hashCode => Object.hash(radius, margin, Object.hashAll(stops));
+  int get hashCode =>
+      Object.hash(radius, margin, captureShare, Object.hashAll(stops));
 
   @override
   String toString() =>
-      'BlurRecipe($radius, $stops${margin == null ? '' : ', margin $margin'})';
+      'BlurRecipe($radius, $stops'
+      '${margin == null ? '' : ', margin $margin'}'
+      '${captureShare == null ? '' : ', captureShare $captureShare'})';
 }
 
 /// A wide blur of what lies under the glass, mixed into what it shows.

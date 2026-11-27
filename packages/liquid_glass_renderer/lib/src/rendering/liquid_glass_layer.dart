@@ -372,6 +372,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       devicePixelRatio: dpr,
       maxShare: glassPolicy.maxCopyShare,
       fittedBlur: settings.blur == null,
+      captureShare: _blurRecipes.blur.captureShare,
     );
   }
 
