@@ -304,6 +304,37 @@ void main() {
     expect(poses.last.value.progress, isNull);
   });
 
+  testWidgets("its states are UIKit's interaction state: pressed under a "
+      'finger, dragged too while it scrubs', (tester) async {
+    final states = WidgetStatesController();
+    addTearDown(states.dispose);
+    await tester.pumpWidget(
+      _app(
+        GlassPageControl(
+          count: 5,
+          page: 2,
+          statesController: states,
+          onChanged: (_) {},
+        ),
+      ),
+    );
+    final box = tester.getRect(find.byType(GlassPageControl));
+    final finger = await tester.startGesture(box.center);
+    await tester.pump();
+    expect(states.value, contains(WidgetState.pressed));
+    expect(states.value, isNot(contains(WidgetState.dragged)));
+    await finger.moveBy(const Offset(30, 0));
+    await tester.pump();
+    expect(
+      states.value,
+      containsAll([WidgetState.pressed, WidgetState.dragged]),
+    );
+    await finger.up();
+    await tester.pump();
+    expect(states.value, isNot(contains(WidgetState.pressed)));
+    expect(states.value, isNot(contains(WidgetState.dragged)));
+  });
+
   testWidgets('a direction across runs the pages that way whatever the '
       'reading direction', (tester) async {
     final picks = <int>[];

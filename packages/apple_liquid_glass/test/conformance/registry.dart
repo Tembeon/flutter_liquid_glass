@@ -1229,6 +1229,9 @@ const Map<String, String> nonInteractive = {
   'GlassClip': 'clips its child to a glass shape',
   'GlassSearchScope':
       'gives the widgets below a search controller; draws nothing',
+  'GlassPageView':
+      'a PageView and a GlassPageControl, whose input the GlassPageControl '
+      'entry checks; page_view_test holds the two together',
   'GlassContentScroll':
       'reports scroll edges to the bars; the scrollable '
       'inside it takes the input',

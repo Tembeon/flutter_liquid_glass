@@ -957,6 +957,25 @@ class _PageControlPageState extends State<PageControlPage> {
           ),
         ),
         Idea(
+          'As one widget',
+          "GlassPageView puts the pages and their dots together, as SwiftUI's "
+              'page style does: the dots follow the pages and turn them.',
+          child: ClipRSuperellipse(
+            borderRadius: BorderRadius.circular(28),
+            child: SizedBox(
+              height: 220,
+              child: GlassPageView(
+                backgroundStyle: _background,
+                semanticLabel: 'Wallpapers',
+                children: [
+                  for (final wallpaper in Wallpaper.values.take(3))
+                    Image(image: wallpaper.image, fit: BoxFit.cover),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Idea(
           'Down the side',
           'With direction down the dots stand on end beside a pager that '
               'turns up and down; with a GlassPageControlTimer they fill '

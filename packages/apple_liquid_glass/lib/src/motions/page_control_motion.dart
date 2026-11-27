@@ -274,6 +274,9 @@ final class PageControlMotion extends Motion {
   /// Whether a finger is on the control.
   bool get isTouched => _downX != null;
 
+  /// Whether a finger scrubs through the pages: it moved past the slop.
+  bool get isScrubbing => _scrubbing;
+
   /// A finger touched the control at [x], measured from the start of the
   /// dots.
   void pointerDown(double t, double x) {

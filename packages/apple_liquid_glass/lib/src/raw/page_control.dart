@@ -327,6 +327,8 @@ class RawGlassPageControl extends StatefulWidget {
 
   /// Where the control publishes its states, or null for its own. The
   /// control is its only writer: what else writes to it is written over.
+  /// UIKit's `interactionState` reads off it: pressed while a finger holds
+  /// the control (`.discrete`), dragged too while it scrubs (`.continuous`).
   final WidgetStatesController? statesController;
 
   /// The control's focus node, or null for its own.
@@ -591,6 +593,9 @@ final class _PageControlInput extends Interaction {
 
   @override
   bool get pressed => _touching;
+
+  @override
+  bool get dragged => _touching && state._motion.isScrubbing;
 
   @override
   Set<InputKind> get takes => const {InputKind.pointer, InputKind.adjustment};
