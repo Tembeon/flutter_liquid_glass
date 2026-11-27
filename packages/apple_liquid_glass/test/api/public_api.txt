@@ -4262,12 +4262,14 @@ class NavigationPopMotion
   void begin(double t, {double progress = ...})
   static double contentFunnel(double along)
   static const double contentHysteresis
-  static bool edgeAngleAllows(double along, double across)
+  static const double edgeAngleDecay
   static const double edgeAngleWindow
   static const double edgeDefault
   static const double edgeHysteresis
   static const double edgeMaximumDuration
+  static const double edgeMinimumTravel
   static const double edgeShare
+  static double edgeTravel(double elapsed)
   static double edgeWidth(double width, {required bool phone})
   static const double flickBoost
   static const double flickThreshold
@@ -4287,6 +4289,7 @@ final class PageControlMotion extends Motion
     required int count,
     required int page,
     bool showsProgress = ...,
+    bool scrubs = ...,
     bool platterless = ...,
     void Function(PageControlEvent)? onEvent,
     MotionClock? clock,
@@ -4308,11 +4311,13 @@ final class PageControlMotion extends Motion
   bool get platterless
   set platterless(bool value)
   void pointerCancel(double t)
-  void pointerDown(double t, double x)
+  void pointerDown(double t, double x, {bool precise = ...})
   void pointerMove(double t, double x)
-  void pointerUp(double t, double x, {required double width})
+  void pointerUp(double t, double x)
   void resumeTimer(double t)
   double scaleOf(int index)
+  bool scrubs
+  double? get scrubsAt
   void setPage(double t, int page)
   bool showsProgress
   Size get size

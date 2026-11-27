@@ -92,8 +92,9 @@ class NavigationPopMotion {
   /// phone, in points (read from UIKit).
   static const double edgeDefault = 13;
 
-  /// The longest a finger on the edge may take to move [edgeHysteresis]
-  /// before the pop gives up, in seconds (read from UIKit).
+  /// The longest a finger on the edge may take to begin the pop before it
+  /// gives up, in seconds, counted from the touch (read from UIKit; whether
+  /// UIKit counts it again from each move is not read).
   static const double edgeMaximumDuration = 0.25;
 
   /// The width of the leading edge an interactive pop starts from in a page
@@ -101,20 +102,34 @@ class NavigationPopMotion {
   static double edgeWidth(double width, {required bool phone}) =>
       phone ? width * edgeShare : edgeDefault;
 
-  /// How far a finger on the edge moves before the pop begins, in points
-  /// (read from UIKit).
+  /// How far a finger on the edge may move along the edge before the pop
+  /// gives up, in points (read from UIKit).
   static const double edgeHysteresis = 15;
 
-  /// The window of directions, in radians, an edge swipe may take as it
-  /// passes [edgeHysteresis]: 155 degrees about the inward direction, so
-  /// one steeper than 77.5 degrees from it gives up (read from UIKit; the
-  /// window's narrowing over 0.5 s that UIKit also holds is not ported).
+  /// The window of directions about the inward one, in radians, that sets
+  /// how far inward an edge swipe moves before it begins: 155 degrees
+  /// (read from UIKit; [edgeTravel] says how UIKit's code uses it).
   static const double edgeAngleWindow = 2.705260340591211;
 
-  /// Whether an edge swipe that moved [along] the page and [across] it
-  /// stays inside [edgeAngleWindow].
-  static bool edgeAngleAllows(double along, double across) =>
-      along > 0 && math.atan2(across.abs(), along) <= edgeAngleWindow / 2;
+  /// The seconds over which [edgeTravel] falls (read from UIKit).
+  static const double edgeAngleDecay = 0.5;
+
+  /// The least inward travel an edge swipe begins at, in points (read from
+  /// UIKit's code).
+  static const double edgeMinimumTravel = 20;
+
+  /// How far inward a finger on the edge must have moved, [elapsed]
+  /// seconds after it touched, for the pop to begin: as far inward as a
+  /// swipe on the side of [edgeAngleWindow] goes while it moves 10 points
+  /// along the edge (45.1 points), falling to nothing over
+  /// [edgeAngleDecay] but never below [edgeMinimumTravel], so a slow swipe
+  /// begins at 20 points (read from UIKit's code).
+  static double edgeTravel(double elapsed) => math.max(
+    math.min(edgeHysteresis, 10) /
+        math.tan(math.pi / 2 - edgeAngleWindow / 2) *
+        (1 - elapsed / edgeAngleDecay),
+    edgeMinimumTravel,
+  );
 
   /// How far a finger away from the edge moves along the page before the
   /// pop begins, or the wrong way before it fails, in points (read from

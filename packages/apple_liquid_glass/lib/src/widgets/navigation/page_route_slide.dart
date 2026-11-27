@@ -114,10 +114,12 @@ BorderRadius _cardRadius(BuildContext context) =>
 
 /// The interactive pop: a touch on the page that moves along it toward
 /// the trailing side drags the page, and its release pops or returns the
-/// page as UIKit predicts. A touch on the leading edge begins after
-/// [NavigationPopMotion.edgeHysteresis]; one elsewhere, UIKit's content
-/// swipe, after [NavigationPopMotion.contentHysteresis] inside its funnel, so
-/// the page's own drags and scrolls take the touches they claim first.
+/// page as UIKit predicts. A touch on the leading edge begins once it has
+/// moved [NavigationPopMotion.edgeTravel] inward and gives up past
+/// [NavigationPopMotion.edgeHysteresis] along the edge; one elsewhere,
+/// UIKit's content swipe, after [NavigationPopMotion.contentHysteresis]
+/// inside its funnel, so the page's own drags and scrolls take the touches
+/// they claim first.
 final class _SwipePop extends Interaction {
   _SwipePop(this._slide) : super(role: InteractionRole.gesture);
 
@@ -168,13 +170,14 @@ final class _SwipePop extends Interaction {
             _fromEdge = false;
           }
           if (_fromEdge) {
-            if (travel.abs() < NavigationPopMotion.edgeHysteresis) break;
-            if (!NavigationPopMotion.edgeAngleAllows(
-              travel,
-              input.position.dy - _start.dy,
-            )) {
+            final side = (input.position.dy - _start.dy).abs();
+            if (side > NavigationPopMotion.edgeHysteresis) {
               _touching = false;
               return const InteractionUpdate(fails: true);
+            }
+            if (travel <=
+                NavigationPopMotion.edgeTravel(input.time - _downTime)) {
+              break;
             }
           } else {
             final across = (input.position.dy - _start.dy).abs();

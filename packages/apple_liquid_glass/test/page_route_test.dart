@@ -184,7 +184,7 @@ void main() {
     Future<TestGesture> flick() async {
       final gesture = await tester.createGesture();
       await gesture.down(const Offset(10, 400), timeStamp: now());
-      for (var i = 0; i < 5; i++) {
+      for (var i = 0; i < 7; i++) {
         await tester.pump(_frame);
         await gesture.moveBy(const Offset(20, 0), timeStamp: now());
       }
@@ -231,9 +231,11 @@ void main() {
       await _settle(tester);
     }
 
-    // A finger that touches at [x] and moves 25 points along after [wait]
-    // seconds: whether the page has started to follow.
-    Future<bool> follows(WidgetTester tester, double x, {int wait = 0}) async {
+    // A finger that touches at [x], rests [wait] frames and moves 28 points
+    // along over six more: whether the page has started to follow. Rested
+    // ten frames, its 24 points at 0.24 s pass the edge's falling travel
+    // (23.5 there) and its 28 stay short of the content swipe's 30.
+    Future<bool> follows(WidgetTester tester, double x, {int wait = 10}) async {
       final now = _deviceTime(tester);
       final rest = _x(tester, 'Next');
       final gesture = await tester.createGesture();
@@ -242,9 +244,9 @@ void main() {
         await tester.pump(_frame);
         await gesture.moveBy(Offset.zero, timeStamp: now());
       }
-      for (var i = 0; i < 5; i++) {
+      for (final step in const [5.0, 5.0, 5.0, 5.0, 4.0, 4.0]) {
         await tester.pump(_frame);
-        await gesture.moveBy(const Offset(5, 0), timeStamp: now());
+        await gesture.moveBy(Offset(step, 0), timeStamp: now());
       }
       await tester.pump(_frame);
       final moved = _x(tester, 'Next') > rest + 1;
@@ -266,8 +268,9 @@ void main() {
       );
     });
 
-    testWidgets('takes a swipe within 77.5 degrees of inward and gives up '
-        'a steeper one (a 155 degree window, read from UIKit)', (tester) async {
+    testWidgets('begins once a swipe has moved inward past the falling '
+        'travel and gives up past 15 points along the edge (read from '
+        "UIKit's code)", (tester) async {
       Future<bool> swipe(Offset step) async {
         final now = _deviceTime(tester);
         final rest = _x(tester, 'Next');
@@ -285,15 +288,28 @@ void main() {
       }
 
       await pushed(tester, const Size(402, 874), GlassFormFactor.phone);
-      expect(await swipe(const Offset(4, 12)), isTrue);
-      expect(await swipe(const Offset(3, 16)), isFalse);
+      expect(await swipe(const Offset(4, 12)), isFalse);
+      expect(await swipe(const Offset(6, 1)), isFalse);
+      expect(await swipe(const Offset(12, 2)), isTrue);
+    });
+
+    test('its inward travel falls from 45.1 points over 0.5 s to 20', () {
+      expect(
+        NavigationPopMotion.edgeTravel(0),
+        moreOrLessEquals(45.11, epsilon: 0.01),
+      );
+      expect(
+        NavigationPopMotion.edgeTravel(0.25),
+        moreOrLessEquals(22.55, epsilon: 0.01),
+      );
+      expect(NavigationPopMotion.edgeTravel(0.3), 20);
     });
 
     testWidgets('gives up after 0.25 s still, leaving the touch to the '
         'content swipe (read from UIKit)', (tester) async {
       await pushed(tester, const Size(402, 874), GlassFormFactor.phone);
       expect(await follows(tester, 10, wait: 20), isFalse);
-      expect(await follows(tester, 10, wait: 5), isTrue);
+      expect(await follows(tester, 10), isTrue);
     });
   });
 
@@ -312,7 +328,7 @@ void main() {
 
     final gesture = await tester.createGesture();
     await gesture.down(const Offset(10, 400), timeStamp: now());
-    for (var i = 0; i < 4; i++) {
+    for (var i = 0; i < 6; i++) {
       await tester.pump(_frame);
       await gesture.moveBy(const Offset(10, 0), timeStamp: now());
     }
@@ -332,7 +348,7 @@ void main() {
     await _settle(tester);
     final again = await tester.createGesture();
     await again.down(const Offset(10, 400), timeStamp: now());
-    for (var i = 0; i < 10; i++) {
+    for (var i = 0; i < 13; i++) {
       await tester.pump(_frame);
       await again.moveBy(const Offset(3, 0), timeStamp: now());
     }
