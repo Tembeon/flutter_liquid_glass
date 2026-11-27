@@ -1147,6 +1147,9 @@ final List<Entry> registry = [
 /// Public widgets that take no input, each with the reason.
 const Map<String, String> nonInteractive = {
   'ContextHold': 'the measured growth of a held context menu view; no widget',
+  'GlassActivityIndicator':
+      'spokes that turn while a task runs; activity_indicator_test holds '
+      'its sizes, its stop and its reading',
   'GlassBadge': 'a label drawn on another control; announces its text only',
   'GlassBarCustomItem':
       'a bar entry holding custom content, which takes its own input',

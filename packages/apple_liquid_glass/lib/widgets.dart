@@ -33,6 +33,8 @@
 /// and works with every renderer: no widget asks which renderer draws it.
 library;
 
+export 'src/widgets/controls/activity_indicator.dart'
+    show GlassActivityIndicator, GlassActivityIndicatorSize;
 export 'src/widgets/controls/badge.dart' show GlassBadge, GlassBadgeStyle;
 export 'src/widgets/controls/button.dart'
     show

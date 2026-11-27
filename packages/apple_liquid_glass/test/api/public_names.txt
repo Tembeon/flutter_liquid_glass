@@ -39,6 +39,8 @@ FlexValues
 FollowInteraction
 FrameCadenceScope
 Glass
+GlassActivityIndicator
+GlassActivityIndicatorSize
 GlassAlertAction
 GlassAlertStyle
 GlassBackButtonDisplayMode
