@@ -432,6 +432,7 @@ class _TabBarPageState extends State<TabBarPage> {
   var _minimizes = true;
   var _accessory = false;
   var _search = false;
+  var _prominent = false;
 
   @override
   Widget build(BuildContext context) => ComponentPage(
@@ -449,9 +450,10 @@ class _TabBarPageState extends State<TabBarPage> {
         _Greenhouse(
           tabs: _tabs.round(),
           badges: _badges,
-          minimizes: _minimizes,
-          accessory: _accessory,
-          search: _search,
+          minimizes: _minimizes && !_prominent,
+          accessory: _accessory && !_prominent,
+          search: _search && !_prominent,
+          prominent: _prominent,
         ),
       ),
       child: const Text('Open the greenhouse'),
@@ -486,6 +488,12 @@ class _TabBarPageState extends State<TabBarPage> {
         value: _accessory,
         onChanged: (on) => setState(() => _accessory = on),
       ),
+      ToggleKnob(
+        'The last tab prominent, in a circle (no search, accessory or '
+        'tucking away)',
+        value: _prominent,
+        onChanged: (on) => setState(() => _prominent = on),
+      ),
     ],
   );
 }
@@ -498,6 +506,7 @@ class _Greenhouse extends StatefulWidget {
     required this.minimizes,
     required this.accessory,
     required this.search,
+    required this.prominent,
   });
 
   final int tabs;
@@ -505,6 +514,7 @@ class _Greenhouse extends StatefulWidget {
   final bool minimizes;
   final bool accessory;
   final bool search;
+  final bool prominent;
 
   @override
   State<_Greenhouse> createState() => _GreenhouseState();
@@ -590,6 +600,7 @@ class _GreenhouseState extends State<_Greenhouse> {
           icon: Icon(icon),
           selectedIcon: selected == null ? null : Icon(selected),
           label: Text(name),
+          prominent: widget.prominent && index == widget.tabs - 1,
           badge: switch (index) {
             _ when !widget.badges => null,
             1 => const GlassBadge.indicator(),

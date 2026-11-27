@@ -32,15 +32,16 @@ final class GlassTabBarAction {
 
 enum _ActionSlot { bar, circle }
 
-/// A tab bar and its action circle on one glass group.
+/// A tab bar and its circle, an action's or a prominent tab's, on one
+/// glass group.
 class _ActionTabBar extends StatelessWidget {
   const _ActionTabBar({
-    required this.action,
+    required this.circle,
     required this.metrics,
     required this.bar,
   });
 
-  final GlassTabBarAction action;
+  final Widget circle;
   final TabBarMetrics metrics;
   final Widget bar;
 
@@ -50,10 +51,7 @@ class _ActionTabBar extends StatelessWidget {
       delegate: _ActionTabLayout(rtl: context.isRightToLeft, metrics: metrics),
       children: [
         LayoutId(id: _ActionSlot.bar, child: bar),
-        LayoutId(
-          id: _ActionSlot.circle,
-          child: _ActionCircle(action: action, metrics: metrics),
-        ),
+        LayoutId(id: _ActionSlot.circle, child: circle),
       ],
     ),
   );
@@ -139,6 +137,56 @@ class _ActionCircle extends StatelessWidget {
               ),
         ),
         child: Center(child: action.icon),
+      ),
+    ),
+  );
+}
+
+/// A prominent tab's glass circle: a glass button with the tab's glyph,
+/// tinted while the tab is selected and in the label color otherwise, as
+/// UIKit 27.2 draws it.
+class _ProminentCircle extends StatelessWidget {
+  const _ProminentCircle({
+    required this.destination,
+    required this.selected,
+    required this.metrics,
+    required this.onPressed,
+  });
+
+  final GlassTabDestination destination;
+  final bool selected;
+  final TabBarMetrics metrics;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    selected: selected,
+    child: RawGlassButton(
+      onPressed: destination.enabled ? onPressed : null,
+      semanticLabel:
+          destination.semanticLabel ?? glassLabelTextOf(destination.label),
+      builder: (context, details) => GlassSurface.live(
+        frame: details.body,
+        states: details.statesListenable,
+        child: details.label,
+      ),
+      child: Builder(
+        builder: (context) => IconTheme.merge(
+          data: IconThemeData(
+            size: metrics.glyphSize,
+            color: !destination.enabled
+                ? GlassDynamicColor.resolve(GlassColors.tertiaryLabel, context)
+                : selected
+                ? GlassTheme.primaryColorOf(context) ??
+                      GlassDynamicColor.resolve(GlassColors.systemBlue, context)
+                : GlassTheme.labelColorOf(context),
+          ),
+          child: Center(
+            child: selected
+                ? destination.selectedIcon ?? destination.icon
+                : destination.icon,
+          ),
+        ),
       ),
     ),
   );

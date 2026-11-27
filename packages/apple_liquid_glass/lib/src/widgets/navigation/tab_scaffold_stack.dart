@@ -28,6 +28,7 @@ final class GlassTab {
     this.id,
     this.onReselect,
     this.atSidebarEnd = false,
+    this.prominent = false,
   });
 
   /// The tab's glyph, 24 points by default.
@@ -79,6 +80,10 @@ final class GlassTab {
   /// ([GlassTabDestination.atSidebarEnd]); the bars keep the tabs' order.
   final bool atSidebarEnd;
 
+  /// Whether the tab bar draws the tab in a circle of its own
+  /// ([GlassTabDestination.prominent]).
+  final bool prominent;
+
   /// The tab as its bar shows it.
   GlassTabDestination get destination => GlassTabDestination(
     icon: icon,
@@ -89,6 +94,7 @@ final class GlassTab {
     semanticLabel: semanticLabel,
     id: id,
     atSidebarEnd: atSidebarEnd,
+    prominent: prominent,
   );
 }
 

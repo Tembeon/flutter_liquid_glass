@@ -2966,6 +2966,7 @@ final class GlassTab
     Object? id,
     void Function()? onReselect,
     bool atSidebarEnd = ...,
+    bool prominent = ...,
   })
   final bool atSidebarEnd
   final Widget? badge
@@ -2977,6 +2978,7 @@ final class GlassTab
   final Object? id
   final Widget label
   final void Function()? onReselect
+  final bool prominent
   final Widget? selectedIcon
   final String? semanticLabel
   final bool showsListButton
@@ -3091,6 +3093,7 @@ final class GlassTabDestination
     String? semanticLabel,
     Object? id,
     bool atSidebarEnd = ...,
+    bool prominent = ...,
   })
   final bool atSidebarEnd
   final Widget? badge
@@ -3098,6 +3101,7 @@ final class GlassTabDestination
   final Widget icon
   final Object? id
   final Widget label
+  final bool prominent
   final Widget? selectedIcon
   final String? semanticLabel
 final class GlassTabLayout
@@ -5163,12 +5167,14 @@ final class SelectorMotion extends Motion
     Spring? spring,
   })
   LensMotion? get lens
+  double get lensShown
   @internal void move(double t, double x, Offset position)
   Rect? get movingBounds
   final void Function(LensEvent) onEvent
   @internal void place(double t, int index)
   int get selected
   set selected(int index)
+  void showLens(double t, {required bool shown, required bool animated})
   Size size
   int slotAt(double x)
   bool get tabBar

@@ -379,13 +379,13 @@ class _RenderSelectorRow extends RenderBox
     final frame = _frames.lens.value;
     final body = frame.bodyIn(size);
     final rect = body.drawnRect;
-    final mask = _showsLens
+    final mask = _showsLens || frame.opacity > 0
         ? RSuperellipse.fromRectAndRadius(
             rect,
             Radius.circular(body.drawnRadius),
           )
         : null;
-    final cutter = morph == 0 ? mask : null;
+    final cutter = morph == 0 && frame.opacity >= 1 ? mask : null;
     final (dimmed, opacity) = _frames.dim.value;
     final slots = <Rect>[];
     var i = 0;

@@ -220,6 +220,9 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     final given = _given;
     _given = widget.selectedIndex;
     final selected = widget._selected;
+    if (!_segmented) {
+      _motion.showLens(_now, shown: selected != null, animated: _hasBuilt);
+    }
     if (selected == null) return;
     if (given == null) {
       _motion.place(_now, selected);
@@ -229,6 +232,9 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   bool get _segmented => widget.motion == GlassSelectorMotion.segmented;
+
+  // Whether the selector has built, so a change of its selection animates.
+  bool _hasBuilt = false;
 
   bool _selectable(int index) =>
       enabled &&
@@ -562,6 +568,12 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
 
   @override
   Widget buildControl(BuildContext context) {
+    if (!_hasBuilt) {
+      _hasBuilt = true;
+      if (!_segmented && widget._selected == null) {
+        _motion.showLens(_now, shown: false, animated: false);
+      }
+    }
     _ghosts.removeWhere((key) {
       if (_motion.items.contains(key)) return false;
       _built.remove(key);

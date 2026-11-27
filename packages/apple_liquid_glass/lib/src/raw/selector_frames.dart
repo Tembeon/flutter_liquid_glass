@@ -17,7 +17,9 @@ final class _SelectorFrames {
           final frame = _lens.value;
           final morph = collapse!.morph.value;
           if (morph <= 0) return frame;
-          return frame.copyWith(opacity: _lensOpacity(morph, frame.lift));
+          return frame.copyWith(
+            opacity: frame.opacity * _lensOpacity(morph, frame.lift),
+          );
         });
 
   /// How much of the lens shows at [morph]: a lens a finger carries stays.
@@ -43,6 +45,7 @@ final class _SelectorFrames {
         height: size.height * lens.scaleY,
       ),
       lift: lens.lift.clamp(0.0, 1.0),
+      opacity: motion.lensShown,
     );
   });
 

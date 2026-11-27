@@ -41,6 +41,7 @@ final class GlassTabDestination {
     this.semanticLabel,
     this.id,
     this.atSidebarEnd = false,
+    this.prominent = false,
   });
 
   /// What tells the tab apart across changes of the destinations, or null
@@ -56,6 +57,17 @@ final class GlassTabDestination {
   /// The tab's glyph, 24 points by default, 20 beside the title of a wide
   /// bar.
   final Widget icon;
+
+  /// Whether a tab bar draws the tab in a glass circle of its own at the
+  /// trailing side instead of among the others, as UIKit's
+  /// `prominentTabIdentifier` and SwiftUI's prominent tab role do: 62
+  /// points across, where a search tab's circle stands (iOS 27.2
+  /// simulator). Selected, it tints its glyph and the bar's lens fades out
+  /// over 0.25 s; unselected, its glyph takes the label color. One tab at
+  /// most; a bar with one has no search tab, action or accessory and does
+  /// not minimize. Not ported: its circle's slide and fade when it comes or
+  /// goes.
+  final bool prominent;
 
   /// The tab's title.
   final Widget label;
@@ -557,35 +569,62 @@ class GlassTabBar extends StatelessWidget {
     final look = (style ?? const GlassTabBarStyle())
         .merge(themed)
         .merge(_defaults(context, metrics));
-    final onSelected = onDestinationSelected;
+    final prominent = destinations.indexWhere((tab) => tab.prominent);
+    assert(
+      destinations.where((tab) => tab.prominent).length <= 1 &&
+          (prominent < 0 ||
+              (action == null &&
+                  searchController == null &&
+                  bottomAccessory == null)),
+      'One prominent tab at most, in a bar without a search tab, an action '
+      'or an accessory.',
+    );
+    final onDestination = onDestinationSelected;
+    // The bar shows the tabs but a prominent one, which its circle shows.
+    final tabs = prominent < 0
+        ? destinations
+        : [
+            ...destinations.take(prominent),
+            ...destinations.skip(prominent + 1),
+          ];
+    int toBar(int index) =>
+        prominent >= 0 && index > prominent ? index - 1 : index;
+    int fromBar(int index) =>
+        prominent >= 0 && index >= prominent ? index + 1 : index;
+    final onSelected = onDestination == null
+        ? null
+        : (int index) => onDestination(fromBar(index));
+    final barSelection = selectedIndex == prominent
+        ? null
+        : toBar(selectedIndex);
     Widget bar(GlassSelectorCollapse? collapse, {required TabBarHost host}) =>
         RawGlassSelector(
           motion: GlassSelectorMotion.tabBar,
           collapse: collapse,
           host: host,
           tabBarMetrics: metrics,
-          itemCount: destinations.length,
+          itemCount: tabs.length,
           itemKeys: [
-            for (final (i, destination) in destinations.indexed)
+            for (final (i, destination) in tabs.indexed)
               if (destination.id == null) (null, i) else (destination.id, null),
           ],
-          selectedIndex: selectedIndex,
+          selectedIndex: barSelection,
           onChanged: onSelected,
           onReselected: onSelected,
           disabledItems: {
-            for (var i = 0; i < destinations.length; i++)
-              if (!destinations[i].enabled) i,
+            for (var i = 0; i < tabs.length; i++)
+              if (!tabs[i].enabled) i,
           },
           statesController: statesController,
           focusNode: focusNode,
           autofocus: autofocus,
           semanticLabel: semanticLabel,
           itemLabels: [
-            for (final destination in destinations)
+            for (final destination in tabs)
               destination.semanticLabel ?? glassLabelTextOf(destination.label),
           ],
           itemBuilder: (context, index, states) => _TabContent(
-            destination: destinations[index],
+            destination: tabs[index],
             metrics: metrics,
             look: look,
             states: states,
@@ -603,7 +642,21 @@ class GlassTabBar extends StatelessWidget {
         );
     if (action case final action?) {
       return _ActionTabBar(
-        action: action,
+        circle: _ActionCircle(action: action, metrics: metrics),
+        metrics: metrics,
+        bar: bar(null, host: TabBarHost.circle),
+      );
+    }
+    if (prominent >= 0) {
+      return _ActionTabBar(
+        circle: _ProminentCircle(
+          destination: destinations[prominent],
+          selected: selectedIndex == prominent,
+          metrics: metrics,
+          onPressed: onDestination == null
+              ? null
+              : () => onDestination(prominent),
+        ),
         metrics: metrics,
         bar: bar(null, host: TabBarHost.circle),
       );

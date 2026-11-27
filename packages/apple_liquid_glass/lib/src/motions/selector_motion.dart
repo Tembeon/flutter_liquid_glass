@@ -286,6 +286,26 @@ final class SelectorMotion extends Motion {
   /// The selection lens, or null before the first layout.
   LensMotion? get lens => _lens;
 
+  /// How much a tab bar's lens shows: it fades out over 0.25 s, easing in
+  /// and out, when the selection leaves the bar for its prominent tab, and
+  /// back when it returns, as UIKit fades its lens (a CA animation, iOS
+  /// 27.2 simulator).
+  double get lensShown => _lensShown.valueAt(now).clamp(0.0, 1.0);
+  late final _lensShown = own(MotionValue<double>(1));
+  static const _lensFade = TimingCurve(0.25);
+
+  /// The lens shows or goes at time [t]: over [_lensFade] when [animated].
+  void showLens(double t, {required bool shown, required bool animated}) {
+    advance(t);
+    final target = shown ? 1.0 : 0.0;
+    if (_lensShown.target == target) return;
+    if (animated) {
+      _lensShown.animate(t, target, animation: _lensFade);
+    } else {
+      _lensShown.snap(t, target);
+    }
+  }
+
   /// The item the selector shows selected.
   int get selected => _pending ?? _lens!.selected;
 
