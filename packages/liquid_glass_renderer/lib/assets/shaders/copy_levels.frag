@@ -95,6 +95,9 @@ void main() {
     highp vec2 copyFrom = (uGrid - uSource.xy) / uSource.z;
     highp vec2 copyTo = copyFrom + uCopySize / uSource.z;
     highp vec2 pairs = ceil((ceil(middle + spread - 0.5) - first) / 2.0);
+    // Most cells lie whole inside the copy and weigh every pixel in full.
+    bool cut = any(lessThan(first, copyFrom)) ||
+        any(greaterThan(first + 2.0 * pairs, copyTo));
     highp vec4 sum = vec4(0.0);
     highp float total = 0.0;
     float column = 0.0;
@@ -107,11 +110,15 @@ void main() {
         highp vec2 w0 = vec2(
             tent(t.x, middle.x, spread),
             tent(t.y, middle.y, spread)
-        ) * clamp(min(t + 1.0, copyTo) - max(t, copyFrom), 0.0, 1.0);
+        );
         highp vec2 w1 = vec2(
             tent(t.x + 1.0, middle.x, spread),
             tent(t.y + 1.0, middle.y, spread)
-        ) * clamp(min(t + 2.0, copyTo) - max(t + 1.0, copyFrom), 0.0, 1.0);
+        );
+        if (cut) {
+            w0 *= clamp(min(t + 1.0, copyTo) - max(t, copyFrom), 0.0, 1.0);
+            w1 *= clamp(min(t + 2.0, copyTo) - max(t + 1.0, copyFrom), 0.0, 1.0);
+        }
         highp vec2 weight = w0 + w1;
         highp vec2 read = t + 0.5 + w1 / max(weight, vec2(1e-6));
         highp float w = weight.x * weight.y;
