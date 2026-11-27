@@ -53,6 +53,69 @@ Future<void> _settle(WidgetTester tester) async {
 void main() {
   setUp(MotionClock.debugReset);
 
+  testWidgets('a popover that is not modal leaves the page live: a tap '
+      'outside reaches the page and the popover stays', (tester) async {
+    _screen(tester, const Size(1024, 768));
+    var presses = 0;
+    await tester.pumpWidget(
+      _app(
+        onPresent: (context) {
+          presses++;
+          if (presses > 1) return;
+          unawaited(
+            showGlassPopover<void>(
+              context,
+              anchor: context,
+              modal: false,
+              builder: (context) => const SizedBox(
+                width: 200,
+                height: 60,
+                child: Text('pop'),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    await tester.tap(find.byKey(_source));
+    await _settle(tester);
+    expect(find.text('pop'), findsOneWidget);
+    await tester.tap(find.byKey(_source));
+    await tester.tapAt(const Offset(40, 400));
+    await _settle(tester);
+    expect(presses, 2);
+    expect(find.text('pop'), findsOneWidget);
+  });
+
+  testWidgets('a margin keeps the popover further in from the sides', (
+    tester,
+  ) async {
+    _screen(tester, const Size(1024, 768));
+    await tester.pumpWidget(
+      _app(
+        at: Alignment.bottomLeft,
+        onPresent: (context) => unawaited(
+          showGlassPopover<void>(
+            context,
+            anchor: context,
+            margin: const EdgeInsets.only(left: 40),
+            builder: (context) => const SizedBox(
+              key: Key('card'),
+              width: 300,
+              height: 60,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(_source));
+    await _settle(tester);
+    expect(
+      tester.getTopLeft(find.byKey(const Key('card'))).dx,
+      greaterThanOrEqualTo(10 + 40 - 0.01),
+    );
+  });
+
   group('an action sheet from a source', () {
     testWidgets('is a popover 240 wide above its source without the cancel '
         'action, which a tap outside chooses', (tester) async {

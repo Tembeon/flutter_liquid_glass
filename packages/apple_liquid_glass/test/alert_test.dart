@@ -62,6 +62,32 @@ void main() {
     expect(drawn('OK'), closeTo(40, 0.01));
   });
 
+  testWidgets('a message that changes while the alert shows changes in '
+      'place, as a widget that listens', (tester) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    final left = ValueNotifier(3);
+    addTearDown(left.dispose);
+    await tester.pumpWidget(_app(navigator));
+    unawaited(
+      showGlassAlert(
+        _context(navigator),
+        title: const Text('Uploading'),
+        message: ValueListenableBuilder<int>(
+          valueListenable: left,
+          builder: (context, count, _) => Text('$count photos left'),
+        ),
+        actions: const [GlassAlertAction(child: Text('Hide'))],
+      ),
+    );
+    await _settle(tester);
+    expect(find.text('3 photos left'), findsOneWidget);
+    left.value = 1;
+    await tester.pump();
+    expect(find.text('1 photos left'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the message under a title is secondaryLabel, 0.8 under '
       'Increase Contrast', (tester) async {
     await _phone(tester);

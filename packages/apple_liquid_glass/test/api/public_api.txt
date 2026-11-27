@@ -5426,6 +5426,8 @@ Future<T?> showGlassPopover<T>(
   Set<PopoverArrowDirection> permittedArrowDirections = ...,
   GlassPopoverStyle? style,
   String? semanticLabel,
+  bool modal = ...,
+  EdgeInsets margin = ...,
   PresentationLevel level = ...,
 })
 Future<T?> showGlassSheet<T>(

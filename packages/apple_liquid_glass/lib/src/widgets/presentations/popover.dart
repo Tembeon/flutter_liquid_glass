@@ -93,6 +93,13 @@ class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle> {
 /// from. Screen readers hear a dialog, named by [semanticLabel] when given,
 /// and find the dimming as [GlassLocalizations.popoverDismissLabel].
 ///
+/// With `modal` false the page below stays live, as UIKit's
+/// `passthroughViews` let it be: touches outside reach the page and leave
+/// the popover up, which Escape, Back, a scroll or `Navigator.pop` then
+/// close. `margin` keeps the popover that much further in from the screen's
+/// sides, as `popoverLayoutMargins` does, past the 10 points it always
+/// keeps and the safe area.
+///
 /// On a phone (a screen whose shorter side is under 600 points, an
 /// engineering stand-in for UIKit's compact width) the popover presents as
 /// a sheet at its large detent, as UIKit adapts one, unless
@@ -107,6 +114,8 @@ Future<T?> showGlassPopover<T>(
       PopoverArrowDirection.any,
   GlassPopoverStyle? style,
   String? semanticLabel,
+  bool modal = true,
+  EdgeInsets margin = EdgeInsets.zero,
   PresentationLevel level = PresentationLevel.window,
 }) {
   if (adaptsToSheet && MediaQuery.sizeOf(context).shortestSide < 600) {
@@ -139,13 +148,15 @@ Future<T?> showGlassPopover<T>(
           source: source,
           permitted: permittedArrowDirections,
           style: style,
+          margin: margin,
           builder: builder,
         ),
         semanticsLabel: semanticLabel,
         semanticsRole: SemanticsRole.dialog,
         barrierLabel: GlassLocalizations.of(context).popoverDismissLabel,
+        modal: modal ? null : (_) => false,
         dismissesOnScroll: true,
-        dismissesOnOutsideTap: true,
+        dismissesOnOutsideTap: modal,
       ),
     ),
     level: level,
@@ -182,6 +193,7 @@ class _PopoverView extends StatefulWidget {
     required this.source,
     required this.permitted,
     required this.style,
+    required this.margin,
     required this.builder,
   });
 
@@ -189,6 +201,7 @@ class _PopoverView extends StatefulWidget {
   final Rect source;
   final Set<PopoverArrowDirection> permitted;
   final GlassPopoverStyle? style;
+  final EdgeInsets margin;
   final WidgetBuilder builder;
 
   @override
@@ -226,11 +239,16 @@ class _PopoverViewState extends State<_PopoverView> {
       tint: look.backgroundColor,
       scale: _scale,
       opacity: _opacity,
-      maxWidth: media.size.width - 2 * PopoverMotion.margin,
-      padding: GlassMediaQueryData.overlayPaddingOf(
-        context,
-        anchorPoint: widget.source.center,
-      ),
+      maxWidth:
+          media.size.width -
+          2 * PopoverMotion.margin -
+          widget.margin.horizontal,
+      padding:
+          GlassMediaQueryData.overlayPaddingOf(
+            context,
+            anchorPoint: widget.source.center,
+          ) +
+          widget.margin,
       direction: Directionality.of(context),
       card: MotionTransition(
         opacity: _opacity,
