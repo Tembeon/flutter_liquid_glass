@@ -3,7 +3,13 @@ part of 'geometry_tiling.dart';
 /// The blend groups of a [ShapeSet]: shapes in chain order, a negative blend
 /// marker starting each group.
 final class _ShapeGroups {
-  _ShapeGroups._(this.groupOf, this.members, this._blends, this._smoothing);
+  _ShapeGroups._(
+    this.groupOf,
+    this.members,
+    this._blends,
+    this._blendSums,
+    this._smoothing,
+  );
 
   factory _ShapeGroups.of(ShapeSet shapes) {
     final groupOf = Int32List(shapes.count);
@@ -26,6 +32,7 @@ final class _ShapeGroups {
       groupOf,
       members,
       blends,
+      sums,
       [for (final sum in sums) sum * smoothUnionDepth],
     );
   }
@@ -33,6 +40,7 @@ final class _ShapeGroups {
   final Int32List groupOf;
   final List<List<int>> members;
   final List<double> _blends;
+  final List<double> _blendSums;
   final List<double> _smoothing;
 
   /// How far below its nearest member [group]'s union can reach.
@@ -48,7 +56,7 @@ final class _ShapeGroups {
   /// How far outside a shape its look can weigh in: its group's blends, the
   /// depth their fold reaches below them, and a pixel.
   double lookReach(int shape) =>
-      smoothing(shape) * (1 / smoothUnionDepth + 1) + 1;
+      _blendSums[groupOf[shape]] + smoothing(shape) + 1;
 }
 
 /// Classifies the tiles of a buffer group by group.

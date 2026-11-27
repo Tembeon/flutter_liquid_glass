@@ -16,7 +16,7 @@ const ios27SizeRamp = (control: 64.0, panel: 160.0);
 @internal
 double ios27PanelProgress(double shortSide) {
   final (:control, :panel) = ios27SizeRamp;
-  return ((shortSide - control) / (panel - control)).clamp(0.0, 1.0);
+  return ios27RampProgress((from: control, to: panel), shortSide);
 }
 
 /// The shorter sides, in points, over which dark regular glass lowers the

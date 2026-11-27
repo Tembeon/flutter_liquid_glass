@@ -62,7 +62,9 @@ final class GlassRecipe {
   ///
   /// The slider snaps to steps of 0.05, as iOS's does. Glass grows from a
   /// control's to a panel's between 64 and 160 points
-  /// ([ios27PanelProgress]); the slider acts at one rate up to its middle
+  /// ([ios27PanelProgress]), but for dark glass's luma cap
+  /// ([ios27DarkFaceRamp]) and the rim highlight's spread
+  /// ([ios27RimSpreadRamp]); the slider acts at one rate up to its middle
   /// tick and at another past it ([splitAtMiddleTick]).
   ///
   /// Increase Contrast changes only the face: less saturation, a lighter

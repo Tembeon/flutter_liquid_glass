@@ -12,6 +12,10 @@
 #include <flutter/runtime_effect.glsl>
 #include "shader_constants.glsl"
 
+#if LATTICE_MOST_PAIRS % 4 != 0
+#error "uOffsets and uWeights hold LATTICE_MOST_PAIRS reads, four a vec4"
+#endif
+
 // The copy's texture size in pixels; an image filter's engine sets it.
 uniform vec2 uSize;
 // The rect of the copy in the image, in its pixels, inset by half a pixel.
