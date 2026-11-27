@@ -66,11 +66,9 @@ final class GeometryBundle {
           ])
         : null;
     final fieldSlot = pipelines.first.fieldUniforms;
-    int tileField(String name) {
-      final offset = fieldSlot.getMemberOffsetInBytes(name);
-      assert(offset != null, 'The field shader has no uniform member $name.');
-      return offset ?? 0;
-    }
+    int tileField(String name) =>
+        fieldSlot.getMemberOffsetInBytes(name) ??
+        (throw StateError('The field shader has no uniform member $name.'));
 
     final fieldOffsets = (
       bufferToGrid: tileField('uBufferToGrid'),
@@ -79,11 +77,9 @@ final class GeometryBundle {
     );
     // The pass with looks reads every member.
     final slot = pipelines[AtlasLooks.all.index].shapesUniforms;
-    int member(String name) {
-      final offset = slot.getMemberOffsetInBytes(name);
-      assert(offset != null, 'The tile shaders have no uniform member $name.');
-      return offset ?? 0;
-    }
+    int member(String name) =>
+        slot.getMemberOffsetInBytes(name) ??
+        (throw StateError('The tile shaders have no uniform member $name.'));
 
     final offsets = (
       shapeData: member('uShapeData'),
@@ -100,9 +96,13 @@ final class GeometryBundle {
             pipelines: pipelines[targets.index],
             onePerTarget: onePerTarget,
             offsets: offsets,
-            uniformSize: slot.sizeInBytes ?? 0,
+            uniformSize:
+                slot.sizeInBytes ??
+                (throw StateError('The tile shaders have no uniform block.')),
             fieldOffsets: fieldOffsets,
-            fieldUniformSize: fieldSlot.sizeInBytes ?? 0,
+            fieldUniformSize:
+                fieldSlot.sizeInBytes ??
+                (throw StateError('The field shader has no uniform block.')),
             lookCount: targets.count,
           ),
       ]),
