@@ -20,6 +20,7 @@ Future<void> _turnTwo(
     wheel,
     Offset(0, up ? -64 : 64),
     const Duration(milliseconds: 375),
+    warnIfMissed: false,
   );
   await tester.pumpAndSettle(
     const Duration(milliseconds: 100),
@@ -88,5 +89,23 @@ void main() {
     );
     await _turnTwo(tester, find.byType(ListWheelScrollView).last, up: false);
     expect(picked, [const Duration(minutes: 5)]);
+  });
+
+  testWidgets('a drag on a unit turns the wheel of its column', (
+    tester,
+  ) async {
+    final picked = <Duration>[];
+    await tester.pumpWidget(
+      _app(
+        GlassCountDownPicker(
+          value: const Duration(hours: 1, minutes: 30),
+          onChanged: picked.add,
+        ),
+      ),
+    );
+    await _turnTwo(tester, find.text('hour'));
+    expect(picked, [const Duration(hours: 3, minutes: 30)]);
+    await _turnTwo(tester, find.text('min'));
+    expect(picked.last, const Duration(hours: 3, minutes: 32));
   });
 }

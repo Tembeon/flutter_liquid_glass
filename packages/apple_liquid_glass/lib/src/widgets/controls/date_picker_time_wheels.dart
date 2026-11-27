@@ -341,7 +341,9 @@ class _CountDownState extends State<GlassCountDownPicker> {
       ),
     );
     Widget column({
+      required double start,
       required double end,
+      required double digitsEnd,
       required int count,
       required int value,
       required bool looping,
@@ -349,8 +351,8 @@ class _CountDownState extends State<GlassCountDownPicker> {
       required String label,
       required ValueChanged<int> onChanged,
     }) => PositionedDirectional(
-      start: end - _CountDownMetrics.column,
-      width: _CountDownMetrics.column,
+      start: start,
+      width: end - start,
       top: 0,
       bottom: 0,
       child: _wheel(
@@ -363,6 +365,7 @@ class _CountDownState extends State<GlassCountDownPicker> {
         value: value,
         label: label,
         alignment: AlignmentDirectional.centerEnd,
+        padding: EdgeInsetsDirectional.only(end: end - digitsEnd),
         onChanged: enabled ? onChanged : null,
         context: context,
       ),
@@ -398,7 +401,9 @@ class _CountDownState extends State<GlassCountDownPicker> {
                     clipBehavior: Clip.none,
                     children: [
                       column(
-                        end: _CountDownMetrics.hoursEnd,
+                        start: 0,
+                        end: _CountDownMetrics.minutesStart,
+                        digitsEnd: _CountDownMetrics.hoursEnd,
                         count: 24,
                         looping: false,
                         value: _hours,
@@ -407,7 +412,9 @@ class _CountDownState extends State<GlassCountDownPicker> {
                         onChanged: (int row) => setState(() => _hours = row),
                       ),
                       column(
-                        end: _CountDownMetrics.minutesEnd,
+                        start: _CountDownMetrics.minutesStart,
+                        end: _CountDownMetrics.minutesColumnEnd,
+                        digitsEnd: _CountDownMetrics.minutesEnd,
                         count: 60 ~/ _step,
                         looping: true,
                         value: _minutes ~/ _step,
@@ -436,16 +443,20 @@ class _CountDownState extends State<GlassCountDownPicker> {
 /// Where a count-down's numbers and units stand in its 320 points (tree
 /// dump of the iOS 27.2 simulator's picker): the numbers right-aligned to
 /// 103.33 and 188.33 points in, the units at 112.67 and 197.67, their 21.33
-/// point line 98.33 down.
+/// point line 98.33 down. Each wheel takes the touches of its column,
+/// UIKit's 78 to 158 and 163 to 243 (date picker passport): the hour wheel
+/// from the start to 158, its unit included, and the minute wheel from 158
+/// to 243. A wheel magnifies its band about its box's middle, where UIKit
+/// grows the number from its leading edge: the band's hours stand within a
+/// point of UIKit's, its minutes about 5 points before them (NEAR).
 abstract final class _CountDownMetrics {
   static const double hoursEnd = 103.33;
   static const double minutesEnd = 188.33;
   static const double hoursUnit = 112.67;
   static const double minutesUnit = 197.67;
   static const double unitTop = 98.33;
-
-  /// A number's box, ending where the number does.
-  static const double column = 60;
+  static const double minutesStart = 158;
+  static const double minutesColumnEnd = 243;
 }
 
 /// A month and a year on two wheels in place.
