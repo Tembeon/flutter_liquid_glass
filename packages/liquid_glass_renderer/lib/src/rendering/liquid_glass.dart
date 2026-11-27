@@ -54,7 +54,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     _worn = null;
     // The owning layer draws its atlas again only when its shapes' looks
     // differ.
-    _shapeChanged(outline: false);
+    _shapeChanged();
     markNeedsPaint();
   }
 
@@ -82,7 +82,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     if (_shape == value) return;
     _shape = value;
     markNeedsPaint();
-    _shapeChanged(outline: true);
+    _outlineChanged();
   }
 
   List<LiquidGlassShadow> _layerShadows;
@@ -91,7 +91,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
   set layerShadows(List<LiquidGlassShadow> value) {
     if (_layerShadows == value) return;
     _layerShadows = value;
-    _shapeChanged(outline: false);
+    _shapeChanged();
     markNeedsPaint();
   }
 
@@ -102,18 +102,21 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     OnLayer() => null,
   };
 
-  // Tells what draws this glass that it changed: its blend group, or its own
-  // geometry on the layer, which an outline change rebuilds.
-  void _shapeChanged({required bool outline}) {
+  void _shapeChanged() {
     switch (_place) {
       case InGroup(:final group):
         group.notifyShapeChanged(this);
       case OnLayer():
-        if (outline) {
-          markGeometryToRebuild();
-        } else {
-          markGeometryToCompare();
-        }
+        markGeometryToCompare();
+    }
+  }
+
+  void _outlineChanged() {
+    switch (_place) {
+      case InGroup(:final group):
+        group.notifyShapeChanged(this);
+      case OnLayer():
+        markGeometryToRebuild();
     }
   }
 
@@ -122,9 +125,13 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
   /// geometry node of its own.
   void bindPlace(DrawnPlace place) {
     final from = _groupOf(_place);
-    final moves = switch (place) {
-      InGroup(:final group) => !identical(group, from),
-      OnLayer(:final link) => from != null || !identical(link, renderLink),
+    final moves = switch ((_place, place)) {
+      (InGroup(group: final was), InGroup(:final group)) => !identical(
+        was,
+        group,
+      ),
+      (OnLayer(link: final was), OnLayer(:final link)) => !identical(was, link),
+      _ => true,
     };
     if (moves) _reportGlow(draws: false);
     switch (place) {
@@ -174,14 +181,14 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
   @override
   void performLayout() {
     super.performLayout();
-    _shapeChanged(outline: false);
+    _shapeChanged();
   }
 
   @override
   void livePaintSizeChanged() {
     // A size change must not pass for the pure move a retained frame can
     // follow by translation.
-    _shapeChanged(outline: true);
+    _outlineChanged();
     markNeedsPaint();
   }
 
