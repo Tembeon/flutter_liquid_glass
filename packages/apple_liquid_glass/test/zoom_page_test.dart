@@ -202,6 +202,14 @@ void main() {
       tester.getRect(find.byKey(_page)),
       const Rect.fromLTWH(0, 0, 402, 874),
     );
+    navigator.currentState!.pop();
+    await _frames(tester, 12);
+    final late = tester.getRect(find.byKey(_page));
+    expect(late.width, lessThan(260));
+    expect((late.center - button.center).distance, lessThan(120));
+    await _frames(tester, 90);
+    expect(find.byKey(_page), findsNothing);
+    expect(find.byKey(const Key('new')), findsOneWidget);
   });
 
   testWidgets('without an attached source the page slides', (tester) async {

@@ -237,7 +237,8 @@ class GlassSegmentedControl<T> extends StatelessWidget {
     this.autofocus = false,
     this.semanticLabel,
     super.key,
-  }) : _momentary = false;
+  }) : _momentary = false,
+       _acts = false;
 
   /// Creates a control whose segments act as buttons, as UIKit's
   /// `isMomentary`: none stays selected, a tap calls [onChanged] with its
@@ -259,9 +260,28 @@ class GlassSegmentedControl<T> extends StatelessWidget {
     super.key,
   }) : groupValue = null,
        onReselected = null,
-       _momentary = true;
+       _momentary = true,
+       _acts = false;
+
+  const GlassSegmentedControl._acting({
+    required this.segments,
+    required this.groupValue,
+    required this.onChanged,
+    required this.onReselected,
+    required this.proportionalWidth,
+    required this.style,
+    required this.statesController,
+    required this.focusNode,
+    required this.autofocus,
+    required this.semanticLabel,
+  }) : _momentary = false,
+       _acts = true;
 
   final bool _momentary;
+
+  // Whether the segments act rather than stay selected: the arrows only
+  // move the focus.
+  final bool _acts;
 
   /// The segments, in reading order.
   final List<GlassSegment<T>> segments;
@@ -387,6 +407,7 @@ class GlassSegmentedControl<T> extends StatelessWidget {
           ? [for (final segment in segments) segment.width]
           : null,
       proportionalWidth: proportionalWidth,
+      selectionFollowsFocus: !_acts,
       statesController: statesController,
       focusNode: focusNode,
       autofocus: autofocus,
@@ -525,7 +546,7 @@ class _MomentaryState<T> extends State<_Momentary<T>> {
   @override
   Widget build(BuildContext context) {
     final control = widget.control;
-    return GlassSegmentedControl<T>(
+    return GlassSegmentedControl<T>._acting(
       segments: control.segments,
       groupValue: _shown,
       onChanged: control.onChanged == null ? null : _picked,

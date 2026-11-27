@@ -4465,6 +4465,7 @@ class RawGlassSelector extends StatefulWidget
     String? semanticLabel,
     List<String?>? itemLabels,
     GlassSelectorCollapse? collapse,
+    bool selectionFollowsFocus = ...,
     @internal TabBarHost host = ...,
     @internal TabBarMetrics tabBarMetrics = ...,
     Key? key,
@@ -4485,6 +4486,7 @@ class RawGlassSelector extends StatefulWidget
   final void Function(int)? onReselected
   final bool proportionalWidth
   final int? selectedIndex
+  final bool selectionFollowsFocus
   final String? semanticLabel
   final WidgetStatesController? statesController
   @internal final TabBarMetrics tabBarMetrics

@@ -63,6 +63,7 @@ class RawGlassSelector extends StatefulWidget {
     this.semanticLabel,
     this.itemLabels,
     this.collapse,
+    this.selectionFollowsFocus = true,
     @internal this.host = TabBarHost.none,
     @internal this.tabBarMetrics = TabBarMetrics.compact,
     super.key,
@@ -148,6 +149,11 @@ class RawGlassSelector extends StatefulWidget {
   /// box as wide as it is given and draws its glass where the collapse
   /// says.
   final GlassSelectorCollapse? collapse;
+
+  /// Whether an arrow key that moves the focus also selects the item it
+  /// moves to, as a segmented control's does; false leaves the selection
+  /// to Space and Enter, as for items that act rather than stay selected.
+  final bool selectionFollowsFocus;
 
   /// What a tab bar hosts beside its tabs, which decides its width and
   /// where it stands in its box.
@@ -517,7 +523,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       stops: InputZoneStops.one,
       current: selected == null ? null : _keys[selected],
       focusNode: widget.focusNode,
-      activatesOnMove: true,
+      activatesOnMove: widget.selectionFollowsFocus,
       child: _SelectorRow(
         motion: _motion,
         frames: _frames,

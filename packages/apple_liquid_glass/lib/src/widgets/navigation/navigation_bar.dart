@@ -235,8 +235,9 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// leading side, past the leading items, its top 11.67 below the row's,
   /// with no large title area under the row and nothing that scrolls away;
   /// at the accessibility text sizes it grows to 38 points at most (bars
-  /// passport, iOS 27.2 simulator). [largeSubtitle] and [titleMenu] do not
-  /// show with it.
+  /// passport, iOS 27.2 simulator, on a root page). [largeSubtitle] and
+  /// [titleMenu] do not show with it. Where it stands past a back button or
+  /// leading items is this package's choice, not measured.
   final bool largeTitleInBar;
 
   /// The line under the [largeTitle], or null for none (UIKit

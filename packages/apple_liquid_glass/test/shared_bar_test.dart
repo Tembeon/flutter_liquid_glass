@@ -87,6 +87,39 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('a large title in the bar of a page with a back button '
+      'starts past the button', (tester) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFF000000),
+        builder: (context, child) => GlassScope(
+          renderer: const FlatGlassRenderer(),
+          child: Navigator(
+            onGenerateInitialRoutes: (navigator, name) => [
+              GlassPageRoute<void>(builder: (_) => _page('Home')),
+              GlassPageRoute<void>(
+                builder: (_) => const GlassPageScaffold(
+                  navigationBar: GlassNavigationBar(
+                    largeTitle: Text('Library'),
+                    largeTitleInBar: true,
+                  ),
+                  child: ColoredBox(color: Color(0xFFFFFFFF)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    final back = tester.getRect(find.bySemanticsLabel('Home'));
+    final title = tester.getRect(find.text('Library'));
+    expect(title.left, greaterThan(back.right));
+    semantics.dispose();
+  });
+
   testWidgets('leading items replace the back button, or follow it in a '
       'capsule of their own with leadingSupplementsBackButton', (tester) async {
     await _phone(tester);
