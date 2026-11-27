@@ -96,6 +96,7 @@ class _ProgressViewPageState extends State<ProgressViewPage> {
   var _brand = Brand.system;
   var _download = 0.0;
   Timer? _ticks;
+  DateTime? _steeped;
 
   @override
   void dispose() {
@@ -172,6 +173,37 @@ class _ProgressViewPageState extends State<ProgressViewPage> {
                   child: GlassButton(
                     onPressed: _start,
                     child: Text(_download >= 1 ? 'Again' : 'Download'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      Idea(
+        'Over a time interval',
+        'GlassProgressView.timer empties over the time a task takes, here '
+            'eight seconds of steeping, at a constant speed.',
+        child: Stage(
+          height: null,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_steeped case final start?)
+                  GlassProgressView.timer(
+                    start: start,
+                    end: start.add(const Duration(seconds: 8)),
+                    semanticLabel: 'Tea',
+                  )
+                else
+                  const GlassProgressView(value: 1, semanticLabel: 'Tea'),
+                const SizedBox(height: 16),
+                Center(
+                  child: GlassButton(
+                    onPressed: () => setState(() => _steeped = DateTime.now()),
+                    child: const Text('Steep'),
                   ),
                 ),
               ],

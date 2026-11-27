@@ -45,4 +45,30 @@ final class ProgressMotion {
       change,
     );
   }
+
+  /// Runs the progress from [from] to [to] at a constant speed over
+  /// [seconds] from time [t], as a progress over a time interval does; the
+  /// fill fades in over [fadeDuration] as it leaves 0 and out as it reaches
+  /// it.
+  void run(double t, double from, double to, double seconds) {
+    fraction.snap(t, from);
+    opacity.snap(t, from > 0 ? 1 : 0);
+    if (seconds <= 0) {
+      fraction.snap(t, to);
+      opacity.snap(t, to > 0 ? 1 : 0);
+      return;
+    }
+    fraction.animate(t, to, animation: TimingCurve.linear(duration: seconds));
+    final fade = math.min(fadeDuration, seconds);
+    if (from <= 0 && to > 0) {
+      opacity.animate(t, 1, animation: TimingCurve.linear(duration: fade));
+    } else if (from > 0 && to <= 0) {
+      opacity.animate(
+        t,
+        0,
+        animation: TimingCurve.linear(duration: fade),
+        delay: seconds - fade,
+      );
+    }
+  }
 }

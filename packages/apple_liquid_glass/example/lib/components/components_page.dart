@@ -103,7 +103,7 @@ class ComponentsPage extends StatelessWidget {
           CupertinoIcons.chart_bar_fill,
           GlassColors.systemBlue,
           'Progress view',
-          'GlassProgressView',
+          'GlassProgressView, GlassProgressView.timer',
           ProgressViewPage.new,
         ),
         (

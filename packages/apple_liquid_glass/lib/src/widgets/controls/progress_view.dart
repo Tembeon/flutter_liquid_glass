@@ -49,22 +49,60 @@ enum GlassProgressViewStyle {
 /// the speed, the fade and the additive changes are UIKit's (progress view
 /// passport: the motion confirmed on an iPhone frame for frame); the dark
 /// track under Increase Contrast is not measured and keeps the dark one.
+/// [GlassProgressView.timer] runs as SwiftUI's
+/// `ProgressView(timerInterval:)` is documented to, not measured.
 /// UIKit's track and progress images and `observedProgress` have no
 /// counterpart.
 class GlassProgressView extends StatefulWidget {
-  /// Creates a progress bar at [value], from 0 to 1.
+  /// Creates a progress bar at [value], from 0 to [total], as SwiftUI's
+  /// `ProgressView(value:total:)`.
   const GlassProgressView({
     required this.value,
+    this.total = 1,
     this.style = GlassProgressViewStyle.standard,
     this.animated = true,
     this.progressColor,
     this.trackColor,
     this.semanticLabel,
     super.key,
-  }) : assert(value >= 0 && value <= 1, 'A progress is from 0 to 1.');
+  }) : assert(total > 0, 'A progress has a total above 0.'),
+       assert(value >= 0 && value <= total, 'A progress is from 0 to total.'),
+       start = null,
+       end = null,
+       countsDown = false;
 
-  /// How far the task has come, from 0 to 1.
+  /// Creates a progress bar that runs over the time from [start] to [end]
+  /// at a constant speed, as SwiftUI's
+  /// `ProgressView(timerInterval:countsDown:)`: it empties as the time
+  /// passes when [countsDown], and fills otherwise. Outside the interval it
+  /// stands at its end.
+  const GlassProgressView.timer({
+    required DateTime this.start,
+    required DateTime this.end,
+    this.countsDown = true,
+    this.style = GlassProgressViewStyle.standard,
+    this.progressColor,
+    this.trackColor,
+    this.semanticLabel,
+    super.key,
+  }) : value = 0,
+       total = 1,
+       animated = true;
+
+  /// How far the task has come, from 0 to [total].
   final double value;
+
+  /// The value of a finished task.
+  final double total;
+
+  /// Where a [GlassProgressView.timer] starts, or null for one of [value].
+  final DateTime? start;
+
+  /// Where a [GlassProgressView.timer] ends.
+  final DateTime? end;
+
+  /// Whether a [GlassProgressView.timer] empties as its time passes.
+  final bool countsDown;
 
   /// How it draws.
   final GlassProgressViewStyle style;
@@ -95,15 +133,52 @@ class GlassProgressView extends StatefulWidget {
 }
 
 class _GlassProgressViewState extends State<GlassProgressView> {
-  late final _motion = ProgressMotion(
-    progress: widget.value,
-    clock: MotionClockScope.of(context),
-  );
+  late final MotionClock _clock = MotionClockScope.of(context);
+  late final _motion = _start();
+
+  ProgressMotion _start() {
+    final motion = ProgressMotion(progress: _fraction, clock: _clock);
+    _runTimer(motion);
+    return motion;
+  }
+
+  // The fraction the bar stands at now: of the value, or of the time.
+  double get _fraction {
+    final start = widget.start;
+    final end = widget.end;
+    if (start == null || end == null) return widget.value / widget.total;
+    final span = end.difference(start).inMicroseconds;
+    final passed = DateTime.now().difference(start).inMicroseconds;
+    final share = span <= 0 ? 1.0 : (passed / span).clamp(0.0, 1.0);
+    return widget.countsDown ? 1 - share : share;
+  }
+
+  void _runTimer(ProgressMotion motion) {
+    final end = widget.end;
+    if (widget.start == null || end == null) return;
+    final left =
+        end.difference(DateTime.now()).inMicroseconds /
+        Duration.microsecondsPerSecond;
+    motion.run(
+      _clock.now,
+      _fraction,
+      widget.countsDown ? 0 : 1,
+      left.clamp(0, double.infinity),
+    );
+  }
 
   @override
   void didUpdateWidget(GlassProgressView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _motion.set(widget.value, animated: widget.animated);
+    if (widget.start != null) {
+      if (widget.start != oldWidget.start ||
+          widget.end != oldWidget.end ||
+          widget.countsDown != oldWidget.countsDown) {
+        _runTimer(_motion);
+      }
+      return;
+    }
+    _motion.set(_fraction, animated: widget.animated);
   }
 
   @override
@@ -111,7 +186,7 @@ class _GlassProgressViewState extends State<GlassProgressView> {
     final style = widget.style;
     return Semantics(
       label: widget.semanticLabel,
-      value: GlassLocalizations.of(context).percentValue(widget.value),
+      value: GlassLocalizations.of(context).percentValue(_fraction),
       child: SizedBox(
         width: double.infinity,
         height: style.height,

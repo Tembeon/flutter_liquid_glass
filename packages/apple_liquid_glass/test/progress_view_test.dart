@@ -124,4 +124,50 @@ void main() {
     );
     semantics.dispose();
   });
+
+  testWidgets('a value of a total fills that share of the bar', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(const GlassProgressView(value: 30, total: 120)),
+    );
+    expect(_bar, _fill(75));
+  });
+
+  testWidgets('a timer counting down empties the bar over its interval at a '
+      'constant speed and fades the fill out at the end', (tester) async {
+    double? width;
+    PaintPattern fill() => paints
+      ..rrect()
+      ..something((method, arguments) {
+        if (method != #drawRRect) return false;
+        width = (arguments[0] as RRect).width;
+        return true;
+      });
+    final now = DateTime.now();
+    await tester.pumpWidget(
+      _app(
+        GlassProgressView.timer(
+          start: now.subtract(const Duration(seconds: 1)),
+          end: now.add(const Duration(seconds: 1)),
+        ),
+      ),
+    );
+    expect(_bar, fill());
+    expect(width, moreOrLessEquals(150, epsilon: 6));
+    for (var i = 0; i < 31; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(_bar, fill());
+    expect(width, moreOrLessEquals(75, epsilon: 6));
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(
+      _bar,
+      paints
+        ..rrect(rrect: _capsule(0, _width, 4))
+        ..everything((method, arguments) => method != #drawRRect),
+    );
+  });
 }

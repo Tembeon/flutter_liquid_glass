@@ -413,6 +413,18 @@ void galleryTests({bool onDevice = false}) {
     await flip('Side pager turns by itself');
     await _back(tester);
 
+    await _open(tester, 'Progress view');
+    await _bring(tester, find.text('Steep'), page);
+    await tester.tap(find.text('Steep'));
+    await _frames(tester, 30);
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is GlassProgressView && widget.start != null,
+      ),
+      findsOneWidget,
+    );
+    await _back(tester);
+
     await _open(tester, 'List');
     await choose('Plain');
     await _bring(tester, find.text('Monstera'), page);

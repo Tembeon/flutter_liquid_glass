@@ -1921,6 +1921,7 @@ final class GlassPress extends Motion implements PointerFollower
 class GlassProgressView extends StatefulWidget
   const GlassProgressView({
     required double value,
+    double total = ...,
     GlassProgressViewStyle style = ...,
     bool animated = ...,
     Color? progressColor,
@@ -1928,10 +1929,24 @@ class GlassProgressView extends StatefulWidget
     String? semanticLabel,
     Key? key,
   })
+  const GlassProgressView.timer({
+    required DateTime start,
+    required DateTime end,
+    bool countsDown = ...,
+    GlassProgressViewStyle style = ...,
+    Color? progressColor,
+    Color? trackColor,
+    String? semanticLabel,
+    Key? key,
+  })
   final bool animated
+  final bool countsDown
+  final DateTime? end
   final Color? progressColor
   final String? semanticLabel
+  final DateTime? start
   final GlassProgressViewStyle style
+  final double total
   static const GlassDynamicColor track
   final Color? trackColor
   final double value
@@ -4198,6 +4213,7 @@ final class ProgressMotion
   static const double fadeDuration
   final MotionValue<double> fraction
   final MotionValue<double> opacity
+  void run(double t, double from, double to, double seconds)
   void set(double progress, {required bool animated})
 class RawGlassButton extends StatefulWidget
   const RawGlassButton({
