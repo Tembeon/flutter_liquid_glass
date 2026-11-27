@@ -151,6 +151,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
       detents.indexOf(_spec.initialDetent ?? detents[0]),
     );
     _frames.addListener(_stepped);
+    _spec.controller?._attach(this);
   }
 
   @override
@@ -177,6 +178,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
 
   @override
   void dispose() {
+    _spec.controller?._detach(this);
     _frames.removeListener(_stepped);
     _laidOut.dispose();
     _scroll.dispose();

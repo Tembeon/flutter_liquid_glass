@@ -174,9 +174,24 @@ class _SheetPageState extends State<SheetPage> {
   var _dismissible = true;
   var _tinted = false;
   var _corners = false;
+  var _open = false;
+  final _sheet = GlassSheetController();
 
-  Future<void> _show() => showGlassSheet<void>(
+  @override
+  void dispose() {
+    _sheet.dispose();
+    super.dispose();
+  }
+
+  Future<void> _show() async {
+    setState(() => _open = true);
+    await _present();
+    if (mounted) setState(() => _open = false);
+  }
+
+  Future<void> _present() => showGlassSheet<void>(
     context,
+    controller: _sheet,
     detents: switch (_detents) {
       _Detents.medium => const [GlassSheetDetent.medium],
       _Detents.both => const [GlassSheetDetent.medium, GlassSheetDetent.large],
@@ -210,9 +225,29 @@ class _SheetPageState extends State<SheetPage> {
         'one.',
     backdrop: Wallpaper.coast,
     stageHeight: 130,
-    stage: GlassButton.prominent(
-      onPressed: () => unawaited(_show()),
-      child: const Text('Open the sheet'),
+    stage: ListenableBuilder(
+      listenable: _sheet,
+      builder: (context, _) {
+        final atMedium =
+            !_sheet.isAttached || _sheet.detent == GlassSheetDetent.medium;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GlassButton.prominent(
+              onPressed: () => unawaited(_show()),
+              child: const Text('Open the sheet'),
+            ),
+            if (_open && _undimmed && _detents == _Detents.both && atMedium)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: GlassButton(
+                  onPressed: () => _sheet.animateTo(GlassSheetDetent.large),
+                  child: const Text('Raise it from here'),
+                ),
+              ),
+          ],
+        );
+      },
     ),
     knobs: [
       ChoiceKnob<_Detents>(

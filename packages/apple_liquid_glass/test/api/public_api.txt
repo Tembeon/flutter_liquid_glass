@@ -2190,6 +2190,11 @@ abstract interface class GlassSheet
   static GlassSheet? maybeOf(BuildContext context)
   static GlassSheet of(BuildContext context)
   static ScrollController scrollControllerOf(BuildContext context)
+class GlassSheetController extends ChangeNotifier
+  GlassSheetController()
+  void animateTo(GlassSheetDetent detent)
+  GlassSheetDetent get detent
+  bool get isAttached
 class GlassSheetDetent
   const GlassSheetDetent.custom(
     double Function(double) resolver, {
@@ -5304,6 +5309,7 @@ Future<T?> showGlassSheet<T>(
   GlassSheetStyle? style,
   String? semanticLabel,
   void Function(GlassSheetDetent)? onDetentChanged,
+  GlassSheetController? controller,
   void Function()? onDismissAttempt,
   PresentationLevel level = ...,
 })
@@ -5819,6 +5825,7 @@ class GlassSegmentedControl (see package:apple_liquid_glass/apple_liquid_glass.d
 class GlassSegmentedStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSelectTabIntent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSheet (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSheetController (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSheetStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSlider (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSliderStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)

@@ -190,6 +190,7 @@ GlassSelectorDetails
 GlassSelectorItemBuilder
 GlassSelectorMotion
 GlassSheet
+GlassSheetController
 GlassSheetDetent
 GlassSheetStyle
 GlassSizeClass

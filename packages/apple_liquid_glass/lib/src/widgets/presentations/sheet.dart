@@ -151,7 +151,9 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
 /// down, a tap on the dimming, Escape and a screen reader's dismiss close
 /// it when `isDismissible` and no `PopScope` in it vetoes, and otherwise
 /// call `onDismissAttempt`. Android's predictive back drags the sheet
-/// down with the gesture and dismisses it on commit.
+/// down with the gesture and dismisses it on commit. `onDetentChanged`
+/// hears the detents the user picks; a [GlassSheetController] passed as
+/// `controller` reads and sets the detent from outside the sheet.
 ///
 /// The band at the sheet's top, where a tap cycles the detents, is also
 /// the sheet's detent control for the keyboard and screen readers: a
@@ -191,6 +193,7 @@ Future<T?> showGlassSheet<T>(
   GlassSheetStyle? style,
   String? semanticLabel,
   ValueChanged<GlassSheetDetent>? onDetentChanged,
+  GlassSheetController? controller,
   VoidCallback? onDismissAttempt,
   PresentationLevel level = PresentationLevel.window,
 }) {
@@ -205,6 +208,7 @@ Future<T?> showGlassSheet<T>(
     scrollingExpandsSheet: scrollingExpandsSheet,
     style: style,
     onDetentChanged: onDetentChanged,
+    controller: controller,
   );
   return showPresentation(
     context,
@@ -249,6 +253,7 @@ class _SheetSpec {
     required this.scrollingExpandsSheet,
     required this.style,
     required this.onDetentChanged,
+    required this.controller,
   });
 
   final WidgetBuilder builder;
@@ -260,6 +265,7 @@ class _SheetSpec {
   final bool scrollingExpandsSheet;
   final GlassSheetStyle? style;
   final ValueChanged<GlassSheetDetent>? onDetentChanged;
+  final GlassSheetController? controller;
 
   GlassSheetStyle lookOf(BuildContext context) =>
       (style ?? const GlassSheetStyle()).merge(
@@ -310,6 +316,49 @@ abstract interface class GlassSheet {
   @internal
   static ValueListenable<double>? fillOf(BuildContext context) =>
       context.getInheritedWidgetOfExactType<_SheetScope>()?.state._fill;
+}
+
+/// Reads and moves a sheet from the code that showed it, as [GlassSheet.of]
+/// does from inside the sheet.
+///
+/// UIKit: `UISheetPresentationController.selectedDetentIdentifier`.
+/// SwiftUI: `presentationDetents(_:selection:)`. Flutter:
+/// `DraggableScrollableController`.
+///
+/// Pass it to [showGlassSheet] as `controller`. It is attached while that
+/// sheet is up and tells its listeners each time the sheet's detent
+/// changes, whether a drag, a tap or [animateTo] changed it. A controller
+/// serves one sheet at a time.
+class GlassSheetController extends ChangeNotifier {
+  _SheetViewState? _sheet;
+
+  /// Whether a sheet shown with this controller is up.
+  bool get isAttached => _sheet != null;
+
+  /// The detent the sheet rests at or heads to.
+  GlassSheetDetent get detent {
+    final sheet = _sheet;
+    if (sheet == null) {
+      throw FlutterError('GlassSheetController.detent read with no sheet.');
+    }
+    return sheet.detent;
+  }
+
+  /// Moves the sheet to [detent] on the sheet's spring; does nothing with
+  /// no sheet attached.
+  void animateTo(GlassSheetDetent detent) => _sheet?.animateTo(detent);
+
+  void _attach(_SheetViewState sheet) {
+    assert(_sheet == null, 'a GlassSheetController serves one sheet at a time');
+    _sheet = sheet;
+    sheet._detent.addListener(notifyListeners);
+  }
+
+  void _detach(_SheetViewState sheet) {
+    if (!identical(_sheet, sheet)) return;
+    sheet._detent.removeListener(notifyListeners);
+    _sheet = null;
+  }
 }
 
 class _SheetScope extends InheritedWidget {

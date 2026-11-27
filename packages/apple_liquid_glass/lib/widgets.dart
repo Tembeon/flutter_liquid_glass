@@ -174,7 +174,7 @@ export 'src/widgets/presentations/pop_up_button.dart'
 export 'src/widgets/presentations/popover.dart'
     show GlassPopoverStyle, showGlassPopover;
 export 'src/widgets/presentations/sheet.dart'
-    show GlassSheet, GlassSheetStyle, showGlassSheet;
+    show GlassSheet, GlassSheetController, GlassSheetStyle, showGlassSheet;
 export 'src/widgets/presentations/toast.dart'
     show
         GlassToast,
