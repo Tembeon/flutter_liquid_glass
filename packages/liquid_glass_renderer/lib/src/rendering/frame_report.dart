@@ -73,8 +73,9 @@ final class GlassReadReport {
 ///
 /// Reports exist in debug and profile builds while someone asks for them
 /// ([GlassFrameReports.addListener], [debugPrintGlassFrameReports],
-/// `LiquidGlassReportOverlay`). The counts of work done ([filtersBuilt] and
-/// those after it) are the frame's across every view it draws: with two
+/// `LiquidGlassReportOverlay`). The counts of work done ([filtersBuilt],
+/// [picturesRecorded], [imagesDrawn], [layersReplayed], [repaintsAsked],
+/// [lateRepaints]) are the frame's across every view it draws: with two
 /// views, each view's report carries both views' work.
 @immutable
 final class GlassFrameReport {

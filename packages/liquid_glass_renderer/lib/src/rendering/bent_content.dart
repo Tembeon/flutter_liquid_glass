@@ -7,7 +7,6 @@ import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/recording_shaders.dart';
-import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:meta/meta.dart';
@@ -104,13 +103,12 @@ final class LiquidGlassBentContent {
       if (bend.amount != 0) reach = math.max(reach, bend.depth);
     }
     reach = math.min(reach, half);
-    ui.FragmentProgram? program;
-    if (aberration > 0 && aberrationDepth > 0 && bends.length <= 2) {
-      program = GlassShaderPrograms.load(ShaderProgram.bentContent.key);
-    }
-    if ((reach <= 0 && program == null) ||
-        rect.isEmpty ||
-        devicePixelRatio <= 0) {
+    final parts =
+        aberration > 0 &&
+        aberrationDepth > 0 &&
+        bends.length <= 2 &&
+        _parting.ready();
+    if ((reach <= 0 && !parts) || rect.isEmpty || devicePixelRatio <= 0) {
       return content(context, offset);
     }
     _releasePaint();
@@ -136,10 +134,9 @@ final class LiquidGlassBentContent {
         clip ??
         (Path()
           ..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(corners))));
-    if (program != null) {
+    if (parts) {
       _paintParted(
         context.canvas,
-        program,
         image,
         rect: rect,
         picture: picture,
@@ -167,7 +164,6 @@ final class LiquidGlassBentContent {
 
   void _paintParted(
     Canvas canvas,
-    ui.FragmentProgram program,
     ui.Image image, {
     required Rect rect,
     required Rect picture,
