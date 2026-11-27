@@ -171,6 +171,7 @@ class _RenderSelectorRow extends RenderBox
   void attach(PipelineOwner owner) {
     super.attach(owner);
     _follow.attach();
+    _moved = true;
   }
 
   @override
@@ -281,6 +282,12 @@ class _RenderSelectorRow extends RenderBox
   ({SelectorGeometry geometry, Map<Object, Rect> rects, Offset origin})?
   _laidOut;
 
+  // Where the box was at the last resolve, and whether it has been attached
+  // since: a box moved under new parents (a tab bar whose circle comes or
+  // goes) reads offsets they have not set yet.
+  Offset? _resolvedAt;
+  bool _moved = false;
+
   @override
   void performLayout() {
     final geometry = _geometry(constraints);
@@ -306,8 +313,10 @@ class _RenderSelectorRow extends RenderBox
     }
     _lens?.layout(BoxConstraints.tight(size));
     // The parents place the box after this layout: the offset read now is
-    // the one it was drawn at.
-    _laidOut = (geometry: geometry, rects: rects, origin: _origin());
+    // the one it was drawn at, unless it moved under new parents.
+    final origin = _moved ? _resolvedAt ?? _origin() : _origin();
+    _moved = false;
+    _laidOut = (geometry: geometry, rects: rects, origin: origin);
     scheduleResolve();
   }
 
@@ -316,11 +325,12 @@ class _RenderSelectorRow extends RenderBox
     final laidOut = _laidOut;
     if (laidOut == null) return;
     _laidOut = null;
+    final origin = _resolvedAt = _origin();
     _motion.layout(
       _motion.clock.now,
       laidOut.geometry,
       laidOut.rects,
-      shift: _origin() - laidOut.origin,
+      shift: origin - laidOut.origin,
       mirrored: _direction == TextDirection.rtl,
       spring: MotionTransaction.layoutSpring,
     );

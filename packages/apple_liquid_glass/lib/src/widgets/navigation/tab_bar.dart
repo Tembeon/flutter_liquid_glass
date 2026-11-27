@@ -65,8 +65,8 @@ final class GlassTabDestination {
   /// simulator). Selected, it tints its glyph and the bar's lens fades out
   /// over 0.25 s; unselected, its glyph takes the label color. One tab at
   /// most; a bar with one has no search tab, action or accessory and does
-  /// not minimize. Not ported: its circle's slide and fade when it comes or
-  /// goes.
+  /// not minimize. Its circle comes and goes as [TabCircleMotion] says, the
+  /// bar's tabs moving with it inside an animation (`withSpring`).
   final bool prominent;
 
   /// The tab's title.
@@ -645,16 +645,14 @@ class GlassTabBar extends StatelessWidget {
                 thumb: look.thumbColor,
               ),
         );
-    if (action case final action?) {
-      return _ActionTabBar(
-        circle: _ActionCircle(action: action, metrics: metrics),
-        metrics: metrics,
-        bar: bar(null, host: TabBarHost.circle),
-      );
-    }
-    if (prominent >= 0) {
-      return _ActionTabBar(
-        circle: _ProminentCircle(
+    final accessory = bottomAccessory;
+    final search = searchController;
+    final alone =
+        search == null && !minimizeBehavior.minimizes && accessory == null;
+    if (alone || action != null || prominent >= 0) {
+      final circle = switch (action) {
+        final action? => _ActionCircle(action: action, metrics: metrics),
+        null when prominent >= 0 => _ProminentCircle(
           destination: destinations[prominent],
           selected: selectedIndex == prominent,
           metrics: metrics,
@@ -662,17 +660,15 @@ class GlassTabBar extends StatelessWidget {
               ? null
               : () => onDestination(prominent),
         ),
+        null => null,
+      };
+      return _CircleTabBar(
+        circle: circle,
         metrics: metrics,
-        bar: bar(null, host: TabBarHost.circle),
-      );
-    }
-    final accessory = bottomAccessory;
-    final search = searchController;
-    if (search == null && !minimizeBehavior.minimizes && accessory == null) {
-      return Align(
-        widthFactor: 1,
-        heightFactor: 1,
-        child: bar(null, host: TabBarHost.none),
+        bar: bar(
+          null,
+          host: circle == null ? TabBarHost.none : TabBarHost.circle,
+        ),
       );
     }
     return _MinimizingBar(

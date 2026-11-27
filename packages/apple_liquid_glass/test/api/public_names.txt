@@ -522,6 +522,7 @@ TabBarHost
 TabBarLayout
 TabBarMetrics
 TabBarMinimizeMotion
+TabCircleMotion
 TabSidebarMotion
 TapInteraction
 TextStyleMotionConverter

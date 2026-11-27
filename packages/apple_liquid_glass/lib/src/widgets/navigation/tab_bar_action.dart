@@ -33,39 +33,116 @@ final class GlassTabBarAction {
 enum _ActionSlot { bar, circle }
 
 /// A tab bar and its circle, an action's or a prominent tab's, on one
-/// glass group.
-class _ActionTabBar extends StatelessWidget {
-  const _ActionTabBar({
+/// glass group, or the bar alone. A circle that comes or goes after the
+/// first build slides and fades as [TabCircleMotion] says while the bar
+/// takes or gives back its room, its tabs moving inside an animation as a
+/// change of tabs does; the bar keeps its state throughout.
+class _CircleTabBar extends StatefulWidget {
+  const _CircleTabBar({
     required this.circle,
     required this.metrics,
     required this.bar,
   });
 
-  final Widget circle;
+  final Widget? circle;
   final TabBarMetrics metrics;
   final Widget bar;
 
   @override
-  Widget build(BuildContext context) => GlassGroup(
-    child: CustomMultiChildLayout(
-      delegate: _ActionTabLayout(rtl: context.isRightToLeft, metrics: metrics),
-      children: [
-        LayoutId(id: _ActionSlot.bar, child: bar),
-        LayoutId(id: _ActionSlot.circle, child: circle),
-      ],
-    ),
+  State<_CircleTabBar> createState() => _CircleTabBarState();
+}
+
+class _CircleTabBarState extends State<_CircleTabBar> {
+  final _bar = GlobalKey(debugLabel: 'GlassTabBar bar');
+  late final _motion = TabCircleMotion(
+    shown: widget.circle != null,
+    clock: MotionClockScope.of(context),
   );
+  late final _gone = _motion.select((motion) => motion.isGone);
+  // The circle shown, or the one going.
+  late Widget? _circle = widget.circle;
+
+  @override
+  void initState() {
+    super.initState();
+    _gone.addListener(_drop);
+  }
+
+  @override
+  void didUpdateWidget(_CircleTabBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final circle = widget.circle;
+    if (circle != null) _circle = circle;
+    if ((circle == null) == (oldWidget.circle == null)) return;
+    _motion.show(
+      _motion.clock.now,
+      shown: circle != null,
+      away: widget.metrics.circleSize / 2 * (context.isRightToLeft ? -1 : 1),
+    );
+  }
+
+  @override
+  void dispose() {
+    _gone.removeListener(_drop);
+    super.dispose();
+  }
+
+  void _drop() {
+    if (_gone.value && widget.circle == null && _circle != null) {
+      setState(() => _circle = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bar = KeyedSubtree(key: _bar, child: widget.bar);
+    final circle = _circle;
+    if (circle == null) {
+      return Align(widthFactor: 1, heightFactor: 1, child: bar);
+    }
+    return GlassGroup(
+      child: CustomMultiChildLayout(
+        delegate: _ActionTabLayout(
+          rtl: context.isRightToLeft,
+          metrics: widget.metrics,
+          hosts: widget.circle != null,
+        ),
+        children: [
+          LayoutId(id: _ActionSlot.bar, child: bar),
+          LayoutId(
+            id: _ActionSlot.circle,
+            child: IgnorePointer(
+              ignoring: widget.circle == null,
+              child: MotionTransition(
+                opacity: _motion.shown,
+                translateX: _motion.slide,
+                child: circle,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Lays a tab bar out at the leading side and its action circle at the
 /// trailing one, [TabBarLayout.circleGap] apart at the least, as a search
 /// tab bar rests: across the width it is given, a wide group at most 640
-/// at the middle.
+/// at the middle. A bar whose circle is going stands at the middle, as it
+/// will alone.
 class _ActionTabLayout extends MultiChildLayoutDelegate {
-  _ActionTabLayout({required this.rtl, required this.metrics});
+  _ActionTabLayout({
+    required this.rtl,
+    required this.metrics,
+    required this.hosts,
+  });
 
   final bool rtl;
   final TabBarMetrics metrics;
+
+  /// Whether the bar makes room for the circle.
+  final bool hosts;
 
   @override
   Size getSize(BoxConstraints constraints) => constraints.constrain(
@@ -84,25 +161,32 @@ class _ActionTabLayout extends MultiChildLayoutDelegate {
     );
     final start = (size.width - width) / 2;
     final top = (size.height - circle) / 2;
-    final double room = math.max(0, width - circle - TabBarLayout.circleGap);
+    final room = hosts
+        ? math.max<double>(0, width - circle - TabBarLayout.circleGap)
+        : size.width;
     final bar = layoutChild(
       _ActionSlot.bar,
       BoxConstraints.loose(Size(room, size.height)),
     );
     layoutChild(_ActionSlot.circle, BoxConstraints.tight(Size.square(circle)));
     final barTop = (size.height - bar.height) / 2;
-    if (rtl) {
-      positionChild(_ActionSlot.bar, Offset(start + width - bar.width, barTop));
-      positionChild(_ActionSlot.circle, Offset(start, top));
-    } else {
-      positionChild(_ActionSlot.bar, Offset(start, barTop));
-      positionChild(_ActionSlot.circle, Offset(start + width - circle, top));
-    }
+    final barStart = !hosts
+        ? (size.width - bar.width) / 2
+        : rtl
+        ? start + width - bar.width
+        : start;
+    positionChild(_ActionSlot.bar, Offset(barStart, barTop));
+    positionChild(
+      _ActionSlot.circle,
+      Offset(rtl ? start : start + width - circle, top),
+    );
   }
 
   @override
   bool shouldRelayout(_ActionTabLayout oldDelegate) =>
-      rtl != oldDelegate.rtl || metrics != oldDelegate.metrics;
+      rtl != oldDelegate.rtl ||
+      metrics != oldDelegate.metrics ||
+      hosts != oldDelegate.hosts;
 }
 
 /// An action's glass circle: a glass button with the action's glyph.
