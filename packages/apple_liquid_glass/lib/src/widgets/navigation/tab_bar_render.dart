@@ -14,7 +14,9 @@ part of 'tab_bar.dart';
 /// 6 points before the title's trailing edge and its top on the button's
 /// (tab bar passport, iOS 27.2 simulator in landscape).
 ///
-/// [morph] takes the title away as the bar turns into its circle.
+/// [morph] takes the title away by [titleGoneAt] as the bar turns into
+/// its circle; without [titleGoneAt] the title stays, to go with the rest
+/// of the bar's content.
 class _TabItem extends MultiChildRenderObjectWidget {
   const _TabItem({
     required this.morph,
@@ -24,7 +26,7 @@ class _TabItem extends MultiChildRenderObjectWidget {
   });
 
   final ValueListenable<double>? morph;
-  final double titleGoneAt;
+  final double? titleGoneAt;
   final TabBarMetrics metrics;
 
   @override
@@ -99,9 +101,9 @@ class _RenderTabItem extends RenderBox
     super.detach();
   }
 
-  double _titleGoneAt;
-  double get titleGoneAt => _titleGoneAt;
-  set titleGoneAt(double value) {
+  double? _titleGoneAt;
+  double? get titleGoneAt => _titleGoneAt;
+  set titleGoneAt(double? value) {
     if (value == _titleGoneAt) return;
     _titleGoneAt = value;
     markNeedsPaint();
@@ -262,10 +264,11 @@ class _RenderTabItem extends RenderBox
     context.paintChild(_glyph, offset + _at(_glyph));
     final title = offset + _at(_title);
     final morph = _morph?.value ?? 0;
-    if (morph == 0) {
+    final goneAt = _titleGoneAt;
+    if (morph == 0 || goneAt == null) {
       context.paintChild(_title, title);
     } else {
-      final left = 1 - morph / _titleGoneAt;
+      final left = 1 - morph / goneAt;
       if (left > 0) {
         context.pushOpacity(
           title,

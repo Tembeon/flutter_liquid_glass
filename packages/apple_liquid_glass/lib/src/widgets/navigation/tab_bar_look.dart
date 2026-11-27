@@ -24,9 +24,7 @@ class _TabContent extends StatelessWidget {
     final content = scale.apply(
       _TabItem(
         morph: morph,
-        titleGoneAt: selected
-            ? TabBarMinimizeMotion.lensGoneAt
-            : TabBarMinimizeMotion.titlesGoneAt,
+        titleGoneAt: selected ? TabBarMinimizeMotion.lensGoneAt : null,
         metrics: metrics,
         children: [
           IconTheme.merge(

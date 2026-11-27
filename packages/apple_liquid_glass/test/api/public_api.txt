@@ -5478,14 +5478,12 @@ final class TabBarMinimizeMotion extends Motion
   double get accessoryX
   double get accessoryY
   GlassTabBarMinimizeBehavior get behavior
+  static const double contentBlur
   double extent
   double get hint
   static const double lensGoneAt
   bool get minimized
   double get morph
-  static const double othersBlur
-  static const double othersDrift
-  static const double othersGoneAt
   double get press
   void pressCancel(double t)
   void pressDown(double t, double x)
@@ -5496,7 +5494,6 @@ final class TabBarMinimizeMotion extends Motion
   final ScrollAway scrollAway
   void setBehavior(double t, GlassTabBarMinimizeBehavior value)
   void setMinimized(double t, {required bool minimized})
-  static const double titlesGoneAt
 abstract final class TabSidebarMotion
   TabSidebarMotion()
   static void fold(MotionValue<double> width, {required double to})

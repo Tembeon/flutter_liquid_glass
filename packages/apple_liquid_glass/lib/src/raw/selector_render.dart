@@ -466,33 +466,43 @@ class _RenderSelectorRow extends RenderBox
     if (morph != 0) _paintGlyph(context, offset, slots, morph, lift);
   }
 
-  // The tabs, the selected one's regular look among them, stay about where
-  // they are inside the shrinking glass and dissolve as one.
+  // The tabs, the selected one's regular look among them, go as one
+  // snapshot carried and scaled with the glass, fading and blurring as
+  // the morph runs ([TabBarMinimizeMotion.contentBlur]).
   void _paintDissolving(
     PaintingContext context,
     Offset offset,
     List<Rect> slots,
     double morph,
   ) {
-    final left = 1 - morph / TabBarMinimizeMotion.othersGoneAt;
+    final progress = morph.clamp(0.0, 1.0);
+    final left = 1 - progress;
     if (left <= 0) return;
     final body = _frames.body.value.bodyIn(size).drawnRect;
-    final toward = _collapse!.circleIn(size).center.dx;
-    final together = 1 - TabBarMinimizeMotion.othersDrift * morph;
-    void items(PaintingContext context, Offset offset) {
-      var i = 0;
-      for (final (regular, _) in _live) {
-        final slot = slots[i++];
-        final x = toward + (slot.center.dx - toward) * together;
-        context.paintChild(
-          regular,
-          offset + Offset(x - slot.width / 2, slot.top),
-        );
-      }
-    }
+    final metrics = _tabBarMetrics;
+    final scale = 1 + (metrics.minimizedSize / metrics.height - 1) * progress;
+    final from = _motion.bar.center;
+    final transform = Matrix4.translationValues(
+      body.center.dx,
+      body.center.dy,
+      0,
+    );
+    transform.scaleByDouble(scale, scale, 1, 1);
+    transform.translateByDouble(-from.dx, -from.dy, 0, 1);
+    void items(PaintingContext context, Offset offset) => context.pushTransform(
+      needsCompositing,
+      offset,
+      transform,
+      (context, offset) {
+        var i = 0;
+        for (final (regular, _) in _live) {
+          context.paintChild(regular, offset + slots[i++].topLeft);
+        }
+      },
+    );
 
     void dissolved(PaintingContext context, Offset offset) {
-      final sigma = TabBarMinimizeMotion.othersBlur * morph.clamp(0.0, 1.0);
+      final sigma = TabBarMinimizeMotion.contentBlur * progress;
       if (sigma <= 0) {
         _othersBlur.layer = null;
         return items(context, offset);

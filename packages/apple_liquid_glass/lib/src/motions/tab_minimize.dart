@@ -40,8 +40,9 @@ enum GlassTabBarMinimizeBehavior {
 /// the bottom). The bar turns into the circle in one liquid morph of its
 /// shape and content ([morphSpring]); the four collapse and expand springs
 /// move only the bottom accessory, one axis after the other (iPhone 16 Pro,
-/// layer rows, within 0.09 points). What the content does during the morph
-/// is taken from films of the same phone, by eye.
+/// layer rows, within 0.09 points). The bar's content goes in the morph as
+/// UIKit's code has it ([TabBarMinimizeMotion.contentBlur]); when the lens
+/// goes is taken from films of the same phone.
 @internal
 abstract final class TabBarMinimizeTuning {
   /// The scroll in the minimizing direction, in points, before the bar
@@ -330,20 +331,14 @@ final class TabBarMinimizeMotion extends Motion {
   /// frames of the start (film), and comes back as late.
   static const double lensGoneAt = 0.1;
 
-  /// The morph's progress at which the titles have gone: 0.07 s into it
-  /// (film).
-  static const double titlesGoneAt = 0.48;
-
-  /// The morph's progress at which the other tabs have gone: 0.13 s into it
-  /// (film).
-  static const double othersGoneAt = 0.85;
-
-  /// How much the tabs that dissolve draw together toward the circle over
-  /// the whole morph, by eye.
-  static const double othersDrift = 0.15;
-
-  /// The blur the dissolving tabs reach, by eye: UIKit's radius is not read.
-  static const double othersBlur = 3;
+  /// The blur, in points, the bar's content reaches as the bar turns into
+  /// its circle. UIKit morphs a snapshot of the bar's tabs, titles and
+  /// unselected glyphs with the glass: carried with the shape, scaled from
+  /// 1 to the circle's height over the bar's, its opacity 1 - p and its
+  /// blur radius this times p at the morph's progress p, and back the same
+  /// way; the selected glyph travels on its own (read from UIKit's code
+  /// and live morph layers, iOS 27.2 simulator).
+  static const double contentBlur = 4;
 
   /// The scroll-away interaction; feed it the content's scrolls after
   /// [advance] to their time.
