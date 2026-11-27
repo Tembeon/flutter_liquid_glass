@@ -501,6 +501,7 @@ class GlassButton extends StatelessWidget {
     this.autofocus = false,
     this.semanticLabel,
     this.loading = false,
+    this.repeats = false,
     super.key,
   }) : _variant = _Variant.regular;
 
@@ -518,6 +519,7 @@ class GlassButton extends StatelessWidget {
     this.autofocus = false,
     this.semanticLabel,
     this.loading = false,
+    this.repeats = false,
     super.key,
   }) : _variant = _Variant.prominent;
 
@@ -534,6 +536,7 @@ class GlassButton extends StatelessWidget {
     this.autofocus = false,
     this.semanticLabel,
     this.loading = false,
+    this.repeats = false,
     super.key,
   }) : _variant = _Variant.clear;
 
@@ -550,6 +553,7 @@ class GlassButton extends StatelessWidget {
     this.autofocus = false,
     this.semanticLabel,
     this.loading = false,
+    this.repeats = false,
     super.key,
   }) : _variant = _Variant.prominentClear;
 
@@ -584,6 +588,7 @@ class GlassButton extends StatelessWidget {
     this.autofocus = false,
     this.semanticLabel,
     this.loading = false,
+    this.repeats = false,
     super.key,
   }) : _variant = _Variant.plain;
 
@@ -612,6 +617,7 @@ class GlassButton extends StatelessWidget {
     this.autofocus = false,
     this.semanticLabel,
     this.loading = false,
+    this.repeats = false,
     super.key,
   }) : _variant = _Variant.gray;
 
@@ -630,6 +636,7 @@ class GlassButton extends StatelessWidget {
     this.autofocus = false,
     this.semanticLabel,
     this.loading = false,
+    this.repeats = false,
     super.key,
   }) : _variant = _Variant.tinted;
 
@@ -648,6 +655,7 @@ class GlassButton extends StatelessWidget {
     this.autofocus = false,
     this.semanticLabel,
     this.loading = false,
+    this.repeats = false,
     super.key,
   }) : _variant = _Variant.filled;
 
@@ -684,6 +692,11 @@ class GlassButton extends StatelessWidget {
   /// wide). The button still takes taps; set [onPressed] to null to refuse
   /// them while the work runs.
   final bool loading;
+
+  /// Whether a held button presses again 0.5 s after the touch and on
+  /// UIKit's autorepeat clock after, as SwiftUI's
+  /// `buttonRepeatBehavior(.enabled)` ([RawGlassButton.repeats]).
+  final bool repeats;
 
   final _Variant _variant;
 
@@ -893,6 +906,7 @@ class GlassButton extends StatelessWidget {
       focusNode: focusNode,
       autofocus: autofocus,
       semanticLabel: semanticLabel,
+      repeats: repeats,
       builder:
           style?.builder ??
           _themeStyleOf(context)?.builder ??

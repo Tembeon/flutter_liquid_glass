@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/raw/still.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -461,13 +462,7 @@ final class _StepperInput extends Interaction {
   final VoidCallback onEnd;
   final bool Function() repeats;
 
-  // Stepper passport, "The repeat clock": the wait before the next repeat
-  // after [count] repeats in a row.
-  static double _interval(int count) => count <= 5
-      ? 0.5
-      : count < 20
-      ? 0.1
-      : 0.05;
+  static double _interval(int count) => HoldRepeat.interval(count);
 
   bool _touching = false;
   TextDirection _direction = TextDirection.ltr;

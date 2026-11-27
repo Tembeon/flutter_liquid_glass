@@ -41,6 +41,7 @@ export 'src/motions/edit_menu_motion.dart' show EditMenuMotion;
 export 'src/motions/flex_interaction.dart' show FlexValues;
 export 'src/motions/full_screen_motion.dart' show FullScreenMotion;
 export 'src/motions/glass_press.dart' show FlexLaw, GlassPress;
+export 'src/motions/hold_repeat.dart' show HoldRepeat;
 export 'src/motions/large_title_snap.dart' show LargeTitleSnap;
 export 'src/motions/lens_motion.dart' show LensMotion;
 export 'src/motions/lens_values.dart' show LensEvent, LensSelected, LensSlot;

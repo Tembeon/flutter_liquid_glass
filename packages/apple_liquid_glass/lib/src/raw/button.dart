@@ -74,6 +74,7 @@ class RawGlassButton extends StatefulWidget {
     required this.onPressed,
     required this.builder,
     required this.child,
+    this.repeats = false,
     this.shape = LiquidRoundedSuperellipse.capsule,
     this.statesController,
     this.focusNode,
@@ -84,6 +85,12 @@ class RawGlassButton extends StatefulWidget {
 
   /// Called when the button is pressed; null disables it.
   final VoidCallback? onPressed;
+
+  /// Whether a held button presses again 0.5 s after the touch and on
+  /// UIKit's autorepeat clock after, while the finger stays on it, as
+  /// SwiftUI's `buttonRepeatBehavior(.enabled)`; a release after a repeat
+  /// presses nothing more.
+  final bool repeats;
 
   /// Builds the button's look.
   final GlassButtonBuilder builder;
@@ -116,11 +123,20 @@ class _RawGlassButtonState extends State<RawGlassButton>
   late final GlassPress _press = GlassPress(
     clock: MotionClockScope.of(context),
   );
+  late final _repeat = _HoldRepeat(
+    repeats: () => widget.repeats,
+    onRepeat: () => widget.onPressed?.call(),
+  );
   late final _tap = PressInteraction(
-    onTap: (t) => widget.onPressed?.call(),
+    onHighlightChanged: (t, {required highlighted}) =>
+        _repeat.inside = highlighted,
+    onTap: (t) {
+      if (!_repeat.repeated) widget.onPressed?.call();
+    },
   );
   late final List<Interaction> _interactions = [
     _tap,
+    _repeat,
     FollowInteraction(_press),
   ];
   late final List<Interaction> _sourceInteractions = [_tap];
@@ -204,4 +220,61 @@ class _RawGlassButtonState extends State<RawGlassButton>
           child: body,
         )
       : body;
+}
+
+/// A held button's repeats: [onRepeat] 0.5 s after the touch and on
+/// UIKit's autorepeat clock after ([HoldRepeat]) while the finger stays on
+/// the button, as SwiftUI's `buttonRepeatBehavior(.enabled)`; a release
+/// after a repeat presses nothing more.
+final class _HoldRepeat extends Interaction {
+  _HoldRepeat({required this.repeats, required this.onRepeat})
+    : super(role: InteractionRole.content);
+
+  final bool Function() repeats;
+  final VoidCallback onRepeat;
+
+  /// Whether the finger is on the button, from its press's highlight.
+  bool inside = false;
+
+  /// Whether the current touch has repeated.
+  bool repeated = false;
+
+  double? _due;
+  int _count = 0;
+
+  @override
+  Set<InputKind> get takes => const {InputKind.pointer};
+
+  @override
+  double? get nextDue => _due;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    switch (input) {
+      case PointerDownInput() when accepts(input) && repeats():
+        _count = 0;
+        repeated = false;
+        _due = input.time + HoldRepeat.interval(0);
+      case PointerUpInput() || PointerCancelInput():
+        _due = null;
+        repeated = false;
+      default:
+    }
+    return InteractionUpdate.none;
+  }
+
+  @override
+  InteractionUpdate advance(double time) {
+    final due = _due;
+    if (due == null || time < due) return InteractionUpdate.none;
+    if (inside) {
+      repeated = true;
+      _count++;
+      onRepeat();
+    } else if (_count > 0) {
+      _count = 1;
+    }
+    _due = due + HoldRepeat.interval(_count);
+    return InteractionUpdate.none;
+  }
 }

@@ -282,6 +282,7 @@ GlassWheelSelectionBuilder
 GlassWidthRange
 GlassWindowControls
 GlassZoomSource
+HoldRepeat
 InputCapture
 InputCommands
 InputKind

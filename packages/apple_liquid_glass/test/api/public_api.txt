@@ -558,6 +558,7 @@ class GlassButton extends StatelessWidget
     bool autofocus = ...,
     String? semanticLabel,
     bool loading = ...,
+    bool repeats = ...,
     Key? key,
   })
   const GlassButton.filled({
@@ -569,6 +570,7 @@ class GlassButton extends StatelessWidget
     bool autofocus = ...,
     String? semanticLabel,
     bool loading = ...,
+    bool repeats = ...,
     Key? key,
   })
   const GlassButton.gray({
@@ -580,6 +582,7 @@ class GlassButton extends StatelessWidget
     bool autofocus = ...,
     String? semanticLabel,
     bool loading = ...,
+    bool repeats = ...,
     Key? key,
   })
   const GlassButton({
@@ -591,6 +594,7 @@ class GlassButton extends StatelessWidget
     bool autofocus = ...,
     String? semanticLabel,
     bool loading = ...,
+    bool repeats = ...,
     Key? key,
   })
   const GlassButton.plain({
@@ -602,6 +606,7 @@ class GlassButton extends StatelessWidget
     bool autofocus = ...,
     String? semanticLabel,
     bool loading = ...,
+    bool repeats = ...,
     Key? key,
   })
   const GlassButton.prominent({
@@ -613,6 +618,7 @@ class GlassButton extends StatelessWidget
     bool autofocus = ...,
     String? semanticLabel,
     bool loading = ...,
+    bool repeats = ...,
     Key? key,
   })
   const GlassButton.prominentClear({
@@ -624,6 +630,7 @@ class GlassButton extends StatelessWidget
     bool autofocus = ...,
     String? semanticLabel,
     bool loading = ...,
+    bool repeats = ...,
     Key? key,
   })
   const GlassButton.tinted({
@@ -635,6 +642,7 @@ class GlassButton extends StatelessWidget
     bool autofocus = ...,
     String? semanticLabel,
     bool loading = ...,
+    bool repeats = ...,
     Key? key,
   })
   final bool autofocus
@@ -643,6 +651,7 @@ class GlassButton extends StatelessWidget
   final FocusNode? focusNode
   final bool loading
   final void Function()? onPressed
+  final bool repeats
   final String? semanticLabel
   final WidgetStatesController? statesController
   final GlassButtonStyle? style
@@ -3668,6 +3677,9 @@ class GlassZoomSource extends StatelessWidget
   final Widget child
   final MotionSource source
   overrides: build
+abstract final class HoldRepeat
+  HoldRepeat()
+  static double interval(int count)
 abstract final class LargeTitleSnap
   LargeTitleSnap()
   static SpringDescription get spring
@@ -4383,6 +4395,7 @@ class RawGlassButton extends StatefulWidget
     required void Function()? onPressed,
     required Widget Function(BuildContext, GlassButtonDetails) builder,
     required Widget child,
+    bool repeats = ...,
     LiquidShape shape = ...,
     WidgetStatesController? statesController,
     FocusNode? focusNode,
@@ -4395,6 +4408,7 @@ class RawGlassButton extends StatefulWidget
   final Widget child
   final FocusNode? focusNode
   final void Function()? onPressed
+  final bool repeats
   final String? semanticLabel
   final LiquidShape shape
   final WidgetStatesController? statesController
@@ -5925,6 +5939,7 @@ class GlassPress (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassSelectorMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSheetDetent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTabBarMinimizeBehavior (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class HoldRepeat (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class LargeTitleSnap (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class LensEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class LensMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
