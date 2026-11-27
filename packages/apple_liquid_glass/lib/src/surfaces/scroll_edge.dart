@@ -23,17 +23,12 @@ abstract final class ScrollEdgeTuning {
   /// The blur of the soft band.
   static const double softBlur = 1.5;
 
-  /// The blur of the hard band at the top, a navigation bar's.
-  static const double hardBlur = 2;
-
-  /// The blur of a hard band [height] tall at [edge]. At the bottom it
-  /// grows with the band as UIKit's 2 + (h - 54) / 88, from 2 to 2.5
-  /// (86 -> 2.3636). The top keeps [hardBlur], a full-screen navigation
-  /// bar's 116 point band, until the top law of iOS 27.2 is measured.
-  static double hardBlurOf(AxisDirection edge, double height) =>
-      edge == AxisDirection.down
-      ? (2 + (height - 54) / 88).clamp(2.0, 2.5)
-      : hardBlur;
+  /// The blur of a hard band whose bar, past the system's own (the status
+  /// bar at a full-screen top), is [bar] long: UIKit's 2 + (b - 54) / 88,
+  /// from 2 to 2.5, at either edge (read from UIKit's code): a standard
+  /// navigation bar's 54 under the status bar gives 2, a toolbar's 86
+  /// point band 2.3636.
+  static double hardBlurOf(double bar) => (2 + (bar - 54) / 88).clamp(2.0, 2.5);
 
   /// The saturation of the content under the hard band.
   static const double hardSaturation = 1.25;
@@ -198,7 +193,9 @@ class RenderScrollEdge extends RenderBox {
   @protected
   LiquidGlassFrostBand bandAt(double presence) => _details.hard
       ? LiquidGlassFrostBand.hard(
-          sigma: ScrollEdgeTuning.hardBlurOf(_details.edge, size.height),
+          sigma: ScrollEdgeTuning.hardBlurOf(
+            size.height - _details.systemExtent,
+          ),
           edge: _details.edge,
           fade: _fadeColor,
           line: ScrollEdgeTuning.hairline(_brightness),

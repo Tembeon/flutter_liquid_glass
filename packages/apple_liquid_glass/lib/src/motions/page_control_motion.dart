@@ -432,9 +432,7 @@ final class PageControlMotion extends Motion {
     final remembered =
         t - _tapAt <= PageControlTuning.tapMemory &&
         (x - _tapX).abs() <= PageControlTuning.spacing;
-    final direction = remembered
-        ? _tapDirection
-        : (x > center(_page) ? 1 : -1);
+    final direction = remembered ? _tapDirection : (x > center(_page) ? 1 : -1);
     _tapX = x;
     _tapAt = t;
     _tapDirection = direction;

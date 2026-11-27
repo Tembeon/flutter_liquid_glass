@@ -419,6 +419,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
                       edge: AxisDirection.up,
                       hard: top,
                       extent: topExtent - after,
+                      systemExtent: math.min(padding.top, topExtent - after),
                       presence: _top.progressListenable,
                       background: background,
                     ),

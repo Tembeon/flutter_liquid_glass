@@ -2133,12 +2133,14 @@ final class GlassScrollEdgeDetails
     required double extent,
     required ValueListenable<double> presence,
     required Color background,
+    double systemExtent = ...,
   })
   final Color background
   final AxisDirection edge
   final double extent
   final bool hard
   final ValueListenable<double> presence
+  final double systemExtent
   overrides: ==, hashCode
 enum GlassScrollEdgeEffect
   automatic,

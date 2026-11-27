@@ -186,16 +186,20 @@ void main() {
     expect(box.top, 874 - 86);
     expect(box.bottom, 874);
     expect(
-      ScrollEdgeTuning.hardBlurOf(AxisDirection.down, box.height),
+      ScrollEdgeTuning.hardBlurOf(box.height),
       closeTo(2.3636, 1e-4),
     );
     expect(
-      ScrollEdgeTuning.hardBlurOf(AxisDirection.down, 93),
+      ScrollEdgeTuning.hardBlurOf(93),
       closeTo(2.4432, 1e-4),
     );
-    expect(ScrollEdgeTuning.hardBlurOf(AxisDirection.down, 140), 2.5);
-    expect(ScrollEdgeTuning.hardBlurOf(AxisDirection.down, 40), 2);
-    expect(ScrollEdgeTuning.hardBlurOf(AxisDirection.up, 116), 2);
+    expect(ScrollEdgeTuning.hardBlurOf(140), 2.5);
+    expect(ScrollEdgeTuning.hardBlurOf(40), 2);
+    expect(ScrollEdgeTuning.hardBlurOf(116 - 62), 2);
+    expect(
+      ScrollEdgeTuning.hardBlurOf(150 - 62),
+      moreOrLessEquals(2.386, epsilon: 0.001),
+    );
   });
 
   testWidgets('a hard edge effect over a custom bottom bar is as tall as '
