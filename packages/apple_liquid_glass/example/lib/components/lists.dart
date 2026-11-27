@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/components/component_page.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
@@ -195,8 +197,8 @@ class _ListPageState extends State<ListPage> {
           'Rows that come and go',
           'A GlassSliverListSection with ids moves its rows on a spring '
               'as the list changes. GlassSwipeActions puts actions behind a '
-              'row; a full swipe takes the first. Editing set to Delete '
-              'deletes a task from its minus.',
+              'row; a full swipe takes the first. In editing a task deletes '
+              'from its minus and moves by its grip (onReorderItem).',
           flush: true,
           child: SizedBox.shrink(),
         ),
@@ -206,6 +208,11 @@ class _ListPageState extends State<ListPage> {
           GlassSliverListSection(
             ids: ids,
             itemCount: ids.length,
+            onReorderItem: (from, to) => setState(() {
+              if (from >= _tasks.length) return;
+              final task = _tasks.removeAt(from);
+              _tasks.insert(math.min(to, _tasks.length), task);
+            }),
             itemBuilder: (context, i) {
               final id = ids[i];
               if (id == add) {
@@ -215,6 +222,7 @@ class _ListPageState extends State<ListPage> {
                     color: GlassColors.systemBlue,
                   ),
                   title: const Text('Add a task'),
+                  showsReorderControl: false,
                   onPressed: () => _change(() {
                     final round = _next ~/ _more.length;
                     final name = _more[_next++ % _more.length];

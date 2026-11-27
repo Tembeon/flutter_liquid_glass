@@ -322,6 +322,7 @@ LiquidOval
 LiquidRoundedRectangle
 LiquidRoundedSuperellipse
 LiquidShape
+ListReorder
 ListRowHighlight
 LongPressArmEvent
 LongPressInteraction
@@ -447,6 +448,7 @@ RawGlassDatePicker
 RawGlassList
 RawGlassListRow
 RawGlassPageControl
+RawGlassReorderHandle
 RawGlassSearchField
 RawGlassSelector
 RawGlassSlider

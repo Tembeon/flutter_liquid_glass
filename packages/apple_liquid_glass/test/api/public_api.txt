@@ -105,7 +105,7 @@ class DatePickerPlacement
 class DefaultGlassLocalizations extends GlassLocalizations
   const DefaultGlassLocalizations()
   static const LocalizationsDelegate<GlassLocalizations> delegate
-  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, columnDividerLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, countDownHoursUnit, countDownMinutesUnit, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, deleteLabel, editMenuMoreLabel, firstDayOfWeek, formatDecimal, hideSidebarLabel, hideYearPickerLabel, hourLabel, incrementLabel, insertLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showSidebarLabel, showYearPickerLabel, weekdayAbbreviation, yearLabel
+  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, columnDividerLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, countDownHoursUnit, countDownMinutesUnit, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, deleteLabel, editMenuMoreLabel, firstDayOfWeek, formatDecimal, hideSidebarLabel, hideYearPickerLabel, hourLabel, incrementLabel, insertLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, moveDownLabel, moveUpLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, reorderLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showSidebarLabel, showYearPickerLabel, weekdayAbbreviation, yearLabel
 final class EditMenuMotion
   EditMenuMotion({required MotionClock clock})
   static const double hiddenScale
@@ -1347,6 +1347,7 @@ class GlassListRow extends StatefulWidget
     void Function()? onDelete,
     void Function()? onInsert,
     Object? value,
+    bool showsReorderControl = ...,
     Key? key,
   })
   final GlassListAccessory? accessory
@@ -1363,6 +1364,7 @@ class GlassListRow extends StatefulWidget
   final void Function()? onLongPress
   final void Function()? onPressed
   final bool selected
+  final bool showsReorderControl
   final bool? showsSeparator
   final WidgetStatesController? statesController
   final GlassListStyle? style
@@ -1477,6 +1479,8 @@ abstract class GlassLocalizations
   abstract String monthName(int month)
   abstract String monthYear(DateTime month)
   abstract String get moreInfoLabel
+  abstract String get moveDownLabel
+  abstract String get moveUpLabel
   abstract String get nextMonthLabel
   static GlassLocalizations of(BuildContext context)
   abstract String pageValue(int page, int count)
@@ -1484,6 +1488,7 @@ abstract class GlassLocalizations
   abstract String get popoverDismissLabel
   abstract String get postMeridiemAbbreviation
   abstract String get previousMonthLabel
+  abstract String get reorderLabel
   abstract String get searchLabel
   abstract String sheetDetentValue(int position, int count)
   abstract String get sheetDismissLabel
@@ -2444,6 +2449,7 @@ class GlassSliverListSection extends StatelessWidget
     required Widget Function(BuildContext, int) itemBuilder,
     required int itemCount,
     List<Object>? ids,
+    void Function(int, int)? onReorderItem,
     Widget? header,
     Widget? footer,
     bool showsSeparators = ...,
@@ -2457,6 +2463,7 @@ class GlassSliverListSection extends StatelessWidget
   final Widget Function(BuildContext, int) itemBuilder
   final int itemCount
   final GlassListLayout layout
+  final void Function(int, int)? onReorderItem
   final bool showsSeparators
   final GlassListStyle? style
   overrides: build
@@ -3708,6 +3715,21 @@ base class LiquidGlassRenderer extends GlassRenderer
     LiquidGlassMaterial material,
   )
   overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode
+abstract final class ListReorder
+  ListReorder()
+  static void giveWay(void Function() change)
+  static void land(
+    LayoutMotion motion,
+    double t,
+    Object id, {
+    required double distance,
+  })
+  static ({int at, double slotTop}) place(
+    List<double?> heights, {
+    required int at,
+    required double slotTop,
+    required double center,
+  })
 final class ListRowHighlight extends Motion implements PointerFollower
   ListRowHighlight({MotionClock? clock})
   void clear(double t)
@@ -4360,17 +4382,22 @@ class RawGlassDatePicker extends StatefulWidget
   final DateTime value
   final Widget Function(BuildContext, String) weekdayBuilder
   overrides: createState
-class RawGlassList extends StatelessWidget
+class RawGlassList extends StatefulWidget
   const RawGlassList({
     required List<Object> ids,
     required Widget Function(BuildContext, Object) itemBuilder,
     LayoutPlanner planner = ...,
+    void Function(int, int)? onReorderItem,
     Key? key,
   })
   final List<Object> ids
   final Widget Function(BuildContext, Object) itemBuilder
+  static ValueListenable<double>? liftOf(BuildContext context)
+  final void Function(int, int)? onReorderItem
   final LayoutPlanner planner
-  overrides: build
+  static int? positionOf(BuildContext context)
+  static bool reordersOf(BuildContext context)
+  overrides: createState
 class RawGlassListRow extends StatefulWidget
   const RawGlassListRow({
     required Widget Function(BuildContext, GlassListRowDetails) builder,
@@ -4439,6 +4466,15 @@ class RawGlassPageControl extends StatefulWidget
   final String Function(int, int)? semanticValueFormatter
   final WidgetStatesController? statesController
   final GlassPageControlTimer? timer
+  overrides: createState
+class RawGlassReorderHandle extends StatefulWidget
+  const RawGlassReorderHandle({
+    required Widget child,
+    String? semanticLabel,
+    Key? key,
+  })
+  final Widget child
+  final String? semanticLabel
   overrides: createState
 class RawGlassSearchField extends StatefulWidget
   const RawGlassSearchField({
@@ -5804,6 +5840,7 @@ class LensEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class LensMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class LensSelected (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef LensSlot (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class ListReorder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ListRowHighlight (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class MenuActivated (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum MenuArea (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -5933,6 +5970,7 @@ class RawGlassDatePicker (see package:apple_liquid_glass/apple_liquid_glass.dart
 class RawGlassList (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassListRow (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassPageControl (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawGlassReorderHandle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassSearchField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassSelector (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassSlider (see package:apple_liquid_glass/apple_liquid_glass.dart)

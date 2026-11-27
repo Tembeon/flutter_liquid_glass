@@ -107,6 +107,15 @@ abstract class GlassLocalizations {
   /// A list row's insert control in editing.
   String get insertLabel;
 
+  /// A list row's reorder control in editing.
+  String get reorderLabel;
+
+  /// The action that moves a list row one place up.
+  String get moveUpLabel;
+
+  /// The action that moves a list row one place down.
+  String get moveDownLabel;
+
   /// The weekday a calendar's week starts on, as a [DateTime] weekday, as
   /// UIKit takes it from the locale's calendar (`firstWeekday`); Flutter's
   /// `MaterialLocalizations.firstDayOfWeekIndex`.
@@ -275,6 +284,15 @@ class DefaultGlassLocalizations extends GlassLocalizations {
 
   @override
   String get insertLabel => 'Insert';
+
+  @override
+  String get reorderLabel => 'Reorder';
+
+  @override
+  String get moveUpLabel => 'Move up';
+
+  @override
+  String get moveDownLabel => 'Move down';
 
   @override
   int get firstDayOfWeek => DateTime.sunday;

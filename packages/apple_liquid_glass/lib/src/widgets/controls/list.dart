@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
+import 'package:kinesis/motion.dart' show RenderListening;
 import 'package:kinesis/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 
@@ -84,8 +85,8 @@ class GlassListBackground extends StatelessWidget {
 /// Fidelity. The places and colors are UIKit 27.2's (list API passport); the
 /// change switches at once, where UIKit moves the rows on a critically
 /// damped spring of response 0.3, and the minus of a row showing its Delete
-/// action does not turn. Not built: reordering, UIKit's grip at the
-/// trailing edge.
+/// action does not turn. Rows reorder by hand in a [GlassSliverListSection]
+/// with `onReorderItem`, whose rows then show UIKit's reorder control.
 class GlassListEditing extends InheritedWidget {
   /// Puts the rows below into editing while [editing].
   const GlassListEditing({
@@ -224,9 +225,14 @@ Widget _card(
   required bool top,
   required bool bottom,
   required Widget child,
+  bool lifted = false,
 }) {
   final color = StateColors(context, const {});
-  Widget card = ColoredBox(color: color(look.backgroundColor), child: child);
+  final fill = color(look.backgroundColor);
+  Widget card = ColoredBox(
+    color: lifted ? fill.withValues(alpha: fill.a * _Metrics.liftedFill) : fill,
+    child: child,
+  );
   if (layout == GlassListLayout.grouped && separators && (top || bottom)) {
     card = CustomPaint(
       foregroundPainter: _EdgeLines(
@@ -394,19 +400,36 @@ bool _endSeparator(GlassListLayout layout, Widget? footer) =>
 /// [itemBuilder] builds on one rounded card, [footer]. Rows are built only
 /// while they are in view, each in a layer of its own. With [ids], rows
 /// insert, delete and reorder on the app's `withSpring` ([RawGlassList]).
+///
+/// With [onReorderItem], rows reorder by hand in editing: below a
+/// [GlassListEditing] that is editing, each [GlassListRow] shows UIKit's
+/// reorder control at its trailing edge, whose touch lifts the row and
+/// moves it with the finger. A lifted row stands above the others with a
+/// shadow (black at 0.2, a blur of 16, 2 down) and its fill at 0.8, takes
+/// the corners of the place it stands in and draws no separator; its
+/// shadow falls as it lands, as UIKit's does. [onReorderItem] hears the
+/// row's index and the index it takes, as Flutter's `onReorderItem`.
+///
+/// Fidelity. The lift is UIKit 27.2's (list API passport); UIKit blurs what
+/// lies under the lifted row's fill, which this fill does not.
 class GlassSliverListSection extends StatelessWidget {
   /// Creates a section of [itemCount] rows built by [itemBuilder].
   const GlassSliverListSection({
     required this.itemBuilder,
     required this.itemCount,
     this.ids,
+    this.onReorderItem,
     this.header,
     this.footer,
     this.showsSeparators = true,
     this.layout = GlassListLayout.insetGrouped,
     this.style,
     super.key,
-  }) : assert(ids == null || ids.length == itemCount, 'One id per row.');
+  }) : assert(ids == null || ids.length == itemCount, 'One id per row.'),
+       assert(
+         onReorderItem == null || ids != null,
+         'Rows reorder by their ids.',
+       );
 
   /// Builds the row at an index, usually a [GlassListRow].
   final IndexedWidgetBuilder itemBuilder;
@@ -417,6 +440,11 @@ class GlassSliverListSection extends StatelessWidget {
   /// What identifies each row across changes of the rows, or null to
   /// identify them by position, which animates nothing.
   final List<Object>? ids;
+
+  /// Called when a row dragged by its reorder control is dropped somewhere
+  /// else, with the index it had and the index it takes once moved; null
+  /// for rows that do not reorder. Needs [ids].
+  final void Function(int fromIndex, int toIndex)? onReorderItem;
 
   /// The label above the card; see [GlassListSection.header].
   final Widget? header;
@@ -436,32 +464,15 @@ class GlassSliverListSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final look = _sectionLook(context, style, layout);
-    const radius = Radius.circular(_Metrics.cornerRadius);
-    Widget piece(BuildContext context, int i) {
-      final last = i == itemCount - 1;
-      return RepaintBoundary(
-        child: _card(
-          context,
-          layout: layout,
-          look: look,
-          separators: showsSeparators,
-          radius: BorderRadius.vertical(
-            top: i == 0 ? radius : Radius.zero,
-            bottom: last ? radius : Radius.zero,
-          ),
-          top: i == 0,
-          bottom: last,
-          child: _RowPlace(
-            last: last,
-            separators: showsSeparators,
-            layout: layout,
-            endSeparator: _endSeparator(layout, footer),
-            look: look,
-            child: itemBuilder(context, i),
-          ),
-        ),
-      );
-    }
+    Widget piece(BuildContext context, int i) => _SliverRow(
+      index: i,
+      count: itemCount,
+      layout: layout,
+      look: look,
+      separators: showsSeparators,
+      endSeparator: _endSeparator(layout, footer),
+      row: itemBuilder(context, i),
+    );
 
     final indexOf = {for (final (i, id) in (ids ?? const []).indexed) id: i};
     final section = SliverPadding(
@@ -478,6 +489,7 @@ class GlassSliverListSection extends StatelessWidget {
           if (ids case final ids?)
             RawGlassList(
               ids: ids,
+              onReorderItem: onReorderItem,
               itemBuilder: (context, id) => piece(context, indexOf[id]!),
             )
           else
@@ -493,6 +505,67 @@ class GlassSliverListSection extends StatelessWidget {
       ),
     );
     return SwipeGroup(child: section);
+  }
+}
+
+/// A row of a [GlassSliverListSection] on its piece of the card: the
+/// corners and separator of the place it stands in, a dragged row's new
+/// place counted, and a lifted row's look.
+class _SliverRow extends StatelessWidget {
+  const _SliverRow({
+    required this.index,
+    required this.count,
+    required this.layout,
+    required this.look,
+    required this.separators,
+    required this.endSeparator,
+    required this.row,
+  });
+
+  final int index;
+  final int count;
+  final GlassListLayout layout;
+  final GlassListStyle look;
+  final bool separators;
+  final bool endSeparator;
+  final Widget row;
+
+  @override
+  Widget build(BuildContext context) {
+    const radius = Radius.circular(_Metrics.cornerRadius);
+    final at = RawGlassList.positionOf(context) ?? index;
+    final last = at == count - 1;
+    final lift = RawGlassList.liftOf(context);
+    final corners = BorderRadius.vertical(
+      top: at == 0 ? radius : Radius.zero,
+      bottom: last ? radius : Radius.zero,
+    );
+    return RepaintBoundary(
+      child: _LiftShadow(
+        lift: lift,
+        radius: layout == GlassListLayout.insetGrouped
+            ? corners
+            : BorderRadius.zero,
+        child: _card(
+          context,
+          layout: layout,
+          look: look,
+          separators: separators,
+          radius: corners,
+          top: at == 0,
+          bottom: last,
+          lifted: lift != null,
+          child: _RowPlace(
+            last: last,
+            separators: separators && lift == null,
+            layout: layout,
+            endSeparator: endSeparator,
+            look: look,
+            child: row,
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -581,6 +654,24 @@ abstract final class _Metrics {
   /// Where a row's text starts in editing, past its edit control, in every
   /// layout (list API passport, the three table styles).
   static const double editingInset = 60;
+
+  /// The opacity of a lifted row's fill: UIKit's lifted fill reads
+  /// (252,252,253) over systemGroupedBackground and white over a white row
+  /// (list API passport, reorder drag).
+  static const double liftedFill = 0.8;
+
+  /// A lifted row's shadow: black at 0.2, a blur of 16, 2 down (UIKit's
+  /// lift view, list API passport).
+  static const double liftShadowOpacity = 0.2;
+  static const double liftShadowBlur = 16;
+  static const double liftShadowOffset = 2;
+
+  /// UIKit's reorder control: 27 wide, the row's height, its end 20 from the
+  /// card's edge in every layout, with a value ending 8 before it; its glyph
+  /// three lines 1.33 thick, 4.67 apart.
+  static const double gripWidth = 27;
+  static const double gripEndInset = 20;
+  static const double gripGap = 8;
 
   /// Where a row's edit control starts from the card's leading edge.
   static const double editMarkStart = 19.17;

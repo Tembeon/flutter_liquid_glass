@@ -235,3 +235,52 @@ class _EditMarkPainter extends CustomPainter {
       picked != oldDelegate.picked ||
       fill != oldDelegate.fill;
 }
+
+/// UIKit's reorder control in the first 27 points of its region: three
+/// lines 20.67 long and 1.33 thick, 4.67 apart, centered on the row (list
+/// API passport, simulator pixels).
+class _Grip extends StatelessWidget {
+  const _Grip({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.expand(
+    child: Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: CustomPaint(
+        size: const Size(_Metrics.gripWidth, 15),
+        painter: _GripPainter(GlassDynamicColor.resolve(color, context)),
+      ),
+    ),
+  );
+}
+
+class _GripPainter extends CustomPainter {
+  const _GripPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    const inset = 3.0;
+    const thickness = 1.33;
+    for (final dy in const [-4.67, 0.0, 4.67]) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: size.center(Offset(0, dy)),
+            width: size.width - 2 * inset,
+            height: thickness,
+          ),
+          const Radius.circular(thickness / 2),
+        ),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GripPainter oldDelegate) => color != oldDelegate.color;
+}

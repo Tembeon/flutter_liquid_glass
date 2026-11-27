@@ -45,6 +45,7 @@ export 'src/motions/large_title_snap.dart' show LargeTitleSnap;
 export 'src/motions/lens_motion.dart' show LensMotion;
 export 'src/motions/lens_values.dart' show LensEvent, LensSelected, LensSlot;
 export 'src/motions/list_highlight.dart' show ListRowHighlight;
+export 'src/motions/list_reorder.dart' show ListReorder;
 export 'src/motions/menu_context_hold.dart' show ContextHold;
 export 'src/motions/menu_event.dart'
     show MenuActivated, MenuEvent, MenuHighlightChanged;

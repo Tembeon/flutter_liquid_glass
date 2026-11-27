@@ -1290,6 +1290,9 @@ const Map<String, String> nonInteractive = {
   'MenuRowSpec': 'describes a menu row to the layout law',
   'PageControlMotion': 'the page control law; a control runs it',
   'RawGlassList': 'animates the layout of keyed children',
+  'RawGlassReorderHandle':
+      'drags its row of a reordering RawGlassList, itself nothing outside '
+      'one; list_reorder_test drives it',
   'RawTooltipScope': "gives a tooltip's message to the raw controls under it",
   'ScrollEdgeBand': 'draws the scroll edge band of a renderer',
   'SelectorMotion': 'the selector law; a control runs it',

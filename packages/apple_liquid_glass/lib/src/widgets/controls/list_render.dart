@@ -451,3 +451,99 @@ class _RenderLabelHeight extends RenderProxyBox {
     );
   }
 }
+
+/// A lifted row's shadow outside its card, black at 0.2 with a blur of 16,
+/// 2 down, scaled by [lift] as it lands; inside the card nothing, as the
+/// lifted fill shows what lies under it. Every row has one, so lifting a
+/// row keeps its elements, and the touch that lifted it.
+class _LiftShadow extends SingleChildRenderObjectWidget {
+  const _LiftShadow({
+    required this.lift,
+    required this.radius,
+    required Widget super.child,
+  });
+
+  final ValueListenable<double>? lift;
+  final BorderRadius radius;
+
+  @override
+  _RenderLiftShadow createRenderObject(BuildContext context) =>
+      _RenderLiftShadow(lift, radius);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderLiftShadow renderObject,
+  ) {
+    renderObject
+      ..lift = lift
+      ..radius = radius;
+  }
+}
+
+class _RenderLiftShadow extends RenderProxyBox {
+  _RenderLiftShadow(this._lift, this._radius);
+
+  ValueListenable<double>? _lift;
+  ValueListenable<double>? get lift => _lift;
+  set lift(ValueListenable<double>? value) {
+    if (identical(value, _lift)) return;
+    if (attached) _lift?.removeRenderListener(markNeedsPaint);
+    _lift = value;
+    if (attached) _lift?.addRenderListener(markNeedsPaint);
+    markNeedsPaint();
+  }
+
+  BorderRadius _radius;
+  BorderRadius get radius => _radius;
+  set radius(BorderRadius value) {
+    if (value == _radius) return;
+    _radius = value;
+    markNeedsPaint();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _lift?.addRenderListener(markNeedsPaint);
+  }
+
+  @override
+  void detach() {
+    _lift?.removeRenderListener(markNeedsPaint);
+    super.detach();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final lift = _lift?.value ?? 0;
+    if (lift > 0) {
+      final card = _radius.toRRect(offset & size);
+      const reach = _Metrics.liftShadowBlur * 3;
+      final outside = Path()
+        ..fillType = PathFillType.evenOdd
+        ..addRect(card.outerRect.inflate(reach))
+        ..addRRect(card);
+      final canvas = context.canvas;
+      canvas.save();
+      canvas.clipPath(outside);
+      final shadow = Paint();
+      shadow.color = Color.fromRGBO(
+        0,
+        0,
+        0,
+        _Metrics.liftShadowOpacity * lift,
+      );
+      shadow.maskFilter = MaskFilter.blur(
+        BlurStyle.normal,
+        _Metrics.liftShadowBlur * lift,
+      );
+      canvas.drawRRect(
+        card.shift(Offset(0, _Metrics.liftShadowOffset * lift)),
+        shadow,
+      );
+      canvas.restore();
+    }
+    super.paint(context, offset);
+  }
+}

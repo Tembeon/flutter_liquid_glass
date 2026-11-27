@@ -32,7 +32,7 @@ export 'src/raw/date_picker_values.dart'
         GlassDatePickerMonthYearBuilder,
         GlassDatePickerTitle,
         GlassDatePickerTitleBuilder;
-export 'src/raw/list.dart' show RawGlassList;
+export 'src/raw/list.dart' show RawGlassList, RawGlassReorderHandle;
 export 'src/raw/list_row.dart'
     show GlassListRowBuilder, GlassListRowDetails, RawGlassListRow;
 export 'src/raw/page_control.dart'

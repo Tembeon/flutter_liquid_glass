@@ -68,7 +68,9 @@ part of 'list.dart';
 ///
 /// Below a [GlassListEditing] that is editing, a row with [onDelete],
 /// [onInsert] or, where the editing selects, a [value] shows its edit
-/// control and moves its text to 60 points; see [GlassListEditing].
+/// control and moves its text to 60 points; see [GlassListEditing]. In a
+/// [GlassSliverListSection] whose rows reorder it also shows the reorder
+/// control at its trailing edge ([showsReorderControl]).
 ///
 /// Fidelity. The sizes, insets and press timing are measured on iOS 27, the
 /// selected fill on the iOS 27.2 simulator (inset grouped: a full-bleed
@@ -105,6 +107,7 @@ class GlassListRow extends StatefulWidget {
     this.onDelete,
     this.onInsert,
     this.value,
+    this.showsReorderControl = true,
     super.key,
   }) : assert(
          title != null || child != null,
@@ -192,6 +195,13 @@ class GlassListRow extends StatefulWidget {
   /// deselects it.
   final Object? value;
 
+  /// Whether the row shows UIKit's reorder control at its trailing edge in
+  /// editing, inside a `GlassSliverListSection` whose rows reorder
+  /// (`onReorderItem`): three lines 27 points wide whose touch lifts the
+  /// row and moves it with the finger. Its content then ends 55 points from
+  /// the card's edge, 8 before the control.
+  final bool showsReorderControl;
+
   @override
   State<GlassListRow> createState() => _GlassListRowState();
 }
@@ -245,17 +255,23 @@ class _GlassListRowState extends State<GlassListRow> {
         : null;
     final picked =
         edit == _EditKind.select && editing!.selection.contains(value);
+    final grip =
+        editing != null &&
+        editing.editing &&
+        widget.showsReorderControl &&
+        RawGlassList.reordersOf(context);
+    final edits = edit != null || grip;
     final row = RawGlassListRow(
-      onPressed: edit == null
-          ? widget.onPressed
-          : edit == _EditKind.select
+      onPressed: edit == _EditKind.select
           ? () => editing!.toggle(value!)
-          : null,
-      onLongPress: edit == null ? widget.onLongPress : null,
+          : edits
+          ? null
+          : widget.onPressed,
+      onLongPress: edits ? null : widget.onLongPress,
       enabled: widget.enabled,
       selected: edit == _EditKind.select
           ? picked
-          : edit == null && (widget.selected || check),
+          : !edits && (widget.selected || check),
       highlighted: edit == _EditKind.select ? picked : widget.selected,
       statesController: widget.statesController,
       focusNode: widget.focusNode,
@@ -288,10 +304,11 @@ class _GlassListRowState extends State<GlassListRow> {
         details,
         look: look,
         place: place,
-        chevron: edit == null && chevron,
-        info: edit == null && info,
-        check: edit == null && check,
+        chevron: !edits && chevron,
+        info: !edits && info,
+        check: !edits && check,
         edit: edit,
+        grip: grip,
         picked: picked,
       ),
     );
@@ -332,6 +349,7 @@ class _GlassListRowState extends State<GlassListRow> {
     required bool info,
     required bool check,
     required _EditKind? edit,
+    required bool grip,
     required bool picked,
   }) {
     final states = details.states;
@@ -376,7 +394,7 @@ class _GlassListRowState extends State<GlassListRow> {
     final leading = widget.leading;
     final subtitle = widget.subtitle;
     final detail = widget.detail;
-    final trailing = edit == null ? widget.trailing : null;
+    final trailing = edit == null && !grip ? widget.trailing : null;
     final mark = chevron || info || check;
     final accessory = trailing != null || mark;
     // A row that highlights has more than the card's color under its control.
@@ -447,12 +465,15 @@ class _GlassListRowState extends State<GlassListRow> {
       child: Padding(
         padding: EdgeInsetsDirectional.only(
           start: start,
-          end: switch (widget.accessory) {
-            GlassListAccessory.checkmark => _Metrics.checkmarkInset,
-            GlassListAccessory.detailButton => _Metrics.infoInset,
-            _ when accessory => _Metrics.accessoryInset,
-            _ => end,
-          },
+          end: check
+              ? _Metrics.checkmarkInset
+              : info && !chevron
+              ? _Metrics.infoInset
+              : accessory
+              ? _Metrics.accessoryInset
+              : grip
+              ? _Metrics.gripEndInset + _Metrics.gripWidth + _Metrics.gripGap
+              : end,
         ),
         child: Row(
           children: [
@@ -484,26 +505,39 @@ class _GlassListRowState extends State<GlassListRow> {
             child: row,
           )
         : row;
-    final marked = edit == null
+    final marked = edit == null && !grip
         ? surface
         : Stack(
             children: [
               surface,
-              PositionedDirectional(
-                start: 0,
-                width: _Metrics.editingInset,
-                top: 0,
-                bottom: 0,
-                child: _EditMark(
-                  kind: edit,
-                  picked: picked,
-                  onPressed: switch (edit) {
-                    _EditKind.delete => _confirm.ping,
-                    _EditKind.insert => widget.onInsert,
-                    _EditKind.select => null,
-                  },
+              if (edit != null)
+                PositionedDirectional(
+                  start: 0,
+                  width: _Metrics.editingInset,
+                  top: 0,
+                  bottom: 0,
+                  child: _EditMark(
+                    kind: edit,
+                    picked: picked,
+                    onPressed: switch (edit) {
+                      _EditKind.delete => _confirm.ping,
+                      _EditKind.insert => widget.onInsert,
+                      _EditKind.select => null,
+                    },
+                  ),
                 ),
-              ),
+              if (grip)
+                PositionedDirectional(
+                  end: 0,
+                  width: _Metrics.gripWidth + _Metrics.gripEndInset,
+                  top: 0,
+                  bottom: 0,
+                  child: RawGlassReorderHandle(
+                    child: _Grip(
+                      color: GlassTheme.tertiaryLabelColorOf(context),
+                    ),
+                  ),
+                ),
             ],
           );
     if (!highlights) return marked;

@@ -487,6 +487,14 @@ void galleryTests({bool onDevice = false}) {
           .selection,
       {'Monstera'},
     );
+    await _bring(tester, find.text('Water the monstera'), page);
+    expect(
+      find.descendant(
+        of: find.widgetWithText(GlassListRow, 'Water the monstera'),
+        matching: find.byType(RawGlassReorderHandle),
+      ),
+      findsOneWidget,
+    );
     await choose('Off');
     await _back(tester);
 
