@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -16,11 +18,18 @@ typedef GlassSwipeActionBuilder = Widget Function(
 /// What a [GlassSwipeActionBuilder] builds an action from.
 @immutable
 final class GlassSwipeActionDetails {
-  /// Describes action [index].
-  const GlassSwipeActionDetails({required this.index, required this.states});
+  /// Describes action [index] of a side.
+  const GlassSwipeActionDetails({
+    required this.index,
+    required this.states,
+    this.leading = false,
+  });
 
-  /// Which action this is: 0 is the first, outermost at the trailing edge.
+  /// Which action this is: 0 is the first, outermost at the row's edge.
   final int index;
+
+  /// Whether the action is one of the leading actions.
+  final bool leading;
 
   /// The action's states as they change: pressed, hovered and focused.
   /// A look hands it to what draws the focus ring and the hover response,
@@ -28,26 +37,36 @@ final class GlassSwipeActionDetails {
   final ValueListenable<Set<WidgetState>> states;
 }
 
-/// A row that a finger swipes toward its trailing edge to show its
-/// actions, with the behavior of iOS 27's swipe actions and no look of its
-/// own: [actionBuilder] and [overswipe] decide how the actions look.
+/// A row that a finger swipes sideways to show its actions, with the
+/// behavior of iOS 27's swipe actions and no look of its own beyond the
+/// colors it is given: [actionBuilder] draws each action.
 ///
-/// UIKit: `trailingSwipeActionsConfigurationForRowAt`. SwiftUI:
-/// `swipeActions(edge: .trailing)`. Flutter: `Slidable` of
-/// flutter_slidable.
+/// UIKit: `trailingSwipeActionsConfigurationForRowAt` and
+/// `leadingSwipeActionsConfigurationForRowAt`. SwiftUI: `swipeActions`.
+/// Flutter: `Slidable` of flutter_slidable.
 ///
-/// The row follows the finger once it has gone 25 points and settles open
-/// when the finger last moved it open, closed when it last moved it back,
-/// whatever the speed ([SwipeActionsMotion]); the actions sit against its
-/// trailing edge, the first outermost, each as wide as [actionBuilder]
-/// lays it out, all as tall as the row. With [fullSwipe] the row follows
-/// the finger past its actions, and a swipe that moves it
-/// [SwipeActionsMotion.fullSwipeShare] of its width commits with a step
-/// further: released there it performs the first action, as UIKit's
-/// `performsFirstActionWithFullSwipe`, and brought back under it the row
-/// closes on release. A quick short flick only opens the row. In a
-/// right-to-left context the row swipes the other way and the actions
-/// open on the left.
+/// A swipe toward the trailing edge shows [actionLabels]' actions there,
+/// one toward the leading edge [leadingActionLabels]' at the leading edge,
+/// each side's first action outermost. The row follows the finger once it
+/// has gone 25 points and settles open when the finger last moved it open,
+/// closed when it last moved it back, whatever the speed; with
+/// [fullSwipe] (or [leadingFullSwipe]) the row follows the finger past its
+/// actions, and a swipe that moves it far enough commits with UIKit's step
+/// (trailing) or resistance (leading): released there it performs the
+/// first action, as UIKit's `performsFirstActionWithFullSwipe`, and
+/// brought back under the commit the row closes on release. A quick short
+/// flick only opens the row ([SwipeActionsMotion]).
+///
+/// The actions stand as UIKit's buttons do: each 44 points tall, 4 below
+/// the row's top, all of a side as wide as its widest, 10 points apart and
+/// 10 from the row's edge. While a finger pulls, each grows from nothing
+/// as its place opens; with a full swipe the first stretches past the
+/// others; after a release they stand whole and scale in on a bouncy
+/// spring, and out when the row closes. While the row is moved it is drawn
+/// on [swipedColor] (UIKit's systemGray5) with a round end toward the
+/// actions, and the strip behind the actions shows [revealColor] (the
+/// page's background: UIKit cuts the card there). In a right-to-left
+/// context the sides swap.
 ///
 /// A tap on the open row away from its actions closes it, and the row's
 /// content does not hear it; so does a scroll of the scroll view around
@@ -55,8 +74,8 @@ final class GlassSwipeActionDetails {
 /// Accessibility offers the actions as custom actions of the row, as UIKit
 /// does, which is also how iOS's Full Keyboard Access reaches them. A
 /// closed row's actions take no input and are no Tab stops; an open row's
-/// actions are buttons labelled [actionLabels], one Tab stop each, before
-/// the row, and Space and Enter press the focused one.
+/// actions are buttons with their labels, one Tab stop each, before the
+/// row, and Space and Enter press the focused one.
 class RawGlassSwipeActions extends StatefulWidget {
   /// Creates a row that shows its actions when swiped.
   const RawGlassSwipeActions({
@@ -64,31 +83,48 @@ class RawGlassSwipeActions extends StatefulWidget {
     required this.onAction,
     required this.actionBuilder,
     required this.child,
-    this.overswipe,
+    this.leadingActionLabels = const [],
+    this.onLeadingAction,
     this.fullSwipe = true,
+    this.leadingFullSwipe = true,
+    this.swipedColor,
+    this.revealColor,
     this.statesController,
     @internal this.openOn,
     super.key,
   });
 
-  /// What each action is called, for accessibility; their count is the
-  /// count of actions.
+  /// What each trailing action is called, for accessibility; their count is
+  /// the count of trailing actions.
   final List<String> actionLabels;
 
-  /// Called with the index of the action pressed, or performed by a full
-  /// swipe or accessibility.
+  /// Called with the index of the trailing action pressed, or performed by
+  /// a full swipe or accessibility.
   final ValueChanged<int> onAction;
 
-  /// Builds each action.
+  /// What each leading action is called; their count is the count of
+  /// leading actions.
+  final List<String> leadingActionLabels;
+
+  /// Called with the index of the leading action pressed, or performed by
+  /// a full swipe or accessibility.
+  final ValueChanged<int>? onLeadingAction;
+
+  /// Builds each action, of either side, at the size the row gives it.
   final GlassSwipeActionBuilder actionBuilder;
 
-  /// What shows between the actions and the row's trailing edge when the
-  /// row is pulled further than its actions reach, or null for nothing.
-  /// It is laid out as large as the row and clipped to that space.
-  final Widget? overswipe;
-
-  /// Whether a full swipe performs the first action.
+  /// Whether a full swipe performs the first trailing action.
   final bool fullSwipe;
+
+  /// Whether a full swipe performs the first leading action.
+  final bool leadingFullSwipe;
+
+  /// What the moved row is drawn on, or null for nothing.
+  final Color? swipedColor;
+
+  /// What shows behind the open strip, or null for what lies under the
+  /// row.
+  final Color? revealColor;
 
   /// Where the row publishes its states (dragged), or null. The row is
   /// its only writer: what else writes to it is written over.
@@ -97,8 +133,8 @@ class RawGlassSwipeActions extends StatefulWidget {
   /// The row.
   final Widget child;
 
-  /// Opens the row to its actions each time it notifies, as a list row's
-  /// delete control in editing does.
+  /// Opens the row to its trailing actions each time it notifies, as a list
+  /// row's delete control in editing does.
   @internal
   final Listenable? openOn;
 
@@ -160,6 +196,7 @@ final class _OpenRow {
 class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
   late final _motion = SwipeActionsMotion(clock: MotionClockScope.of(context));
   late final _offset = _motion.select((m) => m.offset.valueAt(m.now));
+  late final _appear = _motion.select((m) => m.appear.valueAt(m.now));
   late final DragInteraction _drag = DragInteraction(
     axis: Axis.horizontal,
     slop: SwipeActionsMotion.slop,
@@ -173,12 +210,15 @@ class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
     _drag,
     _CloseTap(closesAt: _closesAt, onTap: close),
   ];
-  final List<List<Interaction>> _presses = [];
-  final List<GlobalKey> _actionKeys = [];
+  final Map<int, List<Interaction>> _presses = {};
   final _swipeKey = GlobalKey(debugLabel: 'swipe');
   final _zones = InputZonesController<int>();
   _OpenRow? _group;
   ScrollPosition? _scroll;
+
+  // A zone's id: a trailing action's index, or a leading one's as -1 - i.
+  static int _zoneOf(int index, {required bool leading}) =>
+      leading ? -1 - index : index;
 
   @override
   void initState() {
@@ -197,7 +237,7 @@ class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
 
   void _openFromCode() {
     _group?.opened(this);
-    _motion.moveTo(_motion.clock.now, -_motion.actionsWidth);
+    _motion.open(_motion.clock.now);
   }
 
   @override
@@ -241,13 +281,19 @@ class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
       _motion.drag(details.time, details.translation.dx);
 
   void _end(DragInteractionDetails details) {
-    switch (_motion.release(
+    final leading = _motion.offset.valueAt(details.time) > 0;
+    final result = _motion.release(
       details.time,
       details.velocity.dx,
-      canPerform: widget.actionLabels.isNotEmpty,
-    )) {
+      canPerform: leading
+          ? widget.leadingActionLabels.isNotEmpty &&
+                widget.onLeadingAction != null
+          : widget.actionLabels.isNotEmpty,
+    );
+    switch (result.release) {
       case SwipeRelease.performs:
-        widget.onAction(0);
+        _group?.closed(this);
+        _run(0, leading: result.leading);
       case SwipeRelease.closes:
         _group?.closed(this);
       case SwipeRelease.opens:
@@ -256,9 +302,17 @@ class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
 
   void _cancel(double t) => _motion.moveTo(t, 0);
 
-  void _perform(int index) {
+  void _run(int index, {required bool leading}) {
+    if (leading) {
+      widget.onLeadingAction?.call(index);
+    } else {
+      widget.onAction(index);
+    }
+  }
+
+  void _perform(int index, {required bool leading}) {
     close();
-    widget.onAction(index);
+    _run(index, leading: leading);
   }
 
   bool _closesAt(Offset position) {
@@ -267,78 +321,66 @@ class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
   }
 
   // A press on an action yields to the row's drag once the finger moves.
-  List<Interaction> _pressOf(int index) {
-    while (_presses.length <= index) {
-      final i = _presses.length;
-      _presses.add([
-        PressInteraction(
-          role: InteractionRole.content,
-          onTap: (t) => _perform(i),
-        ),
-      ]);
-    }
-    return _presses[index];
-  }
+  List<Interaction> _pressOf(int index, {required bool leading}) =>
+      _presses.putIfAbsent(
+        _zoneOf(index, leading: leading),
+        () => [
+          PressInteraction(
+            role: InteractionRole.content,
+            onTap: (t) => _perform(index, leading: leading),
+          ),
+        ],
+      );
 
-  GlobalKey _actionKey(int index) {
-    while (_actionKeys.length <= index) {
-      _actionKeys.add(GlobalKey(debugLabel: 'swipe action'));
-    }
-    return _actionKeys[index];
-  }
-
-  // Where action [index] is drawn now, cut to the row: nowhere while the
-  // row is closed, so a closed row's actions take no input and no focus.
-  InputZoneFrame? _frameOf(int index) {
-    if (_offset.value == 0 || index >= _actionKeys.length) return null;
-    final row = _swipeKey.currentContext?.findRenderObject();
-    final action = _actionKeys[index].currentContext?.findRenderObject();
-    if (row is! RenderBox ||
-        action is! RenderBox ||
-        !row.hasSize ||
-        !action.hasSize ||
-        !action.attached) {
-      return null;
-    }
-    final rect = MatrixUtils.transformRect(
-      action.getTransformTo(row),
-      Offset.zero & action.size,
-    );
-    return InputZoneFrame(rect.intersect(Offset.zero & row.size));
+  // Where an action is drawn now, cut to the row: nowhere while the row is
+  // closed or the action stands on the other side, so a closed row's
+  // actions take no input and no focus.
+  InputZoneFrame? _frameOf(int zone) {
+    final swipe = _swipeKey.currentContext?.findRenderObject();
+    if (swipe is! _RenderSwipe || !swipe.hasSize) return null;
+    final leading = zone < 0;
+    final rect = swipe.actionRect(leading ? -1 - zone : zone, leading: leading);
+    if (rect == null) return null;
+    return InputZoneFrame(rect.intersect(Offset.zero & swipe.size));
   }
 
   @override
   Widget build(BuildContext context) {
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    _motion.fullSwipe = widget.fullSwipe;
-    final labels = widget.actionLabels;
-    final overswipe = widget.overswipe;
+    _motion
+      ..fullSwipe = widget.fullSwipe
+      ..leadingFullSwipe = widget.leadingFullSwipe
+      ..trailingCount = widget.actionLabels.length
+      ..leadingCount = widget.onLeadingAction == null
+          ? 0
+          : widget.leadingActionLabels.length;
+    final trailing = widget.actionLabels;
+    final leading = widget.onLeadingAction == null
+        ? const <String>[]
+        : widget.leadingActionLabels;
+    Widget action(int i, {required bool leading}) => ExcludeSemantics(
+      child: widget.actionBuilder(
+        context,
+        GlassSwipeActionDetails(
+          index: i,
+          leading: leading,
+          states: _zones.states(_zoneOf(i, leading: leading)),
+        ),
+      ),
+    );
     final swipe = _Swipe(
       key: _swipeKey,
       motion: _motion,
       offset: _offset,
+      appear: _appear,
       rtl: rtl,
+      trailingCount: trailing.length,
+      swipedColor: widget.swipedColor,
+      revealColor: widget.revealColor,
       children: [
         widget.child,
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var i = labels.length - 1; i >= 0; i--)
-              KeyedSubtree(
-                key: _actionKey(i),
-                child: ExcludeSemantics(
-                  child: widget.actionBuilder(
-                    context,
-                    GlassSwipeActionDetails(
-                      index: i,
-                      states: _zones.states(i),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        if (overswipe != null) overswipe,
+        for (var i = 0; i < trailing.length; i++) action(i, leading: false),
+        for (var i = 0; i < leading.length; i++) action(i, leading: true),
       ],
     );
     // The row's region neither activates nor adjusts, so the actions'
@@ -350,16 +392,25 @@ class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
         statesController: widget.statesController,
         semantics: SemanticsProperties(
           customSemanticsActions: {
-            for (final (i, label) in labels.indexed)
+            for (final (i, label) in trailing.indexed)
               CustomSemanticsAction(label: label): () => widget.onAction(i),
+            for (final (i, label) in leading.indexed)
+              CustomSemanticsAction(label: label): () =>
+                  widget.onLeadingAction?.call(i),
           },
         ),
         child: InputZones<int>(
           zones: [
-            for (final (i, label) in labels.indexed)
+            for (final (i, label) in trailing.indexed)
               InputZone<int>(
-                id: i,
-                interactions: _pressOf(i),
+                id: _zoneOf(i, leading: false),
+                interactions: _pressOf(i, leading: false),
+                semantics: SemanticsProperties(label: label, button: true),
+              ),
+            for (final (i, label) in leading.indexed)
+              InputZone<int>(
+                id: _zoneOf(i, leading: true),
+                interactions: _pressOf(i, leading: true),
                 semantics: SemanticsProperties(label: label, button: true),
               ),
           ],
@@ -409,20 +460,28 @@ final class _CloseTap extends Interaction {
 }
 
 /// The row and its actions: the row laid out in full and drawn moved by the
-/// offset, the actions at their own width against its trailing edge, and
-/// the overswipe, when there is one, in the space past them.
+/// offset, over the swiped color and the reveal color, and the actions of
+/// the open side at the widths and places [SwipeActionsMotion] gives them.
 class _Swipe extends MultiChildRenderObjectWidget {
   const _Swipe({
     required this.motion,
     required this.offset,
+    required this.appear,
     required this.rtl,
+    required this.trailingCount,
+    required this.swipedColor,
+    required this.revealColor,
     required super.children,
     super.key,
   });
 
   final SwipeActionsMotion motion;
   final MotionSelection<double> offset;
+  final MotionSelection<double> appear;
   final bool rtl;
+  final int trailingCount;
+  final Color? swipedColor;
+  final Color? revealColor;
 
   @override
   MultiChildRenderObjectElement createElement() => _SwipeElement(this);
@@ -431,16 +490,25 @@ class _Swipe extends MultiChildRenderObjectWidget {
   _RenderSwipe createRenderObject(BuildContext context) => _RenderSwipe(
     motion: motion,
     offset: offset,
+    appear: appear,
     rtl: rtl,
+    trailingCount: trailingCount,
+    swipedColor: swipedColor,
+    revealColor: revealColor,
     following: followsMotion(context),
   );
 
   @override
   void updateRenderObject(BuildContext context, _RenderSwipe renderObject) {
-    renderObject.motion = motion;
-    renderObject.offset = offset;
-    renderObject.rtl = rtl;
-    renderObject.following = followsMotion(context);
+    renderObject
+      ..motion = motion
+      ..offset = offset
+      ..appear = appear
+      ..rtl = rtl
+      ..trailingCount = trailingCount
+      ..swipedColor = swipedColor
+      ..revealColor = revealColor
+      ..following = followsMotion(context);
   }
 }
 
@@ -451,11 +519,11 @@ class _SwipeElement extends MultiChildRenderObjectElement {
 
   @override
   void debugVisitOnstageChildren(ElementVisitor visitor) {
-    final open = (renderObject as _RenderSwipe)._open;
-    var first = true;
+    final swipe = renderObject as _RenderSwipe;
+    var index = 0;
     for (final child in children) {
-      if (first || open) visitor(child);
-      first = false;
+      if (index == 0 || swipe.showsChild(index - 1)) visitor(child);
+      index++;
     }
   }
 }
@@ -469,11 +537,20 @@ class _RenderSwipe extends RenderBox
   _RenderSwipe({
     required this.motion,
     required this._offset,
+    required this._appear,
     required this._rtl,
+    required this._trailingCount,
+    required this._swipedColor,
+    required this._revealColor,
     required bool following,
   }) : _follow = MotionFollow.render(following: following) {
     _hear();
   }
+
+  /// A button's height and its place below the row's top (swipe actions
+  /// passport: 44 tall, 4 below the strip, which stands 0.67 down).
+  static const double _buttonHeight = 44;
+  static const double _buttonTop = 4.67;
 
   SwipeActionsMotion motion;
 
@@ -483,6 +560,15 @@ class _RenderSwipe extends RenderBox
     if (identical(value, _offset)) return;
     _offset = value;
     _hear();
+    markNeedsLayout();
+  }
+
+  MotionSelection<double> _appear;
+  MotionSelection<double> get appear => _appear;
+  set appear(MotionSelection<double> value) {
+    if (identical(value, _appear)) return;
+    _appear = value;
+    _hear();
     markNeedsPaint();
   }
 
@@ -491,19 +577,53 @@ class _RenderSwipe extends RenderBox
   set rtl(bool value) {
     if (value == _rtl) return;
     _rtl = value;
+    markNeedsLayout();
+  }
+
+  int _trailingCount;
+  int get trailingCount => _trailingCount;
+  set trailingCount(int value) {
+    if (value == _trailingCount) return;
+    _trailingCount = value;
+    markNeedsLayout();
+  }
+
+  Color? _swipedColor;
+  Color? get swipedColor => _swipedColor;
+  set swipedColor(Color? value) {
+    if (value == _swipedColor) return;
+    _swipedColor = value;
+    markNeedsPaint();
+  }
+
+  Color? _revealColor;
+  Color? get revealColor => _revealColor;
+  set revealColor(Color? value) {
+    if (value == _revealColor) return;
+    _revealColor = value;
     markNeedsPaint();
   }
 
   RenderBox get _row => firstChild!;
-  RenderBox get _actions => childAfter(_row)!;
-  RenderBox? get _overswipe => childAfter(_actions);
+
+  List<RenderBox> get _actions {
+    final actions = <RenderBox>[];
+    var child = childAfter(_row);
+    while (child != null) {
+      actions.add(child);
+      child = childAfter(child);
+    }
+    return actions;
+  }
 
   final MotionFollow _follow;
-
   bool get following => _follow.following;
   set following(bool value) => _follow.following = value;
 
-  void _hear() => _follow.hear([(_offset, markNeedsPaint)]);
+  void _hear() => _follow.hear([
+    (_offset, markNeedsLayout),
+    (_appear, markNeedsPaint),
+  ]);
 
   @override
   void attach(PipelineOwner owner) {
@@ -544,33 +664,89 @@ class _RenderSwipe extends RenderBox
   Size computeDryLayout(covariant BoxConstraints constraints) =>
       _row.getDryLayout(constraints);
 
+  /// Where the row is moved: positive toward the right.
+  double get _shift => _rtl ? -_offset.value : _offset.value;
+
+  // Each action's rect at the last layout, or null for one not shown.
+  final List<Rect?> _rects = [];
+
+  /// Whether action child [index] (trailing first, then leading) shows.
+  bool showsChild(int index) => index < _rects.length && _rects[index] != null;
+
+  /// Where the shown action [index] of a side stands, or null.
+  Rect? actionRect(int index, {required bool leading}) {
+    final at = leading ? _trailingCount + index : index;
+    return at < _rects.length ? _rects[at] : null;
+  }
+
   @override
   void performLayout() {
     _row.layout(constraints, parentUsesSize: true);
     size = _row.size;
-    _actions.layout(
-      BoxConstraints.tightFor(height: size.height),
-      parentUsesSize: true,
+    final actions = _actions;
+    double widest(Iterable<RenderBox> side) => side.fold(
+      0,
+      (w, box) => math.max(w, box.getMaxIntrinsicWidth(_buttonHeight)),
     );
-    _overswipe?.layout(BoxConstraints.tight(size));
-    motion.rowWidth = size.width;
-    motion.actionsWidth = _actions.size.width;
+    motion
+      ..rowWidth = size.width
+      ..trailingButton = widest(actions.take(_trailingCount))
+      ..leadingButton = widest(actions.skip(_trailingCount));
+    final value = _offset.value;
+    final pull = value.abs();
+    final leading = value > 0;
+    _rects
+      ..clear()
+      ..addAll(List<Rect?>.filled(actions.length, null));
+    for (final (i, box) in actions.indexed) {
+      final ofLeading = i >= _trailingCount;
+      final index = ofLeading ? i - _trailingCount : i;
+      final shown = pull > 0 && ofLeading == leading;
+      final width = shown
+          ? motion.buttonWidth(index, leading: leading, pull: pull)
+          : 0.0;
+      box.layout(
+        BoxConstraints.tightFor(width: width, height: _buttonHeight),
+        parentUsesSize: true,
+      );
+      if (!shown || width <= 0) continue;
+      _rects[i] = _place(index, width, leading: leading, pull: pull);
+    }
   }
 
-  /// Where the row is drawn along its width.
-  double get _shift => _rtl ? -_offset.value : _offset.value;
-
-  Rect get _actionsRect {
-    final shift = _shift;
-    final left = _rtl ? shift - _actions.size.width : size.width + shift;
-    return Rect.fromLTWH(left, 0, _actions.size.width, size.height);
+  // A shown button's rect: the side's buttons laid from the row's edge
+  // inward, each centered in its slot of the opened strip.
+  Rect _place(
+    int index,
+    double width, {
+    required bool leading,
+    required double pull,
+  }) {
+    final gap = motion.gapAt(leading: leading, pull: pull);
+    final whole = leading ? motion.leadingButton : motion.trailingButton;
+    var from = gap;
+    for (var j = 0; j < index; j++) {
+      final w = motion.buttonWidth(j, leading: leading, pull: pull);
+      from += math.max(w, whole) + gap;
+    }
+    final slot = math.max(width, whole);
+    // Distance from the row's edge to the slot's center, along the row.
+    final center = from + slot / 2;
+    final edgeRight = leading == _rtl;
+    final x = edgeRight ? size.width - center : center;
+    return Rect.fromCenter(
+      center: Offset(x, _buttonTop + _buttonHeight / 2),
+      width: width,
+      height: _buttonHeight,
+    );
   }
 
   bool get _open => _offset.value != 0;
 
   /// Whether a touch at [position] is a tap that closes the row: the row is
   /// open and the touch is away from its actions.
-  bool closesAt(Offset position) => _open && !_actionsRect.contains(position);
+  bool closesAt(Offset position) =>
+      _open && !_rects.any((rect) => rect != null && rect.contains(position));
 
   @override
   bool hitTestSelf(Offset position) => _open;
@@ -578,13 +754,17 @@ class _RenderSwipe extends RenderBox
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
     if (!_open) return _row.hitTest(result, position: position);
-    final actions = _actionsRect;
-    if (!actions.contains(position)) return false;
-    return result.addWithPaintOffset(
-      offset: actions.topLeft,
-      position: position,
-      hitTest: (result, local) => _actions.hitTest(result, position: local),
-    );
+    final actions = _actions;
+    for (final (i, box) in actions.indexed) {
+      final rect = _rects[i];
+      if (rect == null || !rect.contains(position)) continue;
+      return result.addWithPaintOffset(
+        offset: rect.topLeft,
+        position: position,
+        hitTest: (result, local) => box.hitTest(result, position: local),
+      );
+    }
+    return false;
   }
 
   @override
@@ -598,34 +778,63 @@ class _RenderSwipe extends RenderBox
       context,
       offset,
     ) {
-      final actions = _actionsRect;
-      final overswipe = _overswipe;
-      if (overswipe != null) {
-        final rest = _rtl
-            ? Rect.fromLTRB(0, 0, actions.left, size.height)
-            : Rect.fromLTRB(actions.right, 0, size.width, size.height);
-        if (!rest.isEmpty) {
-          context.pushClipRect(
+      if (_revealColor case final reveal?) {
+        context.canvas.drawRect(offset & size, Paint()..color = reveal);
+      }
+      final scale = motion.held ? 1.0 : _appear.value;
+      for (final (i, box)
+          in scale <= 0 ? const <(int, RenderBox)>[] : _actions.indexed) {
+        final rect = _rects[i];
+        if (rect == null) continue;
+        final at = offset + rect.topLeft;
+        if (scale == 1) {
+          context.paintChild(box, at);
+          continue;
+        }
+        final center = rect.center;
+        final transform = Matrix4.identity()
+          ..translateByDouble(center.dx, center.dy, 0, 1)
+          ..scaleByDouble(scale, scale, 1, 1)
+          ..translateByDouble(-center.dx, -center.dy, 0, 1);
+        context.pushOpacity(
+          offset,
+          (scale.clamp(0.0, 1.0) * 255).round(),
+          (context, offset) => context.pushTransform(
             needsCompositing,
             offset,
-            rest,
-            (context, offset) => context.paintChild(overswipe, offset),
-          );
-        }
+            transform,
+            (context, offset) => context.paintChild(box, offset + rect.topLeft),
+          ),
+        );
       }
-      context.paintChild(_actions, offset + actions.topLeft);
+      if (_swipedColor case final swiped?) {
+        final body = (offset + Offset(shift, 0)) & size;
+        final round = Radius.circular(size.height / 2);
+        final towardRight = shift < 0;
+        context.canvas.drawRRect(
+          RRect.fromRectAndCorners(
+            body,
+            topRight: towardRight ? round : Radius.zero,
+            bottomRight: towardRight ? round : Radius.zero,
+            topLeft: towardRight ? Radius.zero : round,
+            bottomLeft: towardRight ? Radius.zero : round,
+          ),
+          Paint()..color = swiped,
+        );
+      }
       context.paintChild(_row, offset + Offset(shift, 0));
     });
   }
 
   @override
   void applyPaintTransform(RenderBox child, Matrix4 transform) {
-    final at = identical(child, _row)
-        ? Offset(_shift, 0)
-        : identical(child, _actions)
-        ? _actionsRect.topLeft
-        : Offset.zero;
-    transform.translateByDouble(at.dx, at.dy, 0, 1);
+    if (identical(child, _row)) {
+      transform.translateByDouble(_shift, 0, 0, 1);
+      return;
+    }
+    final i = _actions.indexOf(child);
+    final rect = i < 0 || i >= _rects.length ? null : _rects[i];
+    if (rect != null) transform.translateByDouble(rect.left, rect.top, 0, 1);
   }
 
   @override

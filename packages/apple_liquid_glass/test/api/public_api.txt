@@ -2810,20 +2810,25 @@ final class GlassSwipeActionDetails
   const GlassSwipeActionDetails({
     required int index,
     required ValueListenable<Set<WidgetState>> states,
+    bool leading = ...,
   })
   final int index
+  final bool leading
   final ValueListenable<Set<WidgetState>> states
 class GlassSwipeActions extends StatelessWidget
   const GlassSwipeActions({
     required List<GlassSwipeAction> trailing,
     required Widget child,
+    List<GlassSwipeAction> leading = ...,
     bool fullSwipe = ...,
+    bool leadingFullSwipe = ...,
     @internal Listenable? openOn,
     Key? key,
   })
   final Widget child
   final bool fullSwipe
-  static const double minActionWidth
+  final List<GlassSwipeAction> leading
+  final bool leadingFullSwipe
   @internal final Listenable? openOn
   final List<GlassSwipeAction> trailing
   overrides: build
@@ -4667,8 +4672,12 @@ class RawGlassSwipeActions extends StatefulWidget
     required void Function(int) onAction,
     required Widget Function(BuildContext, GlassSwipeActionDetails) actionBuilder,
     required Widget child,
-    Widget? overswipe,
+    List<String> leadingActionLabels = ...,
+    void Function(int)? onLeadingAction,
     bool fullSwipe = ...,
+    bool leadingFullSwipe = ...,
+    Color? swipedColor,
+    Color? revealColor,
     WidgetStatesController? statesController,
     @internal Listenable? openOn,
     Key? key,
@@ -4677,10 +4686,14 @@ class RawGlassSwipeActions extends StatefulWidget
   final List<String> actionLabels
   final Widget child
   final bool fullSwipe
+  final List<String> leadingActionLabels
+  final bool leadingFullSwipe
   final void Function(int) onAction
+  final void Function(int)? onLeadingAction
   @internal final Listenable? openOn
-  final Widget? overswipe
+  final Color? revealColor
   final WidgetStatesController? statesController
+  final Color? swipedColor
   overrides: createState
 class RawGlassSwitch extends StatefulWidget
   const RawGlassSwitch({
@@ -5266,18 +5279,36 @@ final class StackedSearchMotion
   final MotionValue<double> shown
 final class SwipeActionsMotion extends Motion
   SwipeActionsMotion({MotionClock? clock})
-  double actionsWidth
+  late final MotionValue<double> appear
+  double buttonWidth(int index, {required bool leading, required double pull})
   static const double commitStep
   void drag(double t, double translation)
   bool fullSwipe
   static const double fullSwipeShare
+  static const double gap
+  double gapAt({required bool leading, required double pull})
   void grab(double t)
+  bool get held
   bool get isCommitted
+  double leadingButton
+  static const double leadingCommitResistance
+  bool get leadingCommitted
+  int leadingCount
+  bool leadingFullSwipe
+  static const double leadingFullSwipeShare
   void moveTo(double t, double value, {double velocity = ...})
   late final MotionValue<double> offset
-  SwipeRelease release(double t, double velocity, {required bool canPerform})
+  void open(double t)
+  ({bool leading, SwipeRelease release}) release(
+    double t,
+    double velocity, {
+    required bool canPerform,
+  })
   double rowWidth
   static const double slop
+  double stripWidth({required bool leading})
+  double trailingButton
+  int trailingCount
 class SwipeGroup extends StatefulWidget
   const SwipeGroup({required Widget child, Key? key})
   final Widget child

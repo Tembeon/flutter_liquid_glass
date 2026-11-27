@@ -198,9 +198,10 @@ class _ListPageState extends State<ListPage> {
         const Idea(
           'Rows that come and go',
           'A GlassSliverListSection with ids moves its rows on a spring '
-              'as the list changes. GlassSwipeActions puts actions behind a '
-              'row; a full swipe takes the first. In editing a task deletes '
-              'from its minus and moves by its grip (onReorderItem).',
+              'as the list changes. GlassSwipeActions puts actions on both '
+              "sides of a row; a full swipe takes the side's first. In "
+              'editing a task deletes from its minus and moves by its grip '
+              '(onReorderItem).',
           flush: true,
           child: SizedBox.shrink(),
         ),
@@ -247,9 +248,11 @@ class _ListPageState extends State<ListPage> {
                     destructive: true,
                     onPressed: () => _change(() => _tasks.remove(task)),
                   ),
+                ],
+                leading: [
                   GlassSwipeAction(
                     title: 'First',
-                    backgroundColor: GlassColors.systemOrange,
+                    backgroundColor: GlassColors.systemBlue,
                     onPressed: () => _change(() {
                       _tasks
                         ..remove(task)

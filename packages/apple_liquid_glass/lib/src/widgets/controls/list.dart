@@ -431,7 +431,14 @@ class GlassListSection extends StatelessWidget {
         ),
       ),
     );
-    return SwipeGroup(child: section);
+    return SwipeGroup(
+      child: SwipeRevealColor(
+        color: layout == GlassListLayout.plain
+            ? GlassColors.systemBackground
+            : GlassColors.systemGroupedBackground,
+        child: section,
+      ),
+    );
   }
 }
 
@@ -552,7 +559,14 @@ class GlassSliverListSection extends StatelessWidget {
         ],
       ),
     );
-    return SwipeGroup(child: section);
+    return SwipeGroup(
+      child: SwipeRevealColor(
+        color: layout == GlassListLayout.plain
+            ? GlassColors.systemBackground
+            : GlassColors.systemGroupedBackground,
+        child: section,
+      ),
+    );
   }
 }
 

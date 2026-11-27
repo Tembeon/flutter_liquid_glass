@@ -144,7 +144,7 @@ void main() {
     expect(find.text('Delete'), findsOneWidget);
     expect(find.text('Flag'), findsOneWidget);
     final open = _left(tester, 'a');
-    expect(open, lessThan(left - 2 * GlassSwipeActions.minActionWidth + 1));
+    expect(open, lessThan(left - 150));
 
     await tester.tap(find.text('Flag'));
     await _settle(tester);
