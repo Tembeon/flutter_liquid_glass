@@ -21,7 +21,7 @@ const double popoverCornerRadius = 34;
 @immutable
 class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle> {
   /// Creates a style.
-  const GlassPopoverStyle({this.textStyle});
+  const GlassPopoverStyle({this.textStyle, this.backgroundColor});
 
   /// The theme's [GlassPopoverStyle] at [context], or null without one: the
   /// look between a widget's own style and its defaults.
@@ -31,12 +31,18 @@ class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle> {
   /// The default text of the content, over 17 points in label.
   final TextStyle? textStyle;
 
+  /// The tint of the popover's glass, or null for clear glass
+  /// (`popoverPresentationController.backgroundColor`); on a phone, where
+  /// the popover presents as a sheet, the sheet's background.
+  final Color? backgroundColor;
+
   /// This style over [other].
   @override
   GlassPopoverStyle merge(GlassPopoverStyle? other) {
     if (other == null) return this;
     return GlassPopoverStyle(
       textStyle: other.textStyle?.merge(textStyle) ?? textStyle,
+      backgroundColor: backgroundColor ?? other.backgroundColor,
     );
   }
 
@@ -50,15 +56,22 @@ class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle> {
         other.textStyle,
         t,
       ),
+      backgroundColor: GlassDynamicColor.lerp(
+        backgroundColor,
+        other.backgroundColor,
+        t,
+      ),
     );
   }
 
   @override
   bool operator ==(Object other) =>
-      other is GlassPopoverStyle && other.textStyle == textStyle;
+      other is GlassPopoverStyle &&
+      other.textStyle == textStyle &&
+      other.backgroundColor == backgroundColor;
 
   @override
-  int get hashCode => textStyle.hashCode;
+  int get hashCode => Object.hash(textStyle, backgroundColor);
 }
 
 /// Shows [builder]'s content in an iOS 27 popover next to its source and
@@ -101,7 +114,10 @@ Future<T?> showGlassPopover<T>(
     return showGlassSheet<T>(
       context,
       builder: builder,
-      style: GlassSheetStyle(textStyle: look.textStyle),
+      style: GlassSheetStyle(
+        textStyle: look.textStyle,
+        backgroundColor: look.backgroundColor,
+      ),
       semanticLabel: semanticLabel,
       level: level,
     );
@@ -196,8 +212,12 @@ class _PopoverViewState extends State<_PopoverView> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final label = GlassTheme.labelColorOf(context);
+    final look = (widget.style ?? const GlassPopoverStyle()).merge(
+      GlassPopoverStyle.maybeOf(context),
+    );
     return PopoverLayout(
       source: widget.source,
+      tint: look.backgroundColor,
       scale: _scale,
       opacity: _opacity,
       maxWidth: media.size.width - 2 * PopoverMotion.margin,
@@ -242,6 +262,7 @@ class PopoverLayout extends MultiChildRenderObjectWidget {
     required this.padding,
     required this.direction,
     required Widget card,
+    Color? tint,
     super.key,
   }) : super(
          children: [
@@ -249,6 +270,7 @@ class PopoverLayout extends MultiChildRenderObjectWidget {
              builder: (context, box) => _PopoverGlass(
                shape: (box as _PopoverConstraints).shape,
                opacity: opacity,
+               tint: tint,
              ),
            ),
            card,
@@ -300,7 +322,13 @@ class PopoverLayout extends MultiChildRenderObjectWidget {
 
 /// The glass of a popover: its content box and arrow as one outline.
 class _PopoverGlass extends StatefulWidget {
-  const _PopoverGlass({required this.shape, required this.opacity});
+  const _PopoverGlass({
+    required this.shape,
+    required this.opacity,
+    required this.tint,
+  });
+
+  final Color? tint;
 
   final PopoverShape shape;
   final MotionSelection<double> opacity;
@@ -342,6 +370,12 @@ class _PopoverGlassState extends State<_PopoverGlass> {
   @override
   Widget build(BuildContext context) => GlassSurface.live(
     role: GlassRole.panel,
+    glass: switch (widget.tint) {
+      final tint? => Glass.regular(
+        tint: GlassDynamicColor.resolve(tint, context),
+      ),
+      null => const Glass.regular(),
+    },
     frame: _frame,
     child: const SizedBox.expand(),
   );

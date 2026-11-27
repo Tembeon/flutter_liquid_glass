@@ -1688,7 +1688,8 @@ class GlassPlatformScope extends StatefulWidget
   final Widget child
   overrides: createState
 class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle>
-  const GlassPopoverStyle({TextStyle? textStyle})
+  const GlassPopoverStyle({TextStyle? textStyle, Color? backgroundColor})
+  final Color? backgroundColor
   static GlassPopoverStyle? maybeOf(BuildContext context)
   final TextStyle? textStyle
   overrides: ==, hashCode, lerp, merge
@@ -1839,6 +1840,8 @@ class GlassSearchField extends StatelessWidget
     Widget? placeholder,
     void Function(String)? onChanged,
     void Function(String)? onSubmitted,
+    TextInputAction textInputAction = ...,
+    List<TextInputFormatter>? inputFormatters,
     bool enabled = ...,
     bool autofocus = ...,
     GlassSearchFieldStyle? style,
@@ -1856,6 +1859,7 @@ class GlassSearchField extends StatelessWidget
   final bool enabled
   final FocusNode? focusNode
   static const double glyphInset
+  final List<TextInputFormatter>? inputFormatters
   final void Function(String)? onChanged
   final void Function(String)? onSubmitted
   final Widget? placeholder
@@ -1863,6 +1867,7 @@ class GlassSearchField extends StatelessWidget
   final String? semanticLabel
   final WidgetStatesController? statesController
   final GlassSearchFieldStyle? style
+  final TextInputAction textInputAction
   static const double textInset
   overrides: build
 typedef GlassSearchFieldBuilder = Widget Function(BuildContext, GlassSearchFieldDetails)
@@ -4095,6 +4100,8 @@ class RawGlassSearchField extends StatefulWidget
     FocusNode? focusNode,
     void Function(String)? onChanged,
     void Function(String)? onSubmitted,
+    TextInputAction textInputAction = ...,
+    List<TextInputFormatter>? inputFormatters,
     bool enabled = ...,
     bool autofocus = ...,
     String? semanticLabel,
@@ -4109,11 +4116,13 @@ class RawGlassSearchField extends StatefulWidget
   final bool enabled
   final FocusNode? focusNode
   static const double height
+  final List<TextInputFormatter>? inputFormatters
   static const double maxTextScale
   final void Function(String)? onChanged
   final void Function(String)? onSubmitted
   final String? semanticLabel
   final WidgetStatesController? statesController
+  final TextInputAction textInputAction
   overrides: createState
 class RawGlassSelector extends StatefulWidget
   const RawGlassSelector({

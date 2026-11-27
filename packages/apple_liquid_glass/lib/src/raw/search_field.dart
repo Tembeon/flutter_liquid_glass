@@ -85,6 +85,8 @@ class RawGlassSearchField extends StatefulWidget {
     this.focusNode,
     this.onChanged,
     this.onSubmitted,
+    this.textInputAction = TextInputAction.search,
+    this.inputFormatters,
     this.enabled = true,
     this.autofocus = false,
     this.semanticLabel,
@@ -107,6 +109,14 @@ class RawGlassSearchField extends StatefulWidget {
 
   /// Called with the text when the user submits it from the keyboard.
   final ValueChanged<String>? onSubmitted;
+
+  /// The keyboard's action key: Search by default, as UIKit's search
+  /// field's return key reads.
+  final TextInputAction textInputAction;
+
+  /// What the field passes its text through as the user edits it
+  /// (UIKit `shouldChangeTextInRanges`).
+  final List<TextInputFormatter>? inputFormatters;
 
   /// Whether the field takes input.
   final bool enabled;
@@ -270,7 +280,8 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
         selectionColor: cursor.withValues(alpha: 0.25),
         semanticLabel:
             widget.semanticLabel ?? GlassLocalizations.of(context).searchLabel,
-        textInputAction: TextInputAction.search,
+        textInputAction: widget.textInputAction,
+        inputFormatters: widget.inputFormatters,
         textCapitalization: TextCapitalization.sentences,
         // UIKit's search field offers no suggestions. iOS's engine ties
         // spell checking, and with it the prediction bar, to this flag.

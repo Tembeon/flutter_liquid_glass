@@ -7,6 +7,7 @@ import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/edit_menu.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
@@ -201,6 +202,8 @@ class GlassSearchField extends StatelessWidget {
     this.placeholder,
     this.onChanged,
     this.onSubmitted,
+    this.textInputAction = TextInputAction.search,
+    this.inputFormatters,
     this.enabled = true,
     this.autofocus = false,
     this.style,
@@ -225,6 +228,12 @@ class GlassSearchField extends StatelessWidget {
 
   /// Called with the text when the user submits it from the keyboard.
   final ValueChanged<String>? onSubmitted;
+
+  /// See [RawGlassSearchField.textInputAction].
+  final TextInputAction textInputAction;
+
+  /// See [RawGlassSearchField.inputFormatters].
+  final List<TextInputFormatter>? inputFormatters;
 
   /// Whether the field takes input.
   final bool enabled;
@@ -309,6 +318,8 @@ class GlassSearchField extends StatelessWidget {
       focusNode: focusNode,
       onChanged: onChanged,
       onSubmitted: onSubmitted,
+      textInputAction: textInputAction,
+      inputFormatters: inputFormatters,
       enabled: enabled,
       autofocus: autofocus,
       semanticLabel: semanticLabel,
