@@ -62,8 +62,12 @@ enum ShaderProgram {
   /// One axis of a frost drawn into a copy.
   backdropFrostAxis('backdrop_frost_axis', ShaderCompiler.hook),
 
-  /// The levels a copy carries beside it.
-  copyLevels('copy_levels', ShaderCompiler.hook);
+  /// The levels a copy carries beside it, up to the level the coarser ones
+  /// average.
+  copyLevels('copy_levels', ShaderCompiler.hook),
+
+  /// The coarser levels a copy carries beside it, and its fill level.
+  copyLevelsCover('copy_levels_cover', ShaderCompiler.hook);
 
   const ShaderProgram(this.stem, this.compiler);
 

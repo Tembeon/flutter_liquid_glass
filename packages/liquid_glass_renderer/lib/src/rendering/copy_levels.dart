@@ -119,17 +119,21 @@ final _noLevels = <int, List<double>>{};
 /// levels up to [coarseSourceLevel]; the outer one averages that level into
 /// the coarser levels and the fill level.
 ///
-/// NEAR: a cell at the copy's edge weighs the edge's own pixels again for
-/// what lies past it. A layer that a clip cuts short of the strip carries no
-/// levels (`CornerPlace.levels`).
+/// NEAR: a cell of the finer levels at the copy's edge weighs the edge's own
+/// pixels again for what lies past it; the coarser levels and the fill level
+/// weigh what the copy holds alone (copy_levels_pass.glsl). A layer that a
+/// clip cuts short of the strip carries no levels (`CornerPlace.levels`).
 @internal
 final class CopyLevelPasses extends PinnedPasses {
   const CopyLevelPasses._(super.filters);
 
   /// Whether the levels' program is loaded; where it is not, starts loading
   /// it.
-  static bool get ready =>
-      GlassShaderPrograms.load(ShaderProgram.copyLevels.key) != null;
+  static bool get ready {
+    final fine = GlassShaderPrograms.load(ShaderProgram.copyLevels.key);
+    final coarse = GlassShaderPrograms.load(ShaderProgram.copyLevelsCover.key);
+    return fine != null && coarse != null;
+  }
 
   /// What draws [strip] under a copy whose top left lies at [at] of the
   /// layers, or null where the program is not loaded yet.
@@ -157,16 +161,20 @@ final class CopyLevelPasses extends PinnedPasses {
   static CopyLevelPasses? _of(LevelStrip strip, Offset at) {
     final key = (strip, at);
     if (_cached[key] case final held?) return held;
-    final shader = GlassShaderPrograms.sharedShader(
+    final fineShader = GlassShaderPrograms.sharedShader(
       ShaderProgram.copyLevels.key,
     );
-    if (shader == null) return null;
+    final coarseShader = GlassShaderPrograms.sharedShader(
+      ShaderProgram.copyLevelsCover.key,
+    );
+    if (fineShader == null || coarseShader == null) return null;
     if (_cached.length >= _mostHeld) _cached.clear();
 
     final top = at.dy + strip.top;
     final grid = strip.grid;
     final copy = at & strip.copy;
-    ui.ImageFilter pass({
+    ui.ImageFilter pass(
+      ui.FragmentShader shader, {
       required double from,
       required double to,
       required bool fill,
@@ -195,13 +203,19 @@ final class CopyLevelPasses extends PinnedPasses {
         bounds.right,
         bounds.bottom,
       ]);
-      putUniform(shader, 'uCopySize', [strip.copy.width, strip.copy.height]);
+      if (identical(shader, coarseShader)) {
+        putUniform(shader, 'uCopySize', [
+          strip.copy.width,
+          strip.copy.height,
+        ]);
+      }
       // The shader holds other uniforms by the time a scene takes its
       // filter.
       return inputShaderFilterNow(shader);
     }
 
     final fine = pass(
+      fineShader,
       from: strip.first.toDouble(),
       to: coarseSourceLevel.toDouble(),
       fill: false,
@@ -214,6 +228,7 @@ final class CopyLevelPasses extends PinnedPasses {
     const stride = 1 << source;
     final base = at + Offset(strip.columnOf(source).toDouble(), strip.cellsTop);
     final coarse = pass(
+      coarseShader,
       from: (source + 1).toDouble(),
       to: strip.last.toDouble(),
       fill: strip.fillStride > 0,

@@ -219,7 +219,11 @@ Future<void> warmLiquidGlassPipelines(
       ),
     ];
     for (final read in reads) {
-      if (read.levels != null) drawn.add(ShaderProgram.copyLevels.key);
+      if (read.levels != null) {
+        drawn
+          ..add(ShaderProgram.copyLevels.key)
+          ..add(ShaderProgram.copyLevelsCover.key);
+      }
       if (read.frost case final frost?) drawn.add(frost.program);
     }
     final band = GlassShaderPrograms.cached(
