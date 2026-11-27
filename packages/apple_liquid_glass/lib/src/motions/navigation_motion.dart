@@ -93,8 +93,8 @@ class NavigationPopMotion {
   static const double edgeDefault = 13;
 
   /// The longest a finger on the edge may take to begin the pop before it
-  /// gives up, in seconds, counted from the touch (read from UIKit; whether
-  /// UIKit counts it again from each move is not read).
+  /// gives up, in seconds, counted once from the touch, as UIKit arms its
+  /// timer at the touch alone (read from UIKit's code).
   static const double edgeMaximumDuration = 0.25;
 
   /// The width of the leading edge an interactive pop starts from in a page

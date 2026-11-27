@@ -15,17 +15,18 @@ Widget _app(Widget child, {TextDirection direction = TextDirection.ltr}) =>
     );
 
 class _Pages extends StatefulWidget {
-  const _Pages({this.picks, this.accept = true});
+  const _Pages({this.picks, this.accept = true, this.start = 2});
 
   final List<int>? picks;
   final bool accept;
+  final int start;
 
   @override
   State<_Pages> createState() => _PagesState();
 }
 
 class _PagesState extends State<_Pages> {
-  int page = 2;
+  late int page = widget.start;
 
   @override
   Widget build(BuildContext context) => GlassPageControl(
@@ -40,6 +41,20 @@ class _PagesState extends State<_Pages> {
 }
 
 const _pitch = Offset(9.67 + 8, 0);
+
+// The test's frames run on a fake clock the engine clock does not follow;
+// pinning both to it lets pointer time stamps space taps as on a device.
+Duration Function() _deviceTime(WidgetTester tester) {
+  Duration now() =>
+      Duration(microseconds: tester.binding.clock.now().microsecondsSinceEpoch);
+  MotionClock.debugEngineNow = now;
+  MotionClock.debugPointerClockOffset = () => Duration.zero;
+  addTearDown(() {
+    MotionClock.debugEngineNow = null;
+    MotionClock.debugPointerClockOffset = null;
+  });
+  return now;
+}
 
 Offset _dot(Rect box, int index) =>
     box.centerLeft + const Offset(14 + 9.67 / 2, 0) + _pitch * index.toDouble();
@@ -139,6 +154,44 @@ void main() {
     await sliding.up();
     await tester.pump();
     expect(picks, [3]);
+  });
+
+  testWidgets('taps within 8 points of the last, within 0.75 s, keep its '
+      'way (read from UIKit)', (tester) async {
+    final picks = <int>[];
+    await tester.pumpWidget(_app(_Pages(picks: picks, start: 0)));
+    final box = tester.getRect(find.byType(GlassPageControl));
+    final now = _deviceTime(tester);
+    Future<void> tap() async {
+      final finger = await tester.createGesture();
+      await finger.down(_dot(box, 2), timeStamp: now());
+      await finger.up(timeStamp: now());
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+
+    for (var i = 0; i < 3; i++) {
+      await tap();
+    }
+    expect(picks, [1, 2, 3]);
+    await tester.pump(const Duration(milliseconds: 600));
+    await tap();
+    expect(picks, [1, 2, 3, 2]);
+  });
+
+  testWidgets('a scrub runs from the current dot whatever dot the finger '
+      'rests on (read from UIKit)', (tester) async {
+    final picks = <int>[];
+    await tester.pumpWidget(_app(_Pages(picks: picks)));
+    final box = tester.getRect(find.byType(GlassPageControl));
+    final finger = await tester.startGesture(_dot(box, 4));
+    await tester.pump(const Duration(milliseconds: 200));
+    for (var i = 0; i < 4; i++) {
+      await finger.moveBy(const Offset(-5, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await finger.up();
+    await tester.pump();
+    expect(picks, [1]);
   });
 
   testWidgets('a tap steps toward the side of the current dot it lands on, '
@@ -554,7 +607,7 @@ void main() {
     );
     final box = tester.getRect(find.byType(GlassPageControl));
     await tester.tapAt(box.center + const Offset(4, 0));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.tapAt(box.center - const Offset(4, 0));
     await tester.pump();
     expect(picks, [3, 1]);

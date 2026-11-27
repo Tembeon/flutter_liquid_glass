@@ -58,6 +58,16 @@ abstract final class PageControlTuning {
   /// code, iOS 27.2 simulator).
   static const double scrubDelay = 0.15;
 
+  /// Seconds a tap is remembered: a tap this soon after the last, within
+  /// [spacing] of it, steps the same way whichever side of the current dot
+  /// it lands on (read from UIKit's code).
+  static const double tapMemory = 0.75;
+
+  /// The spring the shown page moves on, which the window of a control of
+  /// more pages than it shows glides on (read from UIKit's code: damping
+  /// 1, response 0.15; with a progress the page moves on [widthSpring]).
+  static const pageSpring = Spring.response(0.15);
+
   /// How far past the midpoint between two dots a scrubbing finger goes
   /// before the page changes, either way (1 - 2 points measured, a frame
   /// of latency included).
@@ -81,7 +91,9 @@ abstract final class PageControlTuning {
 /// The motion of an iOS 27 page control's indicators.
 ///
 /// Without a progress every dot is [PageControlTuning.indicatorSize] wide and a
-/// page change is instant, as UIKit's is. With a progress the current indicator
+/// page change is instant, as UIKit's is, but for the window of a control
+/// of more pages than it shows, which glides on
+/// [PageControlTuning.pageSpring]. With a progress the current indicator
 /// is a capsule [PageControlTuning.progressIndicatorWidth] wide whose fill
 /// shows the progress; when the page changes, the old capsule shrinks to a dot
 /// and the new one grows on [PageControlTuning.widthSpring] while the old fill
@@ -112,41 +124,61 @@ final class PageControlMotion extends Motion {
           ),
         ),
     ];
-    _follow();
+    _windowStart = _windowFor(_page);
+    _window.snap(now, _windowStart.toDouble());
   }
 
-  // The first page in the window of a control of more pages than it shows.
+  // The first page in the window of a control of more pages than it shows,
+  // and where the window stands as it glides there.
   int _windowStart = 0;
+  late final _window = own(
+    MotionValue<double>(
+      0,
+      restDistance: () => MotionRest.length / PageControlTuning.pitch,
+    ),
+  );
 
   bool get _windowed => count > PageControlTuning.windowSlots;
 
-  // Keeps the current page among the window's full-size indicators,
-  // moving the window as little as that takes, as UIKit's does from one
-  // page to the next (how it moves is not filmed: it jumps).
-  void _follow() {
-    if (!_windowed) {
-      _windowStart = 0;
-      return;
-    }
+  // The window that keeps [page] among its full-size indicators, moved
+  // from the current one as little as that takes, as UIKit's moves.
+  int _windowFor(int page) {
+    if (!_windowed) return 0;
     const slots = PageControlTuning.windowSlots;
     final last = count - slots;
     var start = _windowStart.clamp(0, last);
     final low = start > 0 ? start + 2 : start;
     final high = start < last ? start + slots - 3 : start + slots - 1;
-    if (_page < low) start = _page - 2 <= 0 ? 0 : _page - 2;
-    if (_page > high) start = math.min(_page - (slots - 3), last);
-    _windowStart = start.clamp(0, last);
+    if (page < low) start = page - 2 <= 0 ? 0 : page - 2;
+    if (page > high) start = math.min(page - (slots - 3), last);
+    return start.clamp(0, last);
+  }
+
+  // A value of the layout as the window glides: between its values for
+  // the two whole windows the gliding one lies between (UIKit lays the
+  // window out again from the moving page each frame; how its edge
+  // indicators scale in between is not read, so they scale linearly).
+  double _gliding(double Function(int first) of) {
+    if (!_windowed) return of(0);
+    final last = count - PageControlTuning.windowSlots;
+    final at = _window.valueAt(now).clamp(0.0, last.toDouble());
+    final low = at.floor();
+    final share = at - low;
+    final from = of(low);
+    return share == 0 ? from : from + (of(low + 1) - from) * share;
   }
 
   /// The scale an indicator draws at: 1, smaller in the window's slots
   /// next to pages beyond it, and 0 for a page outside it.
-  double scaleOf(int index) {
+  double scaleOf(int index) => _gliding((first) => _scaleIn(index, first));
+
+  double _scaleIn(int index, int first) {
     if (!_windowed) return 1;
     const slots = PageControlTuning.windowSlots;
-    final slot = index - _windowStart;
+    final slot = index - first;
     if (slot < 0 || slot >= slots) return 0;
-    final before = _windowStart > 0;
-    final after = _windowStart + slots < count;
+    final before = first > 0;
+    final after = first + slots < count;
     if (before && slot == 0 || after && slot == slots - 1) {
       return PageControlTuning.windowFarScale;
     }
@@ -213,6 +245,11 @@ final class PageControlMotion extends Motion {
   bool _precise = false;
   bool _scrubbing = false;
   double? _scrubsAt;
+  double _lastX = 0;
+  double _scrubOffset = 0;
+  double _tapX = 0;
+  double _tapAt = double.negativeInfinity;
+  int _tapDirection = 0;
   static const _platterSlot = #platter;
   static const _scrubSlot = #scrub;
 
@@ -301,6 +338,7 @@ final class PageControlMotion extends Motion {
     _touched = true;
     _precise = precise;
     _scrubbing = false;
+    _lastX = x;
     changed();
     at(
       t + PageControlTuning.platterDelay,
@@ -310,23 +348,48 @@ final class PageControlMotion extends Motion {
     if (!scrubs) return;
     final due = t + PageControlTuning.scrubDelay;
     _scrubsAt = due;
-    at(due, (_) {
+    at(due, (s) {
       _scrubsAt = null;
       _scrubbing = true;
+      _beginScrub(s);
       changed();
     }, slot: _scrubSlot);
   }
 
-  /// The finger moved to [x]. Once it scrubs, it picks the page whose dot
-  /// it nears; the long press that starts the scrub picks nothing by
-  /// itself (a finger resting on another page's dot keeps the page:
-  /// recorded on an iPhone 16 Pro).
+  // The scrub starts from the current page's dot whatever dot the finger
+  // rests on: its position runs the finger's travel on from there, unless
+  // a precise pointer takes the page to the dot under it first (read from
+  // UIKit's code).
+  void _beginScrub(double t) {
+    final touched = _nearest(_lastX);
+    if (_precise && touched != _page) {
+      setPage(t, touched);
+      onEvent?.call(PageControlPicked(touched, scrubbed: true));
+    }
+    _scrubOffset = center(_page) - center(touched);
+  }
+
+  int _nearest(double x) {
+    final (first, end) = _shown;
+    var nearest = first;
+    for (var i = first + 1; i < end; i++) {
+      if ((x - center(i)).abs() < (x - center(nearest)).abs()) nearest = i;
+    }
+    return nearest;
+  }
+
+  /// The finger moved to [x]. Once it scrubs, its travel since the scrub
+  /// began moves a position from the current page's dot, and the page
+  /// follows the dot that position nears; the long press that starts the
+  /// scrub picks nothing by itself (a finger resting on another page's dot
+  /// keeps the page: recorded on an iPhone 16 Pro, read from UIKit's code).
   void pointerMove(double t, double x) {
     advance(t);
+    _lastX = x;
     if (!_scrubbing || count == 0) return;
     const pitch = PageControlTuning.pitch;
     const h = PageControlTuning.scrubHysteresis;
-    final ahead = x - center(_page);
+    final ahead = x + _scrubOffset - center(_page);
     var next = _page;
     if (ahead > pitch / 2 + h) {
       next = _page + ((ahead - pitch / 2 - h) / pitch).floor() + 1;
@@ -341,23 +404,24 @@ final class PageControlMotion extends Motion {
   }
 
   /// The finger lifted at [x]. Unless it scrubbed, it taps: a step toward
-  /// the side of the current page's dot it lifted on, a toggle between
-  /// two pages, or the indicator under a precise pointer (read from
-  /// UIKit's code).
+  /// the side of the current page's dot it lifted on, or the way the last
+  /// tap went when it lands within [PageControlTuning.spacing] of it
+  /// within [PageControlTuning.tapMemory]; a toggle between two pages; or
+  /// the indicator under a precise pointer (read from UIKit's code).
   void pointerUp(double t, double x) {
     advance(t);
     final touched = _touched;
     final scrubbed = _scrubbing;
     _end(t);
     if (count == 0 || !touched || scrubbed) return;
-    final next = _tapped(x);
+    final next = _tapped(t, x);
     if (next != _page) {
       setPage(t, next);
       onEvent?.call(PageControlPicked(next, scrubbed: false));
     }
   }
 
-  int _tapped(double x) {
+  int _tapped(double t, double x) {
     if (_precise) {
       final (first, end) = _shown;
       for (var i = first; i < end; i++) {
@@ -365,7 +429,16 @@ final class PageControlMotion extends Motion {
       }
     }
     if (count == 2) return 1 - _page;
-    return (_page + (x > center(_page) ? 1 : -1)).clamp(0, count - 1);
+    final remembered =
+        t - _tapAt <= PageControlTuning.tapMemory &&
+        (x - _tapX).abs() <= PageControlTuning.spacing;
+    final direction = remembered
+        ? _tapDirection
+        : (x > center(_page) ? 1 : -1);
+    _tapX = x;
+    _tapAt = t;
+    _tapDirection = direction;
+    return (_page + direction).clamp(0, count - 1);
   }
 
   /// The touch was cancelled.
@@ -400,7 +473,14 @@ final class PageControlMotion extends Motion {
     if (next == _page) return;
     final previous = _page;
     _page = next;
-    _follow();
+    _windowStart = _windowFor(next);
+    _window.retarget(
+      t,
+      _windowStart.toDouble(),
+      spring: showsProgress
+          ? PageControlTuning.widthSpring
+          : PageControlTuning.pageSpring,
+    );
     changed();
     if (!showsProgress) {
       for (var i = 0; i < count; i++) {
@@ -492,7 +572,11 @@ final class PageControlMotion extends Motion {
   /// outside the window stands at the window's end nearest it.
   double center(int index) {
     if (index < 0 || index >= count) return 0;
-    final (first, end) = _shown;
+    return _gliding((first) => _centerIn(index, first));
+  }
+
+  double _centerIn(int index, int first) {
+    final end = _windowed ? first + PageControlTuning.windowSlots : count;
     final at = index.clamp(first, end - 1);
     var x = 0.0;
     for (var i = first; i < at; i++) {
