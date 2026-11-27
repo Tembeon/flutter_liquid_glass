@@ -19,8 +19,9 @@ typedef BlurStop = ({double depth, double strength});
 /// the blur reads.
 @immutable
 final class BlurRecipe {
-  /// A blur of [radius] by the ramp [stops].
-  const BlurRecipe({required this.radius, required this.stops});
+  /// A blur of [radius] by the ramp [stops], reading [margin] past the
+  /// glass.
+  const BlurRecipe({required this.radius, required this.stops, this.margin});
 
   /// The widest blur, in iOS's units of blur.
   final double radius;
@@ -28,17 +29,27 @@ final class BlurRecipe {
   /// The ramp of the blur's strength, four stops from the deepest.
   final List<BlurStop> stops;
 
+  /// How far past the glass, in logical pixels, the blur reads what lies
+  /// under it: iOS's capture margin, past which iOS's blur reads the
+  /// capture's edge. Null where the blur reads as far as it reaches:
+  /// outside Reduce Transparency, where the renderer does not follow iOS's
+  /// margin yet (16 points, and 0.53 on clear glass below the slider's
+  /// middle tick).
+  final double? margin;
+
   @override
   bool operator ==(Object other) =>
       other is BlurRecipe &&
       other.radius == radius &&
+      other.margin == margin &&
       listEquals(other.stops, stops);
 
   @override
-  int get hashCode => Object.hash(radius, Object.hashAll(stops));
+  int get hashCode => Object.hash(radius, margin, Object.hashAll(stops));
 
   @override
-  String toString() => 'BlurRecipe($radius, $stops)';
+  String toString() =>
+      'BlurRecipe($radius, $stops${margin == null ? '' : ', margin $margin'})';
 }
 
 /// A wide blur of what lies under the glass, mixed into what it shows.

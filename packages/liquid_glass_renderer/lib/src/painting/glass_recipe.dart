@@ -193,6 +193,13 @@ DropShadowRecipe ios27DropShadow({
 double snapSlider(double slider) =>
     (clampDouble(slider, 0, 1) * 20).roundToDouble() / 20;
 
+// How far past the glass iOS captures what lies under it, in points: 16 for
+// regular glass, and for clear glass past the slider's middle tick.
+const double _captureMargin = 16;
+
+// The capture margin of clear glass up to the slider's middle tick.
+const double _clearMargin = 8 / 15;
+
 final class _Law {
   _Law({
     required this.variant,
@@ -221,16 +228,32 @@ final class _Law {
 
   BlurRecipe blur() {
     final depths = [shortSide / 2, 1.0, 0.0, 0.0];
-    BlurRecipe ramp(double radius, List<double> strengths) => BlurRecipe(
+    BlurRecipe ramp(
+      double radius,
+      List<double> strengths, {
+      double? margin,
+    }) => BlurRecipe(
       radius: radius,
       stops: [
         for (var i = 0; i < 4; i++) (depth: depths[i], strength: strengths[i]),
       ],
+      margin: margin,
     );
     if (reduceTransparency) {
-      if (clear) return ramp(50, [1, 1, 1, 1]);
+      if (clear) {
+        return ramp(
+          50,
+          [1, 1, 1, 1],
+          margin: slider > sliderMiddleTick ? _captureMargin : _clearMargin,
+        );
+      }
       final radius = 35 + 15 * grown;
-      return ramp(radius, [1, 1, 5 / radius, 5 / radius]);
+      return ramp(radius, [
+        1,
+        1,
+        5 / radius,
+        5 / radius,
+      ], margin: _captureMargin);
     }
     if (clear) {
       final on = slider > 0 ? 1.0 : 0.0;

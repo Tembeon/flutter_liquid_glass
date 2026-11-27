@@ -237,6 +237,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       least: min(deep, rim),
       most: max(deep, rim),
       fill: fills ? fill.radius * ios27BlurUnit * scale : 0,
+      margin: switch (blur.margin) {
+        final margin? => margin * scale,
+        null => null,
+      },
     );
     final drawn = (
       levels: levels.blurs || levels.fills ? levels : null,

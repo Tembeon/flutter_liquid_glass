@@ -66,8 +66,14 @@ double _frostResidual(double sigma, {required int share}) {
 /// they take beside its copy ([LevelStrip]).
 @immutable
 final class CopyLevels {
-  /// Levels for a blur from [least] to [most] and a fill of [fill].
-  const CopyLevels({this.least = 0, this.most = 0, this.fill = 0});
+  /// Levels for a blur from [least] to [most] and a fill of [fill], read
+  /// [margin] past the glass.
+  const CopyLevels({
+    this.least = 0,
+    this.most = 0,
+    this.fill = 0,
+    this.margin,
+  });
 
   /// The least sigma the glass blurs by inside, past its edge's fringe.
   final double least;
@@ -78,6 +84,11 @@ final class CopyLevels {
   /// The sigma of the fill, 0 for none.
   final double fill;
 
+  /// How far past the glass the copy holds what lies under it, in logical
+  /// pixels, or null for as far as the blur reaches; the blur reads the
+  /// copy's edge past it (`BlurRecipe.margin`).
+  final double? margin;
+
   /// Whether the glass blurs what it shows.
   bool get blurs => most > 0;
 
@@ -85,13 +96,14 @@ final class CopyLevels {
   bool get fills => fill > 0;
 
   /// These levels for glass that adds [frost] to its blur ([blurAdding]);
-  /// its fill stays.
+  /// its fill and margin stay.
   CopyLevels adding(double frost) => frost <= 0
       ? this
       : CopyLevels(
           least: blurAdding(least, frost),
           most: blurAdding(most, frost),
           fill: fill,
+          margin: margin,
         );
 
   @override
@@ -99,10 +111,11 @@ final class CopyLevels {
       other is CopyLevels &&
       other.least == least &&
       other.most == most &&
-      other.fill == fill;
+      other.fill == fill &&
+      other.margin == margin;
 
   @override
-  int get hashCode => Object.hash(least, most, fill);
+  int get hashCode => Object.hash(least, most, fill, margin);
 }
 
 /// [sigma] with [frost] added, as Gaussians add: what glass blurring by
@@ -215,7 +228,8 @@ sealed class CopyNeed {
 
   /// The logical pixels a shader frosting or blurring the copy reads around a
   /// region on a screen of [devicePixelRatio]. A blur reads three sigmas
-  /// out; the fill reads the copy's edge for what lies past it.
+  /// out, or its levels' margin where that is less; the fill reads the
+  /// copy's edge for what lies past it.
   ///
   /// A copy drawn at the screen's pixels in place of the ones asked reaches
   /// less: its taps lie at most a sigma wider and its pixel is smaller.
@@ -254,7 +268,11 @@ final class LevelNeed extends CopyNeed {
   @override
   double reachAt(double devicePixelRatio) {
     final most = levels.most;
-    return most > 0 ? 3 * most + share / devicePixelRatio : 0;
+    if (most <= 0) return 0;
+    final blur = 3 * most;
+    final margin = levels.margin;
+    return (margin == null ? blur : min(blur, margin)) +
+        share / devicePixelRatio;
   }
 
   @override

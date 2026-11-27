@@ -16,8 +16,9 @@ const _dpr = 3.0;
 
 Future<SiteAsk> _askOf(
   WidgetTester tester,
-  LiquidGlassSettings settings,
-) async {
+  LiquidGlassSettings settings, {
+  LiquidGlassAppearance? appearance,
+}) async {
   tester.view.devicePixelRatio = _dpr;
   addTearDown(tester.view.resetDevicePixelRatio);
   await tester.pumpWidget(
@@ -25,13 +26,14 @@ Future<SiteAsk> _askOf(
       textDirection: TextDirection.ltr,
       child: LiquidGlassLayer(
         settings: settings,
-        child: const Center(
+        child: Center(
           child: SizedBox(
             width: 160,
             height: 80,
             child: LiquidGlass(
-              shape: LiquidRoundedSuperellipse(radius: 20),
-              child: SizedBox.expand(),
+              shape: const LiquidRoundedSuperellipse(radius: 20),
+              appearance: appearance,
+              child: const SizedBox.expand(),
             ),
           ),
         ),
@@ -101,6 +103,38 @@ void main() {
       expect(
         _farther(frosted, clear),
         closeTo(ImpellerBlur.reach(12, _dpr), 1e-9),
+      );
+    },
+    skip: skipProperGlassTests,
+  );
+
+  testWidgets(
+    'glass under Reduce Transparency reads what lies past it only as far as '
+    "iOS's capture margin, where its blur would reach ten times as far",
+    (tester) async {
+      const appearance = LiquidGlassAppearance.ios27Regular(
+        brightness: Brightness.light,
+      );
+      final clear = await _askOf(
+        tester,
+        const LiquidGlassSettings.ios27Regular(
+          reduceTransparency: true,
+          blur: 0,
+        ),
+        appearance: appearance,
+      );
+      final reduced = await _askOf(
+        tester,
+        const LiquidGlassSettings.ios27Regular(reduceTransparency: true),
+        appearance: appearance,
+      );
+      final need = reduced.look.need;
+
+      expect(need.levels?.margin, 16);
+      expect(3 * need.levels!.most, greaterThan(10 * 16));
+      expect(
+        _farther(reduced, clear),
+        closeTo(16 + need.share / _dpr, 1e-9),
       );
     },
     skip: skipProperGlassTests,

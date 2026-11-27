@@ -202,6 +202,30 @@ void main() {
       expect([for (final stop in clear.stops) stop.strength], [1, 1, 1, 1]);
     });
 
+    test("reads iOS's capture margin past the glass: 16 points, and 8/15 on "
+        'clear glass up to the middle tick; glass outside it reads as far as '
+        'its blur reaches', () {
+      expect(_of(reduceTransparency: true).blur.margin, 16);
+      expect(_of(shortSide: 44, reduceTransparency: true).blur.margin, 16);
+      for (final (slider, margin) in [
+        (0.0, 8 / 15),
+        (0.5, 8 / 15),
+        (1.0, 16),
+      ]) {
+        expect(
+          _of(
+            variant: GlassVariant.clear,
+            slider: slider,
+            reduceTransparency: true,
+          ).blur.margin,
+          margin,
+          reason: 'slider $slider',
+        );
+      }
+      expect(_of().blur.margin, isNull);
+      expect(_of(variant: GlassVariant.clear, slider: 1).blur.margin, isNull);
+    });
+
     test('lays a nearly flat face, its fill rising to the middle tick and '
         'falling past it', () {
       for (final (slider, alpha) in [
