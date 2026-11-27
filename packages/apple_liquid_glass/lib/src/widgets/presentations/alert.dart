@@ -400,6 +400,8 @@ Future<GlassAlertAction?> showGlassActionSheet(
   Rect? anchorRect,
   GlassAlertStyle? style,
   Offset? anchorPoint,
+  Set<PopoverArrowDirection> permittedArrowDirections =
+      PopoverArrowDirection.any,
   PresentationLevel level = PresentationLevel.window,
 }) => showPresentation(
   context,
@@ -419,6 +421,7 @@ Future<GlassAlertAction?> showGlassActionSheet(
               caller: 'showGlassActionSheet',
             ),
       anchorPoint: anchorPoint,
+      permitted: permittedArrowDirections,
     ),
   ),
   level: level,
@@ -434,6 +437,7 @@ Presentation<GlassAlertAction, PresentedProgress> _alert({
   List<GlassAlertTextField> textFields = const [],
   Rect? anchorRect,
   Offset? anchorPoint,
+  Set<PopoverArrowDirection> permitted = PopoverArrowDirection.any,
 }) {
   final cancel = _cancelOf(actions);
   // An alert without an enabled cancel action waits for one of its
@@ -454,6 +458,7 @@ Presentation<GlassAlertAction, PresentedProgress> _alert({
       actionSheet: actionSheet,
       anchorRect: anchorRect,
       anchorPoint: anchorPoint,
+      permitted: permitted,
     ),
     dismiss: DismissPolicy({
       if (actionSheet) DismissTrigger.outsideTap,
@@ -521,6 +526,7 @@ class _AlertView extends StatefulWidget {
     required this.actionSheet,
     required this.anchorRect,
     required this.anchorPoint,
+    this.permitted = PopoverArrowDirection.any,
   });
 
   // An AlertMotion, or a PopoverMotion for an action sheet with a source.
@@ -533,6 +539,7 @@ class _AlertView extends StatefulWidget {
   final bool actionSheet;
   final Rect? anchorRect;
   final Offset? anchorPoint;
+  final Set<PopoverArrowDirection> permitted;
 
   @override
   State<_AlertView> createState() => _AlertViewState();

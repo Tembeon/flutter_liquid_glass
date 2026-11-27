@@ -16,7 +16,11 @@ enum PopoverArrowDirection {
   left,
 
   /// The popover sits to the left of its source; the arrow points right.
-  right,
+  right;
+
+  /// Every direction, so the popover may sit on any side of its source
+  /// (UIKit `UIPopoverArrowDirection.any`).
+  static const Set<PopoverArrowDirection> any = {down, up, left, right};
 }
 
 /// Where a popover sits relative to its source, as UIKit places an action
@@ -187,7 +191,9 @@ final class PopoverMotion extends PresentedProgress {
 /// [PopoverTuning.arrowCornerClearance] of a corner. Of the rest the
 /// one that slides least in total wins, earlier candidates on ties. When
 /// no side works the popover goes above or below, where there is more
-/// room.
+/// room. Only the sides in [permitted] are tried (UIKit
+/// `permittedArrowDirections`, every side by default); when it holds
+/// neither above nor below, the fallback goes left or right instead.
 ///
 /// Checked against 15 placements on the iOS 27 simulator.
 PopoverPlacement placePopover({
@@ -196,7 +202,9 @@ PopoverPlacement placePopover({
   required Size screen,
   EdgeInsets padding = EdgeInsets.zero,
   TextDirection textDirection = TextDirection.ltr,
+  Set<PopoverArrowDirection> permitted = PopoverArrowDirection.any,
 }) {
+  assert(permitted.isNotEmpty, 'at least one permitted arrow direction');
   const arrow = PopoverTuning.arrowLength;
   const margin = PopoverMotion.margin;
   const clearance = PopoverTuning.arrowCornerClearance;
@@ -220,6 +228,7 @@ PopoverPlacement placePopover({
   PopoverPlacement? best;
   var bestShift = double.infinity;
   for (final edge in candidates) {
+    if (!permitted.contains(edge)) continue;
     final vertical =
         edge == PopoverArrowDirection.down || edge == PopoverArrowDirection.up;
     final double ideal;
@@ -270,9 +279,41 @@ PopoverPlacement placePopover({
     }
   }
   if (best != null) return best;
+  final canDown = permitted.contains(PopoverArrowDirection.down);
+  final canUp = permitted.contains(PopoverArrowDirection.up);
+  if (!canDown && !canUp) {
+    final before = source.left - left;
+    final after = right - source.right;
+    final edge = switch ((
+      permitted.contains(PopoverArrowDirection.right),
+      permitted.contains(PopoverArrowDirection.left),
+    )) {
+      (true, true) =>
+        before >= after
+            ? PopoverArrowDirection.right
+            : PopoverArrowDirection.left,
+      (true, false) => PopoverArrowDirection.right,
+      _ => PopoverArrowDirection.left,
+    };
+    final x = edge == PopoverArrowDirection.right
+        ? math.max(left, source.left - arrow - size.width)
+        : math.min(right - size.width, source.right + arrow);
+    final y = (source.center.dy - size.height / 2)
+        .clamp(top, math.max(top, bottom - size.height))
+        .toDouble();
+    final inset = math.min(clearance, size.height / 2);
+    final center = source.center.dy.clamp(y + inset, y + size.height - inset);
+    return _placement(
+      edge,
+      size,
+      x.clamp(left, math.max(left, right - size.width)),
+      y,
+      center,
+    );
+  }
   final above = source.top - top;
   final below = bottom - source.bottom;
-  final edge = above >= below
+  final edge = canDown && (above >= below || !canUp)
       ? PopoverArrowDirection.down
       : PopoverArrowDirection.up;
   final x = (source.center.dx - size.width / 2)

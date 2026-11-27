@@ -103,6 +103,8 @@ Future<T?> showGlassPopover<T>(
   BuildContext? anchor,
   Rect? anchorRect,
   bool adaptsToSheet = true,
+  Set<PopoverArrowDirection> permittedArrowDirections =
+      PopoverArrowDirection.any,
   GlassPopoverStyle? style,
   String? semanticLabel,
   PresentationLevel level = PresentationLevel.window,
@@ -135,6 +137,7 @@ Future<T?> showGlassPopover<T>(
         builder: (context, motion) => _PopoverView(
           motion: motion,
           source: source,
+          permitted: permittedArrowDirections,
           style: style,
           builder: builder,
         ),
@@ -177,12 +180,14 @@ class _PopoverView extends StatefulWidget {
   const _PopoverView({
     required this.motion,
     required this.source,
+    required this.permitted,
     required this.style,
     required this.builder,
   });
 
   final PopoverMotion motion;
   final Rect source;
+  final Set<PopoverArrowDirection> permitted;
   final GlassPopoverStyle? style;
   final WidgetBuilder builder;
 
@@ -217,6 +222,7 @@ class _PopoverViewState extends State<_PopoverView> {
     );
     return PopoverLayout(
       source: widget.source,
+      permitted: widget.permitted,
       tint: look.backgroundColor,
       scale: _scale,
       opacity: _opacity,
@@ -262,6 +268,7 @@ class PopoverLayout extends MultiChildRenderObjectWidget {
     required this.padding,
     required this.direction,
     required Widget card,
+    this.permitted = PopoverArrowDirection.any,
     Color? tint,
     super.key,
   }) : super(
@@ -296,6 +303,9 @@ class PopoverLayout extends MultiChildRenderObjectWidget {
   /// The direction that orders the sides the popover tries.
   final TextDirection direction;
 
+  /// The sides of its source the popover may sit on.
+  final Set<PopoverArrowDirection> permitted;
+
   @override
   RenderObject createRenderObject(BuildContext context) => _RenderPopover(
     source: source,
@@ -304,6 +314,7 @@ class PopoverLayout extends MultiChildRenderObjectWidget {
     maxWidth: maxWidth,
     padding: padding,
     direction: direction,
+    permitted: permitted,
     following: followsMotion(context),
   );
 
@@ -315,6 +326,7 @@ class PopoverLayout extends MultiChildRenderObjectWidget {
         maxWidth: maxWidth,
         padding: padding,
         direction: direction,
+        permitted: permitted,
       )
       ..following = followsMotion(context);
   }
@@ -412,6 +424,7 @@ class _RenderPopover extends RenderBox
     required this._maxWidth,
     required this._padding,
     required this._direction,
+    required this._permitted,
     required bool following,
   }) : _follow = MotionFollow.render(following: following) {
     _follow.hear([(scale, markNeedsPaint), (opacity, markNeedsPaint)]);
@@ -425,23 +438,27 @@ class _RenderPopover extends RenderBox
   double _maxWidth;
   EdgeInsets _padding;
   TextDirection _direction;
+  Set<PopoverArrowDirection> _permitted;
 
   void update({
     required Rect source,
     required double maxWidth,
     required EdgeInsets padding,
     required TextDirection direction,
+    required Set<PopoverArrowDirection> permitted,
   }) {
     if (source == _source &&
         maxWidth == _maxWidth &&
         padding == _padding &&
-        direction == _direction) {
+        direction == _direction &&
+        setEquals(permitted, _permitted)) {
       return;
     }
     _source = source;
     _maxWidth = maxWidth;
     _padding = padding;
     _direction = direction;
+    _permitted = permitted;
     markNeedsLayout();
   }
 
@@ -511,6 +528,7 @@ class _RenderPopover extends RenderBox
       screen: size,
       padding: _padding,
       textDirection: _direction,
+      permitted: _permitted,
     );
     final bounds = placement.bounds;
     final vertical =

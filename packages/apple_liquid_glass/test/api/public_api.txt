@@ -3971,6 +3971,7 @@ enum PopoverArrowDirection
   up,
   left,
   right,
+  static const Set<PopoverArrowDirection> any
 final class PopoverMotion extends PresentedProgress
   PopoverMotion({double hiddenScale = ..., MotionClock? clock})
   final double hiddenScale
@@ -5144,6 +5145,7 @@ PopoverPlacement placePopover({
   required Size screen,
   EdgeInsets padding = ...,
   TextDirection textDirection = ...,
+  Set<PopoverArrowDirection> permitted = ...,
 })
 Future<void> precacheGlass({bool warmUp = ...})
 SearchBarGeometry searchBarLayout({
@@ -5170,6 +5172,7 @@ Future<GlassAlertAction?> showGlassActionSheet(
   Rect? anchorRect,
   GlassAlertStyle? style,
   Offset? anchorPoint,
+  Set<PopoverArrowDirection> permittedArrowDirections = ...,
   PresentationLevel level = ...,
 })
 Future<GlassAlertAction?> showGlassAlert(
@@ -5188,6 +5191,7 @@ Future<T?> showGlassPopover<T>(
   BuildContext? anchor,
   Rect? anchorRect,
   bool adaptsToSheet = ...,
+  Set<PopoverArrowDirection> permittedArrowDirections = ...,
   GlassPopoverStyle? style,
   String? semanticLabel,
   PresentationLevel level = ...,

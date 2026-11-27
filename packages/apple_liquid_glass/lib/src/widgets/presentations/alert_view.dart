@@ -285,6 +285,7 @@ class _AlertViewState extends State<_AlertView> {
     if (popover != null) {
       return PopoverLayout(
         source: popover,
+        permitted: widget.permitted,
         scale: _scale,
         opacity: _opacity,
         maxWidth: _AlertLook.popoverWidth,

@@ -192,6 +192,37 @@ void main() {
       }
     });
 
+    test('a popover sits only on the sides it is permitted, and falls back '
+        'to a permitted one where none fits', () {
+      PopoverArrowDirection side(
+        Set<PopoverArrowDirection> permitted, {
+        Rect source = const Rect.fromLTWH(180, 400, 80, 44),
+      }) => placePopover(
+        size: const Size(240, 200),
+        source: source,
+        screen: const Size(440, 956),
+        padding: const EdgeInsets.only(top: 62, bottom: 34),
+        permitted: permitted,
+      ).arrowDirection;
+
+      expect(side(PopoverArrowDirection.any), PopoverArrowDirection.down);
+      expect(side(const {PopoverArrowDirection.up}), PopoverArrowDirection.up);
+      expect(
+        side(
+          const {PopoverArrowDirection.left, PopoverArrowDirection.right},
+          source: const Rect.fromLTWH(20, 400, 44, 44),
+        ),
+        PopoverArrowDirection.left,
+      );
+      expect(
+        side(
+          const {PopoverArrowDirection.right},
+          source: const Rect.fromLTWH(12, 400, 44, 44),
+        ),
+        PopoverArrowDirection.right,
+      );
+    });
+
     test('Reduce Motion keeps the size and only fades', () {
       final motion = PopoverMotion();
       MotionTraits.debugPlatformOverride = const MotionTraits(
