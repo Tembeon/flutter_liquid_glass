@@ -281,7 +281,9 @@ final class _ZoneSource<T extends Object> implements SourceView {
 /// that follows focus. An arrow with no zone in its direction (past the
 /// last one, or across the line the arrows move along) asks [onEdge], then
 /// moves focus as Flutter's directional focus does, which may leave the
-/// host. A zone whose interaction adjusts keeps
+/// host. A printable character typed while a zone has the focus, with no
+/// Control, Command or Option held and no `Shortcuts` above the zone
+/// binding the key, goes to [onType]. A zone whose interaction adjusts keeps
 /// the arrows, Home and End for its value
 /// (`AdjustValueIntent.defaultShortcuts`). Space and Enter activate the
 /// focused zone through `ActivateIntent`, and the context menu key and
@@ -330,6 +332,7 @@ class InputZones<T extends Object> extends StatefulWidget {
     this.zoneAt,
     this.feedback,
     this.onEdge,
+    this.onType,
     this.port,
     this.excludeChildSemantics = true,
     this.interactions = const [],
@@ -430,6 +433,12 @@ class InputZones<T extends Object> extends StatefulWidget {
   /// zone; true when the control handled it (a calendar turning its
   /// month), false to let Flutter's directional focus move on.
   final bool Function(T zone, TraversalDirection direction)? onEdge;
+
+  /// Called with the focused zone, a printable `character` typed there and
+  /// the key's time in seconds on the motion clock; true when the control
+  /// handled it (a menu moving the focus to the row the letters start, as
+  /// UIKit's type select).
+  final bool Function(T zone, String character, double time)? onType;
 
   /// Where touches handed on from another region arrive, or null.
   final InputPort? port;

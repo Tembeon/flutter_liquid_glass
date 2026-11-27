@@ -9,7 +9,6 @@ import 'package:apple_liquid_glass/src/widgets/presentations/menu_layer_scroll.d
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_zone_ids.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/semantics.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -43,60 +42,24 @@ class MenuLayerKeys {
   int? _pending;
   int? _lastFocused;
   String _typed = '';
-  Duration? _typedAt;
-
-  // Whether a Shortcuts above the menu binds the key to an intent of the
-  // app's, which then goes first.
-  static bool _bound(
-    FocusNode node,
-    KeyEvent event,
-    HardwareKeyboard keyboard,
-  ) {
-    var bound = false;
-    node.context?.visitAncestorElements((element) {
-      final widget = element.widget;
-      if (widget is Shortcuts &&
-          widget.shortcuts.keys.any(
-            (activator) => activator.accepts(event, keyboard),
-          )) {
-        bound = true;
-      }
-      return !bound;
-    });
-    return bound;
-  }
+  double? _typedAt;
 
   /// A letter typed while the menu has the keyboard moves the focus to the
   /// next enabled row whose title starts with what was typed within the
   /// last second, as UIKit's type select does (`allowsTypeSelect`): one
   /// letter again steps on to the next such row, more letters narrow the
-  /// match from the focused row. A key an app binds with `Shortcuts` keeps
-  /// its intent.
-  KeyEventResult typeSelect(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-      return KeyEventResult.ignored;
-    }
-    final character = event.character;
-    final keyboard = HardwareKeyboard.instance;
-    if (character == null ||
-        character.trim().isEmpty ||
-        keyboard.isControlPressed ||
-        keyboard.isMetaPressed ||
-        keyboard.isAltPressed ||
-        !_layer.current ||
-        _bound(node, event, keyboard)) {
-      return KeyEventResult.ignored;
-    }
-    final at = event.timeStamp;
+  /// match from the focused row. Called by the zones for a printable key
+  /// that no `Shortcuts` binds.
+  bool typeSelect(int zone, String character, double time) {
+    if (!_layer.current) return false;
     final last = _typedAt;
-    final fresh = last == null || at - last > const Duration(seconds: 1);
+    final fresh = last == null || time - last > 1;
     _typed = (fresh ? '' : _typed) + character.toLowerCase();
-    _typedAt = at;
+    _typedAt = time;
     final targets = _layer.motion.cards[_layer.built.top].layout.targets;
     final count = targets.length;
-    if (count == 0) return KeyEventResult.handled;
-    final focused = zones.focusedZone;
-    final from = focused == null ? -1 : ids.targetOf(focused);
+    if (count == 0) return true;
+    final from = ids.targetOf(zone);
     final again = _typed.length > 1 && _typed.split('').toSet().length == 1;
     final prefix = again ? _typed.substring(0, 1) : _typed;
     final start = _typed.length == 1 || again ? from + 1 : math.max(from, 0);
@@ -112,7 +75,7 @@ class MenuLayerKeys {
         break;
       }
     }
-    return KeyEventResult.handled;
+    return true;
   }
 
   /// The top card is now [top]: the focus a key asked for moves onto its

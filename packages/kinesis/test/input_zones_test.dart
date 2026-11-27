@@ -906,6 +906,48 @@ void main() {
       ]);
     });
 
+    testWidgets('a typed letter goes to onType with the focused zone, and a '
+        'key a Shortcuts above binds goes to its intent', (tester) async {
+      final typed = <(String, String)>[];
+      Widget host({Map<ShortcutActivator, Intent> shortcuts = const {}}) =>
+          _app(
+            Shortcuts(
+              shortcuts: shortcuts,
+              child: InputZones<String>(
+                zones: [
+                  for (final item in ToyMotion.items)
+                    InputZone(id: item, interactions: [PressInteraction()]),
+                ],
+                frameOf: motion.frameOf,
+                frames: motion,
+                controller: zones,
+                onType: (zone, character, time) {
+                  typed.add((zone, character));
+                  return true;
+                },
+                child: const SizedBox(width: 200, height: 32),
+              ),
+            ),
+          );
+      await tester.pumpWidget(host());
+      zones.requestFocus('b');
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+      expect(typed, [('b', 'k')]);
+      await tester.pumpWidget(
+        host(
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.keyK): DoNothingIntent(),
+          },
+        ),
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      expect(typed, [('b', 'k')]);
+    });
+
     testWidgets('Enter and Space activate the focused zone, with no haptic', (
       tester,
     ) async {

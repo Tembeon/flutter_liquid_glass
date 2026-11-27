@@ -557,6 +557,7 @@ class InputZones<T extends Object> extends StatefulWidget
     T? Function(Offset)? zoneAt,
     MotionHaptic? Function(T, InteractionEvent)? feedback,
     bool Function(T, TraversalDirection)? onEdge,
+    bool Function(T, String, double)? onType,
     InputPort? port,
     bool excludeChildSemantics = ...,
     List<Interaction> interactions = ...,
@@ -576,6 +577,7 @@ class InputZones<T extends Object> extends StatefulWidget
   final MotionHaptic? Function(InteractionEvent)? hostFeedback
   final List<Interaction> interactions
   final bool Function(T, TraversalDirection)? onEdge
+  final bool Function(T, String, double)? onType
   final InputPort? port
   final bool slides
   final bool Function(Offset)? slidesFrom
