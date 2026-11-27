@@ -518,8 +518,17 @@ class GlassPageBackground extends InheritedWidget {
 /// out. While the on-screen keyboard shows, the content ends at its top
 /// ([resizeToAvoidBottomInset]).
 ///
+/// A bar of the app's own, any [PreferredSizeWidget] such as a
+/// `PreferredSize`, takes either slot as UIKit's `safeAreaBar` and
+/// `UIScrollEdgeElementContainerInteraction` take a custom bar: the content
+/// keeps clear of its preferred height, and the edge effect lies under it,
+/// soft by default as UIKit's automatic effect is under a bar that is
+/// neither a navigation bar nor a floating one.
+///
 /// Fidelity. The scroll to the start on a status bar tap is Flutter's, not
-/// measured on iOS 27.
+/// measured on iOS 27. Under a custom bar the hard band reaches the bar's
+/// far edge; UIKit's reaches max(h, 62) at the top and h at the bottom for
+/// a bar h tall (bars passport, iOS 27.2 simulator), not checked here.
 class GlassPageScaffold extends StatefulWidget {
   /// Creates a page.
   const GlassPageScaffold({
