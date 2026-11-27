@@ -173,6 +173,7 @@ class _SheetPageState extends State<SheetPage> {
   var _undimmed = true;
   var _dismissible = true;
   var _tinted = false;
+  var _corners = false;
 
   Future<void> _show() => showGlassSheet<void>(
     context,
@@ -186,15 +187,16 @@ class _SheetPageState extends State<SheetPage> {
         : null,
     showDragHandle: _handle,
     isDismissible: _dismissible,
-    style: _tinted
-        ? const GlassSheetStyle(
-            backgroundColor: GlassDynamicColor.withBrightness(
+    style: GlassSheetStyle(
+      backgroundColor: _tinted
+          ? const GlassDynamicColor.withBrightness(
               color: Color(0xFFE8F6EF),
               darkColor: Color(0xFF12342A),
-            ),
-            dragHandleColor: Color(0xFF1FB58F),
-          )
-        : null,
+            )
+          : null,
+      dragHandleColor: _tinted ? const Color(0xFF1FB58F) : null,
+      cornerRadius: _corners ? 20 : null,
+    ),
     builder: (context) =>
         _detents == _Detents.fitted ? const _Note() : const _Plants(),
   );
@@ -237,6 +239,11 @@ class _SheetPageState extends State<SheetPage> {
         'A swipe down dismisses it',
         value: _dismissible,
         onChanged: (on) => setState(() => _dismissible = on),
+      ),
+      ToggleKnob(
+        'Corners of 20 points',
+        value: _corners,
+        onChanged: (on) => setState(() => _corners = on),
       ),
       ToggleKnob(
         'Its own colors',

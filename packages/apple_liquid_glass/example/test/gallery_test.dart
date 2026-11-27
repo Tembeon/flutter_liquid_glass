@@ -315,9 +315,12 @@ void galleryTests({bool onDevice = false}) {
     await flip('Large title');
     await flip('Subtitle under the inline title');
     await flip('Edit beside the back button');
+    await flip('A menu from the title');
+    await flip('Filter on, with a badge');
     await choose('Soft');
     await press(find.text('Open the journal'));
     expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
     expect(find.text('14 entries since spring'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await leave(find.text('Edit'));
@@ -364,6 +367,30 @@ void galleryTests({bool onDevice = false}) {
     await _open(tester, 'Date picker');
     await choose('Wheels');
     expect(find.byType(GlassTimePicker), findsOneWidget);
+    await choose('Timer');
+    expect(find.byType(GlassCountDownPicker), findsOneWidget);
+    await choose('Month');
+    expect(find.byType(GlassMonthYearPicker), findsOneWidget);
+    await _back(tester);
+
+    await _open(tester, 'Button');
+    await choose('Large');
+    await flip('Loading');
+    expect(find.byType(GlassActivityIndicator), findsWidgets);
+    await _bring(tester, find.text('A pop-up button'), page);
+    await tester.tap(find.text('Kitchen').first);
+    await _frames(tester, 90);
+    expect(find.text('Balcony'), findsOneWidget);
+    await tester.tap(find.text('Balcony'));
+    await _frames(tester, 90);
+    expect(find.text('Balcony'), findsNWidgets(2));
+    await _back(tester);
+
+    await _open(tester, 'Sheet');
+    await flip('Corners of 20 points');
+    await press(find.text('Open the sheet'));
+    expect(tester.takeException(), isNull);
+    await leave(find.byType(ComponentPage));
     await _back(tester);
 
     for (final (component, knobs) in const [

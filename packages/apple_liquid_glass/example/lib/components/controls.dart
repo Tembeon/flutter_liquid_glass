@@ -26,6 +26,8 @@ enum Brand {
 
 enum _ButtonKind { glass, prominent, clear, tinted }
 
+enum _ButtonSize { standard, small, medium, large }
+
 class ButtonPage extends StatefulWidget {
   const ButtonPage({super.key});
 
@@ -37,7 +39,10 @@ class _ButtonPageState extends State<ButtonPage> {
   var _kind = _ButtonKind.glass;
   var _icon = false;
   var _enabled = true;
+  var _size = _ButtonSize.standard;
+  var _loading = false;
   var _sort = 'Thirst';
+  var _room = 'Kitchen';
   final _lit = <int>{1};
 
   Widget _sortButton() => GlassMenuAnchor(
@@ -68,6 +73,18 @@ class _ButtonPageState extends State<ButtonPage> {
     final child = _icon
         ? const Icon(CupertinoIcons.drop_fill)
         : const Text('Water now');
+    final style = switch (_size) {
+      _ButtonSize.standard => null,
+      _ButtonSize.small => GlassButton.styleFrom(
+        controlSize: GlassControlSize.small,
+      ),
+      _ButtonSize.medium => GlassButton.styleFrom(
+        controlSize: GlassControlSize.medium,
+      ),
+      _ButtonSize.large => GlassButton.styleFrom(
+        controlSize: GlassControlSize.large,
+      ),
+    };
     return ComponentPage(
       name: 'GlassButton',
       summary:
@@ -78,21 +95,29 @@ class _ButtonPageState extends State<ButtonPage> {
         _ButtonKind.glass => GlassButton(
           onPressed: onPressed,
           semanticLabel: 'Water now',
+          style: style,
+          loading: _loading,
           child: child,
         ),
         _ButtonKind.prominent => GlassButton.prominent(
           onPressed: onPressed,
           semanticLabel: 'Water now',
+          style: style,
+          loading: _loading,
           child: child,
         ),
         _ButtonKind.clear => GlassButton.clear(
           onPressed: onPressed,
           semanticLabel: 'Water now',
+          style: style,
+          loading: _loading,
           child: child,
         ),
         _ButtonKind.tinted => GlassButton.prominentClear(
           onPressed: onPressed,
           semanticLabel: 'Water now',
+          style: style,
+          loading: _loading,
           child: child,
         ),
       },
@@ -112,6 +137,22 @@ class _ButtonPageState extends State<ButtonPage> {
           'Icon',
           value: _icon,
           onChanged: (on) => setState(() => _icon = on),
+        ),
+        ChoiceKnob<_ButtonSize>(
+          'Size',
+          value: _size,
+          options: const {
+            _ButtonSize.standard: 'Glass',
+            _ButtonSize.small: 'Small',
+            _ButtonSize.medium: 'Medium',
+            _ButtonSize.large: 'Large',
+          },
+          onChanged: (size) => setState(() => _size = size),
+        ),
+        ToggleKnob(
+          'Loading',
+          value: _loading,
+          onChanged: (on) => setState(() => _loading = on),
         ),
         ToggleKnob(
           'Enabled',
@@ -159,6 +200,90 @@ class _ButtonPageState extends State<ButtonPage> {
                         child: const Icon(CupertinoIcons.plus),
                       ),
                 ),
+              ],
+            ),
+          ),
+        ),
+        Idea(
+          'Without glass',
+          "UIKit's gray, tinted and filled buttons for content: a plain "
+              'fill that dims under a press, in the size and the loading '
+              'state the knobs set.',
+          child: Stage(
+            height: 96,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: GlassButton.gray(
+                      onPressed: onPressed,
+                      style: style,
+                      loading: _loading,
+                      child: const Text('Gray'),
+                    ),
+                  ),
+                ),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: GlassButton.tinted(
+                      onPressed: onPressed,
+                      style: style,
+                      loading: _loading,
+                      child: const Text('Tinted'),
+                    ),
+                  ),
+                ),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: GlassButton.filled(
+                      onPressed: onPressed,
+                      style: style,
+                      loading: _loading,
+                      child: const Text('Filled'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Idea(
+          'A pop-up button',
+          'GlassPopUpButton shows the value chosen and its chevrons, and '
+              'opens a menu of the others with it checked.',
+          child: Stage(
+            backdrop: Wallpaper.coast,
+            height: 96,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                for (final gray in const [false, true])
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: GlassPopUpButton<String>(
+                        value: _room,
+                        items: const [
+                          GlassPopUpItem(value: 'Kitchen', title: 'Kitchen'),
+                          GlassPopUpItem(value: 'Bedroom', title: 'Bedroom'),
+                          GlassPopUpItem(value: 'Balcony', title: 'Balcony'),
+                        ],
+                        builder: gray
+                            ? (context, onPressed, label) => GlassButton.gray(
+                                onPressed: onPressed,
+                                child: label,
+                              )
+                            : null,
+                        onChanged: _enabled
+                            ? (room) => setState(() => _room = room)
+                            : null,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -711,8 +836,8 @@ class _PageControlPageState extends State<PageControlPage> {
           'Pages',
           value: _count,
           min: 1,
-          max: 6,
-          ticks: 6,
+          max: 12,
+          ticks: 12,
           onChanged: (count) => setState(() {
             _count = count;
             _page = _page.clamp(0, count.round() - 1);
@@ -755,8 +880,13 @@ class _PageControlPageState extends State<PageControlPage> {
                     controller: _pages,
                     onPageChanged: (page) => setState(() => _page = page),
                     children: [
-                      for (final wallpaper in Wallpaper.values.take(count))
-                        Image(image: wallpaper.image, fit: BoxFit.cover),
+                      for (var i = 0; i < count; i++)
+                        Image(
+                          image: Wallpaper
+                              .values[i % Wallpaper.values.length]
+                              .image,
+                          fit: BoxFit.cover,
+                        ),
                     ],
                   ),
                   Align(

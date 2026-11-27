@@ -33,6 +33,9 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
   var _back = GlassBackButtonDisplayMode.title;
   var _beside = false;
   var _edge = GlassScrollEdgeEffect.automatic;
+  var _titleMenu = false;
+  var _largeSubtitle = false;
+  var _filtering = false;
 
   @override
   Widget build(BuildContext context) => ComponentPage(
@@ -55,6 +58,9 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
           back: _back,
           beside: _beside,
           edge: _edge,
+          titleMenu: _titleMenu,
+          largeSubtitle: _largeSubtitle,
+          filtering: _filtering,
         ),
       ),
       child: const Text('Open the journal'),
@@ -69,6 +75,21 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
         'Subtitle under the inline title',
         value: _subtitle,
         onChanged: (on) => setState(() => _subtitle = on),
+      ),
+      ToggleKnob(
+        'Subtitle under the large title',
+        value: _largeSubtitle,
+        onChanged: (on) => setState(() => _largeSubtitle = on),
+      ),
+      ToggleKnob(
+        'A menu from the title',
+        value: _titleMenu,
+        onChanged: (on) => setState(() => _titleMenu = on),
+      ),
+      ToggleKnob(
+        'Filter on, with a badge',
+        value: _filtering,
+        onChanged: (on) => setState(() => _filtering = on),
       ),
       ToggleKnob(
         'Search field under the title',
@@ -153,6 +174,9 @@ class _Journal extends StatefulWidget {
     required this.back,
     required this.beside,
     required this.edge,
+    required this.titleMenu,
+    required this.largeSubtitle,
+    required this.filtering,
   });
 
   final bool large;
@@ -163,6 +187,9 @@ class _Journal extends StatefulWidget {
   final GlassBackButtonDisplayMode back;
   final bool beside;
   final GlassScrollEdgeEffect edge;
+  final bool titleMenu;
+  final bool largeSubtitle;
+  final bool filtering;
 
   @override
   State<_Journal> createState() => _JournalState();
@@ -216,6 +243,8 @@ class _JournalState extends State<_Journal> {
             GlassBarItem(
               icon: const Icon(CupertinoIcons.line_horizontal_3_decrease),
               semanticLabel: 'Filter',
+              selected: widget.filtering,
+              badge: widget.filtering ? const GlassBadge.count(2) : null,
               onPressed: () {},
             ),
             _selectIcon(),
@@ -293,6 +322,23 @@ class _JournalState extends State<_Journal> {
       largeTitle: widget.large ? const Text('Journal') : null,
       subtitle: widget.subtitle
           ? Text('${_entries.length} entries since spring')
+          : null,
+      largeSubtitle: widget.large && widget.largeSubtitle
+          ? const Text('Kept since spring')
+          : null,
+      titleMenu: widget.titleMenu
+          ? [
+              GlassMenuItem(
+                title: 'Rename',
+                icon: const Icon(CupertinoIcons.pencil),
+                onPressed: () {},
+              ),
+              GlassMenuItem(
+                title: 'Export',
+                icon: const Icon(CupertinoIcons.share),
+                onPressed: () {},
+              ),
+            ]
           : null,
       previousPageTitle: 'Bar',
       backButtonDisplayMode: widget.back,

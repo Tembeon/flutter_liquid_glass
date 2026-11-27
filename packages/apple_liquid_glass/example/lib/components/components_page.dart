@@ -42,7 +42,7 @@ class ComponentsPage extends StatelessWidget {
           CupertinoIcons.capsule_fill,
           GlassColors.systemBlue,
           'Button',
-          'GlassButton',
+          'GlassButton, GlassPopUpButton',
           ButtonPage.new,
         ),
         (
@@ -129,7 +129,8 @@ class ComponentsPage extends StatelessWidget {
           CupertinoIcons.calendar,
           GlassColors.systemRed,
           'Date picker',
-          'GlassCompactDatePicker, GlassDatePicker, GlassTimePicker',
+          'GlassCompactDatePicker, GlassDatePicker, GlassTimePicker, '
+              'GlassCountDownPicker, GlassMonthYearPicker',
           DatePickerPage.new,
         ),
         (

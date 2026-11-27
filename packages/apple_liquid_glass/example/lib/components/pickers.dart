@@ -6,7 +6,7 @@ import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
-enum _DateForm { compact, inline, wheels }
+enum _DateForm { compact, inline, wheels, timer, month }
 
 class DatePickerPage extends StatefulWidget {
   const DatePickerPage({super.key});
@@ -22,6 +22,7 @@ class _DatePickerPageState extends State<DatePickerPage> {
   var _fives = false;
   var _brand = Brand.system;
   var _repot = DateTime(2026, 8, 3);
+  var _timer = const Duration(hours: 1, minutes: 30);
   var _alarm = DateTime(2026, 1, 1, 7, 15);
 
   @override
@@ -40,6 +41,7 @@ class _DatePickerPageState extends State<DatePickerPage> {
         _DateForm.compact => 120,
         _DateForm.inline => 360,
         _DateForm.wheels => 240,
+        _DateForm.timer || _DateForm.month => 256,
       },
       stage: FittedBox(
         fit: BoxFit.scaleDown,
@@ -52,6 +54,17 @@ class _DatePickerPageState extends State<DatePickerPage> {
           _DateForm.wheels => GlassTimePicker(
             value: _date,
             minuteInterval: _fives ? 5 : 1,
+            style: style,
+            onChanged: changed,
+          ),
+          _DateForm.timer => GlassCountDownPicker(
+            value: _timer,
+            minuteInterval: _fives ? 5 : 1,
+            style: style,
+            onChanged: (timer) => setState(() => _timer = timer),
+          ),
+          _DateForm.month => GlassMonthYearPicker(
+            value: _date,
             style: style,
             onChanged: changed,
           ),
@@ -72,6 +85,8 @@ class _DatePickerPageState extends State<DatePickerPage> {
             _DateForm.compact: 'Compact',
             _DateForm.inline: 'Calendar',
             _DateForm.wheels: 'Wheels',
+            _DateForm.timer: 'Timer',
+            _DateForm.month: 'Month',
           },
           onChanged: (form) => setState(() => _form = form),
         ),
