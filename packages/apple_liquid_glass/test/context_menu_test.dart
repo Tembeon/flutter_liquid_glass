@@ -67,6 +67,48 @@ Future<void> _frames(WidgetTester tester, int count) async {
 }
 
 void main() {
+  testWidgets('a list row under the menu carries its actions and the long '
+      'press that opens it on the node a screen reader reads', (tester) async {
+    _phone(tester);
+    final semantics = tester.ensureSemantics();
+    final log = <String>[];
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFF000000),
+        builder: (context, _) => GlassScope(
+          renderer: const FlatGlassRenderer(),
+          child: Center(
+            child: GlassContextMenu(
+              menuChildren: [
+                GlassMenuItem(
+                  title: 'Water',
+                  onPressed: () => log.add('Water'),
+                ),
+              ],
+              child: GlassListSection(
+                children: [
+                  GlassListRow(title: const Text('Fern'), onPressed: () {}),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final node = tester.getSemantics(find.text('Fern'));
+    final data = node.getSemanticsData();
+    final ids = data.customSemanticsActionIds ?? [];
+    expect(
+      [for (final id in ids) CustomSemanticsAction.getAction(id)!.label],
+      ['Water'],
+    );
+    expect(data.hasAction(SemanticsAction.longPress), isTrue);
+    node.owner!.performAction(node.id, SemanticsAction.customAction, ids.first);
+    await tester.pump();
+    expect(log, ['Water']);
+    semantics.dispose();
+  });
+
   testWidgets("screen readers find the menu's items on the held widget as "
       'custom actions that run them without opening the menu', (
     tester,

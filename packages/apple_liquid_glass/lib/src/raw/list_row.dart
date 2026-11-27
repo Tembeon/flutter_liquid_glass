@@ -135,6 +135,15 @@ class RawGlassListRow extends StatefulWidget {
   /// Whether the row takes focus when it first appears.
   final bool autofocus;
 
+  /// Offers the rows below a held menu's items as custom [actions] and the
+  /// [onLongPress] that opens it, for each row to carry on its own node.
+  @internal
+  static Widget heldMenu({
+    required Map<CustomSemanticsAction, VoidCallback>? actions,
+    required VoidCallback? onLongPress,
+    required Widget child,
+  }) => _HeldMenu(actions: actions, onLongPress: onLongPress, child: child);
+
   @override
   State<RawGlassListRow> createState() => _RawGlassListRowState();
 }
@@ -206,12 +215,16 @@ class _RawGlassListRowState extends State<RawGlassListRow>
           ),
         );
     final selected = widget.selected ? true : null;
+    final menu = _HeldMenu.maybeOf(context);
+    final longPress = widget.onLongPress == null ? menu?.onLongPress : null;
     final row = Semantics(
       container: true,
       child: widget.onPressed == null && widget.onLongPress == null
           ? Semantics(
               button: false,
               selected: selected,
+              customSemanticsActions: menu?.actions,
+              onLongPress: longPress,
               child: look(context, {
                 if (!widget.enabled) WidgetState.disabled,
               }),
@@ -225,7 +238,10 @@ class _RawGlassListRowState extends State<RawGlassListRow>
               semantics: SemanticsProperties(
                 button: widget.onPressed != null,
                 selected: selected,
-                onLongPress: enabled ? widget.onLongPress : null,
+                onLongPress: enabled
+                    ? widget.onLongPress ?? menu?.onLongPress
+                    : null,
+                customSemanticsActions: enabled ? menu?.actions : null,
               ),
               child: withStates(look),
             ),
@@ -311,4 +327,27 @@ class _InfoButtonState extends State<_InfoButton>
       ),
     ),
   );
+}
+
+// What a held menu around a row offers screen readers: its items as custom
+// actions and the long press that opens it. A row that is a node of its own
+// carries them on that node, where a screen reader reads them, rather than
+// on the menu's node around it.
+class _HeldMenu extends InheritedWidget {
+  const _HeldMenu({
+    required this.actions,
+    required this.onLongPress,
+    required super.child,
+  });
+
+  final Map<CustomSemanticsAction, VoidCallback>? actions;
+  final VoidCallback? onLongPress;
+
+  static _HeldMenu? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_HeldMenu>();
+
+  @override
+  bool updateShouldNotify(_HeldMenu oldWidget) =>
+      !mapEquals(actions, oldWidget.actions) ||
+      onLongPress != oldWidget.onLongPress;
 }

@@ -36,10 +36,9 @@ part of 'menu_anchor.dart';
 /// `accessibilityCustomActions` give them: each enabled, shown
 /// [GlassMenuItem] with an action, through sections, runs it without
 /// opening the menu; a submenu's items stay in the menu. They sit on the
-/// menu's node, which [child] merges into when it is not a node of its own;
-/// a child that is, such as a `GlassListRow` with an action, keeps its own
-/// node, and the actions and the long press that opens the menu stay on
-/// the node around it (a known gap).
+/// menu's node, which [child] merges into when it is not a node of its own,
+/// and a `GlassListRow` under the menu carries them, and the long press that
+/// opens the menu, on its own node.
 class GlassContextMenu extends StatefulWidget {
   /// Creates a context menu of [menuChildren] for [child].
   const GlassContextMenu({
@@ -162,6 +161,9 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
 
   @override
   List<GlassMenuEntry> get _entries => widget.menuChildren;
+
+  Map<CustomSemanticsAction, VoidCallback> get _actions =>
+      _customActions(_entries);
 
   static Map<CustomSemanticsAction, VoidCallback> _customActions(
     List<GlassMenuEntry> entries,
@@ -432,7 +434,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
         focusNode: _claimFocus,
         semantics: SemanticsProperties(
           onLongPress: enabled ? _openFromCode : null,
-          customSemanticsActions: enabled ? _customActions(_entries) : null,
+          customSemanticsActions: enabled ? _actions : null,
         ),
         child: MotionSourceBox(
           source: _compactAt == null ? _source : _unheld,
@@ -449,7 +451,11 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
                 states: _shownStates,
                 shape: const LiquidRoundedRectangle(radius: 0),
                 wash: true,
-                child: widget.child,
+                child: RawGlassListRow.heldMenu(
+                  actions: enabled ? _actions : null,
+                  onLongPress: enabled ? _openFromCode : null,
+                  child: widget.child,
+                ),
               ),
             ),
           ),

@@ -4324,6 +4324,11 @@ class RawGlassListRow extends StatefulWidget
   final Widget Function(BuildContext, GlassListRowDetails) builder
   final bool enabled
   final FocusNode? focusNode
+  @internal static Widget heldMenu({
+    required Map<CustomSemanticsAction, void Function()>? actions,
+    required void Function()? onLongPress,
+    required Widget child,
+  })
   final bool highlighted
   final Widget Function(BuildContext, GlassListRowDetails)? infoBuilder
   final double infoCenterInset
