@@ -485,6 +485,10 @@ void galleryTests({bool onDevice = false}) {
     await tester.tap(find.text('Open the sheet'));
     await _frames(tester, 90);
     expect(find.text('Plants'), findsOneWidget);
+    await tester.tap(find.text('Open the sheet'));
+    await _frames(tester, 90);
+    expect(tester.takeException(), isNull);
+    expect(find.text('Plants'), findsOneWidget);
     final plants = tester.getTopLeft(find.text('Plants'));
     await tester.tap(find.text('Raise it from here'));
     await _frames(tester, 90);

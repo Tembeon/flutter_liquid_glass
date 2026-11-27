@@ -192,6 +192,30 @@ void main() {
     }
   });
 
+  testWidgets('a row with a symbol moves its separator when its section '
+      'changes layout', (tester) async {
+    Widget section(GlassListLayout layout) => _app(
+      GlassListSection(
+        layout: layout,
+        children: const [
+          GlassListRow(leading: Icon(IconData(0xe000)), title: Text('One')),
+          GlassListRow(title: Text('Two')),
+        ],
+      ),
+    );
+    PaintPattern separatorFrom(double left) => paints
+      ..something(
+        (method, arguments) =>
+            method == #drawRect &&
+            (arguments[0] as Rect).height == 1 &&
+            (arguments[0] as Rect).left == left,
+      );
+    await tester.pumpWidget(section(GlassListLayout.insetGrouped));
+    expect(find.byType(GlassListRow).first, separatorFrom(60));
+    await tester.pumpWidget(section(GlassListLayout.grouped));
+    expect(find.byType(GlassListRow).first, separatorFrom(56));
+  });
+
   testWidgets('a plain section stands on systemBackground, its header 22 '
       'below the rows above and 28 tall, the last row separated but before '
       'a footer', (tester) async {

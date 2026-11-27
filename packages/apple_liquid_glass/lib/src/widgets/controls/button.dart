@@ -168,11 +168,14 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
   );
 
   /// The style between this one and [other] at [t]; the builder, and a
-  /// shape that does not lerp into the other, switch at the middle.
+  /// shape that does not lerp into the other or lerps with none, switch at
+  /// the middle.
   @override
   GlassButtonStyle lerp(GlassButtonStyle other, double t) {
     if (identical(this, other)) return this;
-    final shape = ShapeBorder.lerp(this.shape, other.shape, t);
+    final shape = this.shape == null || other.shape == null
+        ? null
+        : ShapeBorder.lerp(this.shape, other.shape, t);
     return _with(
       backgroundColor: WidgetStateProperty.lerp<Color?>(
         backgroundColor,

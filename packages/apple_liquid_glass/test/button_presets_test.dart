@@ -1,7 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/raw.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Widget _app(Widget child, {Brightness brightness = Brightness.light}) =>
@@ -145,6 +143,24 @@ void main() {
       tester.widget<RawGlassButton>(find.byType(RawGlassButton)).shape,
       LiquidRoundedSuperellipse.capsule,
     );
+  });
+
+  test('a style with a shape lerps into one without at the middle, and '
+      'compares and merges by its shape', () {
+    const shape = LiquidRoundedSuperellipse(radius: 8);
+    final shaped = GlassButton.styleFrom(shape: shape);
+    final none = GlassButton.styleFrom();
+    expect(shaped.lerp(none, 0.1).shape, shape);
+    expect(shaped.lerp(none, 0.9).shape, isNull);
+    expect(none.lerp(shaped, 0.6).shape, shape);
+    const other = LiquidRoundedSuperellipse(radius: 16);
+    expect(
+      shaped.lerp(GlassButton.styleFrom(shape: other), 0.5).shape,
+      const LiquidRoundedSuperellipse(radius: 12),
+    );
+    expect(shaped, GlassButton.styleFrom(shape: shape));
+    expect(shaped, isNot(none));
+    expect(none.merge(shaped).shape, shape);
   });
 
   testWidgets('a disabled gray, tinted or filled button draws '

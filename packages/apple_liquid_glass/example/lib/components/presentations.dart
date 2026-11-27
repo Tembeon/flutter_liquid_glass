@@ -184,6 +184,7 @@ class _SheetPageState extends State<SheetPage> {
   }
 
   Future<void> _show() async {
+    if (_open) return;
     setState(() => _open = true);
     await _present();
     if (mounted) setState(() => _open = false);

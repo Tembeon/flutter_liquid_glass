@@ -34,9 +34,10 @@ part of 'list.dart';
 /// accessibility text sizes, as UIKit's value cell stacks them; a [leading]
 /// symbol takes a 24 point slot where the text would start and moves the text
 /// and the separator 40 points further in; a leading image wider than the
-/// slot widens it and moves the text and separator along. A [trailing] control and the chevron end 20 points from the
-/// card's edge, a 19 x 17.33 checkmark 22.5 and a 25.67 info button 19.17,
-/// centered in the row as UIKit centers an accessory view.
+/// slot widens it and moves the text and separator along. A [trailing]
+/// control and the chevron end 20 points from the card's edge, a 19 x 17.33
+/// checkmark 22.5 and a 25.67 info button 19.17, centered in the row as UIKit
+/// centers an accessory view.
 /// A single-line row is 53 points tall, and each line of
 /// text is as tall as UIKit makes a label: its line height rounded up to
 /// the device pixel. The text styles of [GlassListStyle] and its
@@ -174,22 +175,20 @@ class GlassListRow extends StatefulWidget {
 }
 
 class _GlassListRowState extends State<GlassListRow> {
-  final _textStart = ValueNotifier<double>(GlassListSection.contentInset);
-  double _inset = GlassListSection.contentInset;
+  // The width of the leading slot, which moves the separator's start.
+  final _leadingWidth = ValueNotifier<double>(_Metrics.leadingWidth);
 
   @override
   void dispose() {
-    _textStart.dispose();
+    _leadingWidth.dispose();
     super.dispose();
   }
 
-  void _measureLeading(double t, Size size) =>
-      _textStart.value = _inset + size.width + _Metrics.leadingGap;
+  void _measureLeading(double t, Size size) => _leadingWidth.value = size.width;
 
   @override
   Widget build(BuildContext context) {
     final place = _RowPlace.maybeOf(context);
-    _inset = place?.layout.contentInset ?? GlassListSection.contentInset;
     final look = (widget.style ?? const GlassListStyle()).merge(
       place?.look ?? _sectionLook(context, null),
     );
@@ -289,6 +288,7 @@ class _GlassListRowState extends State<GlassListRow> {
           .merge(look.subtitleTextStyle)
           .copyWith(color: secondary),
     );
+    final inset = place?.layout.contentInset ?? GlassListSection.contentInset;
     final leading = widget.leading;
     final subtitle = widget.subtitle;
     final detail = widget.detail;
@@ -358,12 +358,12 @@ class _GlassListRowState extends State<GlassListRow> {
       ),
       child: Padding(
         padding: EdgeInsetsDirectional.only(
-          start: _inset,
+          start: inset,
           end: switch (widget.accessory) {
             GlassListAccessory.checkmark => _Metrics.checkmarkInset,
             GlassListAccessory.detailButton => _Metrics.infoInset,
             _ when accessory => _Metrics.accessoryInset,
-            _ => _inset,
+            _ => inset,
           },
         ),
         child: Row(
@@ -388,8 +388,8 @@ class _GlassListRowState extends State<GlassListRow> {
     final surface = separated
         ? _RowSeparator(
             color: color(look.separatorColor),
-            inset: _inset,
-            start: leading == null ? null : _textStart,
+            inset: inset,
+            leadingWidth: leading == null ? null : _leadingWidth,
             direction: Directionality.of(context),
             child: row,
           )
