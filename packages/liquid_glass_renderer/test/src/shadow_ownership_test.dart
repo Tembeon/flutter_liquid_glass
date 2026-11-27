@@ -1,32 +1,32 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/glass_shadow.dart';
-import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
+import 'package:liquid_glass_renderer/src/rendering/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
+import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
+import 'package:liquid_glass_renderer/src/widgets/glass_shadow.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
 import 'submitted_scene_binding.dart';
 
 late SubmittedSceneBinding _binding;
 
-const _shadow = BoxShadow(
+const _shadow = LiquidGlassShadow(
   color: Color(0x99000000),
   offset: Offset(0, 8),
   blurRadius: 8,
 );
 
-const _sideShadow = BoxShadow(
+const _sideShadow = LiquidGlassShadow(
   color: Color(0x99000000),
   offset: Offset(8, 0),
   blurRadius: 8,
 );
 
-const _negativeSpreadShadow = BoxShadow(
-  color: Color(0xFF000000),
+const _negativeSpreadShadow = LiquidGlassShadow(
   blurRadius: 16,
   spreadRadius: -8,
 );
@@ -39,17 +39,16 @@ enum _Reveal {
 
 Widget _scene({
   required bool grouped,
-  List<BoxShadow> shadows = const [_shadow],
+  List<LiquidGlassShadow> shadows = const [_shadow],
   bool fake = false,
   bool layerVisible = true,
   bool shapeVisible = true,
   bool reparent = false,
   Key? shapeKey,
 }) {
-  final buildGlass = grouped ? LiquidGlass.grouped : LiquidGlass.new;
-  final shape = buildGlass(
+  final shape = LiquidGlass(
     key: shapeKey,
-    shape: const LiquidRoundedRectangle(borderRadius: 12),
+    shape: const LiquidRoundedRectangle(radius: 12),
     shadows: shadows,
     child: const SizedBox(width: 64, height: 64),
   );
@@ -72,6 +71,7 @@ Widget _scene({
           child: LiquidGlassLayer(
             fake: fake,
             settings: settingsWithoutLighting,
+            defaultAppearance: appearanceWithoutLighting,
             child: groupedGlass,
           ),
         ),
@@ -82,12 +82,12 @@ Widget _scene({
 
 Widget _twoShapeScene({
   required bool fake,
-  required List<BoxShadow> shadows,
+  required List<LiquidGlassShadow> shadows,
   required bool curvedClip,
   GlobalKey? clipKey,
 }) {
   final first = LiquidGlass(
-    shape: const LiquidRoundedRectangle(borderRadius: 12),
+    shape: const LiquidRoundedRectangle(radius: 12),
     shadows: shadows,
     child: const SizedBox(width: 64, height: 64),
   );
@@ -109,6 +109,7 @@ Widget _twoShapeScene({
         child: LiquidGlassLayer(
           fake: fake,
           settings: settingsWithoutLighting,
+          defaultAppearance: appearanceWithoutLighting,
           child: Stack(
             children: [
               Positioned(left: 32, top: 48, child: clipped),
@@ -116,7 +117,7 @@ Widget _twoShapeScene({
                 left: 160,
                 top: 48,
                 child: LiquidGlass(
-                  shape: const LiquidRoundedRectangle(borderRadius: 12),
+                  shape: const LiquidRoundedRectangle(radius: 12),
                   shadows: shadows,
                   child: const SizedBox(width: 64, height: 64),
                 ),
@@ -134,7 +135,7 @@ Widget _retainedMotionScene({
   required ValueListenable<Offset> offset,
 }) {
   Widget shape() => const LiquidGlass(
-    shape: LiquidRoundedRectangle(borderRadius: 12),
+    shape: LiquidRoundedRectangle(radius: 12),
     shadows: [_shadow],
     child: SizedBox(width: 64, height: 64),
   );
@@ -154,6 +155,7 @@ Widget _retainedMotionScene({
         child: LiquidGlassLayer(
           fake: fake,
           settings: settingsWithoutLighting,
+          defaultAppearance: appearanceWithoutLighting,
           child: Stack(
             children: [
               Positioned(
@@ -320,16 +322,17 @@ void main() {
     }
 
     testShadowWidgets(
-      'shadow-only updates reuse ${grouped ? 'grouped' : 'standalone'} matte',
+      'shadow-only updates reuse '
+      '${grouped ? 'grouped' : 'standalone'} geometry',
       (tester) async {
         await _warm(tester, _scene(grouped: grouped, shadows: const []));
         final layer = _layer(tester);
-        final renderer = layer.gpuGeometryRenderer!;
+        final renderer = layer.gpuGeometryRenderer;
         final initialCount = renderer.debugRenderCount;
-        final initialImage = layer.debugGeometryImage;
+        final initialImage = layer.debugPageImage;
         final initialBytes = await _capture(tester);
         var previousBytes = initialBytes;
-        const shadowSpecs = <List<BoxShadow>>[
+        const shadowSpecs = <List<LiquidGlassShadow>>[
           [_shadow],
           [_sideShadow],
           [],
@@ -341,12 +344,15 @@ void main() {
           );
           expect(bytes, isNot(equals(previousBytes)));
           expect(renderer.debugRenderCount, initialCount);
-          expect(identical(layer.debugGeometryImage, initialImage), isTrue);
+          expect(identical(layer.debugPageImage, initialImage), isTrue);
           final geometry = tester.allRenderObjects
               .whereType<RenderLiquidGlassGeometry>()
               .lastWhere((node) => node.geometry != null)
               .geometry!;
-          expect(geometry.shapes.single.shadows, specs);
+          expect(
+            geometry.shapes.single.shadows,
+            castGlassShadows(specs, Size.zero),
+          );
           previousBytes = bytes;
         }
         expect(previousBytes, orderedEquals(initialBytes));
@@ -495,7 +501,7 @@ void main() {
             grouped: false,
             fake: true,
             shadows: [
-              BoxShadow(
+              LiquidGlassShadow(
                 color: const Color(0x99000000),
                 offset: offset,
                 blurRadius: 8,
@@ -509,7 +515,7 @@ void main() {
           _scene(
             grouped: false,
             shadows: [
-              BoxShadow(
+              LiquidGlassShadow(
                 color: const Color(0x99000000),
                 offset: offset,
                 blurRadius: 8,

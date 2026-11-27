@@ -1,16 +1,65 @@
 import 'package:alchemist/alchemist.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
+import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
+import 'package:liquid_glass_renderer/src/rendering/shading.dart';
+import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
 
 void main() {
   group('LiquidGlass', () {
+    testWidgets('settingsOf reads the settings of the nearest layer', (
+      tester,
+    ) async {
+      const settings = LiquidGlassSettings(refractionHeight: 12);
+      late LiquidGlassSettings seen;
+      await tester.pumpWidget(
+        LiquidGlassLayer(
+          settings: settings,
+          child: Builder(
+            builder: (context) {
+              seen = LiquidGlassLayer.settingsOf(context);
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      expect(seen, settings);
+    });
+
+    testWidgets('a shape rebuilds with the default appearance of its layer '
+        'and not with the settings', (tester) async {
+      var builds = 0;
+      debugOnRebuildDirtyWidget = (element, _) {
+        if (element.widget is LiquidGlass) builds++;
+      };
+      addTearDown(() => debugOnRebuildDirtyWidget = null);
+      Widget layer({double height = 20, double visibility = 1}) =>
+          LiquidGlassLayer(
+            settings: LiquidGlassSettings(refractionHeight: height),
+            defaultAppearance: LiquidGlassAppearance(
+              colorModel: const LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+              visibility: visibility,
+            ),
+            child: const LiquidGlass(
+              shape: LiquidOval(),
+              child: SizedBox.square(dimension: 80),
+            ),
+          );
+      await tester.pumpWidget(layer());
+      builds = 0;
+      await tester.pumpWidget(layer(height: 10));
+      expect(builds, 0);
+      await tester.pumpWidget(layer(height: 10, visibility: 0.5));
+      expect(builds, 1);
+    });
+
     testWidgets('fake layer retains its painted subtree', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -63,25 +112,6 @@ void main() {
       },
     );
 
-    testWidgets(
-      'withOwnLayer does not wrap a blend group',
-      (tester) async {
-        await tester.pumpWidget(
-          const MaterialApp(
-            home: LiquidGlass.withOwnLayer(
-              shape: LiquidOval(),
-              child: SizedBox.square(dimension: 80),
-            ),
-          ),
-        );
-        await tester.pump();
-        await tester.pump();
-
-        expect(find.byType(LiquidGlassLayer), findsOneWidget);
-        expect(find.byType(LiquidGlassBlendGroup), findsNothing);
-      },
-    );
-
     testWidgets('gives nested glass an ordered material pass', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -102,40 +132,19 @@ void main() {
       expect(find.byType(LiquidGlassLayer), findsNWidgets(2));
     });
 
-    testWidgets('auto creates a layer when nested glass blocks reuse', (
-      tester,
-    ) async {
+    testWidgets('a layer of its own stays valid inside a body', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: LiquidGlassLayer(
             fake: true,
             child: LiquidGlass(
               shape: LiquidOval(),
-              child: LiquidGlass.auto(
+              child: LiquidGlassLayer(
                 fake: true,
-                shape: LiquidOval(),
-                child: SizedBox.square(dimension: 40),
-              ),
-            ),
-          ),
-        ),
-      );
-
-      expect(tester.takeException(), isNull);
-      expect(find.byType(LiquidGlassLayer), findsNWidgets(2));
-    });
-
-    testWidgets('withOwnLayer remains valid when nested', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: LiquidGlassLayer(
-            fake: true,
-            child: LiquidGlass(
-              shape: LiquidOval(),
-              child: LiquidGlass.withOwnLayer(
-                fake: true,
-                shape: LiquidOval(),
-                child: SizedBox.square(dimension: 40),
+                child: LiquidGlass(
+                  shape: LiquidOval(),
+                  child: SizedBox.square(dimension: 40),
+                ),
               ),
             ),
           ),
@@ -170,7 +179,7 @@ void main() {
         final initialScope = tester.widget<LiquidGlassRenderScope>(
           find.byType(LiquidGlassRenderScope),
         );
-        if (initialScope.useFake) {
+        if (initialScope.fake) {
           // Shader-bundle I/O completes on the host event loop rather than the
           // fake clock advanced by pump durations. A warm cache may already
           // have selected the real renderer during pumpWidget.
@@ -185,7 +194,7 @@ void main() {
               .widget<LiquidGlassRenderScope>(
                 find.byType(LiquidGlassRenderScope),
               )
-              .useFake,
+              .fake,
           isFalse,
         );
       },
@@ -202,16 +211,28 @@ void main() {
         final initialRenderers =
             FlutterGpuGeometryRenderer.debugActiveRendererCount;
         final initialGeometryTextures =
-            FlutterGpuGeometryRenderer.debugActiveGeometryTextureCount;
+            FlutterGpuGeometryRenderer.debugActiveAtlasCount;
 
         Widget app() => MaterialApp(
           home: AnimatedBuilder(
             animation: Listenable.merge([fake, revision]),
+            // Two shapes, so the layer's geometry is an atlas: one shape
+            // holds no texture.
             builder: (_, __) => LiquidGlassLayer(
               fake: fake.value,
-              child: const LiquidGlass(
-                shape: LiquidOval(),
-                child: SizedBox.square(dimension: 100),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LiquidGlass(
+                    shape: LiquidOval(),
+                    child: SizedBox.square(dimension: 100),
+                  ),
+                  SizedBox(width: 16),
+                  LiquidGlass(
+                    shape: LiquidOval(),
+                    child: SizedBox.square(dimension: 100),
+                  ),
+                ],
               ),
             ),
           ),
@@ -227,15 +248,15 @@ void main() {
         final renderObject = tester.allRenderObjects
             .whereType<RenderLiquidGlassLayer>()
             .last;
-        final renderer = renderObject.gpuGeometryRenderer!;
-        final renderShader = renderObject.renderShader;
+        final renderer = renderObject.gpuGeometryRenderer;
+        final renderShader = renderObject.debugBackdropShader;
         final renderCount = renderer.debugRenderCount;
         expect(
           FlutterGpuGeometryRenderer.debugActiveRendererCount,
           initialRenderers + 1,
         );
         expect(
-          FlutterGpuGeometryRenderer.debugActiveGeometryTextureCount,
+          FlutterGpuGeometryRenderer.debugActiveAtlasCount,
           initialGeometryTextures + 1,
         );
 
@@ -245,10 +266,10 @@ void main() {
         revision.value++;
         await tester.pump();
         expect(renderer.debugRenderCount, renderCount);
-        expect(renderObject.renderShader, same(renderShader));
+        expect(renderObject.debugBackdropShader, same(renderShader));
         expect(renderShader.debugDisposed, isFalse);
         expect(
-          FlutterGpuGeometryRenderer.debugActiveGeometryTextureCount,
+          FlutterGpuGeometryRenderer.debugActiveAtlasCount,
           initialGeometryTextures + 1,
         );
 
@@ -262,7 +283,7 @@ void main() {
           initialRenderers,
         );
         expect(
-          FlutterGpuGeometryRenderer.debugActiveGeometryTextureCount,
+          FlutterGpuGeometryRenderer.debugActiveAtlasCount,
           initialGeometryTextures,
         );
 
@@ -278,8 +299,8 @@ void main() {
         final replacementRenderObject = tester.allRenderObjects
             .whereType<RenderLiquidGlassLayer>()
             .last;
-        final replacement = replacementRenderObject.gpuGeometryRenderer!;
-        final replacementShader = replacementRenderObject.renderShader;
+        final replacement = replacementRenderObject.gpuGeometryRenderer;
+        final replacementShader = replacementRenderObject.debugBackdropShader;
         expect(replacement, isNot(same(renderer)));
 
         await tester.pumpWidget(const SizedBox());
@@ -290,7 +311,7 @@ void main() {
           initialRenderers,
         );
         expect(
-          FlutterGpuGeometryRenderer.debugActiveGeometryTextureCount,
+          FlutterGpuGeometryRenderer.debugActiveAtlasCount,
           initialGeometryTextures,
         );
       },
@@ -298,35 +319,41 @@ void main() {
     );
 
     testWidgets(
-      'uses a low-resolution contributor map only for differing appearances',
+      'writes looks beside the atlas only for differing appearances',
       (tester) async {
         final appearanceMode = ValueNotifier(0);
         addTearDown(appearanceMode.dispose);
-        final initialMaterialTextures =
-            FlutterGpuGeometryRenderer.debugActiveMaterialTextureCount;
 
         Widget app() => MaterialApp(
           home: AnimatedBuilder(
             animation: appearanceMode,
             builder: (_, __) => LiquidGlassLayer(
-              defaultAppearance: const LiquidGlassAppearance(),
+              defaultAppearance: const LiquidGlassAppearance(
+                colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
+                ),
+              ),
               child: LiquidGlassBlendGroup(
                 blend: 24,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const LiquidGlass.grouped(
+                    const LiquidGlass(
                       shape: LiquidOval(),
                       child: SizedBox.square(dimension: 80),
                     ),
-                    LiquidGlass.grouped(
+                    LiquidGlass(
                       appearance: switch (appearanceMode.value) {
                         1 => const LiquidGlassAppearance(
+                          colorModel: LiquidGlassColorModel.direct(
+                            brightness: Brightness.light,
+                          ),
                           tint: Color(0x804080FF),
                         ),
                         2 => const LiquidGlassAppearance(
                           tint: Color(0x804080FF),
                           colorModel: LiquidGlassColorModel.direct(
+                            brightness: Brightness.light,
                             saturation: 1.5,
                           ),
                         ),
@@ -351,14 +378,16 @@ void main() {
 
         RenderLiquidGlassLayer renderObject() =>
             tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().last;
+        // The looks the live draw reads.
+        Object read() =>
+            switch (renderObject().debugBackdropDraw.geometry.source) {
+              AtlasGeometry(:final lease) => lease.looks,
+              ComputedGeometry() => const <Object>[],
+            };
 
         expect(renderObject().debugUsesShapeAppearances, isFalse);
         expect(renderObject().debugUsesTintOnlyAppearance, isFalse);
-        expect(renderObject().debugMaterialImage, isNull);
-        expect(
-          FlutterGpuGeometryRenderer.debugActiveMaterialTextureCount,
-          initialMaterialTextures,
-        );
+        expect(renderObject().debugLookImages, isEmpty);
 
         appearanceMode.value = 1;
         await tester.pump();
@@ -366,21 +395,10 @@ void main() {
 
         expect(renderObject().debugUsesShapeAppearances, isTrue);
         expect(renderObject().debugUsesTintOnlyAppearance, isTrue);
-        final materialImage = renderObject().debugMaterialImage;
-        expect(materialImage, isNotNull);
-        expect(
-          materialImage!.width,
-          lessThanOrEqualTo(
-            (renderObject().debugGeometryMatteBounds.width *
-                    tester.view.devicePixelRatio /
-                    FlutterGpuGeometryRenderer.materialRasterScale)
-                .ceil(),
-          ),
-        );
-        expect(
-          FlutterGpuGeometryRenderer.debugActiveMaterialTextureCount,
-          initialMaterialTextures + 1,
-        );
+        final tint = renderObject().debugLookImages.single;
+        final atlas = renderObject().debugPageImage!;
+        expect((tint.width, tint.height), (atlas.width, atlas.height));
+        expect(read(), [same(tint)]);
 
         appearanceMode.value = 2;
         await tester.pump();
@@ -388,24 +406,16 @@ void main() {
 
         expect(renderObject().debugUsesShapeAppearances, isTrue);
         expect(renderObject().debugUsesTintOnlyAppearance, isFalse);
+        expect(renderObject().debugLookImages, hasLength(3));
+        expect(read(), hasLength(3));
 
         appearanceMode.value = 0;
         await tester.pump();
         await tester.pump();
 
+        // The atlas stays; glass that looks alike reads none of its looks.
         expect(renderObject().debugUsesShapeAppearances, isFalse);
-        expect(renderObject().debugMaterialImage, isNull);
-        expect(
-          FlutterGpuGeometryRenderer.debugActiveMaterialTextureCount,
-          initialMaterialTextures,
-        );
-
-        await tester.pumpWidget(const SizedBox());
-        await tester.pump();
-        expect(
-          FlutterGpuGeometryRenderer.debugActiveMaterialTextureCount,
-          initialMaterialTextures,
-        );
+        expect(read(), isEmpty);
       },
       skip: skipProperGlassTests,
     );
@@ -424,15 +434,18 @@ void main() {
               GoldenTestScenario(
                 name: 'refraction height ${height.toStringAsFixed(0)}px',
                 child: buildWithGridPaper(
-                  LiquidGlass.withOwnLayer(
+                  LiquidGlassLayer(
                     settings: settingsWithoutLighting.copyWith(
                       refractionHeight: height.toDouble(),
                     ),
-                    shape: const LiquidRoundedSuperellipse(
-                      borderRadius: 100,
-                    ),
-                    child: const SizedBox.square(
-                      dimension: 400,
+                    defaultAppearance: appearanceWithoutLighting,
+                    child: const LiquidGlass(
+                      shape: LiquidRoundedSuperellipse(
+                        radius: 100,
+                      ),
+                      child: SizedBox.square(
+                        dimension: 400,
+                      ),
                     ),
                   ),
                 ),
@@ -455,23 +468,26 @@ void main() {
                 GoldenTestScenario(
                   name: 'square shape radius ${radius.toStringAsFixed(0)}px',
                   child: buildWithGridPaper(
-                    LiquidGlass.withOwnLayer(
+                    LiquidGlassLayer(
                       settings: settingsWithoutLighting.copyWith(
                         refractionHeight: 2,
                       ),
-                      appearance: LiquidGlassAppearance(
+                      defaultAppearance: LiquidGlassAppearance(
                         tint: Colors.blue.withValues(alpha: 0.5),
+                        colorModel: unlitDirect,
                       ),
-                      shape: LiquidRoundedSuperellipse(
-                        borderRadius: radius,
-                      ),
-                      child: SizedBox.square(
-                        dimension: 400,
-                        child: Container(
-                          decoration: ShapeDecoration(
-                            color: Colors.red.withValues(alpha: 0.5),
-                            shape: RoundedSuperellipseBorder(
-                              borderRadius: BorderRadius.circular(radius),
+                      child: LiquidGlass(
+                        shape: LiquidRoundedSuperellipse(
+                          radius: radius,
+                        ),
+                        child: SizedBox.square(
+                          dimension: 400,
+                          child: Container(
+                            decoration: ShapeDecoration(
+                              color: Colors.red.withValues(alpha: 0.5),
+                              shape: RoundedSuperellipseBorder(
+                                borderRadius: BorderRadius.circular(radius),
+                              ),
                             ),
                           ),
                         ),
@@ -489,11 +505,12 @@ void main() {
                       ),
                       defaultAppearance: LiquidGlassAppearance(
                         tint: Colors.blue.withValues(alpha: 0.5),
+                        colorModel: unlitDirect,
                       ),
                       child: LiquidGlassBlendGroup(
-                        child: LiquidGlass.grouped(
+                        child: LiquidGlass(
                           shape: LiquidRoundedSuperellipse(
-                            borderRadius: radius,
+                            radius: radius,
                           ),
                           child: SizedBox.fromSize(
                             size: const Size(400, 200),
@@ -539,8 +556,8 @@ void main() {
                         width: 340,
                         height: 220,
                         child: LiquidGlassLayer(
-                          settings: LiquidGlassSettings.ios27RegularLight(
-                            frost: 0,
+                          settings: const LiquidGlassSettings.ios27Regular(
+                            blur: 0,
                           ),
                           child: LiquidGlassBlendGroup(
                             blend: 36,
@@ -549,10 +566,10 @@ void main() {
                                 Positioned(
                                   left: 36,
                                   top: 72,
-                                  child: LiquidGlass.grouped(
+                                  child: LiquidGlass(
                                     shadows: enabled
                                         ? const [
-                                            BoxShadow(
+                                            LiquidGlassShadow(
                                               color: Color(0x08000000),
                                               offset: Offset(0, 4),
                                               blurRadius: 8,
@@ -570,10 +587,10 @@ void main() {
                                 Positioned(
                                   left: 138,
                                   top: 42,
-                                  child: LiquidGlass.grouped(
+                                  child: LiquidGlass(
                                     shadows: enabled
                                         ? const [
-                                            BoxShadow(
+                                            LiquidGlassShadow(
                                               color: Color(0x08000000),
                                               offset: Offset(0, 4),
                                               blurRadius: 8,
@@ -582,7 +599,7 @@ void main() {
                                           ]
                                         : const [],
                                     shape: const LiquidRoundedSuperellipse(
-                                      borderRadius: 38,
+                                      radius: 38,
                                     ),
                                     child: const SizedBox(
                                       width: 150,
@@ -615,7 +632,7 @@ void main() {
                 name: background == Colors.black ? 'black' : 'white',
                 child: ColoredBox(
                   color: background,
-                  child: Center(
+                  child: const Center(
                     child: SizedBox(
                       width: 340,
                       height: 220,
@@ -623,22 +640,25 @@ void main() {
                         // Deliberately exaggerated, isolated material so the
                         // golden proves that the directional bevel follows
                         // the smooth-union SDF instead of a shape bounds box.
-                        settings:
-                            LiquidGlassSettings.ios27RegularLight(
-                              frost: 0,
-                            ).copyWith(
-                              highlight: 0,
-                              contourStrength: 0,
-                              bevelShadowStrength: .12,
-                            ),
-                        child: const LiquidGlassBlendGroup(
+                        settings: LiquidGlassSettings.ios27Regular(
+                          blur: 0,
+                        ),
+                        defaultAppearance: LiquidGlassAppearance(
+                          colorModel: LiquidGlassColorModel.direct(
+                            brightness: Brightness.light,
+                            glintStrength: 0,
+                            contourStrength: 0,
+                            bevelShadowStrength: .12,
+                          ),
+                        ),
+                        child: LiquidGlassBlendGroup(
                           blend: 36,
                           child: Stack(
                             children: [
                               Positioned(
                                 left: 36,
                                 top: 72,
-                                child: LiquidGlass.grouped(
+                                child: LiquidGlass(
                                   shape: LiquidOval(),
                                   child: SizedBox(width: 140, height: 100),
                                 ),
@@ -646,9 +666,9 @@ void main() {
                               Positioned(
                                 left: 138,
                                 top: 42,
-                                child: LiquidGlass.grouped(
+                                child: LiquidGlass(
                                   shape: LiquidRoundedSuperellipse(
-                                    borderRadius: 38,
+                                    radius: 38,
                                   ),
                                   child: SizedBox(width: 160, height: 130),
                                 ),
@@ -678,7 +698,7 @@ void main() {
                 name: 'equal rects, gap ${gap.toStringAsFixed(0)}',
                 child: _blendPairScene(
                   gap: gap,
-                  second: const LiquidRoundedSuperellipse(borderRadius: 18),
+                  second: const LiquidRoundedSuperellipse(radius: 18),
                   secondSize: const Size(120, 80),
                 ),
               ),
@@ -711,6 +731,7 @@ void main() {
                     settings: settingsWithoutLighting,
                     defaultAppearance: LiquidGlassAppearance(
                       tint: Colors.red.withValues(alpha: 0.5),
+                      colorModel: unlitDirect,
                     ),
                     child: LiquidGlassBlendGroup(
                       blend: blend,
@@ -718,19 +739,19 @@ void main() {
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          LiquidGlass.grouped(
+                          LiquidGlass(
                             shape: LiquidOval(),
                             child: SizedBox.square(dimension: 100),
                           ),
-                          LiquidGlass.grouped(
+                          LiquidGlass(
                             shape: LiquidRoundedRectangle(
-                              borderRadius: 20,
+                              radius: 20,
                             ),
                             child: SizedBox.square(dimension: 100),
                           ),
-                          LiquidGlass.grouped(
+                          LiquidGlass(
                             shape: LiquidRoundedSuperellipse(
-                              borderRadius: 20,
+                              radius: 20,
                             ),
                             child: SizedBox.square(dimension: 100),
                           ),
@@ -811,16 +832,21 @@ void main() {
                   ),
                   defaultAppearance: LiquidGlassAppearance(
                     tint: Colors.cyan.withValues(alpha: .25),
+                    colorModel: unlitDirect,
                   ),
                   child: LiquidGlassBlendGroup(
                     child: Center(
-                      child: RawLiquidStretch(
-                        stretchPixels: const Offset(70, 0),
+                      child: Transform(
+                        alignment: Alignment.center,
+                        transform: stretchedBy(
+                          const Offset(70, 0),
+                          const Size(220, 140),
+                        ),
                         child: Transform.rotate(
                           angle: .3,
-                          child: LiquidGlass.grouped(
+                          child: LiquidGlass(
                             shape: const LiquidRoundedRectangle(
-                              borderRadius: 28,
+                              radius: 28,
                             ),
                             child: Container(
                               width: 220,
@@ -874,20 +900,23 @@ void main() {
               child: buildWithGridPaper(
                 Transform.scale(
                   scale: 1.45,
-                  child: LiquidGlass.withOwnLayer(
+                  child: LiquidGlassLayer(
                     settings: settingsWithoutLighting.copyWith(
                       refractionHeight: 18,
                     ),
-                    appearance: LiquidGlassAppearance(
+                    defaultAppearance: LiquidGlassAppearance(
                       tint: Colors.cyan.withValues(alpha: .25),
+                      colorModel: unlitDirect,
                     ),
-                    shape: const LiquidRoundedRectangle(borderRadius: 28),
-                    child: Container(
-                      width: 220,
-                      height: 140,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.red, width: 3),
-                        borderRadius: BorderRadius.circular(28),
+                    child: LiquidGlass(
+                      shape: const LiquidRoundedRectangle(radius: 28),
+                      child: Container(
+                        width: 220,
+                        height: 140,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.red, width: 3),
+                          borderRadius: BorderRadius.circular(28),
+                        ),
                       ),
                     ),
                   ),
@@ -956,25 +985,28 @@ void main() {
           'layer-owned shadow paint bounds retain the Gaussian tail '
           '(grouped=$grouped)',
           (tester) async {
-            final buildGlass = grouped ? LiquidGlass.grouped : LiquidGlass.new;
-            final glass = buildGlass(
-              shadows: const [
-                BoxShadow(
+            // Direct glass draws nothing past its edge, so the bucket of
+            // its filter stays inside the shadow's tail.
+            const glass = LiquidGlass(
+              appearance: appearanceWithoutLighting,
+              shadows: [
+                LiquidGlassShadow(
                   offset: Offset(0, 4),
                   blurRadius: 12,
                   spreadRadius: -1,
                 ),
               ],
-              shape: const LiquidOval(),
-              child: const SizedBox.square(dimension: 100),
+              shape: LiquidOval(),
+              child: SizedBox.square(dimension: 100),
             );
             await tester.pumpWidget(
               MaterialApp(
                 home: Center(
                   child: LiquidGlassLayer(
                     settings: settingsWithoutLighting,
+                    defaultAppearance: appearanceWithoutLighting,
                     child: grouped
-                        ? LiquidGlassBlendGroup(blend: 0, child: glass)
+                        ? const LiquidGlassBlendGroup(blend: 0, child: glass)
                         : glass,
                   ),
                 ),
@@ -986,14 +1018,17 @@ void main() {
                 .whereType<RenderLiquidGlassLayer>()
                 .where((renderObject) => renderObject.paintBounds != Rect.zero)
                 .last;
-            final support = Shadow.convertRadiusToSigma(12) * 3 - 1;
+            final support = Shadow.convertRadiusToSigma(12) * 2.885 - 1;
             expect(
               renderObject.paintBounds,
-              Rect.fromLTRB(
-                -support,
-                4 - support,
-                100 + support,
-                104 + support,
+              rectMoreOrLessEquals(
+                Rect.fromLTRB(
+                  -support,
+                  4 - support,
+                  100 + support,
+                  104 + support,
+                ),
+                epsilon: 0.01,
               ),
             );
             final filterBounds = renderObject.debugFilterBounds!;
@@ -1082,9 +1117,8 @@ void main() {
           await tester.pump();
           final renderObject = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
-              .where((renderObject) => renderObject.gpuGeometryRenderer != null)
               .last;
-          final renderer = renderObject.gpuGeometryRenderer!;
+          final renderer = renderObject.gpuGeometryRenderer;
           final initialRenderCount = renderer.debugRenderCount;
           final initialPaintCount = renderObject.debugPaintCount;
           final geometry = tester.allRenderObjects
@@ -1119,11 +1153,12 @@ void main() {
                   ),
                   defaultAppearance: LiquidGlassAppearance(
                     tint: Colors.cyan.withValues(alpha: .25),
+                    colorModel: unlitDirect,
                   ),
                   child: Transform.translate(
                     offset: value,
                     child: const LiquidGlass(
-                      shape: LiquidRoundedRectangle(borderRadius: 28),
+                      shape: LiquidRoundedRectangle(radius: 28),
                       child: SizedBox(width: 240, height: 150),
                     ),
                   ),
@@ -1135,11 +1170,10 @@ void main() {
           await tester.pump();
           final renderObject = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
-              .where((renderObject) => renderObject.gpuGeometryRenderer != null)
               .last;
-          final renderer = renderObject.gpuGeometryRenderer!;
+          final renderer = renderObject.gpuGeometryRenderer;
           final initialRenderCount = renderer.debugRenderCount;
-          final initialMatteBounds = renderObject.debugGeometryMatteBounds;
+          final initialBufferBounds = renderObject.debugBufferBounds;
 
           offset.value = const Offset(80, 45);
           await tester.pump();
@@ -1147,8 +1181,8 @@ void main() {
 
           expect(renderer.debugRenderCount, initialRenderCount);
           expect(
-            renderObject.debugGeometryMatteBounds.topLeft -
-                initialMatteBounds.topLeft,
+            renderObject.debugBufferBounds.topLeft -
+                initialBufferBounds.topLeft,
             const Offset(80, 45),
           );
         },
@@ -1167,6 +1201,7 @@ void main() {
                 settings: settingsWithoutLighting.copyWith(
                   refractionHeight: 18,
                 ),
+                defaultAppearance: appearanceWithoutLighting,
                 child: Stack(
                   children: [
                     ValueListenableBuilder<Offset>(
@@ -1174,7 +1209,7 @@ void main() {
                       builder: (_, value, __) => Transform.translate(
                         offset: value,
                         child: const LiquidGlass(
-                          shape: LiquidRoundedRectangle(borderRadius: 28),
+                          shape: LiquidRoundedRectangle(radius: 28),
                           child: SizedBox(width: 120, height: 80),
                         ),
                       ),
@@ -1182,7 +1217,7 @@ void main() {
                     const Positioned(
                       left: 160,
                       child: LiquidGlass(
-                        shape: LiquidRoundedRectangle(borderRadius: 28),
+                        shape: LiquidRoundedRectangle(radius: 28),
                         child: SizedBox(width: 120, height: 80),
                       ),
                     ),
@@ -1195,9 +1230,8 @@ void main() {
           await tester.pump();
           final renderObject = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
-              .where((renderObject) => renderObject.gpuGeometryRenderer != null)
               .last;
-          final renderer = renderObject.gpuGeometryRenderer!;
+          final renderer = renderObject.gpuGeometryRenderer;
           final initialRenderCount = renderer.debugRenderCount;
 
           offset.value = const Offset(20, 0);
@@ -1215,7 +1249,7 @@ void main() {
           final settings = ValueNotifier(
             settingsWithoutLighting.copyWith(refractionHeight: 18),
           );
-          final appearance = ValueNotifier(const LiquidGlassAppearance());
+          final appearance = ValueNotifier(appearanceWithoutLighting);
           addTearDown(settings.dispose);
           addTearDown(appearance.dispose);
 
@@ -1223,11 +1257,13 @@ void main() {
             MaterialApp(
               home: ListenableBuilder(
                 listenable: Listenable.merge([settings, appearance]),
-                builder: (_, __) => LiquidGlass.withOwnLayer(
+                builder: (_, __) => LiquidGlassLayer(
                   settings: settings.value,
-                  appearance: appearance.value,
-                  shape: const LiquidRoundedRectangle(borderRadius: 28),
-                  child: const SizedBox(width: 240, height: 150),
+                  defaultAppearance: appearance.value,
+                  child: const LiquidGlass(
+                    shape: LiquidRoundedRectangle(radius: 28),
+                    child: SizedBox(width: 240, height: 150),
+                  ),
                 ),
               ),
             ),
@@ -1236,32 +1272,100 @@ void main() {
           await tester.pump();
           final renderObject = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
-              .where((renderObject) => renderObject.gpuGeometryRenderer != null)
               .last;
-          final renderer = renderObject.gpuGeometryRenderer!;
-          final initialRenderCount = renderer.debugRenderCount;
+          final initialRenderCount = renderObject.debugEncodeCount;
 
           appearance.value = appearance.value.copyWith(tint: Colors.cyan);
           await tester.pump();
-          expect(renderer.debugRenderCount, initialRenderCount);
+          expect(renderObject.debugEncodeCount, initialRenderCount);
 
-          settings.value = settings.value.copyWith(backdropShrink: .2);
+          settings.value = settings.value.copyWith(
+            lens: const LiquidGlassLens(shrink: .2),
+          );
           await tester.pump();
           expect(
-            renderer.debugRenderCount,
+            renderObject.debugEncodeCount,
             initialRenderCount,
             reason: 'backdrop scaling belongs to the final material pass',
           );
 
           settings.value = settings.value.copyWith(refractionHeight: 24);
           await tester.pump();
-          expect(renderer.debugRenderCount, initialRenderCount + 1);
+          expect(
+            renderObject.debugEncodeCount,
+            greaterThan(initialRenderCount),
+            reason: 'a deeper refraction asks for geometry farther in',
+          );
         },
         skip: skipProperGlassTests,
       );
 
       testWidgets(
-        'rebuilds grouped matte only when visibility crosses zero',
+        'a rising refraction encodes its geometry a few times, not each frame',
+        (tester) async {
+          final settings = ValueNotifier(
+            settingsWithoutLighting.copyWith(refractionHeight: 10),
+          );
+          addTearDown(settings.dispose);
+
+          await tester.pumpWidget(
+            MaterialApp(
+              home: ValueListenableBuilder(
+                valueListenable: settings,
+                builder: (_, value, __) => LiquidGlassLayer(
+                  settings: value,
+                  child: const Row(
+                    children: [
+                      LiquidGlassBlendGroup(
+                        child: Row(
+                          children: [
+                            LiquidGlass(
+                              shape: LiquidRoundedRectangle(radius: 28),
+                              child: SizedBox(width: 100, height: 80),
+                            ),
+                            LiquidGlass(
+                              shape: LiquidRoundedRectangle(radius: 28),
+                              child: SizedBox(width: 100, height: 80),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: 40),
+                      LiquidGlass(
+                        shape: LiquidOval(),
+                        child: SizedBox.square(dimension: 80),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pump();
+          await tester.pump();
+          final renderObject = tester.allRenderObjects
+              .whereType<RenderLiquidGlassLayer>()
+              .last;
+          final initialRenderCount = renderObject.debugEncodeCount;
+
+          for (var frame = 1; frame <= 30; frame++) {
+            settings.value = settings.value.copyWith(
+              refractionHeight: 10.0 + frame,
+              refractionAmount: 20.0 + frame,
+            );
+            await tester.pump();
+          }
+          expect(
+            renderObject.debugEncodeCount - initialRenderCount,
+            inInclusiveRange(1, 4),
+            reason: 'the reach asked of the geometry grows in steps of 1.5',
+          );
+        },
+        skip: skipProperGlassTests,
+      );
+
+      testWidgets(
+        'rebuilds grouped atlas only when visibility crosses zero',
         (tester) async {
           final visibility = ValueNotifier<double>(1);
           addTearDown(visibility.dispose);
@@ -1272,23 +1376,28 @@ void main() {
                 settings: settingsWithoutLighting.copyWith(
                   refractionHeight: 18,
                 ),
+                defaultAppearance: appearanceWithoutLighting,
                 child: LiquidGlassBlendGroup(
                   child: Row(
                     children: [
                       ValueListenableBuilder<double>(
                         valueListenable: visibility,
-                        builder: (_, value, __) => LiquidGlass.grouped(
+                        builder: (_, value, __) => LiquidGlass(
                           appearance: LiquidGlassAppearance(
                             tint: Colors.cyan,
                             visibility: value,
+                            colorModel: unlitDirect,
                           ),
-                          shape: const LiquidRoundedRectangle(borderRadius: 20),
+                          shape: const LiquidRoundedRectangle(radius: 20),
                           child: const SizedBox(width: 100, height: 80),
                         ),
                       ),
-                      const LiquidGlass.grouped(
-                        appearance: LiquidGlassAppearance(tint: Colors.orange),
-                        shape: LiquidRoundedRectangle(borderRadius: 20),
+                      const LiquidGlass(
+                        appearance: LiquidGlassAppearance(
+                          tint: Colors.orange,
+                          colorModel: unlitDirect,
+                        ),
+                        shape: LiquidRoundedRectangle(radius: 20),
                         child: SizedBox(width: 100, height: 80),
                       ),
                     ],
@@ -1301,22 +1410,24 @@ void main() {
           await tester.pump();
           final renderObject = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
-              .where((renderObject) => renderObject.gpuGeometryRenderer != null)
               .last;
-          final renderer = renderObject.gpuGeometryRenderer!;
-          final initialRenderCount = renderer.debugRenderCount;
+          final initialRenderCount = renderObject.debugEncodeCount;
 
           visibility.value = .5;
           await tester.pump();
           expect(
-            renderer.debugRenderCount,
+            renderObject.debugEncodeCount,
             initialRenderCount + 1,
             reason: 'the first response difference selects the full map',
           );
 
           visibility.value = 0;
           await tester.pump();
-          expect(renderer.debugRenderCount, initialRenderCount + 2);
+          expect(
+            renderObject.debugEncodeCount,
+            initialRenderCount + 2,
+            reason: 'the hidden shape leaves; one shape needs no map',
+          );
         },
         skip: skipProperGlassTests,
       );
@@ -1327,7 +1438,7 @@ void main() {
 Future<void> _pumpAtDpr2(WidgetTester tester) async {
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.resetDevicePixelRatio);
-  await pumpOnce(tester);
+  await pumpNTimes(2)(tester);
 }
 
 /// A 120x80 continuous-corner rect blended with [second], [gap] logical
@@ -1344,8 +1455,11 @@ Widget _blendPairScene({
   final left = center.dx - width / 2;
   return buildWithGridPaper(
     LiquidGlassLayer(
-      settings: const LiquidGlassSettings(frost: 0),
+      settings: const LiquidGlassSettings(blur: 0),
       defaultAppearance: LiquidGlassAppearance(
+        colorModel: const LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+        ),
         tint: Colors.blue.withValues(alpha: 0.25),
       ),
       child: LiquidGlassBlendGroup(
@@ -1355,15 +1469,15 @@ Widget _blendPairScene({
             Positioned(
               left: left,
               top: center.dy - firstSize.height / 2,
-              child: LiquidGlass.grouped(
-                shape: const LiquidRoundedSuperellipse(borderRadius: 18),
+              child: LiquidGlass(
+                shape: const LiquidRoundedSuperellipse(radius: 18),
                 child: SizedBox.fromSize(size: firstSize),
               ),
             ),
             Positioned(
               left: left + firstSize.width + gap,
               top: center.dy - secondSize.height / 2,
-              child: LiquidGlass.grouped(
+              child: LiquidGlass(
                 shape: second,
                 child: SizedBox.fromSize(size: secondSize),
               ),
@@ -1383,6 +1497,7 @@ Widget _appearanceBlendScene({
   const white = LiquidGlassAppearance(
     tint: Color(0x70FFFFFF),
     colorModel: LiquidGlassColorModel.direct(
+      brightness: Brightness.light,
       saturation: .9,
       transmissionGamma: .92,
       vibrancy: .1,
@@ -1391,6 +1506,7 @@ Widget _appearanceBlendScene({
   const blue = LiquidGlassAppearance(
     tint: Color(0xA02870FF),
     colorModel: LiquidGlassColorModel.direct(
+      brightness: Brightness.light,
       saturation: 1.8,
       transmissionGamma: .72,
       vibrancy: .3,
@@ -1399,6 +1515,7 @@ Widget _appearanceBlendScene({
   const coral = LiquidGlassAppearance(
     tint: Color(0xA0FF6048),
     colorModel: LiquidGlassColorModel.direct(
+      brightness: Brightness.light,
       saturation: 1.35,
       transmissionGamma: .82,
       vibrancy: .2,
@@ -1407,7 +1524,9 @@ Widget _appearanceBlendScene({
 
   return buildWithGridPaper(
     LiquidGlassLayer(
-      settings: LiquidGlassSettings.ios27RegularLight(frost: 0),
+      settings: const LiquidGlassSettings.ios27Regular(
+        blur: 0,
+      ),
       defaultAppearance: white,
       child: LiquidGlassBlendGroup(
         blend: 44,
@@ -1416,19 +1535,19 @@ Widget _appearanceBlendScene({
             const Positioned(
               left: 56,
               top: 168,
-              child: LiquidGlass.grouped(
-                shape: LiquidRoundedSuperellipse(borderRadius: 54),
+              child: LiquidGlass(
+                shape: LiquidRoundedSuperellipse(radius: 54),
                 child: SizedBox(width: 190, height: 120),
               ),
             ),
             Positioned(
               left: separated ? 274 : 196,
               top: 168,
-              child: LiquidGlass.grouped(
+              child: LiquidGlass(
                 appearance: visibilityProbe
                     ? blue.copyWith(visibility: .5)
                     : blue,
-                shape: const LiquidRoundedSuperellipse(borderRadius: 54),
+                shape: const LiquidRoundedSuperellipse(radius: 54),
                 child: const SizedBox(width: 190, height: 120),
               ),
             ),
@@ -1436,7 +1555,7 @@ Widget _appearanceBlendScene({
               Positioned(
                 left: 148,
                 top: 250,
-                child: LiquidGlass.grouped(
+                child: LiquidGlass(
                   appearance: visibilityProbe
                       ? coral.copyWith(visibility: 0)
                       : coral,
@@ -1452,32 +1571,37 @@ Widget _appearanceBlendScene({
 }
 
 Widget _transparentTintBlendScene() {
-  const toolbar = LiquidGlassAppearance.ios27RegularLight();
-  const red = LiquidGlassAppearance.ios27RegularLight(
+  const toolbar = LiquidGlassAppearance.ios27Regular(
+    brightness: Brightness.light,
+  );
+  const red = LiquidGlassAppearance.ios27Regular(
+    brightness: Brightness.light,
     tint: Color(0xA0FF3B30),
   );
   return buildWithGridPaper(
-    LiquidGlassLayer(
-      settings: LiquidGlassSettings.ios27RegularLight(frost: 0),
+    const LiquidGlassLayer(
+      settings: LiquidGlassSettings.ios27Regular(
+        blur: 0,
+      ),
       defaultAppearance: toolbar,
-      child: const LiquidGlassBlendGroup(
+      child: LiquidGlassBlendGroup(
         blend: 44,
         child: Stack(
           children: [
             Positioned(
               left: 56,
               top: 168,
-              child: LiquidGlass.grouped(
-                shape: LiquidRoundedSuperellipse(borderRadius: 54),
+              child: LiquidGlass(
+                shape: LiquidRoundedSuperellipse(radius: 54),
                 child: SizedBox(width: 190, height: 120),
               ),
             ),
             Positioned(
               left: 196,
               top: 168,
-              child: LiquidGlass.grouped(
+              child: LiquidGlass(
                 appearance: red,
-                shape: LiquidRoundedSuperellipse(borderRadius: 54),
+                shape: LiquidRoundedSuperellipse(radius: 54),
                 child: SizedBox(width: 190, height: 120),
               ),
             ),
@@ -1488,15 +1612,18 @@ Widget _transparentTintBlendScene() {
   );
 }
 
-Widget _transformGlass() => LiquidGlass.withOwnLayer(
+Widget _transformGlass() => LiquidGlassLayer(
   settings: settingsWithoutLighting.copyWith(
     refractionHeight: 18,
   ),
-  appearance: LiquidGlassAppearance(
+  defaultAppearance: LiquidGlassAppearance(
     tint: Colors.cyan.withValues(alpha: .25),
+    colorModel: unlitDirect,
   ),
-  shape: const LiquidRoundedRectangle(borderRadius: 28),
-  child: const SizedBox(width: 240, height: 150),
+  child: const LiquidGlass(
+    shape: LiquidRoundedRectangle(radius: 28),
+    child: SizedBox(width: 240, height: 150),
+  ),
 );
 
 Widget _dprOpticsRegressionScene() => Directionality(
@@ -1516,15 +1643,17 @@ Widget _dprOpticsRegressionScene() => Directionality(
       ),
     ),
     child: Center(
-      child: LiquidGlass.withOwnLayer(
+      child: LiquidGlassLayer(
         settings: settingsWithoutLighting.copyWith(
           refractionHeight: 24,
           refractionAmount: 64,
-          dispersion: .5,
+          lens: const LiquidGlassLens(dispersion: .5),
         ),
-        appearance: const LiquidGlassAppearance(),
-        shape: const LiquidRoundedSuperellipse(borderRadius: 80),
-        child: const SizedBox(width: 400, height: 220),
+        defaultAppearance: const LiquidGlassAppearance(colorModel: unlitDirect),
+        child: const LiquidGlass(
+          shape: LiquidRoundedSuperellipse(radius: 80),
+          child: SizedBox(width: 400, height: 220),
+        ),
       ),
     ),
   ),
@@ -1559,16 +1688,19 @@ Widget _coordinateRegressionScene() => Stack(
     Positioned(
       left: 390,
       top: 250,
-      child: LiquidGlass.withOwnLayer(
+      child: LiquidGlassLayer(
         settings: settingsWithoutLighting.copyWith(
-          frost: 5,
+          blur: 5,
           refractionHeight: 60,
         ),
-        appearance: LiquidGlassAppearance(
+        defaultAppearance: LiquidGlassAppearance(
           tint: Colors.white.withValues(alpha: .08),
+          colorModel: unlitDirect,
         ),
-        shape: const LiquidRoundedRectangle(borderRadius: 48),
-        child: const SizedBox(width: 390, height: 220),
+        child: const LiquidGlass(
+          shape: LiquidRoundedRectangle(radius: 48),
+          child: SizedBox(width: 390, height: 220),
+        ),
       ),
     ),
   ],

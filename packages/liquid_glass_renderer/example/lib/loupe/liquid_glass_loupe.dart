@@ -51,8 +51,9 @@ class LiquidGlassLoupeSource extends SingleChildRenderObjectWidget {
 /// backdrop.
 ///
 /// This is example code, not part of `liquid_glass_renderer`: it composes the
-/// renderer's public [LiquidGlass.withOwnLayer] with Flutter's layer API
-/// ([OffsetLayer.toImageSync]). Copy it into an app to use it.
+/// renderer's public [LiquidGlass], on a [LiquidGlassLayer] of its own, with
+/// Flutter's layer API ([OffsetLayer.toImageSync]). Copy it into an app to
+/// use it.
 ///
 /// Only the region under the lens is re-rendered, once per composited frame
 /// while the loupe is shown.
@@ -81,7 +82,7 @@ class LiquidGlassLoupe extends StatelessWidget {
     this.magnification = 1.25,
     this.focalPointOffset = Offset.zero,
     this.settings = defaultSettings,
-    this.appearance = const LiquidGlassAppearance(),
+    this.appearance = defaultAppearance,
     this.shadows = const [],
     this.child,
   }) : assert(magnification > 0, 'magnification must be positive');
@@ -89,13 +90,20 @@ class LiquidGlassLoupe extends StatelessWidget {
   /// Glass optics measured on the iOS 27 loupe (Reduce Motion off): a clear
   /// lens with a narrow bevel (8 pt wide, 34.5 pt at the edge, measured on
   /// the magnified content), slight dispersion that bends blue more than red,
-  /// no frost and a hairline rim.
+  /// and no frost.
   static const LiquidGlassSettings defaultSettings = LiquidGlassSettings(
     refractionHeight: 8,
     refractionAmount: 34.5,
-    dispersion: -0.06,
-    frost: 0,
-    contourStrength: 0.08,
+    lens: LiquidGlassLens(dispersion: -0.06),
+    blur: 0,
+  );
+
+  /// The color of the iOS 27 loupe: plain, with a hairline rim.
+  static const LiquidGlassAppearance defaultAppearance = LiquidGlassAppearance(
+    colorModel: LiquidGlassColorModel.direct(
+      brightness: Brightness.light,
+      contourStrength: 0.08,
+    ),
   );
 
   /// The source whose content is magnified.
@@ -118,7 +126,7 @@ class LiquidGlassLoupe extends StatelessWidget {
 
   /// The glass optics and lighting.
   ///
-  /// Its `tintAmount` is ignored: the iOS 27 loupe is
+  /// Its `sliderPosition` is ignored: the iOS 27 loupe is
   /// identical at every Liquid Glass slider position.
   final LiquidGlassSettings settings;
 
@@ -126,7 +134,7 @@ class LiquidGlassLoupe extends StatelessWidget {
   final LiquidGlassAppearance appearance;
 
   /// Shadows cast by the lens.
-  final List<BoxShadow> shadows;
+  final List<LiquidGlassShadow> shadows;
 
   /// Optional foreground painted above the glass.
   final Widget? child;
@@ -134,7 +142,7 @@ class LiquidGlassLoupe extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lensShape =
-        shape ?? LiquidRoundedRectangle(borderRadius: size.shortestSide / 2);
+        shape ?? LiquidRoundedRectangle(radius: size.shortestSide / 2);
     return SizedBox.fromSize(
       size: size,
       child: Stack(
@@ -147,14 +155,16 @@ class LiquidGlassLoupe extends StatelessWidget {
             focalPointOffset: focalPointOffset,
             devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
           ),
-          LiquidGlass.withOwnLayer(
-            settings: settings.tintAmount == 0
+          LiquidGlassLayer(
+            settings: settings.sliderPosition == 0
                 ? settings
-                : settings.copyWith(tintAmount: 0),
-            appearance: appearance,
-            shape: lensShape,
-            shadows: shadows,
-            child: child ?? const SizedBox.expand(),
+                : settings.copyWith(sliderPosition: 0),
+            defaultAppearance: appearance,
+            child: LiquidGlass(
+              shape: lensShape,
+              shadows: shadows,
+              child: child ?? const SizedBox.expand(),
+            ),
           ),
         ],
       ),

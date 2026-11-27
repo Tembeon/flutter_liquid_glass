@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/loupe/liquid_glass_loupe.dart';
 
@@ -25,20 +25,21 @@ enum GlassStyle {
 
   LiquidGlassSettings settings({
     required Brightness brightness,
-    required double tintAmount,
+    required double sliderPosition,
   }) => switch (this) {
     regular => LiquidGlassSettings.ios27Regular(
-      brightness: brightness,
-      tintAmount: tintAmount,
+      sliderPosition: sliderPosition,
     ),
-    clear => LiquidGlassSettings.ios27Clear(tintAmount: tintAmount),
+    clear => LiquidGlassSettings.ios27Clear(sliderPosition: sliderPosition),
     loupe => loupeSettings,
   };
 
   LiquidGlassAppearance appearance(Brightness brightness) => switch (this) {
     regular => LiquidGlassAppearance.ios27Regular(brightness: brightness),
-    clear => const LiquidGlassAppearance.ios27Clear(),
-    loupe => const LiquidGlassAppearance(),
+    clear => const LiquidGlassAppearance.ios27Clear(
+      brightness: Brightness.light,
+    ),
+    loupe => LiquidGlassLoupe.defaultAppearance,
   };
 }
 

@@ -1,10 +1,10 @@
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/loupe/liquid_glass_loupe.dart';
+import 'package:material_ui/material_ui.dart';
 
 class _HairlinePainter extends CustomPainter {
   @override
@@ -60,8 +60,14 @@ void main() {
                       settings: const LiquidGlassSettings(
                         refractionHeight: 8,
                         refractionAmount: 0,
-                        highlight: 0,
-                        frost: 0,
+                        blur: 0,
+                      ),
+                      appearance: const LiquidGlassAppearance(
+                        colorModel: LiquidGlassColorModel.direct(
+                          brightness: Brightness.light,
+                          glintStrength: 0,
+                          contourStrength: 0.08,
+                        ),
                       ),
                     ),
                   ),

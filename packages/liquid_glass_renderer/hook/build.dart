@@ -3,30 +3,22 @@ import 'dart:io';
 import 'package:flutter_gpu_shaders/build.dart';
 import 'package:flutter_gpu_shaders/environment.dart';
 import 'package:hooks/hooks.dart';
+import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
-/// Runtime-effect shaders compiled to `.iplr` by this hook instead of being
-/// listed under `flutter.shaders` in the pubspec.
-///
-/// `flutter.shaders` are compiled for every backend a target platform
-/// supports, including SkSL. These shaders use sampling that SkSL cannot
-/// express, which makes Impeller-capable builds print a warning and Skia-only
-/// builds (such as `flutter build web`) fail outright. Compiling here bundles
-/// the same `.iplr` output that `FragmentProgram.fromAsset` decodes on
-/// Impeller, while Skia builds never attempt a SkSL compile.
-const _runtimeEffectShaders = [
-  'liquid_glass_final_render',
-  'liquid_glass_final_render_material',
-  'liquid_glass_final_render_tint',
-];
+final _flutterTool = {
+  for (final program in ShaderProgram.values)
+    if (program.compiler == ShaderCompiler.flutterTool) '${program.stem}.frag',
+};
 
 void main(List<String> args) async {
   await build(args, (input, output) async {
     await buildShaderBundleJson(
       buildInput: input,
       buildOutput: output,
-      manifestFileName: 'liquid_glass_renderer.shaderbundle.json',
+      manifestFileName: '$geometryBundleName.shaderbundle.json',
       includeDirectories: [
-        input.packageRoot.resolve('lib/assets/shaders/gpu/'),
+        input.packageRoot.resolve('${shaderSources}gpu/'),
+        input.packageRoot.resolve(shaderSources),
       ],
       glesLanguageVersion: 300,
       assetMode: ShaderBundleAssetMode.dataAssetsIfAvailable,
@@ -35,17 +27,17 @@ void main(List<String> args) async {
   });
 }
 
-/// Compiles each shader in [_runtimeEffectShaders] to
-/// `build/shaderbundles/<name>.iplr`, an Impeller runtime-effect library
-/// covering every backend except SkSL.
+/// Compiles each program of [shaderSources] the Flutter tool does not build
+/// to `<name>.iplr` in [shaderBundles], an Impeller runtime-effect library
+/// covering every backend but SkSL ([ShaderCompiler.hook]).
 Future<void> _buildRuntimeEffects(
   BuildInput input,
   BuildOutputBuilder output,
 ) async {
   final packageRoot = input.packageRoot;
-  final shadersDirectory = packageRoot.resolve('lib/assets/shaders/');
+  final shadersDirectory = packageRoot.resolve(shaderSources);
   final outputDirectory = Directory.fromUri(
-    packageRoot.resolve('build/shaderbundles/'),
+    packageRoot.resolve(shaderBundles),
   );
   await outputDirectory.create(recursive: true);
 
@@ -55,7 +47,36 @@ Future<void> _buildRuntimeEffects(
       help.exitCode == 0 && impellerCHelpSupportsDepfile(help.stdout as String);
   final shaderLibDirectory = impellercExec.resolve('./shader_lib');
 
-  for (final name in _runtimeEffectShaders) {
+  final names = [
+    for (final file in Directory.fromUri(shadersDirectory).listSync())
+      if (file.uri.pathSegments.last case final name
+          when file is File &&
+              name.endsWith('.frag') &&
+              !_flutterTool.contains(name))
+        name.substring(0, name.length - '.frag'.length),
+  ]..sort();
+  // A shader added or removed changes the listing.
+  output.dependencies.add(shadersDirectory);
+  // The program of a source that went would stay among the assets.
+  final built = {for (final name in names) '$name.iplr'};
+  for (final file in outputDirectory.listSync()) {
+    if (file is File &&
+        file.path.endsWith('.iplr') &&
+        !built.contains(file.uri.pathSegments.last)) {
+      file.deleteSync();
+    }
+  }
+  // A file the shaders include: impellerc names the ones a shader read only
+  // where it writes a depfile, and the bundle's shaders name none. An edit
+  // to one compiles everything again.
+  for (final file in Directory.fromUri(
+    shadersDirectory,
+  ).listSync(recursive: true)) {
+    if (file is File && file.path.endsWith('.glsl')) {
+      output.dependencies.add(file.uri);
+    }
+  }
+  for (final name in names) {
     final source = shadersDirectory.resolve('$name.frag');
     final outFile = outputDirectory.uri.resolve('$name.iplr');
     final spirv = File('${outFile.toFilePath()}.spirv');

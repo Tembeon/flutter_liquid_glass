@@ -1,9 +1,12 @@
+@Tags(['macos_pixels'])
+library;
+
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
 import 'submitted_scene_binding.dart';
@@ -18,16 +21,14 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
   final binding = (testBinding as SubmittedSceneCapture)
     ..captureWidth = 240
     ..captureHeight = 160;
-  // flutter_tester renders a native seed's pass wrong and differently from
-  // run to run (see `pinPlainBackdropPath`); a device runs the production
-  // defaults.
-  if (binding.isFlutterTester) setUp(pinPlainBackdropPath);
-
   for (final grouped in [false, true]) {
     for (final mode in ['uniform', 'tint', 'response']) {
       testWidgets(
         'material update matches fresh scene: $mode grouped=$grouped',
         (tester) async {
+          // Until their programs load, copies blur without levels
+          // or fill; the frames compared here have to draw alike.
+          await tester.runAsync(precacheLiquidGlass);
           tester.view
             ..physicalSize = const Size(240, 160)
             ..devicePixelRatio = 1;
@@ -47,27 +48,24 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
                 if (includeGlass)
                   LiquidGlassLayer(
                     key: ValueKey(fresh),
-                    settings: const LiquidGlassSettings(frost: 8),
+                    settings: const LiquidGlassSettings(
+                      blur: 8,
+                    ),
                     child: ValueListenableBuilder<double>(
                       valueListenable: progress,
                       builder: (_, value, __) {
                         Widget shape(LiquidGlassAppearance appearance) =>
-                            grouped
-                            ? LiquidGlass.grouped(
-                                appearance: appearance,
-                                shape: const LiquidOval(),
-                                child: const SizedBox.square(dimension: 80),
-                              )
-                            : LiquidGlass(
-                                appearance: appearance,
-                                shape: const LiquidOval(),
-                                child: const SizedBox.square(dimension: 80),
-                              );
+                            LiquidGlass(
+                              appearance: appearance,
+                              shape: const LiquidOval(),
+                              child: const SizedBox.square(dimension: 80),
+                            );
                         final first = LiquidGlassAppearance(
                           tint: mode == 'tint'
                               ? Color.lerp(Colors.blue, Colors.red, value)!
                               : const Color(0x604080FF),
                           colorModel: LiquidGlassColorModel.direct(
+                            brightness: Brightness.light,
                             saturation: mode == 'response' ? 1 + value : 1,
                           ),
                         );
@@ -81,6 +79,10 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
                                 mode == 'uniform'
                                     ? first
                                     : const LiquidGlassAppearance(
+                                        colorModel:
+                                            LiquidGlassColorModel.direct(
+                                              brightness: Brightness.light,
+                                            ),
                                         tint: Color(0x60FF8040),
                                       ),
                               ),
@@ -115,17 +117,14 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
           await tester.pumpWidget(buildScene(fresh: false));
           await tester.pumpAndSettle();
           final before = await capture();
-          if (!binding.isFlutterTester) {
-            expect(seededPasses(tester), isNotEmpty, reason: 'seeds are on');
-          }
           final layer = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
               .last;
-          final renderer = layer.gpuGeometryRenderer!;
+          final renderer = layer.gpuGeometryRenderer;
           final renderCount = renderer.debugRenderCount;
           // Verify retained resource identity, not just submission counts.
           // ignore: invalid_use_of_protected_member
-          final matte = layer.geometryImage;
+          final page = layer.debugPageImage;
           progress.value = 0.4;
           final animated = await capture();
           expect(animated, isNot(orderedEquals(before)));
@@ -135,7 +134,7 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
           );
           if (mode == 'uniform') {
             // ignore: invalid_use_of_protected_member
-            expect(layer.geometryImage, same(matte));
+            expect(layer.debugPageImage, same(page));
           }
 
           Uint8List? hidden;
@@ -144,12 +143,15 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
             hidden = await capture();
             expect(layer.debugBackdropFilterLayer, isNull);
             expect(renderer.debugRenderCount, renderCount);
-            // Hidden material retains the last matte but does not sample it.
             // ignore: invalid_use_of_protected_member
-            expect(layer.geometryImage, same(matte));
+            expect(layer.debugPageImage, same(page));
             progress.value = 1;
             final restored = await capture();
-            expect(restored, orderedEquals(before));
+            expect(
+              largestDifference(restored, before),
+              lessThanOrEqualTo(heldImageDrift),
+              reason: 'Restored glass reads a held image of its copy.',
+            );
             // Zero changes contributor membership; restoration may rebuild
             // once, but the nonzero animation above must stay uniform-only.
             expect(renderer.debugRenderCount, renderCount + 1);
@@ -162,9 +164,12 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
           await tester.pumpAndSettle();
           final reference = await capture();
           expect(
-            animated,
-            orderedEquals(reference),
-            reason: 'Retained material inputs must match a fresh static frame.',
+            largestDifference(animated, reference),
+            lessThanOrEqualTo(heldImageDrift),
+            reason:
+                'Retained material inputs must match a fresh static frame, '
+                'which reads its copy from the scene where the retained '
+                'frame reads a held image of it.',
           );
           if (hidden != null) {
             await tester.pumpWidget(

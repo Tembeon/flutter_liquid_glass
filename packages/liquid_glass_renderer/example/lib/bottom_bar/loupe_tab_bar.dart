@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/bottom_bar/listenable_transform.dart';
@@ -61,7 +61,7 @@ class LoupeTabBar extends StatefulWidget {
   /// Appearance of the capsule, or `null` to inherit the layer's.
   final LiquidGlassAppearance? appearance;
 
-  final List<BoxShadow> shadows;
+  final List<LiquidGlassShadow> shadows;
 
   /// Whether the loupe renders as [FakeGlass], to match a fake parent layer.
   final bool fake;
@@ -103,10 +103,15 @@ class LoupeTabBar extends StatefulWidget {
     refractionHeight: 15,
     refractionAmount: 10,
     refractionFitsShape: false,
-    dispersion: -.3,
-    frost: 0,
+    lens: LiquidGlassLens(dispersion: -.3, shrink: 0.14),
+    blur: 0,
+  );
+
+  /// The color of the loupe's lens: plain, with a darker contour than
+  /// glass's own.
+  static const loupeColorModel = LiquidGlassColorModel.direct(
+    brightness: Brightness.light,
     contourStrength: .3,
-    backdropShrink: 0.14,
   );
 
   static const loupeKey = ValueKey('loupe-tab-bar-loupe');
@@ -185,7 +190,7 @@ class _LoupeTabBarState extends State<LoupeTabBar>
     press: _press,
     jelly: _jelly,
     tabCount: widget.tabs.length,
-    backdropShrink: widget.loupeSettings.backdropShrink,
+    backdropShrink: widget.loupeSettings.lens.shrink,
     iconScale: widget.loupeIconScale,
   );
   late final _barTransform = Listenable.merge([_press, _stretch]);
@@ -228,7 +233,7 @@ class _LoupeTabBarState extends State<LoupeTabBar>
     super.didUpdateWidget(oldWidget);
     _selection
       ..tabCount = widget.tabs.length
-      ..backdropShrink = widget.loupeSettings.backdropShrink
+      ..backdropShrink = widget.loupeSettings.lens.shrink
       ..iconScale = widget.loupeIconScale;
     if (widget.selectedIndex != oldWidget.selectedIndex) {
       _selected = widget.selectedIndex;
@@ -332,7 +337,7 @@ class _LoupeTabBarState extends State<LoupeTabBar>
     _springTo(
       _stretch,
       _follow,
-      Offset(past, 0).withResistance(_stretchResistance),
+      Offset(past / (1 + past.abs() * _stretchResistance), 0),
     );
   }
 
@@ -442,8 +447,6 @@ class _LoupeTabBarState extends State<LoupeTabBar>
       ..translateByDouble(-size.width / 2, -size.height / 2, 0, 1);
   }
 
-  /// Volume-preserving stretch for an offset in pixels, as
-  /// [RawLiquidStretch] computes it.
   static (double, double) _stretchScale(Offset stretch, Size size) {
     if (stretch == Offset.zero || size.isEmpty) return (1, 1);
     final rx = stretch.dx.abs() / size.width;
@@ -470,8 +473,8 @@ class _LoupeTabBarState extends State<LoupeTabBar>
       builder: (context, label, _) => LayoutBuilder(
         builder: (context, constraints) {
           _size = Size(constraints.maxWidth, widget.height);
-          final bar = LiquidGlass.grouped(
-            shape: LiquidRoundedSuperellipse(borderRadius: widget.height / 2),
+          final bar = LiquidGlass(
+            shape: LiquidRoundedSuperellipse(radius: widget.height / 2),
             clipBehavior: Clip.none,
             appearance: widget.appearance,
             shadows: widget.shadows,
@@ -613,19 +616,23 @@ class _LoupeTabBarState extends State<LoupeTabBar>
               child: RepaintBoundary(
                 child: ValueListenableBuilder(
                   valueListenable: _loupeVisibility,
-                  builder: (context, visibility, child) => CustomPaint(
-                    painter: _LoupeShadowPainter(visibility),
-                    child: LiquidGlass.withOwnLayer(
+                  builder: (context, visibility, child) => LiquidGlassLayer(
+                    settings: widget.loupeSettings,
+                    fake: widget.fake,
+                    defaultAppearance: LiquidGlassAppearance(
+                      visibility: visibility,
+                      colorModel: LoupeTabBar.loupeColorModel,
+                    ),
+                    child: const LiquidGlass(
                       key: LoupeTabBar.loupeKey,
-                      settings: widget.loupeSettings,
-                      fake: widget.fake,
-                      appearance: LiquidGlassAppearance(
-                        visibility: visibility,
-                      ),
-                      shape: const LiquidRoundedSuperellipse(
-                        borderRadius: 64,
-                      ),
-                      child: const SizedBox.expand(),
+                      shape: LiquidRoundedSuperellipse(radius: 64),
+                      shadows: [
+                        LiquidGlassShadow(
+                          color: Color(0x1A000000),
+                          blurRadius: 30,
+                        ),
+                      ],
+                      child: SizedBox.expand(),
                     ),
                   ),
                 ),
@@ -636,45 +643,6 @@ class _LoupeTabBarState extends State<LoupeTabBar>
       ),
     );
   }
-}
-
-/// The loupe's soft shadow, painted only outside it.
-///
-/// A glass shadow would lie beneath the loupe's own layer, which captures
-/// and shows it, dimming the whole lens; Apple's loupe is as bright inside
-/// as the bar.
-class _LoupeShadowPainter extends CustomPainter {
-  const _LoupeShadowPainter(this.visibility);
-
-  final double visibility;
-
-  static const _shadow = BoxShadow(color: Color(0x1A000000), blurRadius: 30);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final opacity = visibility.clamp(0.0, 1.0);
-    if (opacity == 0) return;
-    final rrect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      Radius.circular(size.shortestSide / 2),
-    );
-    final paint = _shadow.toPaint()
-      ..color = _shadow.color.withValues(alpha: _shadow.color.a * opacity);
-    canvas
-      ..save()
-      ..clipPath(
-        Path()
-          ..addRect(rrect.outerRect.inflate(_shadow.blurRadius * 2))
-          ..addRRect(rrect)
-          ..fillType = PathFillType.evenOdd,
-      )
-      ..drawRRect(rrect, paint)
-      ..restore();
-  }
-
-  @override
-  bool shouldRepaint(_LoupeShadowPainter oldDelegate) =>
-      oldDelegate.visibility != visibility;
 }
 
 class _TabItem extends StatelessWidget {

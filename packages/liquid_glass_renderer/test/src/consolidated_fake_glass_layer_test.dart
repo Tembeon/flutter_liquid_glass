@@ -1,23 +1,30 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/fake_glass.dart';
-import 'package:liquid_glass_renderer/src/internal/backdrop_seed.dart';
-import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
-import 'package:liquid_glass_renderer/src/internal/glass_composition_probe.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
+import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
+import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
+import 'package:liquid_glass_renderer/src/rendering/liquid_glass.dart';
+import 'package:liquid_glass_renderer/src/rendering/opacity_pass_seed.dart';
+import 'package:liquid_glass_renderer/src/widgets/consolidated_fake_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'submitted_scene_binding.dart';
 
 void main() {
   final binding = SubmittedSceneBinding();
-  const settings = LiquidGlassSettings(frost: 4);
+  const settings = LiquidGlassSettings(blur: 4);
   const appearance = LiquidGlassAppearance(
-    colorModel: LiquidGlassColorModel.direct(saturation: 1.1),
+    colorModel: LiquidGlassColorModel.direct(
+      brightness: Brightness.light,
+      saturation: 1.1,
+    ),
   );
 
   testWidgets('fake shapes share one parent backdrop filter', (tester) async {
@@ -34,7 +41,7 @@ void main() {
                 child: SizedBox(width: 80, height: 60),
               ),
               LiquidGlass(
-                shape: LiquidRoundedRectangle(borderRadius: 16),
+                shape: LiquidRoundedRectangle(radius: 16),
                 child: SizedBox(width: 100, height: 60),
               ),
             ],
@@ -48,11 +55,10 @@ void main() {
       find.byType(ConsolidatedFakeGlassLayer).last,
     );
     expect(layer.debugBackdropFilterLayer, isNotNull);
-    expect(find.byType(FakeGlass), findsNWidgets(2));
     expect(
       find.byType(RawFakeGlass),
-      findsNWidgets(2),
-      reason: 'Shape-local lighting remains retained while backdrop is shared.',
+      findsNothing,
+      reason: 'The layer reads the backdrop and paints the surfaces.',
     );
   });
 
@@ -78,18 +84,27 @@ void main() {
         settings: settings,
         // A shape whose only override is visibility shares the layer's
         // backdrop transfer once it is fully visible again.
-        defaultAppearance: const LiquidGlassAppearance(),
+        defaultAppearance: const LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+        ),
         child: LiquidGlassBlendGroup(
           child: Row(
             children: [
-              const LiquidGlass.grouped(
+              const LiquidGlass(
                 shape: LiquidOval(),
                 child: SizedBox(width: 80, height: 60),
               ),
               ValueListenableBuilder<double>(
                 valueListenable: visibility,
-                builder: (_, value, _) => LiquidGlass.grouped(
-                  appearance: LiquidGlassAppearance(visibility: value),
+                builder: (_, value, _) => LiquidGlass(
+                  appearance: LiquidGlassAppearance(
+                    colorModel: const LiquidGlassColorModel.direct(
+                      brightness: Brightness.light,
+                    ),
+                    visibility: value,
+                  ),
                   shape: const LiquidOval(),
                   child: const SizedBox(width: 80, height: 60),
                 ),
@@ -127,9 +142,9 @@ void main() {
           settings: settings,
           defaultAppearance: appearance,
           child: LiquidGlass(
-            shape: LiquidRoundedRectangle(borderRadius: 16),
+            shape: LiquidRoundedRectangle(radius: 16),
             shadows: [
-              BoxShadow(offset: Offset(0, 8), blurRadius: 12),
+              LiquidGlassShadow(offset: Offset(0, 8), blurRadius: 12),
             ],
             child: SizedBox(width: 100, height: 60),
           ),
@@ -150,8 +165,6 @@ void main() {
         'contents',
       ],
     );
-    final raw = tester.renderObject<RenderFakeGlass>(find.byType(RawFakeGlass));
-    expect(raw.paintSurface, isFalse);
   });
 
   testWidgets('fake content remains above the analytic surface', (
@@ -164,7 +177,7 @@ void main() {
           settings: settings,
           defaultAppearance: appearance,
           child: LiquidGlass(
-            shape: LiquidRoundedSuperellipse(borderRadius: 24),
+            shape: LiquidRoundedSuperellipse(radius: 24),
             child: ColoredBox(
               color: Colors.red,
               child: SizedBox(width: 120, height: 70),
@@ -199,16 +212,20 @@ void main() {
           settings: settings,
           defaultAppearance: appearance,
           child: LiquidGlass(
-            shape: LiquidRoundedRectangle(borderRadius: 24),
+            shape: LiquidRoundedRectangle(radius: 24),
             child: SizedBox(
               width: 180,
               height: 80,
               child: Center(
-                child: LiquidGlass.withOwnLayer(
+                child: LiquidGlassLayer(
                   fake: true,
-                  settings: LiquidGlassSettings(frost: 0),
-                  shape: LiquidOval(),
-                  child: SizedBox.square(dimension: 48),
+                  settings: LiquidGlassSettings(
+                    blur: 0,
+                  ),
+                  child: LiquidGlass(
+                    shape: LiquidOval(),
+                    child: SizedBox.square(dimension: 48),
+                  ),
                 ),
               ),
             ),
@@ -229,11 +246,7 @@ void main() {
           layers.first.debugLastPaintStages.indexOf('contents'),
       isTrue,
     );
-    final ownSurface = tester.allRenderObjects
-        .whereType<RenderFakeGlass>()
-        .where((surface) => surface.paintSurface)
-        .toSet();
-    expect(ownSurface, isEmpty);
+    expect(tester.allRenderObjects.whereType<RenderFakeGlass>(), isEmpty);
   });
 
   testWidgets('fake backdrop transfer leaves tint in the surface pass', (
@@ -244,10 +257,13 @@ void main() {
         home: LiquidGlassLayer(
           fake: true,
           settings: LiquidGlassSettings(
-            frost: 4,
+            blur: 4,
           ),
           defaultAppearance: LiquidGlassAppearance(
-            colorModel: LiquidGlassColorModel.direct(saturation: 0.8),
+            colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+              saturation: 0.8,
+            ),
             tint: Color.fromARGB(96, 220, 240, 255),
           ),
           child: LiquidGlass(
@@ -259,7 +275,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(RawFakeGlass), findsOneWidget);
+    final layer = tester.renderObject<RenderConsolidatedFakeGlassLayer>(
+      find.byType(ConsolidatedFakeGlassLayer),
+    );
+    expect(layer.debugLastPaintStages, contains('surfaces'));
   });
 
   testWidgets('tint alone never adds a backdrop sample', (tester) async {
@@ -268,9 +287,12 @@ void main() {
         home: LiquidGlassLayer(
           fake: true,
           settings: LiquidGlassSettings(
-            frost: 0,
+            blur: 0,
           ),
           defaultAppearance: LiquidGlassAppearance(
+            colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
             tint: Color.fromARGB(96, 220, 240, 255),
           ),
           child: LiquidGlass(
@@ -295,12 +317,21 @@ void main() {
       const MaterialApp(
         home: LiquidGlassLayer(
           fake: true,
-          settings: LiquidGlassSettings(frost: 8),
-          defaultAppearance: LiquidGlassAppearance(),
+          settings: LiquidGlassSettings(blur: 8),
+          defaultAppearance: LiquidGlassAppearance(
+            colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
+          ),
           child: LiquidGlass(
-            appearance: LiquidGlassAppearance(visibility: 0),
+            appearance: LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+              visibility: 0,
+            ),
             shape: LiquidOval(),
-            shadows: [BoxShadow(blurRadius: 20)],
+            shadows: [LiquidGlassShadow(blurRadius: 20)],
             child: SizedBox(width: 80, height: 60),
           ),
         ),
@@ -323,12 +354,19 @@ void main() {
           home: LiquidGlassLayer(
             fake: true,
             settings: settings,
-            defaultAppearance: LiquidGlassAppearance(),
+            defaultAppearance: LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+            ),
             child: Row(
               children: [
                 LiquidGlass(
                   appearance: LiquidGlassAppearance(
-                    colorModel: LiquidGlassColorModel.direct(saturation: 2),
+                    colorModel: LiquidGlassColorModel.direct(
+                      brightness: Brightness.light,
+                      saturation: 2,
+                    ),
                   ),
                   shape: LiquidOval(),
                   child: SizedBox(width: 80, height: 60),
@@ -384,11 +422,18 @@ void main() {
         const MaterialApp(
           home: LiquidGlassLayer(
             fake: true,
-            settings: LiquidGlassSettings(frost: 0),
-            defaultAppearance: LiquidGlassAppearance(),
+            settings: LiquidGlassSettings(blur: 0),
+            defaultAppearance: LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+            ),
             child: LiquidGlass(
               appearance: LiquidGlassAppearance(
-                colorModel: LiquidGlassColorModel.direct(saturation: 2),
+                colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
+                  saturation: 2,
+                ),
               ),
               shape: LiquidOval(),
               child: SizedBox(width: 80, height: 60),
@@ -417,11 +462,18 @@ void main() {
       const MaterialApp(
         home: LiquidGlassLayer(
           fake: true,
-          settings: LiquidGlassSettings(frost: 0),
-          defaultAppearance: LiquidGlassAppearance(),
+          settings: LiquidGlassSettings(blur: 0),
+          defaultAppearance: LiquidGlassAppearance(
+            colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
+          ),
           child: LiquidGlass(
             appearance: LiquidGlassAppearance(
-              colorModel: LiquidGlassColorModel.direct(saturation: 2),
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+                saturation: 2,
+              ),
               visibility: 0.5,
             ),
             shape: LiquidOval(),
@@ -440,129 +492,120 @@ void main() {
     expect(layer.debugSeparateBackdropLayers, hasLength(1));
   });
 
-  for (final grouped in [false, true]) {
-    testWidgets(
-      'an overlapping diverging shape applies its own transfer once '
-      '(useBackdropGroup: $grouped)',
-      (tester) async {
-        // Shared shapes desaturate the red background to gray; the
-        // diverging shape over-saturates it. If it sampled the shared
-        // filter's output, the overlap would stay gray instead of red.
-        final boundaryKey = GlobalKey();
-        Widget buildLayer() => LiquidGlassLayer(
-          fake: true,
-          settings: const LiquidGlassSettings(
-            frost: 0,
+  testWidgets(
+    'an overlapping diverging shape applies its own transfer once',
+    (tester) async {
+      // Shared shapes desaturate the red background to gray; the
+      // diverging shape over-saturates it. If it sampled the shared
+      // filter's output, the overlap would stay gray instead of red.
+      final boundaryKey = GlobalKey();
+      Widget buildLayer() => const LiquidGlassLayer(
+        fake: true,
+        settings: LiquidGlassSettings(
+          blur: 0,
+        ),
+        defaultAppearance: LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            saturation: 0,
             contourStrength: 0,
           ),
-          defaultAppearance: const LiquidGlassAppearance(
-            colorModel: LiquidGlassColorModel.direct(saturation: 0),
-          ),
-          useBackdropGroup: grouped,
-          child: const Stack(
-            children: [
-              Align(
-                alignment: Alignment(-0.4, 0),
-                child: LiquidGlass(
-                  shape: LiquidOval(),
-                  child: SizedBox(width: 200, height: 200),
-                ),
-              ),
-              Align(
-                alignment: Alignment(0.4, 0),
-                child: LiquidGlass(
-                  appearance: LiquidGlassAppearance(
-                    colorModel: LiquidGlassColorModel.direct(saturation: 2),
-                  ),
-                  shape: LiquidOval(),
-                  child: SizedBox(width: 200, height: 200),
-                ),
-              ),
-            ],
-          ),
-        );
-        await tester.pumpWidget(
-          MaterialApp(
-            home: RepaintBoundary(
-              key: boundaryKey,
-              child: Stack(
-                children: [
-                  const Positioned.fill(
-                    child: ColoredBox(color: Colors.red),
-                  ),
-                  Center(
-                    child: SizedBox(
-                      width: 500,
-                      height: 400,
-                      child: grouped
-                          ? BackdropGroup(child: buildLayer())
-                          : buildLayer(),
-                    ),
-                  ),
-                ],
+        ),
+        child: Stack(
+          children: [
+            Align(
+              alignment: Alignment(-0.4, 0),
+              child: LiquidGlass(
+                shape: LiquidOval(),
+                child: SizedBox(width: 200, height: 200),
               ),
             ),
+            Align(
+              alignment: Alignment(0.4, 0),
+              child: LiquidGlass(
+                appearance: LiquidGlassAppearance(
+                  colorModel: LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
+                    saturation: 2,
+                    contourStrength: 0,
+                  ),
+                ),
+                shape: LiquidOval(),
+                child: SizedBox(width: 200, height: 200),
+              ),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RepaintBoundary(
+            key: boundaryKey,
+            child: Stack(
+              children: [
+                const Positioned.fill(
+                  child: ColoredBox(color: Colors.red),
+                ),
+                Center(
+                  child: SizedBox(
+                    width: 500,
+                    height: 400,
+                    child: buildLayer(),
+                  ),
+                ),
+              ],
+            ),
           ),
+        ),
+      );
+      await tester.pump();
+
+      final layer = tester.renderObject<RenderConsolidatedFakeGlassLayer>(
+        find.byType(ConsolidatedFakeGlassLayer).last,
+      );
+      // Both filters share the layer's capture.
+      final sharedKey = layer.debugBackdropFilterLayer!.backdropKey;
+      expect(sharedKey, isNotNull);
+      expect(
+        layer.debugSeparateBackdropLayers.single.backdropKey,
+        same(sharedKey),
+      );
+
+      final image =
+          await (boundaryKey.currentContext!.findRenderObject()!
+                  as RenderRepaintBoundary)
+              .toImage();
+      final data = await tester.runAsync(image.toByteData);
+      (int, int, int) pixel(double x, double y) {
+        final i = (y.round() * image.width + x.round()) * 4;
+        return (
+          data!.getUint8(i),
+          data.getUint8(i + 1),
+          data.getUint8(i + 2),
         );
-        await tester.pump();
+      }
 
-        final layer = tester.renderObject<RenderConsolidatedFakeGlassLayer>(
-          find.byType(ConsolidatedFakeGlassLayer).last,
-        );
-        // Both filters share one capture, whether the key came from the
-        // group or from the layer itself.
-        // With native seeds on, a filter inside its pass has no key and the
-        // pass remembers it instead.
-        BackdropKey? keyOf(BackdropFilterLayer filter) {
-          for (Layer? l = filter; l != null; l = l.parent) {
-            if (l is SeededBackdropPassLayer) return l.backdropGroupKey;
-          }
-          return filter.backdropKey;
-        }
+      final sharedOnly = pixel(290, 300);
+      final separateOnly = pixel(510, 300);
+      final overlap = pixel(400, 300);
+      image.dispose();
+      await tester.pumpWidget(const SizedBox.shrink());
 
-        final sharedKey = keyOf(layer.debugBackdropFilterLayer!);
-        expect(sharedKey, isNotNull);
-        expect(
-          keyOf(layer.debugSeparateBackdropLayers.single),
-          same(sharedKey),
-        );
-
-        final image =
-            await (boundaryKey.currentContext!.findRenderObject()!
-                    as RenderRepaintBoundary)
-                .toImage();
-        final data = await tester.runAsync(image.toByteData);
-        (int, int, int) pixel(double x, double y) {
-          final i = (y.round() * image.width + x.round()) * 4;
-          return (
-            data!.getUint8(i),
-            data.getUint8(i + 1),
-            data.getUint8(i + 2),
-          );
-        }
-
-        final sharedOnly = pixel(290, 300);
-        final separateOnly = pixel(510, 300);
-        final overlap = pixel(400, 300);
-        image.dispose();
-        await tester.pumpWidget(const SizedBox.shrink());
-
-        // The shared transfer desaturates the red background to gray.
-        expect((sharedOnly.$1 - sharedOnly.$2).abs(), lessThan(12));
-        // The diverging shape's own transfer keeps it red.
-        expect(separateOnly.$1, greaterThan(200));
-        // Overlapping pixels get the diverging shape's transfer applied to
-        // the unmodified backdrop — not the shared filter's gray output.
-        expect(
-          overlap.$1,
-          closeTo(separateOnly.$1, 12),
-          reason: 'Compounded transfers would show gray, not red.',
-        );
-        expect(overlap.$2, closeTo(separateOnly.$2, 12));
-        expect(overlap.$3, closeTo(separateOnly.$3, 12));
-      },
-    );
-  }
+      // The shared transfer desaturates the red background to gray.
+      expect((sharedOnly.$1 - sharedOnly.$2).abs(), lessThan(12));
+      // The diverging shape's own transfer keeps it red.
+      expect(separateOnly.$1, greaterThan(200));
+      // Overlapping pixels get the diverging shape's transfer applied to
+      // the unmodified backdrop — not the shared filter's gray output.
+      expect(
+        overlap.$1,
+        closeTo(separateOnly.$1, 12),
+        reason: 'Compounded transfers would show gray, not red.',
+      );
+      expect(overlap.$2, closeTo(separateOnly.$2, 12));
+      expect(overlap.$3, closeTo(separateOnly.$3, 12));
+    },
+  );
 
   testWidgets('fake parent updates and releases its backdrop filter', (
     tester,
@@ -600,7 +643,7 @@ void main() {
     expect(initialClipPath, isNotNull);
 
     value.value = (
-      settings: settings.copyWith(frost: 8),
+      settings: settings.copyWith(blur: 8),
       appearance: appearance,
     );
     await tester.pump();
@@ -612,8 +655,10 @@ void main() {
     );
 
     value.value = (
-      settings: settings.copyWith(frost: 0),
-      appearance: const LiquidGlassAppearance(),
+      settings: settings.copyWith(blur: 0),
+      appearance: const LiquidGlassAppearance(
+        colorModel: LiquidGlassColorModel.direct(brightness: Brightness.light),
+      ),
     );
     await tester.pump();
     expect(layer.debugBackdropFilterLayer, isNull);
@@ -660,13 +705,9 @@ void main() {
     expect(layer.debugBackdropFilterLayer!.filter, same(initialFilter));
   });
 
-  test('native color matrix matches Rec.709 tint-then-saturation algebra', () {
-    const tint = Color.fromARGB(104, 220, 240, 255);
+  test('native color matrix matches Rec.709 saturation algebra', () {
     const saturation = 0.8;
-    final matrix = fakeGlassColorMatrix(
-      saturation: saturation,
-      tint: tint,
-    );
+    final matrix = fakeGlassColorMatrix(saturation: saturation);
     const background = (0.17, 0.53, 0.91);
 
     double channel(int row) =>
@@ -675,12 +716,11 @@ void main() {
         matrix[row * 5 + 2] * background.$3 +
         matrix[row * 5 + 4] / 255;
 
-    final mixed = (
-      background.$1 * (1 - tint.a) + tint.r * tint.a,
-      background.$2 * (1 - tint.a) + tint.g * tint.a,
-      background.$3 * (1 - tint.a) + tint.b * tint.a,
-    );
-    final luminance = mixed.$1 * 0.2126 + mixed.$2 * 0.7152 + mixed.$3 * 0.0722;
+    const mixed = background;
+    final luminance =
+        mixed.$1 * lumaWeights.$1 +
+        mixed.$2 * lumaWeights.$2 +
+        mixed.$3 * lumaWeights.$3;
     final expected = (
       luminance + (mixed.$1 - luminance) * saturation,
       luminance + (mixed.$2 - luminance) * saturation,
@@ -694,7 +734,6 @@ void main() {
   test('native color matrix approximates transmission gamma at midtones', () {
     final matrix = fakeGlassColorMatrix(
       saturation: 1,
-      tint: const Color(0x00000000),
       transmissionGamma: 0.9,
     );
 
@@ -706,13 +745,16 @@ void main() {
   });
 
   test('iOS 27 face matrix reproduces the native light solid palette', () {
-    const model = LiquidGlassColorModel.ios27(brightness: Brightness.light);
-    final transfer = model.faceTransfer()!;
+    const model = LiquidGlassColorModel.ios27Regular(
+      brightness: Brightness.light,
+    );
+    final recipe = recipeOf(
+      (model.wornAt(double.infinity) as WornRecipe).look,
+      (slider: 0, reduceTransparency: false),
+    );
     final matrix = fakeGlassFaceMatrix(
-      emission: transfer.emission,
-      transmittance: transfer.transmittance,
-      lift: transfer.lift,
-      chromaGain: transfer.chromaGain,
+      face: recipe.face,
+      bleed: recipe.bleed,
     );
     List<double> apply(List<int> rgb) => [
       for (var row = 0; row < 3; row++)
@@ -739,11 +781,9 @@ void main() {
       for (var channel = 0; channel < 3; channel++) {
         expect(
           output[channel],
-          // The matrix replaces the luminance self-screen by its
-          // least-squares line, which is exact at midtones and within
-          // lift / 6 of the curve at black and white (6.6 levels for the
-          // fitted light lift of .216).
-          closeTo(entry.value[channel], 6),
+          // The matrix replaces the face's roll-off by its least-squares
+          // line: within 8 levels of the capture, 5 on greys.
+          closeTo(entry.value[channel], 8),
           reason: '${entry.key} channel $channel',
         );
       }
@@ -753,11 +793,9 @@ void main() {
   test('native color matrix fades filtered backdrop premultiplied', () {
     final full = fakeGlassColorMatrix(
       saturation: 1,
-      tint: const Color(0x00000000),
     );
     final half = fakeGlassColorMatrix(
       saturation: 1,
-      tint: const Color(0x00000000),
       opacity: 0.5,
     );
 
@@ -774,7 +812,7 @@ void main() {
   ) async {
     final offset = ValueNotifier(Offset.zero);
     final settings = ValueNotifier(
-      const LiquidGlassSettings(frost: 0),
+      const LiquidGlassSettings(blur: 0),
     );
     addTearDown(offset.dispose);
     addTearDown(settings.dispose);
@@ -802,19 +840,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final surface = tester.allRenderObjects.whereType<RenderFakeGlass>().last;
     final layer = tester.renderObject<RenderConsolidatedFakeGlassLayer>(
       find.byType(ConsolidatedFakeGlassLayer).last,
     );
     final initialShader = layer.debugSurfaceShader;
     expect(initialShader, isNotNull);
-    expect(surface.surfaceShader, isNull);
 
     offset.value = const Offset(32, 18);
     await tester.pump();
     expect(layer.debugSurfaceShader, same(initialShader));
 
-    settings.value = settings.value.copyWith(highlight: 0.75);
+    settings.value = settings.value.copyWith(sliderPosition: 0.75);
     await tester.pump();
     expect(layer.debugSurfaceShader, same(initialShader));
 
@@ -942,6 +978,9 @@ void main() {
             fake: true,
             settings: settings,
             defaultAppearance: const LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
               tint: Color.fromARGB(255, 255, 255, 255),
             ),
             child: LiquidGlassBlendGroup(
@@ -952,10 +991,15 @@ void main() {
                     child: ValueListenableBuilder<bool>(
                       valueListenable: hidden,
                       builder: (_, value, __) => RepaintBoundary(
-                        child: LiquidGlass.grouped(
+                        child: LiquidGlass(
                           key: stationaryKey,
                           appearance: value
-                              ? const LiquidGlassAppearance(visibility: 0)
+                              ? const LiquidGlassAppearance(
+                                  colorModel: LiquidGlassColorModel.direct(
+                                    brightness: Brightness.light,
+                                  ),
+                                  visibility: 0,
+                                )
                               : null,
                           shape: const LiquidOval(),
                           child: const SizedBox(width: 80, height: 60),
@@ -976,7 +1020,7 @@ void main() {
                               valueListenable: scale,
                               builder: (_, scaleValue, __) => Transform.scale(
                                 scale: scaleValue,
-                                child: const LiquidGlass.grouped(
+                                child: const LiquidGlass(
                                   key: movingKey,
                                   shape: LiquidOval(),
                                   child: SizedBox(
