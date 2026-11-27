@@ -472,6 +472,7 @@ void galleryTests({bool onDevice = false}) {
         ['Label and helper', 'Read only', 'Centered', 'At most 12 letters'],
       ),
       ('Tooltip', ['Shortcut after the message']),
+      ('Popover', ['Page stays live, 24 in from the sides']),
     ]) {
       await _open(tester, component);
       for (final knob in knobs) {

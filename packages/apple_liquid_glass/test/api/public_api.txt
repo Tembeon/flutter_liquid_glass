@@ -2147,7 +2147,7 @@ class GlassSearchIcon extends StatelessWidget
   overrides: build
 class GlassSearchScope extends InheritedNotifier<GlassSearchController>
   const GlassSearchScope({
-    required GlassSearchController controller,
+    required GlassSearchController? controller,
     required Widget child,
     Key? key,
   })

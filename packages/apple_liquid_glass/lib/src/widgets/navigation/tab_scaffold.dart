@@ -717,9 +717,10 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         },
       ),
     );
-    final search = widget.searchController;
-    if (search == null) return scaffold;
-    return GlassSearchScope(controller: search, child: scaffold);
+    return GlassSearchScope(
+      controller: widget.searchController,
+      child: scaffold,
+    );
   }
 
   Widget _regular({

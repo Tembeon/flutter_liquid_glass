@@ -98,7 +98,8 @@ class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle> {
 /// the popover up, which Escape, Back, a scroll or `Navigator.pop` then
 /// close. `margin` keeps the popover that much further in from the screen's
 /// sides, as `popoverLayoutMargins` does, past the 10 points it always
-/// keeps and the safe area.
+/// keeps and the safe area. A popover that adapts to a sheet on a phone
+/// takes neither: the sheet is modal and spans the screen.
 ///
 /// On a phone (a screen whose shorter side is under 600 points, an
 /// engineering stand-in for UIKit's compact width) the popover presents as

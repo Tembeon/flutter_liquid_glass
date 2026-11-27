@@ -154,12 +154,13 @@ void main() {
       ),
     );
     expect(_bar, fill());
-    expect(width, moreOrLessEquals(150, epsilon: 6));
+    final first = width!;
+    expect(first, moreOrLessEquals(150, epsilon: 15));
     for (var i = 0; i < 31; i++) {
       await tester.pump(const Duration(milliseconds: 16));
     }
     expect(_bar, fill());
-    expect(width, moreOrLessEquals(75, epsilon: 6));
+    expect(first - width!, moreOrLessEquals(300 * 0.496 / 2, epsilon: 2));
     for (var i = 0; i < 40; i++) {
       await tester.pump(const Duration(milliseconds: 16));
     }

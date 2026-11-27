@@ -75,7 +75,8 @@ class GlassProgressView extends StatefulWidget {
   /// at a constant speed, as SwiftUI's
   /// `ProgressView(timerInterval:countsDown:)`: it empties as the time
   /// passes when [countsDown], and fills otherwise. Outside the interval it
-  /// stands at its end.
+  /// stands at its end. Screen readers hear the share it stood at when it
+  /// was last built.
   const GlassProgressView.timer({
     required DateTime this.start,
     required DateTime this.end,

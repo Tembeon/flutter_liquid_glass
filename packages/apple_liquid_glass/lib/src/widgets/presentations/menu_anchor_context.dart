@@ -32,10 +32,14 @@ part of 'menu_anchor.dart';
 /// inside it (a row under the menu), which is then the one stop and keeps
 /// its own Space and Enter, ring and hover.
 ///
-/// Screen readers find the menu's items on [child] as custom actions, as
-/// UIKit's `accessibilityCustomActions` give them: each enabled, shown
+/// Screen readers find the menu's items as custom actions, as UIKit's
+/// `accessibilityCustomActions` give them: each enabled, shown
 /// [GlassMenuItem] with an action, through sections, runs it without
-/// opening the menu; a submenu's items stay in the menu.
+/// opening the menu; a submenu's items stay in the menu. They sit on the
+/// menu's node, which [child] merges into when it is not a node of its own;
+/// a child that is, such as a `GlassListRow` with an action, keeps its own
+/// node, and the actions and the long press that opens the menu stay on
+/// the node around it (a known gap).
 class GlassContextMenu extends StatefulWidget {
   /// Creates a context menu of [menuChildren] for [child].
   const GlassContextMenu({

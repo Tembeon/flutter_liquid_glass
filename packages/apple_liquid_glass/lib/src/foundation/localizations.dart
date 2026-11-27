@@ -97,8 +97,8 @@ abstract class GlassLocalizations {
   String percentValue(double fraction);
 
   /// [number] in the locale's digits and grouping, as a badge's count
-  /// shows it (UIKit localizes `Badge.count`); Flutter's
-  /// `MaterialLocalizations.formatDecimal`.
+  /// shows it (UIKit 27.2 draws `Badge.count(1234)` as "1,234" in English,
+  /// simulator capture); Flutter's `MaterialLocalizations.formatDecimal`.
   String formatDecimal(int number);
 
   /// The name of [month], 1 for January to 12 for December.

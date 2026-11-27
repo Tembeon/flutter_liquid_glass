@@ -420,12 +420,17 @@ class PopoverPage extends StatefulWidget {
 class _PopoverPageState extends State<PopoverPage> {
   var _adapts = false;
   var _tinted = false;
+  var _live = false;
   var _sides = _Sides.any;
 
   Future<void> _show(BuildContext anchor) => showGlassPopover<void>(
     context,
     anchor: anchor,
     adaptsToSheet: _adapts,
+    modal: !_live,
+    margin: _live
+        ? const EdgeInsets.symmetric(horizontal: 24)
+        : EdgeInsets.zero,
     style: _tinted
         ? GlassPopoverStyle(
             backgroundColor: GlassDynamicColor.resolve(
@@ -524,6 +529,11 @@ class _PopoverPageState extends State<PopoverPage> {
         'Tinted glass',
         value: _tinted,
         onChanged: (on) => setState(() => _tinted = on),
+      ),
+      ToggleKnob(
+        'Page stays live, 24 in from the sides',
+        value: _live,
+        onChanged: (on) => setState(() => _live = on),
       ),
       ChoiceKnob<_Sides>(
         'Arrow on',

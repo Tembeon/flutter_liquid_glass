@@ -85,6 +85,9 @@ void main() {
     await _settle(tester);
     expect(presses, 2);
     expect(find.text('pop'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _settle(tester);
+    expect(find.text('pop'), findsNothing);
   });
 
   testWidgets('a margin keeps the popover further in from the sides', (

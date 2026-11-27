@@ -284,6 +284,7 @@ class _JournalState extends State<_Journal> {
             GlassBarItem(
               icon: const Icon(CupertinoIcons.trash),
               semanticLabel: 'Delete',
+              tint: GlassColors.systemRed,
               onPressed: () {},
             ),
           ]

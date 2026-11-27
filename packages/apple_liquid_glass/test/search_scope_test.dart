@@ -89,4 +89,54 @@ void main() {
     expect(GlassSearchController.maybeOf(seen), isNull);
     expect(() => GlassSearchController.of(seen), throwsFlutterError);
   });
+
+  testWidgets('a search given to a scaffold later keeps the state of its '
+      'pages', (tester) async {
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    Widget app(GlassSearchController? controller) => MediaQuery(
+      data: const MediaQueryData(size: Size(402, 874)),
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: GlassScope(
+          renderer: const FlatGlassRenderer(),
+          child: GlassTabScaffold(
+            searchController: controller,
+            tabs: [
+              GlassTab(
+                icon: const SizedBox.square(dimension: 24),
+                label: const Text('Home'),
+                builder: (context) => const _Counter(),
+              ),
+              GlassTab(
+                icon: const SizedBox.square(dimension: 24),
+                label: const Text('Library'),
+                builder: (context) => const SizedBox(),
+              ),
+            ],
+            searchBuilder: (context) => const SizedBox(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpWidget(app(null));
+    tester.state<_CounterState>(find.byType(_Counter)).count = 7;
+    await tester.pumpWidget(app(search));
+    expect(tester.state<_CounterState>(find.byType(_Counter)).count, 7);
+  });
 }
+
+class _Counter extends StatefulWidget {
+  const _Counter();
+
+  @override
+  State<_Counter> createState() => _CounterState();
+}
+
+class _CounterState extends State<_Counter> {
+  int count = 0;
+
+  @override
+  Widget build(BuildContext context) => const SizedBox();
+}
+
