@@ -1548,6 +1548,8 @@ class GlassPageControl extends StatelessWidget
     required void Function(int)? onChanged,
     double? progress,
     GlassPageControlBackground backgroundStyle = ...,
+    bool hidesForSinglePage = ...,
+    bool allowsContinuousInteraction = ...,
     GlassPageControlStyle? style,
     String? semanticLabel,
     String Function(int, int)? semanticValueFormatter,
@@ -1556,15 +1558,18 @@ class GlassPageControl extends StatelessWidget
     bool autofocus = ...,
     Key? key,
   })
+  final bool allowsContinuousInteraction
   final bool autofocus
   final GlassPageControlBackground backgroundStyle
   final int count
   final FocusNode? focusNode
+  final bool hidesForSinglePage
   final void Function(int)? onChanged
   final int page
   final double? progress
   final String? semanticLabel
   final String Function(int, int)? semanticValueFormatter
+  static Size sizeFor(int count)
   final WidgetStatesController? statesController
   final GlassPageControlStyle? style
   static GlassPageControlStyle styleFrom({
@@ -3869,6 +3874,7 @@ final class PageControlMotion extends Motion
   void setPage(double t, int page)
   bool showsProgress
   Size get size
+  static Size sizeFor(int count)
   double width(int index)
   overrides: needsFullFrameRate
 final class PageControlPicked extends PageControlEvent
@@ -4051,6 +4057,7 @@ class RawGlassPageControl extends StatefulWidget
     required Widget Function(BuildContext, GlassPageControlDetails) builder,
     double? progress,
     GlassPageControlBackground backgroundStyle = ...,
+    bool allowsContinuousInteraction = ...,
     String? semanticLabel,
     String Function(int, int)? semanticValueFormatter,
     WidgetStatesController? statesController,
@@ -4058,6 +4065,7 @@ class RawGlassPageControl extends StatefulWidget
     bool autofocus = ...,
     Key? key,
   })
+  final bool allowsContinuousInteraction
   final bool autofocus
   final GlassPageControlBackground backgroundStyle
   final Widget Function(BuildContext, GlassPageControlDetails) builder

@@ -284,6 +284,17 @@ final class PageControlMotion extends Motion {
     return w;
   }
 
+  /// The size at rest of a control of [count] pages without a progress,
+  /// on a platter (`sizeForNumberOfPages`).
+  static Size sizeFor(int count) => Size(
+    count <= 0
+        ? 0
+        : 2 * PageControlTuning.padding +
+              count * PageControlTuning.indicatorSize +
+              (count - 1) * PageControlTuning.spacing,
+    PageControlTuning.height,
+  );
+
   /// The size of the control: the dots between the platter's paddings,
   /// [PageControlTuning.height] tall, or the dots alone when [platterless].
   Size get size => Size(

@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
@@ -153,6 +154,8 @@ class GlassPageControl extends StatelessWidget {
     required this.onChanged,
     this.progress,
     this.backgroundStyle = GlassPageControlBackground.automatic,
+    this.hidesForSinglePage = false,
+    this.allowsContinuousInteraction = true,
     this.style,
     this.semanticLabel,
     this.semanticValueFormatter,
@@ -178,6 +181,14 @@ class GlassPageControl extends StatelessWidget {
 
   /// When the platter shows.
   final GlassPageControlBackground backgroundStyle;
+
+  /// Whether a control of one page or none draws nothing, keeping its place,
+  /// and takes no input; UIKit's default is false and SwiftUI's page style
+  /// true (page control API passport).
+  final bool hidesForSinglePage;
+
+  /// See [RawGlassPageControl.allowsContinuousInteraction].
+  final bool allowsContinuousInteraction;
 
   /// The look, over the theme's and the control's defaults.
   final GlassPageControlStyle? style;
@@ -229,8 +240,16 @@ class GlassPageControl extends StatelessWidget {
     darkHighContrastColor: Color(0x73FFFFFF),
   );
 
+  /// The size of a control of [count] pages without a progress: 14 points
+  /// of padding at either end around dots 9.67 across, 8 apart, 25.67
+  /// tall (page control passport, `sizeForNumberOfPages`).
+  static Size sizeFor(int count) => PageControlMotion.sizeFor(count);
+
   @override
   Widget build(BuildContext context) {
+    if (hidesForSinglePage && count <= 1) {
+      return SizedBox.fromSize(size: sizeFor(count));
+    }
     final look = (style ?? const GlassPageControlStyle()).merge(
       GlassPageControlStyle.maybeOf(context),
     );
@@ -240,6 +259,7 @@ class GlassPageControl extends StatelessWidget {
       onChanged: onChanged,
       progress: progress,
       backgroundStyle: backgroundStyle,
+      allowsContinuousInteraction: allowsContinuousInteraction,
       semanticLabel: semanticLabel,
       semanticValueFormatter: semanticValueFormatter,
       statesController: statesController,

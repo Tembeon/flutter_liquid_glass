@@ -114,6 +114,72 @@ void main() {
     expect(haptics, hasLength(2));
   });
 
+  testWidgets('without continuous interaction a moving finger only taps, '
+      'at its release', (tester) async {
+    final picks = <int>[];
+    await tester.pumpWidget(
+      _app(
+        GlassPageControl(
+          count: 5,
+          page: 2,
+          allowsContinuousInteraction: false,
+          onChanged: picks.add,
+        ),
+      ),
+    );
+    final box = tester.getRect(find.byType(GlassPageControl));
+    final gesture = await tester.startGesture(box.center);
+    for (var i = 0; i < 10; i++) {
+      await gesture.moveBy(const Offset(5, 0));
+      await tester.pump(const Duration(milliseconds: 25));
+    }
+    expect(picks, isEmpty);
+    await gesture.up();
+    await tester.pump();
+    expect(picks, [3]);
+  });
+
+  testWidgets('its size by the count, and with hidesForSinglePage one page '
+      'keeps its place, draws nothing and is not read', (tester) async {
+    final five = GlassPageControl.sizeFor(5);
+    expect(five.width, moreOrLessEquals(108.33, epsilon: 0.05));
+    expect(five.height, 25.67);
+    expect(
+      GlassPageControl.sizeFor(1).width,
+      moreOrLessEquals(37.67, epsilon: 0.05),
+    );
+    expect(
+      GlassPageControl.sizeFor(3).width,
+      moreOrLessEquals(73, epsilon: 0.05),
+    );
+    await tester.pumpWidget(
+      _app(GlassPageControl(count: 5, page: 0, onChanged: (_) {})),
+    );
+    final drawn = tester.getSize(find.byType(GlassPageControl));
+    expect(drawn.width, moreOrLessEquals(five.width));
+    expect(drawn.height, five.height);
+
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        GlassPageControl(
+          count: 1,
+          page: 0,
+          hidesForSinglePage: true,
+          semanticLabel: 'Pages',
+          onChanged: (_) {},
+        ),
+      ),
+    );
+    expect(
+      tester.getSize(find.byType(GlassPageControl)).width,
+      moreOrLessEquals(GlassPageControl.sizeFor(1).width),
+    );
+    expect(find.byType(RawGlassPageControl), findsNothing);
+    expect(find.bySemanticsLabel('Pages'), findsNothing);
+    semantics.dispose();
+  });
+
   testWidgets('keys and accessibility step; it reads as an adjustable value', (
     tester,
   ) async {

@@ -153,6 +153,7 @@ class RawGlassPageControl extends StatefulWidget {
     required this.builder,
     this.progress,
     this.backgroundStyle = GlassPageControlBackground.automatic,
+    this.allowsContinuousInteraction = true,
     this.semanticLabel,
     this.semanticValueFormatter,
     this.statesController,
@@ -180,6 +181,10 @@ class RawGlassPageControl extends StatefulWidget {
 
   /// When the platter shows.
   final GlassPageControlBackground backgroundStyle;
+
+  /// Whether a finger that moves scrubs through the pages; without, a
+  /// touch only taps, a page back or forward at its release.
+  final bool allowsContinuousInteraction;
 
   /// What accessibility reads for the control.
   final String? semanticLabel;
@@ -402,7 +407,7 @@ final class _PageControlInput extends Interaction {
         _rtl = input.textDirection == TextDirection.rtl;
         motion.pointerDown(input.time, _x(input.position));
         return const InteractionUpdate(verdict: .claimed);
-      case PointerMoveInput():
+      case PointerMoveInput() when state.widget.allowsContinuousInteraction:
         motion.pointerMove(input.time, _x(input.position));
       case PointerUpInput():
         _touching = false;
