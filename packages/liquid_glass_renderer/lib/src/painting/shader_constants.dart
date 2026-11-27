@@ -277,6 +277,13 @@ const double fakeFieldInside = 24;
 @internal
 const double fakeFieldOutside = 8;
 
+/// How strong each light of iOS 27's rim highlight is, its key and fill
+/// amounts, the same on every glass: the line lights in proportion to its
+/// mask (a strength of 1 would light all of it), and the diffuse glow,
+/// `RimHighlightRecipe.diffuseAmount` of this, by the glow's own law.
+@internal
+const double ios27RimLightAmount = 0.5;
+
 /// The pairs of pixels along each side of a cell that copy_levels.frag has
 /// room to average.
 @internal
@@ -1035,6 +1042,7 @@ ${[for (final type in RawShapeType.values) '#define ${type._macro} ${_float(type
 ${_rows('SHAPE', ShapeLane.values, ['PRIMITIVE', 'INVERSE_BASIS', 'PLACEMENT'])}
 ${_rows('SQUIRCLE', SquircleLane.values, ['DEGREES_AND_SPANS', 'CIRCLE_CENTERS', 'AXES_AND_RADII'])}
 const float kOpticalCornerRadiusScale = ${_float(opticalCornerRadiusScale)};
+const float kRimLineBias = ${_float(1 / ios27RimLightAmount - 2)};
 const float kSmoothUnionDepth = ${_float(smoothUnionDepth)};
 
 const float kGlintBleed = ${_float(GlassGlint.bleed)};

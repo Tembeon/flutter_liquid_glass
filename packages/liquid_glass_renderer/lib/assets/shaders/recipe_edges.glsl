@@ -27,9 +27,10 @@ float twoLights(float facing, float spread, float bias, float value) {
 }
 
 // How strongly the rim highlight lights at [depth]: a line [line] deep
-// whose profile bends by [curvature], and a diffuse glow [diffuse] deep
-// biased by [diffuseBias], lit from above and below as far as the cosines
-// [spread].
+// whose profile bends by [curvature] (biased by kRimLineBias), and a
+// diffuse glow [diffuse] deep biased by [diffuseBias], lit from above and
+// below as far as the cosines [spread]. The line and the glow add up, past
+// 1 near the edge.
 float rimHighlight(
     float depth,
     vec2 normal,
@@ -46,12 +47,8 @@ float rimHighlight(
         clamp((line - depth) / pixel + 0.5, 0.0, 1.0);
     float glowMask = (1.0 - clamp(depth / diffuse, 0.0, 1.0)) * inside *
         clamp((diffuse - depth) / pixel + 0.5, 0.0, 1.0);
-    return clamp(
-        twoLights(-normal.y, spread.x, -1.0, lineMask) +
-            twoLights(-normal.y, spread.y, diffuseBias, glowMask),
-        0.0,
-        1.0
-    );
+    return twoLights(-normal.y, spread.x, kRimLineBias, lineMask) +
+        twoLights(-normal.y, spread.y, diffuseBias, glowMask);
 }
 
 // How dark the ring shadow is at [depth]: a band [stroke] wide inside the

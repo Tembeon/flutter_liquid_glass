@@ -383,7 +383,6 @@ final class DarkSpecularRecipe {
   @override
   bool operator ==(Object other) =>
       other is DarkSpecularRecipe &&
-      other.amount == amount &&
       other.width == width &&
       other.outset == outset &&
       other.colorBias == colorBias &&
@@ -403,10 +402,14 @@ final class DarkSpecularRecipe {
 ///
 /// Two lights on the vertical axis, one above and one below, light a line
 /// [width] logical pixels wide at the edge and a diffuse glow
-/// [diffuseWidth] wide, [diffuseAmount] as strong, over [spread] radians of
-/// the edge's direction ([diffuseSpread] of it for the glow), shaped by
-/// [curvature]. Under the mask, at [opacity], what the glass shows is mapped
-/// through levels [black]..[white] and [saturation].
+/// [diffuseWidth] wide, over [spread] radians of the edge's direction
+/// ([diffuseSpread] of it for the glow), shaped by [curvature], each light
+/// `ios27RimLightAmount` strong and the glow [diffuseAmount] of that. Under
+/// the mask, at
+/// [opacity], what the glass shows is moved toward itself mapped through
+/// levels [black]..[white] and [saturation]; the line and the glow add up,
+/// so near the edge the mask passes 1 and the glass shows brighter than the
+/// mapping, as iOS draws it.
 @immutable
 final class RimHighlightRecipe {
   /// A rim highlight of the given mask and brightening.

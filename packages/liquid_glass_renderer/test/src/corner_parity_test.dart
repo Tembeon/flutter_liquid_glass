@@ -152,8 +152,9 @@ void main() {
   // rounded box's gradient by it lights the corner as the shape drawn alone
   // does: real glass turns the shape's normals in its geometry, fake glass in
   // fake_glass_surface.frag, and a field's in the gradient its owner gives.
-  // A field whose gradient does not turn lights the corner 32 levels off on
-  // real glass and 22 on fake glass.
+  // A field whose gradient does not turn lights the corner 14 levels off on
+  // real glass and 7 on fake glass; a turned one lies within 1 on real glass
+  // and 2 on fake glass, whose rim lights the field's own gradient.
   for (final fake in [false, true]) {
     testWidgets('a field of a rounded box whose gradient turns by '
         'opticalCornerScale lights its corner as the shape does '
@@ -175,8 +176,11 @@ void main() {
         fake: fake,
         field: _field(opticalRadius: _radius),
       );
-      expect(largestDifference(shape, turned), lessThanOrEqualTo(1));
-      expect(largestDifference(shape, unturned), greaterThan(15));
+      expect(
+        largestDifference(shape, turned),
+        lessThanOrEqualTo(fake ? 2 : 1),
+      );
+      expect(largestDifference(shape, unturned), greaterThan(fake ? 5 : 10));
     }, skip: !fake && skipProperGlassTests);
   }
 }

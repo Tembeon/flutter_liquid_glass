@@ -183,7 +183,7 @@ List<double> recipeLanes(
       math.cos(highlight.spread * highlight.diffuseSpread),
     ],
     RecipeLane.highlightDiffuseBias: [
-      if (highlight.diffuseAmount > 0) 1 / highlight.diffuseAmount - 2 else 0,
+      1 / (ios27RimLightAmount * highlight.diffuseAmount) - 2,
     ],
     RecipeLane.tintFloor: [law.lowFloor],
     RecipeLane.specularBias: [
