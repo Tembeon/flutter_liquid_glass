@@ -625,6 +625,7 @@ void main() {
         .firstWhere((details) => details.edge == AxisDirection.up);
     expect(top.hard, isTrue);
     expect(top.extent, 62 + 54);
+    expect(top.systemExtent, 62, reason: 'the status bar, not the bar');
     controller.jumpTo(40);
     await _settle(tester);
     expect(top.presence.value, 0);

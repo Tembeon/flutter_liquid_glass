@@ -90,6 +90,7 @@ final class ChromeEdges {
     required this.bottom,
     required this.bottomExtent,
     required this.background,
+    this.topSystemExtent,
   });
 
   /// The bar at the top.
@@ -97,6 +98,10 @@ final class ChromeEdges {
 
   /// The distance from the page's top to the top bar's far edge.
   final double topExtent;
+
+  /// How much of [topExtent] the system's own bar takes (the status bar
+  /// above a navigation bar), or null when all of it is the system's.
+  final double? topSystemExtent;
 
   /// How far the content scrolls before it passes under the top bar.
   final double scrolledUnderAfter;
@@ -115,6 +120,7 @@ final class ChromeEdges {
       other is ChromeEdges &&
       other.top == top &&
       other.topExtent == topExtent &&
+      other.topSystemExtent == topSystemExtent &&
       other.scrolledUnderAfter == scrolledUnderAfter &&
       other.bottom == bottom &&
       other.bottomExtent == bottomExtent &&
@@ -124,6 +130,7 @@ final class ChromeEdges {
   int get hashCode => Object.hash(
     top,
     topExtent,
+    topSystemExtent,
     scrolledUnderAfter,
     bottom,
     bottomExtent,
@@ -419,7 +426,10 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
                       edge: AxisDirection.up,
                       hard: top,
                       extent: topExtent - after,
-                      systemExtent: math.min(padding.top, topExtent - after),
+                      systemExtent: math.min(
+                        edges?.topSystemExtent ?? topExtent,
+                        topExtent - after,
+                      ),
                       presence: _top.progressListenable,
                       background: background,
                     ),
@@ -718,6 +728,7 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
     final edges = ChromeEdges(
       top: _kind(navigationBar),
       topExtent: top,
+      topSystemExtent: media.padding.top,
       scrolledUnderAfter: switch (navigationBar) {
         GlassNavigationBar(:final scrolledUnderAfter) => scrolledUnderAfter,
         _ => 0,
