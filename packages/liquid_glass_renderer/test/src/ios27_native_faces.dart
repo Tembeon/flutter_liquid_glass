@@ -105,8 +105,13 @@ Widget nativeFaceScene(
           sliderPosition: slider,
         ),
   switch ((brightness, tint)) {
-    (null, null) => const LiquidGlassAppearance.ios27Clear(),
-    (null, final tint?) => LiquidGlassAppearance.ios27Clear(tint: tint),
+    (null, null) => const LiquidGlassAppearance.ios27Clear(
+      brightness: Brightness.light,
+    ),
+    (null, final tint?) => LiquidGlassAppearance.ios27Clear(
+      brightness: Brightness.light,
+      tint: tint,
+    ),
     (final brightness?, null) => LiquidGlassAppearance.ios27Regular(
       brightness: brightness,
     ),

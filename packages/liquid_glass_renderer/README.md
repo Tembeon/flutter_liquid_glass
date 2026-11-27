@@ -318,9 +318,9 @@ Every type names the two iOS 27 glasses the same way:
 
 | Material | Regular (`.regular`: toolbars, tab bars, `.glass` buttons) | Clear (`.clear`) |
 | --- | --- | --- |
-| `LiquidGlassMaterial` | `ios27Regular(brightness:)` | `ios27Clear()` |
+| `LiquidGlassMaterial` | `ios27Regular(brightness:)` | `ios27Clear(brightness:)` |
 | `LiquidGlassSettings` | `ios27Regular()` | `ios27Clear()` |
-| `LiquidGlassAppearance` | `ios27Regular(brightness:)` | `ios27Clear()` |
+| `LiquidGlassAppearance` | `ios27Regular(brightness:)` | `ios27Clear(brightness:)` |
 | `LiquidGlassShadow` | `ios27Regular(brightness:)` | none: clear glass casts no shadow |
 
 A layer given no `settings` and no `defaultAppearance` draws regular glass for
@@ -329,6 +329,18 @@ the platform brightness: light glass in light mode, dark glass in dark mode.
 The presets are fitted to Apple's glass at toolbar and button size. They are a
 starting point: Apple also varies its glass with the control's role, size and
 accessibility settings.
+
+### `reduceTransparency`: Reduce Transparency
+
+Under the Reduce Transparency accessibility setting iOS 27 keeps its glass but
+draws it otherwise: no refraction, a wide blur (35 points on a control's glass
+to 50 on a panel's), a nearly flat face, no ring shadow. Pass the setting as
+`reduceTransparency`; as with the slider, the renderer does not read the
+system value.
+
+```dart
+LiquidGlassMaterial.ios27Regular(brightness: brightness, reduceTransparency: true)
+```
 
 ### `sliderPosition`: the Liquid Glass slider
 
@@ -652,6 +664,11 @@ A few changes need a hand:
   `lens: LiquidGlassLens(shrink: s, dispersion: d)`.
 - `LiquidGlass.shape` and `LiquidGlassLayer.settings` are nullable: null on a
   `.live` glass or layer, and for a layer given no settings.
+- `LiquidGlassColorModel.ios27Clear(...)`, `LiquidGlassAppearance.ios27Clear(...)`
+  and `LiquidGlassMaterial.ios27Clear(...)` take a `brightness`, which only
+  Reduce Transparency's fill reads (`LiquidGlassSettings.reduceTransparency`):
+  `brightness: Brightness.light` draws what they drew before; pass your page's
+  brightness.
 - `LiquidGlassColorModel.direct(...)` takes a `brightness` and
   `FakeGlass(...)` an `appearance`. `brightness: Brightness.light` and
   `appearance: LiquidGlassAppearance(colorModel:
@@ -698,7 +715,7 @@ A few changes need a hand:
   `LiquidGlassAppearance` and `LiquidGlassColorModel`. Read and write the
   fields you store yourself.
 - `LiquidGlassColorModel` is sealed: `direct(...)`, `ios27Regular(...)` and
-  `ios27Clear()` build a `LiquidGlassDirectColorModel`, a
+  `ios27Clear(...)` build a `LiquidGlassDirectColorModel`, a
   `LiquidGlassIos27RegularColorModel` and a `LiquidGlassIos27ClearColorModel`.
   `saturation` and `vibrancy` are on the direct model alone, so read them
   after a type test or compare models with `==`.

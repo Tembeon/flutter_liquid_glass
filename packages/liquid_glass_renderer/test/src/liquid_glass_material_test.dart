@@ -69,8 +69,14 @@ void main() {
       ),
     );
     expect(
-      LiquidGlassMaterial.ios27Clear(highContrast: true).appearance,
-      const LiquidGlassAppearance.ios27Clear(highContrast: true),
+      LiquidGlassMaterial.ios27Clear(
+        brightness: Brightness.light,
+        highContrast: true,
+      ).appearance,
+      const LiquidGlassAppearance.ios27Clear(
+        brightness: Brightness.light,
+        highContrast: true,
+      ),
     );
     const tint = Color(0xFF0A84FF);
     expect(
@@ -84,12 +90,18 @@ void main() {
       ),
     );
 
-    final clear = LiquidGlassMaterial.ios27Clear(sliderPosition: 1);
+    final clear = LiquidGlassMaterial.ios27Clear(
+      brightness: Brightness.light,
+      sliderPosition: 1,
+    );
     expect(
       clear.settings,
       const LiquidGlassSettings.ios27Clear(sliderPosition: 1),
     );
-    expect(clear.appearance, const LiquidGlassAppearance.ios27Clear());
+    expect(
+      clear.appearance,
+      const LiquidGlassAppearance.ios27Clear(brightness: Brightness.light),
+    );
     expect(clear.shadows, isEmpty);
     expect(
       clear,
@@ -141,7 +153,9 @@ void main() {
       const LiquidGlassAppearance.ios27Regular(brightness: Brightness.dark),
     );
 
-    const appearance = LiquidGlassAppearance.ios27Clear();
+    const appearance = LiquidGlassAppearance.ios27Clear(
+      brightness: Brightness.light,
+    );
     await tester.pumpWidget(
       _layer(
         Brightness.dark,

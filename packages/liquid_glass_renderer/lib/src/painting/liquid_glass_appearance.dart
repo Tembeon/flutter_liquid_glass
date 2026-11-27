@@ -41,14 +41,17 @@ final class LiquidGlassAppearance {
            ? (highContrast ? _darkContrast : _dark)
            : (highContrast ? _lightContrast : _light);
 
-  /// The iOS 27 `Glass.clear` appearance, identical in light and dark and
-  /// at every size, with the face of the Increase Contrast setting where
-  /// [highContrast] says so.
+  /// The iOS 27 `Glass.clear` appearance in [brightness]
+  /// ([LiquidGlassColorModel.ios27Clear]), with the face of the Increase
+  /// Contrast setting where [highContrast] says so.
   const LiquidGlassAppearance.ios27Clear({
+    required Brightness brightness,
     bool highContrast = false,
     this.tint = const Color(0x00000000),
     this.visibility = 1,
-  }) : colorModel = highContrast ? _clearContrast : _clear;
+  }) : colorModel = brightness == Brightness.dark
+           ? (highContrast ? _clearDarkContrast : _clearDark)
+           : (highContrast ? _clearLightContrast : _clearLight);
 
   static const _light = LiquidGlassColorModel.ios27Regular(
     brightness: Brightness.light,
@@ -64,8 +67,18 @@ final class LiquidGlassAppearance {
     brightness: Brightness.dark,
     highContrast: true,
   );
-  static const _clear = LiquidGlassColorModel.ios27Clear();
-  static const _clearContrast = LiquidGlassColorModel.ios27Clear(
+  static const _clearLight = LiquidGlassColorModel.ios27Clear(
+    brightness: Brightness.light,
+  );
+  static const _clearDark = LiquidGlassColorModel.ios27Clear(
+    brightness: Brightness.dark,
+  );
+  static const _clearLightContrast = LiquidGlassColorModel.ios27Clear(
+    brightness: Brightness.light,
+    highContrast: true,
+  );
+  static const _clearDarkContrast = LiquidGlassColorModel.ios27Clear(
+    brightness: Brightness.dark,
     highContrast: true,
   );
 

@@ -1381,7 +1381,10 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         Offset(1, -1),
         LiquidGlassAppearance.ios27Regular(brightness: Brightness.dark),
       ),
-      (Offset(-1, 1), LiquidGlassAppearance.ios27Clear()),
+      (
+        Offset(-1, 1),
+        LiquidGlassAppearance.ios27Clear(brightness: Brightness.light),
+      ),
       (
         Offset(1, 1),
         LiquidGlassAppearance.ios27Regular(

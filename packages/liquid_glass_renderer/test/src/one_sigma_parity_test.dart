@@ -55,7 +55,9 @@ enum _Look {
     regularDark => const LiquidGlassAppearance.ios27Regular(
       brightness: Brightness.dark,
     ),
-    clear => const LiquidGlassAppearance.ios27Clear(),
+    clear => const LiquidGlassAppearance.ios27Clear(
+      brightness: Brightness.light,
+    ),
   };
 }
 

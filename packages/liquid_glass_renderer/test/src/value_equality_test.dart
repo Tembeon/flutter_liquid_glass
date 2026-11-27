@@ -86,7 +86,9 @@ void main() {
         ),
         LiquidGlassAppearance(
           tint: Color(0x40FF0000 + _n(1).toInt()),
-          colorModel: const LiquidGlassColorModel.ios27Clear(),
+          colorModel: const LiquidGlassColorModel.ios27Clear(
+            brightness: Brightness.light,
+          ),
         ),
       ],
     );
@@ -162,15 +164,21 @@ void main() {
           brightness: Brightness.dark,
           highContrast: true,
         ),
-        const LiquidGlassColorModel.ios27Clear(),
+        const LiquidGlassColorModel.ios27Clear(brightness: Brightness.light),
         const LiquidGlassColorModel.direct(brightness: Brightness.light),
       ],
     );
     _holdsValue(
-      LiquidGlassColorModel.ios27Clear(highContrast: _b(true)),
-      const LiquidGlassColorModel.ios27Clear(highContrast: true),
+      LiquidGlassColorModel.ios27Clear(
+        brightness: Brightness.light,
+        highContrast: _b(true),
+      ),
+      const LiquidGlassColorModel.ios27Clear(
+        brightness: Brightness.light,
+        highContrast: true,
+      ),
       [
-        const LiquidGlassColorModel.ios27Clear(),
+        const LiquidGlassColorModel.ios27Clear(brightness: Brightness.light),
         const LiquidGlassColorModel.ios27Regular(
           brightness: Brightness.light,
           highContrast: true,
@@ -212,7 +220,12 @@ void main() {
       ),
       'regular dark',
     );
-    expect(kind(const LiquidGlassColorModel.ios27Clear()), 'clear');
+    expect(
+      kind(
+        const LiquidGlassColorModel.ios27Clear(brightness: Brightness.light),
+      ),
+      'clear',
+    );
     expect(
       kind(const LiquidGlassColorModel.ios27Lens(brightness: Brightness.light)),
       'lens',
@@ -235,7 +248,10 @@ void main() {
       ).tint,
       none,
     );
-    expect(const LiquidGlassAppearance.ios27Clear().tint, none);
+    expect(
+      const LiquidGlassAppearance.ios27Clear(brightness: Brightness.light).tint,
+      none,
+    );
     expect(
       const LiquidGlassAppearance.ios27Regular(
         brightness: Brightness.light,

@@ -113,6 +113,7 @@ base class LiquidGlassRenderer extends GlassRenderer {
     bool highContrast = false,
   }) => glass.isClear
       ? LiquidGlassMaterial.ios27Clear(
+          brightness: brightness,
           sliderPosition: sliderPosition,
           highContrast: highContrast,
           tint: glass.tint ?? const Color(0x00000000),

@@ -38,6 +38,7 @@ class LiquidGlass extends StatefulWidget
   overrides: createState, debugFillProperties
 final class LiquidGlassAppearance
   const LiquidGlassAppearance.ios27Clear({
+    required Brightness brightness,
     bool highContrast = ...,
     Color tint = ...,
     double visibility = ...,
@@ -122,7 +123,10 @@ sealed class LiquidGlassColorModel
     double? contourDirectionality,
     double? bevelShadowStrength,
   })
-  const factory LiquidGlassColorModel.ios27Clear({bool highContrast})
+  const factory LiquidGlassColorModel.ios27Clear({
+    required Brightness brightness,
+    bool highContrast,
+  })
   const factory LiquidGlassColorModel.ios27Lens({
     required Brightness brightness,
   })
@@ -229,6 +233,7 @@ final class LiquidGlassImageBackdropFilter extends LiquidGlassBackdropFilter
   final double sigma
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27ClearColorModel extends LiquidGlassColorModel
+  final Brightness brightness
   final bool highContrast
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27LensColorModel extends LiquidGlassColorModel
@@ -306,6 +311,7 @@ final class LiquidGlassLens
   overrides: ==, hashCode, toString
 final class LiquidGlassMaterial
   factory LiquidGlassMaterial.ios27Clear({
+    required Brightness brightness,
     double sliderPosition = ...,
     bool highContrast = ...,
     bool reduceTransparency = ...,

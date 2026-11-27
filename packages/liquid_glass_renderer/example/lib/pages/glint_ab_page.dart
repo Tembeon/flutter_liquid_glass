@@ -96,7 +96,7 @@ class _GlintAbPageState extends State<GlintAbPage> {
     return LiquidGlassLayer(
       settings: settings.copyWith(),
       defaultAppearance: _clear
-          ? const LiquidGlassAppearance.ios27Clear()
+          ? const LiquidGlassAppearance.ios27Clear(brightness: Brightness.light)
           : LiquidGlassAppearance.ios27Regular(brightness: brightness),
       child: LiquidGlass(
         shape: LiquidRoundedRectangle(radius: _size.height / 2),

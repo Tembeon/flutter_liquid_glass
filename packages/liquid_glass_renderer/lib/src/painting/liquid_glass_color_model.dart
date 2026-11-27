@@ -105,8 +105,10 @@ sealed class LiquidGlassColorModel {
     bool highContrast,
   }) = LiquidGlassIos27RegularColorModel._;
 
-  /// iOS 27 `Glass.clear`, identical in light and dark appearance and at
-  /// every size and slider position.
+  /// iOS 27 `Glass.clear` in [brightness], identical in light and dark
+  /// appearance and at every size and slider position but under Reduce
+  /// Transparency, whose fill is a quarter of white in light and of black in
+  /// dark (`LiquidGlassSettings.reduceTransparency`).
   ///
   /// Clear glass lifts black to 12.5 %, takes white to 108 % and passes
   /// chroma through at 1.06: the inputs UIKit gives it on iOS 27. It takes
@@ -117,8 +119,10 @@ sealed class LiquidGlassColorModel {
   /// With [highContrast], clear glass darkens its face under a black
   /// fill and dims its rim highlight, as under iOS 27's Increase Contrast
   /// setting.
-  const factory LiquidGlassColorModel.ios27Clear({bool highContrast}) =
-      LiquidGlassIos27ClearColorModel._;
+  const factory LiquidGlassColorModel.ios27Clear({
+    required Brightness brightness,
+    bool highContrast,
+  }) = LiquidGlassIos27ClearColorModel._;
 
   /// The lens iOS 27 lifts out of a held control over its selection, as a
   /// tab bar's or a segmented control's, in [brightness].
@@ -278,8 +282,14 @@ final class LiquidGlassIos27RegularColorModel extends LiquidGlassColorModel {
 /// The [LiquidGlassColorModel] of iOS 27 clear glass
 /// ([LiquidGlassColorModel.ios27Clear]).
 final class LiquidGlassIos27ClearColorModel extends LiquidGlassColorModel {
-  const LiquidGlassIos27ClearColorModel._({this.highContrast = false})
-    : super._();
+  const LiquidGlassIos27ClearColorModel._({
+    required this.brightness,
+    this.highContrast = false,
+  }) : super._();
+
+  /// The colour scheme of the glass, which only Reduce Transparency's fill
+  /// reads.
+  final Brightness brightness;
 
   /// Whether the glass takes the face of the Increase Contrast setting.
   final bool highContrast;
@@ -287,16 +297,17 @@ final class LiquidGlassIos27ClearColorModel extends LiquidGlassColorModel {
   @override
   bool operator ==(Object other) =>
       other is LiquidGlassIos27ClearColorModel &&
+      other.brightness == brightness &&
       other.highContrast == highContrast;
 
   @override
   int get hashCode =>
-      Object.hash(LiquidGlassIos27ClearColorModel, highContrast);
+      Object.hash(LiquidGlassIos27ClearColorModel, brightness, highContrast);
 
   @override
   String toString() =>
-      'LiquidGlassColorModel.ios27Clear('
-      '${highContrast ? 'highContrast: true' : ''})';
+      'LiquidGlassColorModel.ios27Clear(brightness: $brightness'
+      '${highContrast ? ', highContrast: true' : ''})';
 }
 
 /// The [LiquidGlassColorModel] of a lens iOS 27 lifts out of a held control
@@ -559,10 +570,13 @@ extension WearColorModel on LiquidGlassColorModel {
     switch (this) {
       case final LiquidGlassDirectColorModel direct:
         return _wearDirect(direct);
-      case LiquidGlassIos27ClearColorModel(:final highContrast):
+      case LiquidGlassIos27ClearColorModel(
+        :final brightness,
+        :final highContrast,
+      ):
         return _wear((
           variant: GlassVariant.clear,
-          brightness: Brightness.light,
+          brightness: brightness,
           shortSide: side,
           greyTint: grey,
           highContrast: highContrast,

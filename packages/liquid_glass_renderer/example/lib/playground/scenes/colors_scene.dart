@@ -33,7 +33,9 @@ class ColorsScene extends StatelessWidget {
       label: 'Clear',
       offset: Offset(-50, 50),
       glyph: Color(0xFFFFFFFF),
-      appearance: LiquidGlassAppearance.ios27Clear(),
+      appearance: LiquidGlassAppearance.ios27Clear(
+        brightness: Brightness.light,
+      ),
     ),
     (
       label: 'Blue',

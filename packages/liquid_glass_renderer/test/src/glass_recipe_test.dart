@@ -242,6 +242,36 @@ void main() {
       );
     });
 
+    test('clear glass draws one recipe in either scheme but under it, '
+        'where its fill is a quarter of white in light and of black in '
+        'dark', () {
+      for (final side in [44.0, 150.0]) {
+        for (final slider in [0.0, 0.5, 1.0]) {
+          GlassRecipe clear(Brightness brightness) => _of(
+            variant: GlassVariant.clear,
+            brightness: brightness,
+            shortSide: side,
+            slider: slider,
+          );
+          expect(
+            clear(Brightness.dark),
+            clear(Brightness.light),
+            reason: 'side $side, slider $slider',
+          );
+        }
+      }
+      FaceRecipe reduced(Brightness brightness) => _of(
+        variant: GlassVariant.clear,
+        brightness: brightness,
+        reduceTransparency: true,
+      ).face;
+      final light = reduced(Brightness.light);
+      final dark = reduced(Brightness.dark);
+      expect((light.black, light.white, light.saturation), (0.125, 0, 0.9));
+      expect((light.fill.r, light.fill.a), (1, 0.25));
+      expect((dark.saturation, dark.fill.r, dark.fill.a), (0.7, 0, 0.25));
+    });
+
     test("lies under Increase Contrast's face", () {
       expect(
         _of(reduceTransparency: true, highContrast: true).face.fill.a,

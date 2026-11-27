@@ -36,7 +36,9 @@ enum GlassStyle {
 
   LiquidGlassAppearance appearance(Brightness brightness) => switch (this) {
     regular => LiquidGlassAppearance.ios27Regular(brightness: brightness),
-    clear => const LiquidGlassAppearance.ios27Clear(),
+    clear => const LiquidGlassAppearance.ios27Clear(
+      brightness: Brightness.light,
+    ),
     loupe => LiquidGlassLoupe.defaultAppearance,
   };
 }

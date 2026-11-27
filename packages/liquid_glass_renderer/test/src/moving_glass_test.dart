@@ -75,7 +75,9 @@ Widget _scene(int frame, Offset at) => Directionality(
                 height: _lens,
                 child: const LiquidGlass(
                   shape: LiquidOval(),
-                  appearance: LiquidGlassAppearance.ios27Clear(),
+                  appearance: LiquidGlassAppearance.ios27Clear(
+                    brightness: Brightness.light,
+                  ),
                   child: SizedBox.expand(),
                 ),
               ),

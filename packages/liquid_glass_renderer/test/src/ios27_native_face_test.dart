@@ -96,6 +96,7 @@ void main() {
             ? (
                 const LiquidGlassSettings.ios27Clear(),
                 LiquidGlassAppearance.ios27Clear(
+                  brightness: Brightness.light,
                   highContrast: highContrast,
                 ),
               )
@@ -184,7 +185,9 @@ void main() {
         0,
       );
     }
-    const clear = LiquidGlassColorModel.ios27Clear();
+    const clear = LiquidGlassColorModel.ios27Clear(
+      brightness: Brightness.light,
+    );
     expect(identical(clear.wornAt(40), clear.wornAt(64)), isTrue);
     expect(identical(clear.wornAt(160), clear.wornAt(400)), isTrue);
     const direct = LiquidGlassColorModel.direct(brightness: Brightness.light);
@@ -217,7 +220,9 @@ void main() {
     const dark = LiquidGlassColorModel.ios27Regular(
       brightness: Brightness.dark,
     );
-    const clear = LiquidGlassColorModel.ios27Clear();
+    const clear = LiquidGlassColorModel.ios27Clear(
+      brightness: Brightness.light,
+    );
     const white = Color(0xFFFFFFFF);
     const grey = Color(0x80808080);
     // The tone of channel [c] of a tint over a face of luminance [face].
