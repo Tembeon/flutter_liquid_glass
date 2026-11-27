@@ -11,7 +11,13 @@ const _backdrop = 128;
 // device pixel before a pixel boundary: the pixel whose center lies 0.75 of
 // a device pixel inside the edge, at the middle of the lens's end where the
 // rim highlight does not light, shows only the dark specular's inner part.
-Future<int> _innerPixel(WidgetTester tester, {required bool fake}) async {
+Future<int Function(int offset)> _endRow(
+  WidgetTester tester, {
+  required bool fake,
+  LiquidGlassColorModel model = const LiquidGlassColorModel.ios27Lens(
+    brightness: Brightness.light,
+  ),
+}) async {
   const dpr = 3.0;
   tester.view
     ..physicalSize = const Size(420, 210)
@@ -41,11 +47,7 @@ Future<int> _innerPixel(WidgetTester tester, {required bool fake}) async {
                 fake: fake,
                 child: LiquidGlass(
                   shape: LiquidRoundedSuperellipse(radius: size.height / 2),
-                  appearance: const LiquidGlassAppearance(
-                    colorModel: LiquidGlassColorModel.ios27Lens(
-                      brightness: Brightness.light,
-                    ),
-                  ),
+                  appearance: LiquidGlassAppearance(colorModel: model),
                   child: const SizedBox.expand(),
                 ),
               ),
@@ -62,9 +64,12 @@ Future<int> _innerPixel(WidgetTester tester, {required bool fake}) async {
     pixelRatio: dpr,
   );
   final y = ((13 + size.height / 2) * dpr).floor();
-  final x = (left * dpr).floor() + 1;
-  return pixels[(y * 420 + x) * 4];
+  final edge = (left * dpr).floor();
+  return (int offset) => pixels[(y * 420 + edge + offset) * 4];
 }
+
+Future<int> _innerPixel(WidgetTester tester, {required bool fake}) async =>
+    (await _endRow(tester, fake: fake))(1);
 
 void main() {
   testWidgets(
@@ -80,5 +85,21 @@ void main() {
     (tester) async {
       expect(await _innerPixel(tester, fake: true), lessThan(_backdrop - 4));
     },
+  );
+
+  testWidgets(
+    "real glass draws a recipe's dark band out to its reach and no further",
+    (tester) async {
+      final at = await _endRow(
+        tester,
+        fake: false,
+        model: const LiquidGlassColorModel.ios27Regular(
+          brightness: Brightness.light,
+        ),
+      );
+      expect(at(-1), lessThan(_backdrop - 4));
+      expect(at(-2), closeTo(_backdrop, 1));
+    },
+    skip: skipProperGlassTests,
   );
 }

@@ -5,9 +5,13 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 
+class _Link extends GlassGroupLink {
+  bool get listened => hasListeners;
+}
+
 void main() {
   test('a group follows its link only while it is attached', () {
-    final link = GlassGroupLink();
+    final link = _Link();
     addTearDown(link.dispose);
     final group = RenderLiquidGlassBlendGroup(
       renderLink: null,
@@ -18,11 +22,13 @@ void main() {
     expect(link.onMembershipChanged, isNull);
     group.attach(PipelineOwner());
     expect(link.onMembershipChanged, isNotNull);
+    expect(link.listened, isTrue);
     group
       ..detach()
       ..dispose();
     expect(link.onMembershipChanged, isNull);
     expect(link.onGlowChanged, isNull);
+    expect(link.listened, isFalse);
   });
 
   testWidgets('a group moved to another layer registers on that layer', (
