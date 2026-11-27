@@ -204,6 +204,14 @@ const _rules = LayerRules(
       bannedIn: {'lib/src/liquid/'},
     ),
     Ban(
+      'direct-color-model',
+      r'\bLiquidGlassColorModel\.direct\b|\bLiquidGlassDirectColorModel\b',
+      reason:
+          "Glass here wears the recipes UIKit gives it (iOS 27's colour "
+          'models, the lifted lens among them); the direct model is a fit '
+          "the renderer keeps for apps of its own.",
+    ),
+    Ban(
       'reducedMotion',
       r'\breducedMotion\b',
       reason: 'Reduce Motion reaches a motion through Motion.traits.',
