@@ -772,12 +772,15 @@ final class GlassBarHost {
         (final GlassBarButton p, final GlassBarButton q) =>
           _ItemIdentity.of(p) == _ItemIdentity.of(q) &&
               (p.menuChildren == null) == (q.menuChildren == null) &&
-              (p.onPressed == null) == (q.onPressed == null),
+              (p.onPressed == null) == (q.onPressed == null) &&
+              p.sharesBackground == q.sharesBackground,
         (final GlassBarProminentButton p, final GlassBarProminentButton q) =>
           _ItemIdentity.of(p) == _ItemIdentity.of(q) &&
               (p.onPressed == null) == (q.onPressed == null),
         (final GlassBarCustomItem p, final GlassBarCustomItem q) =>
-          _ItemIdentity.of(p) == _ItemIdentity.of(q) && p.child == q.child,
+          _ItemIdentity.of(p) == _ItemIdentity.of(q) &&
+              p.child == q.child &&
+              p.sharesBackground == q.sharesBackground,
         _ => false,
       };
       if (!same) return false;

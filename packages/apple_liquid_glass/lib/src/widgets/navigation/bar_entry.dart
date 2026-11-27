@@ -155,6 +155,7 @@ sealed class GlassBarItem extends GlassBarEntry {
     Widget? badge,
     Color? tint,
     MotionSource? zoomSource,
+    bool sharesBackground,
   }) = GlassBarButton;
 
   /// Creates a button in a capsule of its own, tinted with the theme's
@@ -169,13 +170,23 @@ sealed class GlassBarItem extends GlassBarEntry {
 
   /// Creates an item of custom content in the capsule, such as a segmented
   /// control (UIKit `customView`); [child] handles its own input.
-  const factory GlassBarItem.custom({required Widget child, LocalKey? key}) =
-      GlassBarCustomItem;
+  const factory GlassBarItem.custom({
+    required Widget child,
+    LocalKey? key,
+    bool sharesBackground,
+  }) = GlassBarCustomItem;
 
-  const GlassBarItem._({this.key});
+  const GlassBarItem._({this.key, this.sharesBackground = true});
 
   /// The identity of the item across changes of the bar and across pages.
   final LocalKey? key;
+
+  /// Whether the item stands in a glass capsule, shared with the items
+  /// beside it; false stands it alone with no glass of its own, splitting
+  /// the items around it into capsules of their own, as UIKit's
+  /// `hidesSharedBackground` and SwiftUI's `sharedBackgroundVisibility`
+  /// do (read from UIKit's code). A prominent button always has its own.
+  final bool sharesBackground;
 }
 
 /// A button of a bar: an icon or a label, an action and maybe a menu; it
@@ -194,6 +205,7 @@ final class GlassBarButton extends GlassBarItem {
     this.badge,
     this.tint,
     this.zoomSource,
+    super.sharesBackground,
   }) : assert(icon != null || label != null, 'an icon or a label'),
        super._();
 
@@ -285,7 +297,11 @@ final class GlassBarProminentButton extends GlassBarItem {
 /// `customView`); its child handles its own input and speaks for itself.
 final class GlassBarCustomItem extends GlassBarItem {
   /// Creates an item showing [child]; [child] handles its own input.
-  const GlassBarCustomItem({required this.child, super.key}) : super._();
+  const GlassBarCustomItem({
+    required this.child,
+    super.key,
+    super.sharesBackground,
+  }) : super._();
 
   /// The content.
   final Widget child;

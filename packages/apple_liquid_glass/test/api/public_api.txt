@@ -287,6 +287,7 @@ final class GlassBarButton extends GlassBarItem
     Widget? badge,
     Color? tint,
     MotionSource? zoomSource,
+    bool sharesBackground = ...,
   })
   final Widget? badge
   final Widget? icon
@@ -359,12 +360,20 @@ enum GlassBarColumnSide
   left,
   right,
 final class GlassBarCustomItem extends GlassBarItem
-  const GlassBarCustomItem({required Widget child, LocalKey? key})
+  const GlassBarCustomItem({
+    required Widget child,
+    LocalKey? key,
+    bool sharesBackground = ...,
+  })
   final Widget child
 sealed class GlassBarEntry
   const GlassBarEntry()
 sealed class GlassBarItem extends GlassBarEntry
-  const factory GlassBarItem.custom({required Widget child, LocalKey? key})
+  const factory GlassBarItem.custom({
+    required Widget child,
+    LocalKey? key,
+    bool sharesBackground,
+  })
   const factory GlassBarItem({
     LocalKey? key,
     Widget? icon,
@@ -377,6 +386,7 @@ sealed class GlassBarItem extends GlassBarEntry
     Widget? badge,
     Color? tint,
     MotionSource? zoomSource,
+    bool sharesBackground,
   })
   const factory GlassBarItem.prominent({
     LocalKey? key,
@@ -386,6 +396,7 @@ sealed class GlassBarItem extends GlassBarEntry
     String? semanticLabel,
   })
   final LocalKey? key
+  final bool sharesBackground
 class GlassBarItemFrame
   const GlassBarItemFrame(
     Object id, {
