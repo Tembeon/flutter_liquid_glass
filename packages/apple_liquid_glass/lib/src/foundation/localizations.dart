@@ -159,6 +159,13 @@ abstract class GlassLocalizations {
   /// The label of the wheel of the half of the day.
   String get dayPeriodLabel;
 
+  /// The unit beside a count-down's hours, for [hours] of them: "hour" or
+  /// "hours".
+  String countDownHoursUnit(int hours);
+
+  /// The unit beside a count-down's minutes: "min".
+  String get countDownMinutesUnit;
+
   /// The first half of the day on a wheel of 12 hours.
   String get anteMeridiemAbbreviation;
 
@@ -332,6 +339,12 @@ class DefaultGlassLocalizations extends GlassLocalizations {
 
   @override
   String get dayPeriodLabel => 'AM/PM';
+
+  @override
+  String countDownHoursUnit(int hours) => hours == 1 ? 'hour' : 'hours';
+
+  @override
+  String get countDownMinutesUnit => 'min';
 
   @override
   String get anteMeridiemAbbreviation => 'AM';

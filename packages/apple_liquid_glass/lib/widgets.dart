@@ -45,6 +45,7 @@ export 'src/widgets/controls/button.dart'
         GlassProminentButtonStyle;
 export 'src/widgets/controls/date_picker.dart'
     show
+        GlassCountDownPicker,
         GlassDatePicker,
         GlassDatePickerStyle,
         GlassMonthYearPicker,

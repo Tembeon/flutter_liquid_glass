@@ -105,7 +105,7 @@ class DatePickerPlacement
 class DefaultGlassLocalizations extends GlassLocalizations
   const DefaultGlassLocalizations()
   static const LocalizationsDelegate<GlassLocalizations> delegate
-  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, columnDividerLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, editMenuMoreLabel, hideSidebarLabel, hideYearPickerLabel, hourLabel, incrementLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showSidebarLabel, showYearPickerLabel, weekdayAbbreviation, yearLabel
+  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, columnDividerLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, countDownHoursUnit, countDownMinutesUnit, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, editMenuMoreLabel, hideSidebarLabel, hideYearPickerLabel, hourLabel, incrementLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showSidebarLabel, showYearPickerLabel, weekdayAbbreviation, yearLabel
 final class EditMenuMotion
   EditMenuMotion({required MotionClock clock})
   static const double hiddenScale
@@ -854,6 +854,21 @@ enum GlassControlSize
   small,
   medium,
   large,
+class GlassCountDownPicker extends StatefulWidget
+  const GlassCountDownPicker({
+    required Duration value,
+    required void Function(Duration)? onChanged,
+    int minuteInterval = ...,
+    GlassDatePickerStyle? style,
+    Key? key,
+  })
+  final int minuteInterval
+  final void Function(Duration)? onChanged
+  static Duration shownFor(Duration value, {int minuteInterval = ...})
+  static const Size size
+  final GlassDatePickerStyle? style
+  final Duration value
+  overrides: createState
 final class GlassDateBounds
   factory GlassDateBounds(DateTime? minimum, DateTime? maximum)
   DateTime clamp(DateTime value)
@@ -1385,6 +1400,8 @@ abstract class GlassLocalizations
   abstract String get compactDatePickerHint
   abstract String compactDatePickerLabel(String label, String value)
   abstract String compactTime(DateTime time, {required bool use24HourFormat})
+  abstract String countDownHoursUnit(int hours)
+  abstract String get countDownMinutesUnit
   abstract String get datePickerDismissLabel
   abstract String dayLabel(DateTime date, {required bool today})
   abstract String get dayPeriodLabel
@@ -5709,6 +5726,7 @@ class GlassCompactDatePicker (see package:apple_liquid_glass/apple_liquid_glass.
 class GlassContentScroll (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassContextMenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassControlSize (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassCountDownPicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDatePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassDatePickerMode (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDatePickerStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)

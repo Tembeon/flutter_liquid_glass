@@ -837,6 +837,21 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'GlassCountDownPicker',
+    covers: const ['GlassCountDownPicker'],
+    kind: Kind.value,
+    wheel: true,
+    focusStops: 2,
+    build: (probe, {required enabled}) => Held<Duration>(
+      probe: probe,
+      initial: const Duration(hours: 1, minutes: 30),
+      builder: (context, value, set) => GlassCountDownPicker(
+        value: value,
+        onChanged: enabled ? set : null,
+      ),
+    ),
+  ),
+  Entry(
     'GlassMonthYearPicker',
     covers: const ['GlassMonthYearPicker'],
     kind: Kind.value,

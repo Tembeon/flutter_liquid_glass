@@ -82,6 +82,7 @@ GlassCompactDatePicker
 GlassContentScroll
 GlassContextMenu
 GlassControlSize
+GlassCountDownPicker
 GlassDateBounds
 GlassDatePicker
 GlassDatePickerArrow

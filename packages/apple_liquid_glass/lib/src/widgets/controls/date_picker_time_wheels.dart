@@ -212,6 +212,242 @@ class _TimeWheelsState extends State<GlassTimePicker> {
   }
 }
 
+/// A duration in hours and minutes on two wheels, as a timer sets it.
+///
+/// UIKit: `UIDatePicker` with `datePickerMode = .countDownTimer` and
+/// `countDownDuration`. Flutter: `CupertinoTimerPicker` in
+/// `CupertinoTimerPickerMode.hm`.
+///
+/// The hour wheel runs from 0 to 23 and stops at its ends; the minute
+/// wheel loops through the multiples of [minuteInterval]. Each number
+/// stands right-aligned before its unit, "hour" or "hours" and "min" in 17
+/// point semibold, which stay where they are while the wheels turn. A
+/// wheel coming to rest on a new row calls [onChanged] once with the
+/// duration; a count-down never rests at zero: wheels that stop on 0:00
+/// report one [minuteInterval] and the minute wheel turns on to it. A
+/// [value] between two multiples of the interval shows floored to the
+/// earlier one, and one under an interval shows as one.
+///
+/// ```dart
+/// GlassCountDownPicker(
+///   value: timer,
+///   onChanged: (picked) => setState(() => timer = picked),
+/// )
+/// ```
+///
+/// Fidelity. The size, the columns, the units and the rules for zero and
+/// for values set from code are measured on the iOS 27.2 simulator (date
+/// picker passport and a tree dump of the picker at 1 hour 30 minutes);
+/// the wheels' rows and fade are the calendar's month and year wheels'.
+class GlassCountDownPicker extends StatefulWidget {
+  /// Creates wheels showing [value].
+  const GlassCountDownPicker({
+    required this.value,
+    required this.onChanged,
+    this.minuteInterval = 1,
+    this.style,
+    super.key,
+  }) : assert(
+         minuteInterval >= 1 &&
+             minuteInterval <= 30 &&
+             60 % minuteInterval == 0,
+         'minuteInterval must divide 60 and lie in 1 to 30.',
+       );
+
+  /// The duration shown, as [shownFor] gives it.
+  final Duration value;
+
+  /// Called with the duration when a wheel comes to rest on a new row;
+  /// null disables the wheels.
+  final ValueChanged<Duration>? onChanged;
+
+  /// The step of the minute wheel in minutes, a divisor of 60 from 1 to
+  /// 30 (UIKit `minuteInterval`).
+  final int minuteInterval;
+
+  /// The look, over the theme's and the picker's defaults.
+  final GlassDatePickerStyle? style;
+
+  /// The size of the wheels.
+  static const Size size = Size(320, 216);
+
+  /// The duration the wheels show for [value]: floored to [minuteInterval],
+  /// at least one interval and at most 23 hours and the last multiple of
+  /// the interval, as UIKit reads back `countDownDuration` (3725 seconds
+  /// with an interval of 5 read 3600; 100 with 15 read 900).
+  static Duration shownFor(Duration value, {int minuteInterval = 1}) {
+    final minutes = value.inMinutes - value.inMinutes % minuteInterval;
+    return Duration(
+      minutes: minutes.clamp(minuteInterval, 24 * 60 - minuteInterval),
+    );
+  }
+
+  @override
+  State<GlassCountDownPicker> createState() => _CountDownState();
+}
+
+class _CountDownState extends State<GlassCountDownPicker> {
+  late int _hours;
+  late int _minutes;
+  late (int, int) _emitted;
+
+  int get _step => widget.minuteInterval;
+
+  @override
+  void initState() {
+    super.initState();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(GlassCountDownPicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value ||
+        widget.minuteInterval != oldWidget.minuteInterval) {
+      _sync();
+    }
+  }
+
+  void _sync() {
+    final shown = GlassCountDownPicker.shownFor(
+      widget.value,
+      minuteInterval: _step,
+    );
+    _hours = shown.inHours;
+    _minutes = shown.inMinutes % 60;
+    _emitted = (_hours, _minutes);
+  }
+
+  bool _settled(ScrollEndNotification notification) {
+    if (_hours == 0 && _minutes == 0) setState(() => _minutes = _step);
+    if (_emitted != (_hours, _minutes)) {
+      _emitted = (_hours, _minutes);
+      widget.onChanged?.call(Duration(hours: _hours, minutes: _minutes));
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final look = GlassDatePickerStyle.resolve(context, widget.style);
+    final loc = GlassLocalizations.of(context);
+    final enabled = widget.onChanged != null;
+    const geometry = _MonthYearMetrics.geometry;
+    final unit = GlassTextScale.fixed(context).resolve(
+      TextStyle(
+        fontSize: 17,
+        fontWeight: FontWeight.w600,
+        color: look.labelColor,
+      ),
+    );
+    Widget column({
+      required double end,
+      required int count,
+      required int value,
+      required bool looping,
+      required String Function(int) text,
+      required String label,
+      required ValueChanged<int> onChanged,
+    }) => PositionedDirectional(
+      start: end - _CountDownMetrics.column,
+      width: _CountDownMetrics.column,
+      top: 0,
+      bottom: 0,
+      child: _wheel(
+        geometry: geometry,
+        look: look,
+        count: count,
+        looping: looping,
+        animatesValue: true,
+        text: text,
+        value: value,
+        label: label,
+        alignment: AlignmentDirectional.centerEnd,
+        onChanged: enabled ? onChanged : null,
+        context: context,
+      ),
+    );
+    Widget units(double start, String text) => PositionedDirectional(
+      start: start,
+      top: _CountDownMetrics.unitTop,
+      child: IgnorePointer(child: Text(text, style: unit, maxLines: 1)),
+    );
+    return DefaultTextStyle(
+      style: GlassTextScale.fixed(
+        context,
+      ).resolve(TextStyle(fontSize: 17, color: look.labelColor)),
+      child: SizedBox.fromSize(
+        size: GlassCountDownPicker.size,
+        child: NotificationListener<ScrollEndNotification>(
+          onNotification: _settled,
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: 0,
+                right: 0,
+                height: _MonthYearMetrics.band,
+                child: _wheelBand(look),
+              ),
+              Positioned.fill(
+                child: ShaderMask(
+                  blendMode: BlendMode.dstIn,
+                  shaderCallback: geometry.shade,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      column(
+                        end: _CountDownMetrics.hoursEnd,
+                        count: 24,
+                        looping: false,
+                        value: _hours,
+                        text: (int i) => '$i',
+                        label: loc.hourLabel,
+                        onChanged: (int row) => setState(() => _hours = row),
+                      ),
+                      column(
+                        end: _CountDownMetrics.minutesEnd,
+                        count: 60 ~/ _step,
+                        looping: true,
+                        value: _minutes ~/ _step,
+                        text: (int i) => '${i * _step}',
+                        label: loc.minuteLabel,
+                        onChanged: (int row) =>
+                            setState(() => _minutes = row * _step),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              units(
+                _CountDownMetrics.hoursUnit,
+                loc.countDownHoursUnit(_hours),
+              ),
+              units(_CountDownMetrics.minutesUnit, loc.countDownMinutesUnit),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Where a count-down's numbers and units stand in its 320 points (tree
+/// dump of the iOS 27.2 simulator's picker): the numbers right-aligned to
+/// 103.33 and 188.33 points in, the units at 112.67 and 197.67, their 21.33
+/// point line 98.33 down.
+abstract final class _CountDownMetrics {
+  static const double hoursEnd = 103.33;
+  static const double minutesEnd = 188.33;
+  static const double hoursUnit = 112.67;
+  static const double minutesUnit = 197.67;
+  static const double unitTop = 98.33;
+
+  /// A number's box, ending where the number does.
+  static const double column = 60;
+}
+
 /// A month and a year on two wheels in place.
 ///
 /// UIKit: `UIDatePicker` with `datePickerMode = .yearAndMonth` and the
