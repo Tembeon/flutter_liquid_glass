@@ -73,9 +73,11 @@ final class GlassSwipeAction {
 ///
 /// An action's label is 15 points, medium, with 15 points on each side.
 ///
-/// Not measured: the springs, the widths, the label and the full-swipe
-/// threshold are chosen by eye, as UIKit's swipe actions were not captured
-/// on iOS 27.
+/// The swipe, its full-swipe commit and its springs are UIKit 27.2's
+/// ([SwipeActionsMotion]). Not ported yet: the look, which here is a full
+/// height fill per action with its width and label chosen by eye, where
+/// iOS 27 draws capsule buttons on a pull view that grow and fade in on
+/// their own springs (swipe actions passport).
 class GlassSwipeActions extends StatelessWidget {
   /// Creates a row that shows [trailing] when swiped.
   const GlassSwipeActions({
