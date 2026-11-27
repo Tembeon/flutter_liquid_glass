@@ -411,7 +411,9 @@ final class TabBarMinimizeMotion extends Motion {
 
   /// Whether the bottom accessory takes its new place at once as the bar
   /// minimizes or expands, as UIKit's does under Prefer Cross-Fade
-  /// Transitions (read from UIKit's code); the bar still morphs.
+  /// Transitions (read from UIKit's code). The bar morphs on the Reduce
+  /// Motion spring, as the setting counts only with Reduce Motion on;
+  /// whether UIKit replaces that morph there is not read.
   bool crossFades = false;
 
   /// Whether the bar is minimized or heading there.
