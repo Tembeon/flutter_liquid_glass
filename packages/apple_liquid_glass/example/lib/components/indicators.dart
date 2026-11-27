@@ -193,12 +193,6 @@ class RefreshControlPage extends StatefulWidget {
 class _RefreshControlPageState extends State<RefreshControlPage> {
   var _titled = false;
   var _brand = Brand.system;
-  var _letters = 6;
-
-  Future<void> _refresh() async {
-    await Future<void>.delayed(const Duration(seconds: 2));
-    if (mounted) setState(() => _letters++);
-  }
 
   @override
   Widget build(BuildContext context) => ComponentPage(
@@ -207,36 +201,17 @@ class _RefreshControlPageState extends State<RefreshControlPage> {
         'Ticks that come in with the pull at the top of a scroll view; a '
         'pull of 174 points starts the refresh and they turn until it '
         'ends.',
-    stageHeight: 340,
-    stage: SizedBox(
-      height: 300,
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
+    stageHeight: 130,
+    stage: GlassButton.prominent(
+      onPressed: () => unawaited(
+        Navigator.of(context, rootNavigator: true).push(
+          GlassPageRoute<void>(
+            builder: (context) =>
+                _Letters(titled: _titled, color: _brand.color),
+          ),
         ),
-        slivers: [
-          GlassSliverRefreshControl(
-            onRefresh: _refresh,
-            color: _brand.color,
-            title: _titled ? const Text('Fetching letters') : null,
-          ),
-          SliverToBoxAdapter(
-            child: GlassListSection(
-              header: const Text('Pull down to refresh'),
-              children: [
-                for (var i = _letters; i > 0; i--)
-                  GlassListRow(
-                    leading: const SettingsIcon(
-                      icon: CupertinoIcons.envelope_fill,
-                      color: GlassColors.systemBlue,
-                    ),
-                    title: Text('Letter $i'),
-                  ),
-              ],
-            ),
-          ),
-        ],
       ),
+      child: const Text('Open the letters'),
     ),
     knobs: [
       ToggleKnob(
@@ -251,6 +226,66 @@ class _RefreshControlPageState extends State<RefreshControlPage> {
         onChanged: (brand) => setState(() => _brand = brand),
       ),
     ],
+  );
+}
+
+/// A page of letters to pull down for more: the refresh control needs the
+/// page's own scroll view, whose height its pull is measured against.
+class _Letters extends StatefulWidget {
+  const _Letters({required this.titled, required this.color});
+
+  final bool titled;
+  final Color? color;
+
+  @override
+  State<_Letters> createState() => _LettersState();
+}
+
+class _LettersState extends State<_Letters> {
+  var _letters = 6;
+
+  Future<void> _refresh() async {
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _letters++);
+  }
+
+  @override
+  Widget build(BuildContext context) => GlassPageScaffold(
+    backgroundColor: GlassColors.systemGroupedBackground,
+    navigationBar: const GlassNavigationBar(
+      title: Text('Letters'),
+      previousPageTitle: 'Refresh',
+    ),
+    child: GlassContentScroll(
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        slivers: [
+          GlassSliverRefreshControl(
+            onRefresh: _refresh,
+            color: widget.color,
+            title: widget.titled ? const Text('Fetching letters') : null,
+          ),
+          SliverToBoxAdapter(
+            child: GlassListSection(
+              header: const Text('Pull down to refresh'),
+              children: [
+                for (var i = _letters; i > 0; i--)
+                  GlassListRow(
+                    leading: const SettingsIcon(
+                      icon: CupertinoIcons.envelope_fill,
+                      color: GlassColors.systemBlue,
+                    ),
+                    title: Text('Letter $i'),
+                    subtitle: const Text('A pull of 174 points fetches more'),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
   );
 }
 

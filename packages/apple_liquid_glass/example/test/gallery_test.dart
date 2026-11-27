@@ -9,6 +9,7 @@ import 'package:apple_liquid_glass_example/glass/glass_page.dart';
 import 'package:apple_liquid_glass_example/motion/motion_page.dart';
 import 'package:apple_liquid_glass_example/scenes/lava_page.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
+import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -270,6 +271,121 @@ void galleryTests({bool onDevice = false}) {
       await _back(tester);
       expect(find.byType(ComponentPage), findsNothing, reason: title);
     }
+  });
+
+  testWidgets("the new widgets' knobs work: each turned once, the pages "
+      'they open used and left', (tester) async {
+    await _launch(tester);
+    final page = _scrollOf(ComponentPage).first;
+    Future<void> flip(String label) async {
+      final knob = find.descendant(
+        of: find.widgetWithText(GlassListRow, label),
+        matching: find.byType(GlassSwitch),
+      );
+      await _bring(tester, knob, page);
+      await tester.tap(knob);
+      await _frames(tester, 30);
+      expect(tester.takeException(), isNull, reason: label);
+    }
+
+    Future<void> choose(String name) async {
+      final option = find.descendant(
+        of: find.byWidgetPredicate((widget) => widget is GlassSegmentedControl),
+        matching: find.text(name),
+      );
+      await _bring(tester, option, page);
+      await tester.tap(option);
+      await _frames(tester, 30);
+      expect(tester.takeException(), isNull, reason: name);
+    }
+
+    Future<void> press(Finder target) async {
+      await _bring(tester, target, page);
+      await tester.tap(target);
+      await _frames(tester, 90);
+    }
+
+    Future<void> leave(Finder onPushed) async {
+      Navigator.of(tester.element(onPushed), rootNavigator: true).pop();
+      await _frames(tester, 90);
+      expect(tester.takeException(), isNull);
+    }
+
+    await _open(tester, 'Navigation bar and toolbar');
+    await flip('Large title');
+    await flip('Subtitle under the inline title');
+    await flip('Edit beside the back button');
+    await choose('Soft');
+    await press(find.text('Open the journal'));
+    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('14 entries since spring'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await leave(find.text('Edit'));
+    await _back(tester);
+
+    await _open(tester, 'Alert');
+    await choose('Field');
+    await press(find.text('Ask'));
+    await tester.enterText(find.byType(EditableText), '  ');
+    await _frames(tester, 10);
+    await tester.tap(find.text('Save'));
+    await _frames(tester);
+    expect(find.text('Rename the plant'), findsOneWidget);
+    await tester.enterText(find.byType(EditableText), 'Ivy');
+    await _frames(tester, 10);
+    await tester.tap(find.text('Save'));
+    await _frames(tester, 90);
+    expect(find.text('Renamed Ivy'), findsOneWidget);
+    await _back(tester);
+
+    await _open(tester, 'Popover');
+    await flip('Tinted glass');
+    await choose('Beside');
+    await press(find.byIcon(CupertinoIcons.info));
+    expect(find.text('Done'), findsOneWidget);
+    await tester.tap(find.text('Done'));
+    await _frames(tester, 90);
+    expect(tester.takeException(), isNull);
+    await _back(tester);
+
+    await _open(tester, 'Refresh control');
+    await flip('Title under the ticks');
+    await press(find.text('Open the letters'));
+    await tester.timedDrag(
+      find.text('Letter 6'),
+      const Offset(0, 520),
+      const Duration(milliseconds: 700),
+    );
+    await _frames(tester, 200);
+    expect(find.text('Letter 7'), findsOneWidget);
+    await leave(find.text('Letter 7'));
+    await _back(tester);
+
+    await _open(tester, 'Date picker');
+    await choose('Wheels');
+    expect(find.byType(GlassTimePicker), findsOneWidget);
+    await _back(tester);
+
+    for (final (component, knobs) in const [
+      ('Stepper', ['Wraps past 0 and 40', 'Repeats when held']),
+      ('Slider', ['Fill from the middle']),
+      ('Page control', ['Hidden with one page', 'Scrubs under a finger']),
+      ('List', ['Separators']),
+      (
+        'Text field',
+        ['Label and helper', 'Read only', 'Centered', 'At most 12 letters'],
+      ),
+      ('Tooltip', ['Shortcut after the message']),
+    ]) {
+      await _open(tester, component);
+      for (final knob in knobs) {
+        await flip(knob);
+      }
+      await _back(tester);
+    }
+    await _open(tester, 'Pages');
+    await choose("Flutter's");
+    await _back(tester);
   });
 
   testWidgets('a knob changes the component on its stage', (tester) async {

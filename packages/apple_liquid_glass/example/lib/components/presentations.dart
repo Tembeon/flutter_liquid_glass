@@ -350,7 +350,10 @@ class _PopoverPageState extends State<PopoverPage> {
     adaptsToSheet: _adapts,
     style: _tinted
         ? GlassPopoverStyle(
-            backgroundColor: GlassColors.systemGreen.withValues(alpha: 0.3),
+            backgroundColor: GlassDynamicColor.resolve(
+              GlassColors.systemGreen,
+              context,
+            ).withValues(alpha: 0.3),
           )
         : null,
     permittedArrowDirections: switch (_sides) {
