@@ -196,7 +196,7 @@ void main() {
       );
       expect(
         largestDifference(image, inFrame),
-        lessThanOrEqualTo(heldImageDrift),
+        lessThanOrEqualTo(heldImageRingDrift),
       );
     }, skip: skipProperGlassTests);
 

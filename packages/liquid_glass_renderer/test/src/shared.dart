@@ -77,11 +77,14 @@ int largestDifference(List<int> a, List<int> b) {
 /// glass over a held image of its copy and the same glass over the copy
 /// drawn in the frame: the two routes round apart, by one level in one
 /// channel of one pixel where the copy holds two device pixels a side
-/// (visibility_frame_test on macOS), and by two in the dark specular's ring,
-/// which darkens what each route holds under it (in_frame_copy_test, over
-/// the edge of a glyph). A clip, a frost or glass held in the copy parts
-/// them further, by the bounds their own tests hold.
-const heldImageDrift = 2;
+/// (visibility_frame_test on macOS). A clip, a frost or glass held in the
+/// copy parts them further, by the bounds their own tests hold.
+const heldImageDrift = 1;
+
+/// [heldImageDrift] where the glass draws an iOS 27 dark specular: its ring
+/// darkens what each route holds under it, two levels apart over the edge
+/// of a glyph (in_frame_copy_test).
+const heldImageRingDrift = 2;
 
 final testScenarioConstraints = BoxConstraints.tight(const Size(500, 500));
 
