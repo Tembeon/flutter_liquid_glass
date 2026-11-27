@@ -170,31 +170,6 @@ void main() {
     expect(find.text('Share'), findsOneWidget);
   });
 
-  testWidgets('a tab switch cross-fades: the page left stays under the one '
-      'chosen while it fades, takes no touch, and goes once the switch '
-      'rests', (tester) async {
-    await _phone(tester);
-    final built = <int>[];
-    await tester.pumpWidget(_app(_Shell(built: built)));
-    await tester.tap(find.text('Two'));
-    for (var i = 0; i < 6; i++) {
-      await tester.pump(const Duration(milliseconds: 16));
-    }
-    expect(find.text('Page 0'), findsOneWidget);
-    expect(find.text('Page 1'), findsOneWidget);
-    final going = find.ancestor(
-      of: find.text('Page 0'),
-      matching: find.byType(IgnorePointer),
-    );
-    expect(
-      tester.widgetList<IgnorePointer>(going).any((w) => w.ignoring),
-      isTrue,
-    );
-    await _frames(tester);
-    expect(find.text('Page 0'), findsNothing);
-    expect(find.text('Page 1'), findsOneWidget);
-  });
-
   testWidgets('a tab left keeps its state', (tester) async {
     await _phone(tester);
     final built = <int>[];

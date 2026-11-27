@@ -500,9 +500,6 @@ TabBarLayout
 TabBarMetrics
 TabBarMinimizeMotion
 TabSidebarMotion
-TabSwitchMotion
-TabSwitchSpec
-TabSwitchStep
 TapInteraction
 TextStyleMotionConverter
 TimingCurve

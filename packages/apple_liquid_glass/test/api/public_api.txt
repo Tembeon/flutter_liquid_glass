@@ -5022,31 +5022,6 @@ abstract final class TabSidebarMotion
     MotionValue<double> down, {
     required bool toSidebar,
   })
-final class TabSwitchMotion
-  TabSwitchMotion({required MotionClock clock})
-  final MotionValue<double> comingOpacity
-  final MotionValue<double> comingScale
-  final MotionValue<double> goingOpacity
-  final MotionValue<double> goingScale
-  bool settledAt(double t)
-  void start(TabSwitchSpec spec, {required bool reduceMotion})
-  List<MotionValue<double>> get values
-final class TabSwitchSpec
-  const TabSwitchSpec({
-    required double fadedOutScale,
-    required ({double delay, double response}) fadeOut,
-    required ({double delay, double response}) scaleOut,
-    required ({double delay, double response}) fadeIn,
-    required ({double delay, double response}) scaleIn,
-  })
-  static const TabSwitchSpec compact
-  final ({double delay, double response}) fadeIn
-  final ({double delay, double response}) fadeOut
-  final double fadedOutScale
-  static const TabSwitchSpec regular
-  final ({double delay, double response}) scaleIn
-  final ({double delay, double response}) scaleOut
-typedef TabSwitchStep = ({double delay, double response})
 abstract final class ToastMotion
   ToastMotion()
   static const double dismissTravel
@@ -5560,9 +5535,6 @@ class TabBarLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum TabBarMetrics (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TabBarMinimizeMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TabSidebarMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class TabSwitchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class TabSwitchSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
-typedef TabSwitchStep (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ToastMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TouchGlowMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ZoomPageMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
