@@ -6,7 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart'
-    show LiquidGlass, LiquidGlassContentBend, LiquidGlassDirectColorModel;
+    show LiquidGlass, LiquidGlassContentBend, LiquidGlassIos27LensColorModel;
 
 import 'glass_shown.dart';
 
@@ -221,13 +221,10 @@ void main() {
       expect(findShown(LensShadows), findsOneWidget);
       final glass = tester.widget<LiquidGlass>(findShown(LiquidGlass));
       expect(glass.frame!.value.shadows, isEmpty);
+      // The lens recipe draws no ring shadow and no bleed (GlassRecipe).
       expect(
         glass.frame!.value.appearance!.colorModel,
-        isA<LiquidGlassDirectColorModel>().having(
-          (model) => model.bevelShadowStrength,
-          'bevelShadowStrength',
-          0,
-        ),
+        isA<LiquidGlassIos27LensColorModel>(),
       );
       for (final role in GlassRole.values) {
         final shadows = LiquidGlassRenderer.shadowsOf(

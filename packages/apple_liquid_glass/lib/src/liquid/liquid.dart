@@ -228,33 +228,22 @@ LiquidGlassSettings _lensSettings(
 }
 
 /// The appearance of the glass of [lens], [visibility] of the way from its
-/// resting platter to glass.
-///
-/// Read from UIKit's lifted lenses on iOS 27.2 (notes private). The face of
-/// a selection changes no color. The face of a knob or thumb lifts black to
-/// a tenth of white and leaves white where it is, `0.1 + 0.9 * c` for every
-/// channel: a tenth of white lies over what the lens shows, under its
-/// shadows and its rim light. On the iPhone 16 Pro references a held slider
-/// thumb over a black page shows 25 of 255.
-///
-/// Its rim is the direct model's in [brightness], a fit to iOS 27 captures,
-/// not the recipe's rim the resting glass wears. The glass shades nothing
-/// itself: the shadow regular glass carries inside its rim is off, and the
-/// lens's own shadows are drawn over it ([LensShadowLaw]).
+/// resting platter to glass: the recipe UIKit lifts out of a held control
+/// on iOS 27.2, [LiquidGlassColorModel.ios27Lens] for a selection, whose
+/// face changes no colour, and [LiquidGlassColorModel.ios27SmallLens] for a
+/// knob or thumb, whose face lifts black to a tenth of white (a held slider
+/// thumb over a black page shows 25 of 255 on the iPhone 16 Pro). The
+/// lens's ring and drop shadows are drawn over it ([LensShadowLaw]).
 LiquidGlassAppearance _lensAppearance(
   GlassLens lens,
   double visibility,
   Brightness brightness,
 ) => LiquidGlassAppearance(
-  tint: lens.small ? _smallLensFace : const Color(0x00000000),
   visibility: visibility,
-  colorModel: LiquidGlassColorModel.direct(
-    brightness: brightness,
-    bevelShadowStrength: 0,
-  ),
+  colorModel: lens.small
+      ? LiquidGlassColorModel.ios27SmallLens(brightness: brightness)
+      : LiquidGlassColorModel.ios27Lens(brightness: brightness),
 );
-
-const _smallLensFace = Color.from(alpha: 0.1, red: 1, green: 1, blue: 1);
 
 class _LiquidSurface extends StatefulWidget {
   const _LiquidSurface({required this.details});

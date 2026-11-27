@@ -481,19 +481,24 @@ void main() {
 
       final knob = await lifted(const GlassLens(small: true), 1);
       expect(
-        knob.tint,
-        const Color.from(alpha: 0.1, red: 1, green: 1, blue: 1),
+        knob.colorModel,
+        const LiquidGlassColorModel.ios27SmallLens(
+          brightness: Brightness.light,
+        ),
       );
+      expect(knob.tint.a, 0);
       expect(knob.visibility, 1);
-      expect(knob.colorModel, _unshadowedRim);
       // The face comes with the glass, by its visibility.
       final rising = await lifted(const GlassLens(small: true), 0.1);
-      expect(rising.tint, knob.tint);
+      expect(rising.colorModel, knob.colorModel);
       expect(rising.visibility, GlassFrame.glassnessAt(0.1));
 
       final selection = await lifted(const GlassLens(), 1);
       expect(selection.tint.a, 0);
-      expect(selection.colorModel, _unshadowedRim);
+      expect(
+        selection.colorModel,
+        const LiquidGlassColorModel.ios27Lens(brightness: Brightness.light),
+      );
     });
 
     testWidgets('each control describes its lens by its own measurement', (
@@ -1349,8 +1354,3 @@ class _RenderResolving extends RenderBox with MotionResolveHost {
   @override
   void resolve() => onResolve();
 }
-
-const _unshadowedRim = LiquidGlassColorModel.direct(
-  brightness: Brightness.light,
-  bevelShadowStrength: 0,
-);
