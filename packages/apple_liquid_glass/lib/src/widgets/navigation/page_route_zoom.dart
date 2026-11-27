@@ -15,7 +15,7 @@ class _Zoom extends StatefulWidget {
 class _ZoomState extends State<_Zoom> {
   late final _input = _ZoomDrag(this);
   late final List<Interaction> _interactions = [_input];
-  late final _dim = motion.select((m) => m.tuning.dimmingOpacity * m.dimming);
+  late final _dim = motion.select((m) => m.dimming);
   late final _shadow = motion.select((m) => (m.rect, m.radius, m.dimming));
   late final _frame = motion.select((m) => (m.rect, m.radius));
   late final _fade = motion.select((m) => m.fade);
@@ -88,7 +88,11 @@ class _ZoomState extends State<_Zoom> {
           IgnorePointer(
             child: MotionTransition(
               opacity: _dim,
-              child: const ColoredBox(color: Color(0xFF000000)),
+              child: ColoredBox(
+                color:
+                    route.zoomDimmingColor ??
+                    Color.fromRGBO(0, 0, 0, tuning.dimmingOpacity),
+              ),
             ),
           ),
           IgnorePointer(
@@ -247,7 +251,8 @@ final class _ZoomDrag extends Interaction {
         if (!_dragging) {
           final allowed = motion.allowsDrag(delta, rtl: _rtl);
           if (allowed == null) break;
-          if (!allowed) {
+          if (!allowed ||
+              !(_zoom.route.zoomDismissShouldBegin?.call() ?? true)) {
             _touching = false;
             return const InteractionUpdate(fails: true);
           }

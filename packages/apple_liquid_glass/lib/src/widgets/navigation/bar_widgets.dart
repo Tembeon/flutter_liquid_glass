@@ -475,7 +475,15 @@ class _BarItem extends StatelessWidget {
       return _ItemBox(id: id, child: child);
     }
     final item = button.item;
-    final content = ExcludeSemantics(child: _glyphOf(context, button));
+    final glyph = ExcludeSemantics(child: _glyphOf(context, button));
+    final zoom = item is GlassBarButton ? item.zoomSource : null;
+    final content = zoom == null
+        ? glyph
+        : GlassZoomSource(
+            source: zoom,
+            borderRadius: bar.metrics.buttonHeight / 2,
+            child: glyph,
+          );
     final action = _actionOf(button);
     final menu = action.menu;
     if (menu == null) return _ItemBox(id: id, child: content);

@@ -1,6 +1,7 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_entries.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/kinesis.dart';
 
 /// The text of a bar's labels: 17 pt, weight 500, height 1.2 (bars
 /// passport).
@@ -153,6 +154,7 @@ sealed class GlassBarItem extends GlassBarEntry {
     bool selected,
     Widget? badge,
     Color? tint,
+    MotionSource? zoomSource,
   }) = GlassBarButton;
 
   /// Creates a button in a capsule of its own, tinted with the theme's
@@ -191,6 +193,7 @@ final class GlassBarButton extends GlassBarItem {
     this.selected = false,
     this.badge,
     this.tint,
+    this.zoomSource,
   }) : assert(icon != null || label != null, 'an icon or a label'),
        super._();
 
@@ -242,6 +245,12 @@ final class GlassBarButton extends GlassBarItem {
   /// a toolbar button; null for the bar's. A disabled button keeps the
   /// disabled color.
   final Color? tint;
+
+  /// The source a `GlassPageRoute` zooms out of and back into, shown by
+  /// this button as a `GlassZoomSource` around its place in the capsule,
+  /// as UIKit's `.zoom(sourceBarButtonItemProvider:)` zooms from a bar
+  /// button; null for none.
+  final MotionSource? zoomSource;
 }
 
 /// A button in a capsule of its own, tinted with the theme's primary color,

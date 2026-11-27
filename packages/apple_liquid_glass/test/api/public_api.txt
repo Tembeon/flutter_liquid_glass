@@ -283,6 +283,7 @@ final class GlassBarButton extends GlassBarItem
     bool selected = ...,
     Widget? badge,
     Color? tint,
+    MotionSource? zoomSource,
   })
   final Widget? badge
   final Widget? icon
@@ -293,6 +294,7 @@ final class GlassBarButton extends GlassBarItem
   final bool selected
   final String? semanticLabel
   final Color? tint
+  final MotionSource? zoomSource
 enum GlassBarButtonKind
   icon,
   label,
@@ -371,6 +373,7 @@ sealed class GlassBarItem extends GlassBarEntry
     bool selected,
     Widget? badge,
     Color? tint,
+    MotionSource? zoomSource,
   })
   const factory GlassBarItem.prominent({
     LocalKey? key,
@@ -1817,11 +1820,15 @@ class GlassPageRoute<T> extends PresentationPageRoute<T>
     required Widget Function(BuildContext) builder,
     String? title,
     MotionSource? source,
+    bool Function()? zoomDismissShouldBegin,
+    Color? zoomDimmingColor,
     RouteSettings? settings,
   })
   final Widget Function(BuildContext) builder
   final MotionSource? source
   final String? title
+  final Color? zoomDimmingColor
+  final bool Function()? zoomDismissShouldBegin
   overrides: beginInteraction, buildContent, delegatedTransition, didChangeNext, didChangePrevious, didFinish, didPopNext, didPresent, dispose, endInteraction, install, leave, opaque, presentation
 class GlassPageScaffold extends StatefulWidget
   const GlassPageScaffold({

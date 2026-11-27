@@ -223,6 +223,7 @@ class _JournalState extends State<_Journal> {
   ];
 
   final _query = TextEditingController();
+  final _write = MotionSource();
   final _picked = <int>{};
   var _selecting = false;
 
@@ -320,7 +321,17 @@ class _JournalState extends State<_Journal> {
             GlassBarItem(
               icon: const Icon(CupertinoIcons.square_pencil),
               semanticLabel: 'Write',
-              onPressed: () {},
+              zoomSource: _write,
+              onPressed: () => Navigator.of(context).push(
+                GlassPageRoute<void>(
+                  source: _write,
+                  title: 'New entry',
+                  builder: (context) => const GlassPageScaffold(
+                    navigationBar: GlassNavigationBar(title: Text('New entry')),
+                    child: Center(child: Text('Today the fern...')),
+                  ),
+                ),
+              ),
             ),
           ],
   );

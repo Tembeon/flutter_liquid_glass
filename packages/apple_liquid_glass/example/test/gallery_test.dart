@@ -328,6 +328,12 @@ void galleryTests({bool onDevice = false}) {
     await flip('Large title in the bar');
     await press(find.text('Open the journal'));
     expect(find.text('Journal'), findsOneWidget);
+    await tester.tapAt(_centerOf(tester, find.bySemanticsLabel('Write')));
+    await _frames(tester, 90);
+    expect(find.text('Today the fern...'), findsOneWidget);
+    Navigator.of(tester.element(find.text('Today the fern...'))).pop();
+    await _frames(tester, 90);
+    expect(find.text('Today the fern...'), findsNothing);
     expect(tester.takeException(), isNull);
     await leave(find.text('Journal'));
     await _back(tester);

@@ -125,6 +125,85 @@ void main() {
     expect(find.byKey(_page), findsNothing);
   });
 
+  testWidgets('a gate that refuses keeps the page under a drag, and a '
+      'dimming color of its own dims the page below', (tester) async {
+    _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    final link = MotionSource();
+    await tester.pumpWidget(_app(navigator, link));
+    const dim = Color(0x40FF0000);
+    navigator.currentState!.push(
+      GlassPageRoute<void>(
+        source: link,
+        zoomDismissShouldBegin: () => false,
+        zoomDimmingColor: dim,
+        builder: (context) => const ColoredBox(
+          key: _page,
+          color: Color(0xFFFFFFFF),
+          child: Center(child: Text('Detail')),
+        ),
+      ),
+    );
+    await _frames(tester, 90);
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is ColoredBox && widget.color == dim,
+      ),
+      findsOneWidget,
+    );
+    await tester.flingFrom(const Offset(200, 300), const Offset(0, 300), 1500);
+    await _frames(tester, 90);
+    expect(
+      tester.getRect(find.byKey(_page)),
+      const Rect.fromLTWH(0, 0, 402, 874),
+    );
+  });
+
+  testWidgets('a bar button zooms the page out of its place in the bar', (
+    tester,
+  ) async {
+    _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    final link = MotionSource();
+    await tester.pumpWidget(
+      WidgetsApp(
+        navigatorKey: navigator,
+        color: const Color(0xFF000000),
+        pageRouteBuilder: <T>(settings, builder) =>
+            GlassPageRoute<T>(builder: builder, settings: settings),
+        builder: (context, child) =>
+            GlassScope(renderer: const FlatGlassRenderer(), child: child!),
+        home: GlassPageScaffold(
+          navigationBar: GlassNavigationBar(
+            title: const Text('Notes'),
+            trailing: [
+              GlassBarItem(
+                icon: const SizedBox.square(key: Key('new'), dimension: 22),
+                semanticLabel: 'New',
+                zoomSource: link,
+                onPressed: () {},
+              ),
+            ],
+          ),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await _frames(tester, 2);
+    final button = tester.getRect(find.byKey(const Key('new')));
+    navigator.currentState!.push(_route(link));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+    final early = tester.getRect(find.byKey(_page));
+    expect(early.width, lessThan(200));
+    expect((early.center - button.center).distance, lessThan(60));
+    await _frames(tester, 90);
+    expect(
+      tester.getRect(find.byKey(_page)),
+      const Rect.fromLTWH(0, 0, 402, 874),
+    );
+  });
+
   testWidgets('without an attached source the page slides', (tester) async {
     _phone(tester);
     final navigator = GlobalKey<NavigatorState>();

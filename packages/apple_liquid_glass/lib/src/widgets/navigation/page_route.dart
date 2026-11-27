@@ -68,6 +68,8 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
     required this.builder,
     this.title,
     this.source,
+    this.zoomDismissShouldBegin,
+    this.zoomDimmingColor,
     super.settings,
   });
 
@@ -80,8 +82,19 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   final String? title;
 
   /// The source the page zooms out of and back into, shown by a
-  /// [GlassZoomSource], or null for a page that slides in.
+  /// [GlassZoomSource], or a `GlassBarButton.zoomSource`, or null for a page
+  /// that slides in.
   final MotionSource? source;
+
+  /// Asked as a finger's drag would start to shrink a zoomed page; false
+  /// keeps the page where it is, as UIKit's
+  /// `ZoomOptions.interactiveDismissShouldBegin` does. Null lets every such
+  /// drag begin.
+  final ValueGetter<bool>? zoomDismissShouldBegin;
+
+  /// The dim over the page underneath a zoomed page at full strength, as
+  /// UIKit's `ZoomOptions.dimmingColor`; null for black at 15 percent.
+  final Color? zoomDimmingColor;
 
   // Fixed when the page is installed, so the page and the route agree on
   // its transition for its whole life.
