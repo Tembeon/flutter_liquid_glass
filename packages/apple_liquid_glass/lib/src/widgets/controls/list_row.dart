@@ -110,6 +110,7 @@ class GlassListRow extends StatefulWidget {
     this.showsReorderControl = true,
     this.expanded = false,
     this.indentationLevel = 0,
+    this.header = false,
     super.key,
   }) : assert(indentationLevel >= 0, 'A level is 0 or more.'),
        assert(
@@ -156,6 +157,14 @@ class GlassListRow extends StatefulWidget {
   /// content inset drops from 20 to 16 points, as UIKit's
   /// `indentationLevel` does (iOS 27.2 simulator).
   final int indentationLevel;
+
+  /// Whether the row heads its section, as the first item of a UIKit list
+  /// whose `headerMode` is `.firstItemInSection` does, usually with a
+  /// [GlassListAccessory.outlineDisclosure] over the rows it holds: at
+  /// least 40.33 points tall, its title 17 point semibold in the secondary
+  /// color 10 points from its top and bottom (iOS 27.2 simulator). It does
+  /// not count as an outline level: its children stand at level 0.
+  final bool header;
 
   /// Content that fills the text area instead of [title] and [subtitle].
   final Widget? child;
@@ -505,9 +514,13 @@ class _GlassListRowState extends State<GlassListRow> {
     )(look.iconColor);
     final scale = GlassTextScale.of(context);
     final titleStyle = scale.resolve(
-      _Metrics.body
-          .merge(look.titleTextStyle)
-          .copyWith(color: color(look.foregroundColor)),
+      widget.header
+          ? _Metrics.header
+                .merge(look.titleTextStyle)
+                .copyWith(color: secondary)
+          : _Metrics.body
+                .merge(look.titleTextStyle)
+                .copyWith(color: color(look.foregroundColor)),
     );
     final detailStyle = scale.resolve(
       _Metrics.body.merge(look.detailTextStyle).copyWith(color: secondary),
@@ -582,10 +595,13 @@ class _GlassListRowState extends State<GlassListRow> {
             ],
           ),
     );
+    final vertical = widget.header
+        ? _Metrics.headerRowPadding
+        : _Metrics.rowPadding;
     final text = Padding(
       padding: EdgeInsets.only(
-        top: padding?.top ?? _Metrics.rowPadding,
-        bottom: padding?.bottom ?? _Metrics.rowPadding,
+        top: padding?.top ?? vertical,
+        bottom: padding?.bottom ?? vertical,
       ),
       child: Row(
         children: [
@@ -622,7 +638,9 @@ class _GlassListRowState extends State<GlassListRow> {
     );
     final row = ConstrainedBox(
       constraints: BoxConstraints(
-        minHeight: look.minRowHeight ?? _Metrics.minRowHeight,
+        minHeight: widget.header
+            ? _Metrics.headerRowHeight
+            : look.minRowHeight ?? _Metrics.minRowHeight,
       ),
       child: _EditPadding(
         start: start,

@@ -205,6 +205,7 @@ class _ListPageState extends State<ListPage> {
             children: [
               GlassListRow(
                 title: const Text('Shelves'),
+                header: true,
                 accessory: GlassListAccessory.outlineDisclosure,
                 expanded: _open,
                 onAccessoryPressed: () => _change(() => _open = !_open),

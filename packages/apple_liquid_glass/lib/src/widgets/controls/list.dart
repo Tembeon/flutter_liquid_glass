@@ -722,6 +722,13 @@ abstract final class _Metrics {
   /// The space above and below a row's text.
   static const double rowPadding = 15.5;
 
+  /// The least height of a section's header row (UIKit's
+  /// `headerMode .firstItemInSection`, iOS 27.2 simulator).
+  static const double headerRowHeight = 40.33;
+
+  /// The space above and below a header row's title.
+  static const double headerRowPadding = 10;
+
   /// The width of the leading slot, which centers a symbol 28 points from
   /// the card's edge.
   static const double leadingWidth = 24;

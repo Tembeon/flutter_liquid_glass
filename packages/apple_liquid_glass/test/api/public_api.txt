@@ -1398,6 +1398,7 @@ class GlassListRow extends StatefulWidget
     bool showsReorderControl = ...,
     bool expanded = ...,
     int indentationLevel = ...,
+    bool header = ...,
     Key? key,
   })
   final GlassListAccessory? accessory
@@ -1408,6 +1409,7 @@ class GlassListRow extends StatefulWidget
   final bool enabled
   final bool expanded
   final FocusNode? focusNode
+  final bool header
   final int indentationLevel
   final Widget? leading
   final void Function()? onAccessoryPressed

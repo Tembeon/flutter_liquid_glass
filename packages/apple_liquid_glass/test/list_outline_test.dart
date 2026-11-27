@@ -87,6 +87,42 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets(
+    'a header row is 40.33 tall with its title 17 point semibold '
+    'in the secondary color, 10 from its top and bottom (iOS 27.2 simulator)',
+    (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          const GlassListSection(
+            children: [
+              GlassListRow(title: Text('Plants'), header: true),
+              GlassListRow(title: Text('Fern')),
+            ],
+          ),
+        ),
+      );
+      final row = tester.getRect(find.byType(GlassListRow).first);
+      expect(row.height, moreOrLessEquals(40.33, epsilon: 0.01));
+      final title = tester.widget<RichText>(
+        find.descendant(
+          of: find.text('Plants'),
+          matching: find.byType(RichText),
+        ),
+      );
+      final style = title.text.style!;
+      expect(style.fontWeight, FontWeight.w600);
+      expect(style.fontSize, 17);
+      // UIKit's 20.33 point label 10 from the top: its middle 20.17 down.
+      expect(
+        tester.getCenter(find.text('Plants')).dy - row.top,
+        moreOrLessEquals(10 + 20.33 / 2, epsilon: 0.5),
+      );
+      expect(tester.getRect(find.byType(GlassListRow).last).height, 53);
+    },
+  );
+
   test('the chevron turns a quarter on the critically damped 0.25 s list '
       'spring, and back', () {
     final motion = OutlineDisclosureMotion(expanded: false);
