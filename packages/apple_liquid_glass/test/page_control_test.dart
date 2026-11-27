@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -275,6 +276,32 @@ void main() {
       await tester.pump();
       expect(picks, [if (first) 3 else 1]);
     }
+  });
+
+  testWidgets('a progress that changes every frame keeps the same pose, '
+      'which the look reads it beside', (tester) async {
+    final poses = <ValueListenable<GlassPageControlPose>>[];
+    final progresses = <double?>[];
+    Widget control(double progress) => _app(
+      GlassPageControl(
+        count: 3,
+        page: 1,
+        progress: progress,
+        onChanged: (_) {},
+        style: GlassPageControlStyle(
+          builder: (context, details) {
+            poses.add(details.pose);
+            progresses.add(details.progress);
+            return const SizedBox.expand();
+          },
+        ),
+      ),
+    );
+    await tester.pumpWidget(control(0.2));
+    await tester.pumpWidget(control(0.6));
+    expect(identical(poses.first, poses.last), isTrue);
+    expect(progresses.last, 0.6);
+    expect(poses.last.value.progress, isNull);
   });
 
   testWidgets('a direction across runs the pages that way whatever the '

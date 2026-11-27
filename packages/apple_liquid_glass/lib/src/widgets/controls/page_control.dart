@@ -367,7 +367,9 @@ class _PageControlPainter extends CustomPainter {
       canvas.drawRRect(RRect.fromRectAndRadius(rect, radius), base);
       final fill = progress == null ? 0.0 : frame.fills[i];
       if (fill <= 0) continue;
-      final fraction = i == frame.page ? (frame.progress ?? 0) : 1.0;
+      final fraction = i == frame.page
+          ? (frame.progress ?? progress ?? 0)
+          : 1.0;
       final across = rect.shortestSide;
       final along = across + (rect.longestSide - across) * fraction.clamp(0, 1);
       final paint = Paint();

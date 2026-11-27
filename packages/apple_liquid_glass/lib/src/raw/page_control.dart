@@ -48,7 +48,7 @@ final class GlassPageControlDetails {
   /// How far the current page has progressed, 0 to 1, or null for plain
   /// dots. Under a [GlassPageControlTimer] it is where the timer stood when
   /// the look was built; the pose's [GlassPageControlPose.progress] moves
-  /// with it.
+  /// with the timer.
   final double? progress;
 
   /// The states the control is in: [WidgetState.disabled] while it ignores
@@ -125,9 +125,9 @@ final class GlassPageControlPose {
   /// progress fills an indicator this way.
   final AxisDirection direction;
 
-  /// How far the current page has progressed as the control moves, 0 to
-  /// 1: the control's progress, or its timer's, which moves every frame;
-  /// null for plain indicators.
+  /// How far a [GlassPageControlTimer] has run through the current page,
+  /// 0 to 1, as it moves every frame; null without a timer, where the
+  /// look's progress is [GlassPageControlDetails.progress].
   final double? progress;
 
   @override
@@ -424,14 +424,13 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   MotionSelection<GlassPageControlPose> _poseOf() {
     final background = widget.backgroundStyle;
     final direction = _direction;
-    final progress = widget.progress;
     final timed = widget.timer != null;
     return _motion.select(
       (m) => GlassPageControlPose._of(
         m,
         background: background,
         direction: direction,
-        progress: progress ?? (timed ? m.timerProgress : null),
+        progress: timed ? m.timerProgress : null,
       ),
     );
   }
@@ -480,8 +479,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
       return;
     }
     if (!identical(widget.timer, oldWidget.timer)) _takeTimer();
-    if (widget.progress != oldWidget.progress ||
-        (widget.timer == null) != (oldWidget.timer == null)) {
+    if ((widget.timer == null) != (oldWidget.timer == null)) {
       _pose = _poseOf();
     }
     if (widget.backgroundStyle != oldWidget.backgroundStyle) {
