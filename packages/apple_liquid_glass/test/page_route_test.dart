@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/fixtures.dart';
 
 const _frame = Duration(milliseconds: 16);
 
@@ -184,7 +187,7 @@ void main() {
     Future<TestGesture> flick() async {
       final gesture = await tester.createGesture();
       await gesture.down(const Offset(10, 400), timeStamp: now());
-      for (var i = 0; i < 7; i++) {
+      for (var i = 0; i < 5; i++) {
         await tester.pump(_frame);
         await gesture.moveBy(const Offset(20, 0), timeStamp: now());
       }
@@ -231,11 +234,9 @@ void main() {
       await _settle(tester);
     }
 
-    // A finger that touches at [x], rests [wait] frames and moves 28 points
-    // along over six more: whether the page has started to follow. Rested
-    // ten frames, its 24 points at 0.24 s pass the edge's falling travel
-    // (23.5 there) and its 28 stay short of the content swipe's 30.
-    Future<bool> follows(WidgetTester tester, double x, {int wait = 10}) async {
+    // A finger that touches at [x] and moves 25 points along after [wait]
+    // seconds: whether the page has started to follow.
+    Future<bool> follows(WidgetTester tester, double x, {int wait = 0}) async {
       final now = _deviceTime(tester);
       final rest = _x(tester, 'Next');
       final gesture = await tester.createGesture();
@@ -244,9 +245,9 @@ void main() {
         await tester.pump(_frame);
         await gesture.moveBy(Offset.zero, timeStamp: now());
       }
-      for (final step in const [5.0, 5.0, 5.0, 5.0, 4.0, 4.0]) {
+      for (var i = 0; i < 5; i++) {
         await tester.pump(_frame);
-        await gesture.moveBy(Offset(step, 0), timeStamp: now());
+        await gesture.moveBy(const Offset(5, 0), timeStamp: now());
       }
       await tester.pump(_frame);
       final moved = _x(tester, 'Next') > rest + 1;
@@ -268,9 +269,8 @@ void main() {
       );
     });
 
-    testWidgets('begins once a swipe has moved inward past the falling '
-        'travel and gives up past 15 points along the edge (read from '
-        "UIKit's code)", (tester) async {
+    testWidgets('takes a swipe within 77.5 degrees of inward and gives up '
+        'a steeper one (a 155 degree window, read from UIKit)', (tester) async {
       Future<bool> swipe(Offset step) async {
         final now = _deviceTime(tester);
         final rest = _x(tester, 'Next');
@@ -288,28 +288,65 @@ void main() {
       }
 
       await pushed(tester, const Size(402, 874), GlassFormFactor.phone);
-      expect(await swipe(const Offset(4, 12)), isFalse);
-      expect(await swipe(const Offset(6, 1)), isFalse);
-      expect(await swipe(const Offset(12, 2)), isTrue);
+      expect(await swipe(const Offset(4, 12)), isTrue);
+      expect(await swipe(const Offset(3, 16)), isFalse);
     });
 
-    test('its inward travel falls from 45.1 points over 0.5 s to 20', () {
-      expect(
-        NavigationPopMotion.edgeTravel(0),
-        moreOrLessEquals(45.11, epsilon: 0.01),
-      );
-      expect(
-        NavigationPopMotion.edgeTravel(0.25),
-        moreOrLessEquals(22.55, epsilon: 0.01),
-      );
-      expect(NavigationPopMotion.edgeTravel(0.3), 20);
-    });
-
-    testWidgets('gives up after 0.25 s still, leaving the touch to the '
-        'content swipe (read from UIKit)', (tester) async {
+    testWidgets('begins where an iPhone 16 Pro began its pop, 15 points in, '
+        'after a quick start and a 0.6 s rest on the edge alike', (
+      tester,
+    ) async {
+      final fixture = jsonDecode(
+        Fixtures.read(
+          'test/fixtures/ios27-device/navigation/'
+          'release-decision.json',
+        ),
+      ) as Map<String, Object?>;
+      final edge = [
+        for (final raw in fixture['captures']! as List<Object?>)
+          if (raw
+              case {
+                'name': final String name,
+                'start': [final num x, _],
+              }
+              when name.startsWith('repeat-1/') && x < 13)
+            raw as Map<String, Object?>,
+      ];
+      expect(edge, hasLength(5));
       await pushed(tester, const Size(402, 874), GlassFormFactor.phone);
-      expect(await follows(tester, 10, wait: 20), isFalse);
-      expect(await follows(tester, 10), isTrue);
+      for (final capture in edge) {
+        final now = _deviceTime(tester);
+        final rest = _x(tester, 'Next');
+        final points = [
+          for (final p in capture['points']! as List<Object?>)
+            [for (final v in p! as List<Object?>) (v! as num).toDouble()],
+        ];
+        final gesture = await tester.createGesture();
+        await gesture.down(const Offset(3, 655.67), timeStamp: now());
+        var last = 0.0;
+        var moved = -1;
+        for (var i = 1; i < points.length && moved < 0; i++) {
+          await tester.pump(
+            Duration(microseconds: ((points[i][0] - last) * 1e6).round()),
+          );
+          last = points[i][0];
+          await gesture.moveTo(
+            Offset(3 + points[i][1], 655.67 + points[i][2]),
+            timeStamp: now(),
+          );
+          await tester.pump();
+          if (_x(tester, 'Next') > rest + 0.5) moved = i;
+        }
+        await gesture.cancel();
+        await _settle(tester);
+        expect(
+          moved,
+          (capture['begin']! as int) + 1,
+          reason:
+              '${capture['name']}: the page follows from the move after '
+              'the one that began the pop',
+        );
+      }
     });
   });
 
@@ -328,7 +365,7 @@ void main() {
 
     final gesture = await tester.createGesture();
     await gesture.down(const Offset(10, 400), timeStamp: now());
-    for (var i = 0; i < 6; i++) {
+    for (var i = 0; i < 4; i++) {
       await tester.pump(_frame);
       await gesture.moveBy(const Offset(10, 0), timeStamp: now());
     }
@@ -348,7 +385,7 @@ void main() {
     await _settle(tester);
     final again = await tester.createGesture();
     await again.down(const Offset(10, 400), timeStamp: now());
-    for (var i = 0; i < 13; i++) {
+    for (var i = 0; i < 10; i++) {
       await tester.pump(_frame);
       await again.moveBy(const Offset(3, 0), timeStamp: now());
     }
