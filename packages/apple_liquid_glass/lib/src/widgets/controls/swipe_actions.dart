@@ -74,7 +74,7 @@ final class GlassSwipeAction {
 /// An action's label is 15 points, medium, with 15 points on each side.
 ///
 /// The swipe, its full-swipe commit and its springs are UIKit 27.2's
-/// ([SwipeActionsMotion]). Not ported yet: the look, which here is a full
+/// (`SwipeActionsMotion`). Not ported yet: the look, which here is a full
 /// height fill per action with its width and label chosen by eye, where
 /// iOS 27 draws capsule buttons on a pull view that grow and fade in on
 /// their own springs (swipe actions passport).
