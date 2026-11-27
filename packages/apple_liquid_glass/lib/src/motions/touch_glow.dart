@@ -251,7 +251,7 @@ final class TouchGlowMotion extends Motion {
     return GlassTouchGlow(
       wash: washOffset * wash,
       center: _center,
-      radius: spotSpread * diameter * _scale.valueAt(t),
+      sigma: spotSpread * diameter * _scale.valueAt(t),
       spot: spotCore * spot,
     );
   }

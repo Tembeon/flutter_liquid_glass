@@ -1,7 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe_groups.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
@@ -59,45 +60,46 @@ List<double> fakeGlassColorMatrix({
   return (slope, meanT - slope * meanY);
 }
 
-/// The complete untinted iOS 27 face (see `GlassColorParameters`) as a 4x5
-/// color matrix.
+/// The face of an iOS 27 recipe ([face], under its [bleed]) as a 4x5 color
+/// matrix.
 ///
 /// Evaluating the whole face in the filter clamps only the final color, so
-/// amplified chroma is not clipped before the neutral wash attenuates it.
-/// A matrix is linear in the backdrop, so the face of a grey backdrop,
-/// lift and [bleed] included, is replaced by its least-squares line, and
-/// the chroma takes the mean of its gain over the backdrop's luminance.
+/// amplified chroma is not clipped before the fill covers it. A matrix is
+/// linear in the backdrop, so the face of a grey backdrop, roll-off and
+/// bleed included, is replaced by its least-squares line, and the chroma
+/// takes the mean of its gain over the backdrop's luma. The bleed's veil is
+/// the backdrop itself, as real glass's is short of a wide blur.
 @internal
 List<double> fakeGlassFaceMatrix({
-  required Color emission,
-  required double transmittance,
-  required double lift,
-  required double chromaGain,
-  GlassColorBleed bleed = const GlassColorBleed.none(),
-  double transmissionGamma = 1,
+  required FaceRecipe face,
+  BleedRecipe bleed = BleedRecipe.none,
   double opacity = 1,
 }) {
   final luminance = [lumaWeights.$1, lumaWeights.$2, lumaWeights.$3];
-  final emissionColor = [emission.r, emission.g, emission.b];
-  final glow =
-      luminance[0] * emission.r +
-      luminance[1] * emission.g +
-      luminance[2] * emission.b;
-  final gamma = math.max(transmissionGamma, 0.01);
-  double bare(double y) =>
-      glow +
-      transmittance * math.pow((y + lift * y * (1 - y)).clamp(0.0, 1.0), gamma);
-  final (slope, offset) = _line((y) => bleed.apply(bare(y), y));
+  final fill = face.fill;
+  final fillColor = [fill.r, fill.g, fill.b];
+  final fillLuma = _lumaOf(fill);
+  double kept(double y) => _kept(face, y);
+  double levels(double y) => recipeFaceLuma(face, y);
+  double weight(double y) {
+    final luma = levels(y).clamp(0.0, 1.0);
+    final base = bleed.onBright >= 0.5 ? luma : 1 - luma;
+    return math.pow(base, 4) * bleed.opacity;
+  }
+
+  double veil(double y) => bleed.black + (bleed.white - bleed.black) * y;
+  final (slope, offset) = _line(
+    (y) => levels(y) * (1 - weight(y)) + veil(y) * weight(y),
+  );
   const samples = 17;
   var chroma = 0.0;
   for (var i = 0; i < samples; i++) {
     final y = i / (samples - 1);
-    final keep = 1 - y * lift / (1 + lift);
-    final weight = bleed.weightAt(bare(y));
+    final k = kept(y);
+    final w = weight(y);
+    final faceChroma = face.saturation * k * (1 + faceChromaLift * (1 - k));
     chroma +=
-        ((1 - weight) * chromaGain * chromaKeep(keep) +
-            weight * bleed.saturation) /
-        samples;
+        ((1 - w) * (1 - fill.a) * faceChroma + w * bleed.saturation) / samples;
   }
   final result = <double>[];
   for (var row = 0; row < 3; row++) {
@@ -109,9 +111,37 @@ List<double> fakeGlassFaceMatrix({
     result
       ..add(0)
       // ColorFilter.matrix biases use the 0-255 channel scale.
-      ..add((emissionColor[row] - glow + offset) * 255);
+      ..add((offset + fill.a * (fillColor[row] - fillLuma)) * 255);
   }
   return result..addAll([0, 0, 0, opacity.clamp(0.0, 1.0), 0]);
+}
+
+double _lumaOf(Color color) =>
+    lumaWeights.$1 * color.r +
+    lumaWeights.$2 * color.g +
+    lumaWeights.$3 * color.b;
+
+double _kept(FaceRecipe face, double luma) =>
+    (1 - luma * face.rollOff).clamp(0.0, 1.0);
+
+/// The luma [face] gives a grey backdrop of luma [luma], its fill
+/// included, as the final shader's recipeFaceOf.
+@internal
+double recipeFaceLuma(FaceRecipe face, double luma) {
+  final fill = face.fill;
+  return (1 - fill.a) *
+          (face.black + (face.white - face.black) * _kept(face, luma) * luma) +
+      fill.a * _lumaOf(fill);
+}
+
+/// The light the rim highlight of [recipe] adds where it is full, over the
+/// face of a mid grey: FakeGlass adds it to a face it cannot read.
+@internal
+double fakeGlassHighlightLift(GlassRecipe recipe) {
+  final face = recipeFaceLuma(recipe.face, 0.5).clamp(0.0, 1.0);
+  final highlight = recipe.rimHighlight;
+  final lit = highlight.black + (highlight.white - highlight.black) * face;
+  return (math.min(lit, 1) - face).clamp(0.0, 1.0);
 }
 
 /// What fake glass draws of a [LiquidGlassSettings]: the fake painters take
@@ -121,69 +151,34 @@ List<double> fakeGlassFaceMatrix({
 final class FakeGlassLook {
   /// The look of [settings].
   FakeGlassLook.of(LiquidGlassSettings settings)
-    : frost = settings.frostBase,
-      frostIsFitted = settings.frostIsFitted,
-      glintStrength = settings.glintStrength,
-      contourStrength = settings.contourStrength,
-      contourWidth = settings.contourWidth,
-      contourDirectionality = settings.contourDirectionality,
-      bevelShadowStrength = settings.bevelShadowStrength,
-      sliderPosition = settings.effectiveSliderPosition;
+    : blur = settings.blur,
+      system = settings.drawnSystem;
 
-  /// [FittedFrost.frostBase].
-  final double frost;
+  /// [LiquidGlassSettings.blur].
+  final double? blur;
 
-  /// [FittedFrost.frostIsFitted].
-  final bool frostIsFitted;
+  /// The platform's settings as glass draws them ([DrawnSlider.drawnSystem]).
+  final GlassSystem system;
 
-  /// [LiquidGlassSettings.glintStrength].
-  final double glintStrength;
-
-  /// [LiquidGlassSettings.contourStrength].
-  final double contourStrength;
-
-  /// [LiquidGlassSettings.contourDirectionality].
-  final double contourDirectionality;
-
-  /// [LiquidGlassSettings.bevelShadowStrength].
-  final double bevelShadowStrength;
-
-  /// The slider position, clamped to `0` to `1`.
-  final double sliderPosition;
-
-  /// [DrawnSettings.contourWidth], which [contourStrength] decides.
-  final double contourWidth;
-
-  /// [FittedFrost.frostSigmaAt] of this look's frost.
-  double frostSigmaAt(double devicePixelRatio, {double? shapeShortSide}) =>
-      frostSigmaOf(
-        frost,
-        fitted: frostIsFitted,
-        devicePixelRatio: devicePixelRatio,
-        shapeShortSide: shapeShortSide,
-      );
+  /// [glassBlurSigma] of glass wearing [model] in this look.
+  double blurSigmaAt(
+    WornColorModel model,
+    double devicePixelRatio, {
+    double? shapeShortSide,
+  }) => glassBlurSigma(
+    blur: blur,
+    system: system,
+    variant: model.blurredAs.variant,
+    devicePixelRatio: devicePixelRatio,
+    shapeShortSide: shapeShortSide,
+  );
 
   @override
   bool operator ==(Object other) =>
-      other is FakeGlassLook &&
-      other.frost == frost &&
-      other.frostIsFitted == frostIsFitted &&
-      other.glintStrength == glintStrength &&
-      other.contourStrength == contourStrength &&
-      other.contourDirectionality == contourDirectionality &&
-      other.bevelShadowStrength == bevelShadowStrength &&
-      other.sliderPosition == sliderPosition;
+      other is FakeGlassLook && other.blur == blur && other.system == system;
 
   @override
-  int get hashCode => Object.hash(
-    frost,
-    frostIsFitted,
-    glintStrength,
-    contourStrength,
-    contourDirectionality,
-    bevelShadowStrength,
-    sliderPosition,
-  );
+  int get hashCode => Object.hash(blur, system);
 }
 
 /// A fake glass backdrop filter, and the frost `full` stands for when it
@@ -195,13 +190,12 @@ typedef FakeGlassFilterParts = ({
 });
 
 /// What fake glass does to the color of its backdrop: the untinted face of
-/// a parametric color model under its bleed, or else a saturation and a
+/// an iOS 27 recipe under its bleed, or else a saturation and a
 /// transmission gamma.
 @internal
 typedef FakeGlassTransfer = ({
-  ({Color emission, double transmittance, double lift, double chromaGain})?
-  face,
-  GlassColorBleed bleed,
+  FaceRecipe? face,
+  BleedRecipe bleed,
   double saturation,
   double transmissionGamma,
 });
@@ -213,17 +207,21 @@ FakeGlassTransfer? fakeGlassTransfer(
   FakeGlassLook look,
   WornColorModel model,
 ) {
-  final parameters = model.parameters;
-  if (parameters == null &&
-      model.saturation == 1 &&
-      model.transmissionGamma == 1) {
+  final transfer = model.transfer;
+  final recipe = switch (model) {
+    WornRecipe(look: final worn) => recipeOf(worn, look.system),
+    WornDirect() => null,
+  };
+  if (recipe == null &&
+      transfer.saturation == 1 &&
+      transfer.transmissionGamma == 1) {
     return null;
   }
   return (
-    face: parameters?.faceTransfer(sliderPosition: look.sliderPosition),
-    bleed: parameters?.bleed ?? const GlassColorBleed.none(),
-    saturation: model.saturation,
-    transmissionGamma: model.transmissionGamma,
+    face: recipe?.face,
+    bleed: recipe?.bleed ?? BleedRecipe.none,
+    saturation: transfer.saturation,
+    transmissionGamma: transfer.transmissionGamma,
   );
 }
 
@@ -247,26 +245,14 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
 }) {
   if (!appearance.shows) return null;
   final visibility = appearance.visibility;
-  final sigma = look.frostSigmaAt(
+  final sigma = look.blurSigmaAt(
+    appearance.colorModel,
     devicePixelRatio,
     shapeShortSide: shapeShortSide,
   );
   final matrix = switch (fakeGlassTransfer(look, appearance.colorModel)) {
-    (
-      face: final face?,
-      :final bleed,
-      :final saturation,
-      :final transmissionGamma,
-    ) =>
-      fakeGlassFaceMatrix(
-        emission: face.emission,
-        transmittance: face.transmittance,
-        lift: face.lift,
-        chromaGain: face.chromaGain * saturation,
-        bleed: bleed,
-        transmissionGamma: transmissionGamma,
-        opacity: visibility,
-      ),
+    (face: final face?, :final bleed, saturation: _, transmissionGamma: _) =>
+      fakeGlassFaceMatrix(face: face, bleed: bleed, opacity: visibility),
     (
       face: null,
       bleed: _,

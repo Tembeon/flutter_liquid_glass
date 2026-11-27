@@ -40,7 +40,7 @@ void runOpacityTests(SubmittedSceneCapture binding) {
         addTearDown(tester.view.reset);
         await tester.runAsync(
           () => GlassShaderPrograms.precacheShaders([
-            ShaderKeys.fakeGlassSurface,
+            ShaderProgram.fakeGlassSurface.key,
           ]),
         );
         final opacity = AnimationController(vsync: tester, value: 1);
@@ -74,7 +74,7 @@ void runOpacityTests(SubmittedSceneCapture binding) {
                   : fakeGlassBackdropFilterParts(
                       FakeGlassLook.of(
                         const LiquidGlassSettings(
-                          frost: LiquidGlassFrost.sigma(8),
+                          blur: 8,
                         ),
                       ),
                       const LiquidGlassAppearance.ios27Regular(
@@ -113,8 +113,13 @@ void runOpacityTests(SubmittedSceneCapture binding) {
           final layer = LiquidGlassLayer(
             fake: kind == 'fake',
             settings: const LiquidGlassSettings(
-              frost: LiquidGlassFrost.sigma(8),
-              glintStrength: 0,
+              blur: 8,
+            ),
+            defaultAppearance: const LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+                glintStrength: 0,
+              ),
             ),
             child: shape,
           );

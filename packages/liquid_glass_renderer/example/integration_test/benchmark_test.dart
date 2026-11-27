@@ -624,13 +624,14 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
   Widget _buildScenario(double t) {
     const settings = LiquidGlassSettings(
       refractionHeight: 30,
-      frost: LiquidGlassFrost.sigma(15),
+      blur: 15,
     );
-    const litSettings = LiquidGlassSettings(
-      refractionHeight: 30,
-      frost: LiquidGlassFrost.sigma(15),
-      contourStrength: .22,
-      bevelShadowStrength: .025,
+    const lit = LiquidGlassAppearance(
+      colorModel: LiquidGlassColorModel.direct(
+        brightness: Brightness.light,
+        contourStrength: .22,
+        bevelShadowStrength: .025,
+      ),
     );
     final moving = Transform.translate(
       offset: Offset(-180 + 360 * t, 40 * math.sin(t * math.pi * 2)),
@@ -654,6 +655,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
           defaultAppearance: const LiquidGlassAppearance(
             tint: Color(0xAA287DFF),
             colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
               saturation: 1.8,
               transmissionGamma: .78,
               vibrancy: .25,
@@ -668,49 +670,67 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
       BenchmarkScenario.plainStatic => Center(child: _tile(0)),
       BenchmarkScenario.realLightingOnly => _realLayer(
         const LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(0),
-        ),
-        t,
-        appearance: const LiquidGlassAppearance(),
-      ),
-      BenchmarkScenario.realBlurOnly => _realLayer(
-        const LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(15),
-          glintStrength: 0,
-        ),
-        t,
-        appearance: const LiquidGlassAppearance(),
-      ),
-      BenchmarkScenario.realHighBlurOnly => _realLayer(
-        const LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(40),
-          glintStrength: 0,
-        ),
-        t,
-        appearance: const LiquidGlassAppearance(),
-      ),
-      BenchmarkScenario.realSaturationOnly => _realLayer(
-        const LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(0),
-          glintStrength: 0,
+          blur: 0,
         ),
         t,
         appearance: const LiquidGlassAppearance(
-          colorModel: LiquidGlassColorModel.direct(saturation: 1.5),
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+        ),
+      ),
+      BenchmarkScenario.realBlurOnly => _realLayer(
+        const LiquidGlassSettings(
+          blur: 15,
+        ),
+        t,
+        appearance: const LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            glintStrength: 0,
+          ),
+        ),
+      ),
+      BenchmarkScenario.realHighBlurOnly => _realLayer(
+        const LiquidGlassSettings(
+          blur: 40,
+        ),
+        t,
+        appearance: const LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            glintStrength: 0,
+          ),
+        ),
+      ),
+      BenchmarkScenario.realSaturationOnly => _realLayer(
+        const LiquidGlassSettings(
+          blur: 0,
+        ),
+        t,
+        appearance: const LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            saturation: 1.5,
+            glintStrength: 0,
+          ),
         ),
       ),
       BenchmarkScenario.realBlurSaturation => _realLayer(
         const LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(15),
-          glintStrength: 0,
+          blur: 15,
         ),
         t,
         appearance: const LiquidGlassAppearance(
-          colorModel: LiquidGlassColorModel.direct(saturation: 1.5),
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            saturation: 1.5,
+            glintStrength: 0,
+          ),
         ),
       ),
       BenchmarkScenario.realToolbarMaterial => _realLayer(
-        const LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+        const LiquidGlassSettings.ios27Regular(),
         t,
         appearance: const LiquidGlassAppearance.ios27Regular(
           brightness: Brightness.light,
@@ -719,58 +739,84 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
       BenchmarkScenario.realClearMaterial => _realLayer(
         const LiquidGlassSettings.ios27Clear(),
         t,
-        appearance: const LiquidGlassAppearance(),
+        appearance: const LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+        ),
       ),
       BenchmarkScenario.realClearUnfrosted => _realLayer(
-        const LiquidGlassSettings.ios27Clear(frost: LiquidGlassFrost.sigma(0)),
+        const LiquidGlassSettings.ios27Clear(blur: 0),
         t,
-        appearance: const LiquidGlassAppearance(),
+        appearance: const LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+        ),
       ),
       BenchmarkScenario.fakeLightingOnly => _fakeLayer(
         const LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(0),
-        ),
-        t,
-        appearance: const LiquidGlassAppearance(),
-      ),
-      BenchmarkScenario.fakeBlurOnly => _fakeLayer(
-        const LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(15),
-          glintStrength: 0,
-        ),
-        t,
-        appearance: const LiquidGlassAppearance(),
-      ),
-      BenchmarkScenario.fakeHighBlurOnly => _fakeLayer(
-        const LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(40),
-          glintStrength: 0,
-        ),
-        t,
-        appearance: const LiquidGlassAppearance(),
-      ),
-      BenchmarkScenario.fakeSaturationOnly => _fakeLayer(
-        const LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(0),
-          glintStrength: 0,
+          blur: 0,
         ),
         t,
         appearance: const LiquidGlassAppearance(
-          colorModel: LiquidGlassColorModel.direct(saturation: 1.5),
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+        ),
+      ),
+      BenchmarkScenario.fakeBlurOnly => _fakeLayer(
+        const LiquidGlassSettings(
+          blur: 15,
+        ),
+        t,
+        appearance: const LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            glintStrength: 0,
+          ),
+        ),
+      ),
+      BenchmarkScenario.fakeHighBlurOnly => _fakeLayer(
+        const LiquidGlassSettings(
+          blur: 40,
+        ),
+        t,
+        appearance: const LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            glintStrength: 0,
+          ),
+        ),
+      ),
+      BenchmarkScenario.fakeSaturationOnly => _fakeLayer(
+        const LiquidGlassSettings(
+          blur: 0,
+        ),
+        t,
+        appearance: const LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            saturation: 1.5,
+            glintStrength: 0,
+          ),
         ),
       ),
       BenchmarkScenario.fakeBlurSaturation => _fakeLayer(
         const LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(15),
-          glintStrength: 0,
+          blur: 15,
         ),
         t,
         appearance: const LiquidGlassAppearance(
-          colorModel: LiquidGlassColorModel.direct(saturation: 1.5),
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            saturation: 1.5,
+            glintStrength: 0,
+          ),
         ),
       ),
       BenchmarkScenario.fakeToolbarMaterial => _fakeLayer(
-        const LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+        const LiquidGlassSettings.ios27Regular(),
         t,
         appearance: const LiquidGlassAppearance.ios27Regular(
           brightness: Brightness.light,
@@ -898,7 +944,8 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         animateVisibility: true,
       ),
       BenchmarkScenario.litGrouped16Motion => _groupedGrid(
-        settings: litSettings,
+        settings: settings,
+        defaultAppearance: lit,
         count: 16,
         t: t,
       ),
@@ -918,7 +965,8 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         t: t,
       ),
       BenchmarkScenario.litIndependent16Motion => _independentGrid(
-        settings: litSettings,
+        settings: settings,
+        appearance: lit,
         count: 16,
         t: t,
       ),
@@ -1164,6 +1212,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
     required LiquidGlassSettings settings,
     required int count,
     required double t,
+    LiquidGlassAppearance? appearance,
   }) => Center(
     child: Transform.translate(
       offset: Offset(30 * math.sin(t * math.pi * 2), 0),
@@ -1173,6 +1222,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
           count,
           (index) => LiquidGlassLayer(
             settings: settings,
+            defaultAppearance: appearance,
             child: LiquidGlass(
               shape: LiquidRoundedSuperellipse(
                 radius: 8.0 + index,
@@ -1187,7 +1237,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
 
   static const _pxSettings = LiquidGlassSettings(
     refractionHeight: 30,
-    frost: LiquidGlassFrost.sigma(15),
+    blur: 15,
   );
 
   Widget _pxStretched(double t, double width, double height, bool animate) {
@@ -1305,7 +1355,12 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         LiquidGlass(
           shape: const LiquidOval(),
           appearance: tinted
-              ? const LiquidGlassAppearance(tint: Color(0x552060FF))
+              ? const LiquidGlassAppearance(
+                  colorModel: LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
+                  ),
+                  tint: Color(0x552060FF),
+                )
               : null,
           child: const SizedBox(width: 44, height: 44),
         ),
@@ -1326,7 +1381,10 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         Offset(1, -1),
         LiquidGlassAppearance.ios27Regular(brightness: Brightness.dark),
       ),
-      (Offset(-1, 1), LiquidGlassAppearance.ios27Clear()),
+      (
+        Offset(-1, 1),
+        LiquidGlassAppearance.ios27Clear(brightness: Brightness.light),
+      ),
       (
         Offset(1, 1),
         LiquidGlassAppearance.ios27Regular(
@@ -1337,9 +1395,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
     ];
     final spread = 100 + 24 * math.sin(t * math.pi * 2);
     return LiquidGlassLayer(
-      settings: const LiquidGlassSettings.ios27Regular(
-        brightness: Brightness.dark,
-      ),
+      settings: const LiquidGlassSettings.ios27Regular(),
       child: Center(
         child: SizedBox.square(
           dimension: 560,
@@ -1399,6 +1455,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
                             index / math.max(count - 1, 1),
                           )!,
                           colorModel: LiquidGlassColorModel.direct(
+                            brightness: Brightness.light,
                             saturation: 0.8 + index / count * 1.8,
                             transmissionGamma: 0.75 + index / count * 0.35,
                             vibrancy: index / count * 0.25,
@@ -1509,6 +1566,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
           index / 2,
         )!,
         colorModel: LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
           saturation: variedResponse ? 0.9 + index * 0.6 : 1,
           transmissionGamma: variedResponse ? 0.8 + index * 0.1 : 1,
           vibrancy: variedResponse ? index * 0.1 : 0,
@@ -1623,9 +1681,7 @@ class _RealThenFakeScenarioState extends State<_RealThenFakeScenario> {
   @override
   Widget build(BuildContext context) => LiquidGlassLayer(
     fake: _fake,
-    settings: const LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.light,
-    ),
+    settings: const LiquidGlassSettings.ios27Regular(),
     child: Center(
       child: Transform.translate(
         offset: Offset(-180 + 360 * widget.t, 0),
@@ -1671,9 +1727,7 @@ enum _AppChromeKind {
   realTabsOwnLoupeStatic,
 }
 
-const _appToolbarSettings = LiquidGlassSettings.ios27Regular(
-  brightness: Brightness.light,
-);
+const _appToolbarSettings = LiquidGlassSettings.ios27Regular();
 const _appToolbarAppearance = LiquidGlassAppearance.ios27Regular(
   brightness: Brightness.light,
 );
@@ -1919,15 +1973,18 @@ class _AppLikeSceneState extends State<_AppLikeScene> {
                         widget.chrome == _AppChromeKind.realTabsOwnLoupeStatic
                     ? const LiquidGlassLayer(
                         settings: LiquidGlassSettings(
-                          frost: LiquidGlassFrost.sigma(0),
+                          blur: 0,
                           refractionHeight: 24,
                           refractionAmount: 40,
-                          backdropShrink: .08,
-                          dispersion: .1,
-                          glintStrength: .4,
-                          contourStrength: .1,
+                          lens: LiquidGlassLens(shrink: .08, dispersion: .1),
                         ),
-                        defaultAppearance: LiquidGlassAppearance(),
+                        defaultAppearance: LiquidGlassAppearance(
+                          colorModel: LiquidGlassColorModel.direct(
+                            brightness: Brightness.light,
+                            glintStrength: .4,
+                            contourStrength: .1,
+                          ),
+                        ),
                         child: LiquidGlass(
                           shape: LiquidRoundedSuperellipse(radius: 24),
                           child: SizedBox(width: 56, height: 48),
@@ -1952,7 +2009,7 @@ class _AppLikeSceneState extends State<_AppLikeScene> {
 
   LiquidGlassSettings get _layerSettings =>
       widget.chrome == _AppChromeKind.realNoFrost
-      ? _appToolbarSettings.copyWith(frost: const LiquidGlassFrost.sigma(0))
+      ? _appToolbarSettings.copyWith(blur: 0)
       : _appToolbarSettings;
 
   static final ImageFilter _sigma7Blur = ImageFilter.blur(

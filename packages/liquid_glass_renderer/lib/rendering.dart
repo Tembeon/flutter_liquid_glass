@@ -32,6 +32,6 @@ export 'src/rendering/frame_report.dart'
         GlassReadReport,
         GlassReadSource,
         debugPrintGlassFrameReports;
+export 'src/rendering/glass_site.dart' show glassReadsCopies;
 export 'src/rendering/liquid_glass_underlay.dart'
     show LiquidGlassLayerEffects, LiquidGlassUnderlay;
-export 'src/rendering/read.dart' show glassReadsCopies;

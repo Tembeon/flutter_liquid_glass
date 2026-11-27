@@ -3,8 +3,8 @@ class FakeGlass extends StatelessWidget
   const FakeGlass({
     required LiquidShape shape,
     required Widget child,
+    required LiquidGlassAppearance appearance,
     LiquidGlassSettings settings = ...,
-    LiquidGlassAppearance appearance = ...,
     List<LiquidGlassShadow> shadows = ...,
     Key? key,
   })
@@ -38,18 +38,21 @@ class LiquidGlass extends StatefulWidget
   overrides: createState, debugFillProperties
 final class LiquidGlassAppearance
   const LiquidGlassAppearance.ios27Clear({
+    required Brightness brightness,
+    bool highContrast = ...,
     Color tint = ...,
     double visibility = ...,
   })
   const LiquidGlassAppearance.ios27Regular({
     required Brightness brightness,
+    bool highContrast = ...,
     Color tint = ...,
     double visibility = ...,
   })
   const LiquidGlassAppearance({
+    required LiquidGlassColorModel colorModel,
     Color tint = ...,
     double visibility = ...,
-    LiquidGlassColorModel colorModel = ...,
   })
   final LiquidGlassColorModel colorModel
   LiquidGlassAppearance copyWith({
@@ -111,26 +114,45 @@ base class LiquidGlassBody
   overrides: ==, hashCode, toString
 sealed class LiquidGlassColorModel
   const factory LiquidGlassColorModel.direct({
+    required Brightness brightness,
     double saturation,
     double transmissionGamma,
     double vibrancy,
+    double? glintStrength,
+    double? contourStrength,
+    double? contourDirectionality,
+    double? bevelShadowStrength,
   })
-  const factory LiquidGlassColorModel.ios27Clear()
+  const factory LiquidGlassColorModel.ios27Clear({
+    required Brightness brightness,
+    bool highContrast,
+  })
+  const factory LiquidGlassColorModel.ios27Lens({
+    required Brightness brightness,
+  })
   const factory LiquidGlassColorModel.ios27Regular({
     required Brightness brightness,
-    double transmissionGamma,
+    bool highContrast,
+  })
+  const factory LiquidGlassColorModel.ios27SmallLens({
+    required Brightness brightness,
   })
 final class LiquidGlassContentBend
-  const LiquidGlassContentBend({required double amount, required double height})
+  const LiquidGlassContentBend({required double amount, required double depth})
   final double amount
-  final double height
-  double shownDepth(double depth)
-  overrides: ==, hashCode
+  final double depth
+  double shownDepth(double at)
+  overrides: ==, hashCode, toString
 enum LiquidGlassDeviceClass
   capable,
   gles,
   appleBeforeA13,
 final class LiquidGlassDirectColorModel extends LiquidGlassColorModel
+  final double bevelShadowStrength
+  final Brightness brightness
+  final double contourDirectionality
+  final double contourStrength
+  final double glintStrength
   final double saturation
   final double transmissionGamma
   final double vibrancy
@@ -157,25 +179,12 @@ final class LiquidGlassField
   final Float32List samples
   final double step
   overrides: ==, hashCode, toString
-final class LiquidGlassFixedFrost extends LiquidGlassFrost
-  final double sigma
-  overrides: ==, hashCode, toString
-final class LiquidGlassFixedHaze extends LiquidGlassHaze
-  final double cover
-  final double darken
-  final double lighten
-  final double sigma
-  overrides: ==, hashCode, toString
 final class LiquidGlassFixedShadow extends LiquidGlassShadow
   final double blurRadius
   final Color color
   final Offset offset
   final double spreadRadius
   overrides: ==, hashCode, toString
-sealed class LiquidGlassFrost
-  const factory LiquidGlassFrost.ios27Clear()
-  const factory LiquidGlassFrost.ios27Regular()
-  const factory LiquidGlassFrost.sigma(double sigma)
 sealed class LiquidGlassFrostBand extends LiquidGlassBackdropFilter
   const factory LiquidGlassFrostBand.hard({
     required double sigma,
@@ -183,7 +192,7 @@ sealed class LiquidGlassFrostBand extends LiquidGlassBackdropFilter
     required Color fade,
     required Color line,
     required double saturation,
-    required double brightness,
+    required double lighten,
     double presence,
   })
   const factory LiquidGlassFrostBand.soft({
@@ -205,48 +214,35 @@ sealed class LiquidGlassFrostBand extends LiquidGlassBackdropFilter
 final class LiquidGlassGlow
   const LiquidGlassGlow({
     Offset center = ...,
-    double radius = ...,
+    double sigma = ...,
     double gain = ...,
     double wash = ...,
   })
   final Offset center
   final double gain
-  final double radius
+  final double sigma
   final double wash
   overrides: ==, hashCode, toString
 final class LiquidGlassHardFrostBand extends LiquidGlassFrostBand
-  final double brightness
+  final double lighten
   final Color line
   final double saturation
   overrides: ==, hashCode, paintOver, toString
-sealed class LiquidGlassHaze
-  const factory LiquidGlassHaze.ios27Clear()
-  const factory LiquidGlassHaze.ios27Regular({required Brightness brightness})
-  const factory LiquidGlassHaze({
-    double sigma,
-    double lighten,
-    double darken,
-    double cover,
-  })
-  const factory LiquidGlassHaze.none()
 final class LiquidGlassImageBackdropFilter extends LiquidGlassBackdropFilter
   final ImageFilter filter
   final double sigma
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27ClearColorModel extends LiquidGlassColorModel
+  final Brightness brightness
+  final bool highContrast
   overrides: ==, hashCode, toString
-final class LiquidGlassIos27ClearFrost extends LiquidGlassFrost
-  overrides: ==, hashCode, toString
-final class LiquidGlassIos27ClearHaze extends LiquidGlassHaze
+final class LiquidGlassIos27LensColorModel extends LiquidGlassColorModel
+  final Brightness brightness
+  final bool small
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27RegularColorModel extends LiquidGlassColorModel
   final Brightness brightness
-  final double transmissionGamma
-  overrides: ==, hashCode, toString
-final class LiquidGlassIos27RegularFrost extends LiquidGlassFrost
-  overrides: ==, hashCode, toString
-final class LiquidGlassIos27RegularHaze extends LiquidGlassHaze
-  final Brightness brightness
+  final bool highContrast
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27RegularShadow extends LiquidGlassShadow
   final Brightness brightness
@@ -288,15 +284,45 @@ final class LiquidGlassLayerFrame
   final LiquidGlassField? field
   final LiquidGlassSettings settings
   overrides: ==, hashCode, toString
+final class LiquidGlassLens
+  const LiquidGlassLens({
+    double pull = ...,
+    double pullDepth = ...,
+    double shrink = ...,
+    double aberration = ...,
+    double aberrationDepth = ...,
+    double dispersion = ...,
+  })
+  final double aberration
+  final double aberrationDepth
+  LiquidGlassLens copyWith({
+    double? pull,
+    double? pullDepth,
+    double? shrink,
+    double? aberration,
+    double? aberrationDepth,
+    double? dispersion,
+  })
+  final double dispersion
+  static const LiquidGlassLens none
+  final double pull
+  final double pullDepth
+  final double shrink
+  overrides: ==, hashCode, toString
 final class LiquidGlassMaterial
   factory LiquidGlassMaterial.ios27Clear({
+    required Brightness brightness,
     double sliderPosition = ...,
-    Color? tint,
+    bool highContrast = ...,
+    bool reduceTransparency = ...,
+    Color tint = ...,
   })
   factory LiquidGlassMaterial.ios27Regular({
     required Brightness brightness,
     double sliderPosition = ...,
-    Color? tint,
+    bool highContrast = ...,
+    bool reduceTransparency = ...,
+    Color tint = ...,
   })
   const LiquidGlassMaterial({
     required LiquidGlassSettings settings,
@@ -328,61 +354,35 @@ class LiquidGlassReportOverlay extends StatefulWidget
 final class LiquidGlassSettings
   const LiquidGlassSettings.ios27Clear({
     double sliderPosition = ...,
-    LiquidGlassFrost frost = ...,
+    double? blur,
+    bool reduceTransparency = ...,
   })
   const LiquidGlassSettings.ios27Regular({
-    required Brightness brightness,
     double sliderPosition = ...,
-    LiquidGlassFrost frost = ...,
+    double? blur,
+    bool reduceTransparency = ...,
   })
   const LiquidGlassSettings({
     double refractionHeight = ...,
     double refractionAmount = ...,
     bool refractionFitsShape = ...,
-    double backdropShrink = ...,
-    double backdropPull = ...,
-    double backdropPullDepth = ...,
-    double aberration = ...,
-    double aberrationDepth = ...,
-    LiquidGlassFrost frost = ...,
-    double dispersion = ...,
-    double glintStrength = ...,
-    double contourStrength = ...,
-    double contourDirectionality = ...,
-    double bevelShadowStrength = ...,
+    LiquidGlassLens lens = ...,
     double sliderPosition = ...,
-    LiquidGlassHaze haze = ...,
+    double? blur,
+    bool reduceTransparency = ...,
   })
-  final double aberration
-  final double aberrationDepth
-  final double backdropPull
-  final double backdropPullDepth
-  final double backdropShrink
-  final double bevelShadowStrength
-  final double contourDirectionality
-  final double contourStrength
+  final double? blur
   LiquidGlassSettings copyWith({
     double? refractionHeight,
     double? refractionAmount,
     bool? refractionFitsShape,
-    double? backdropShrink,
-    double? backdropPull,
-    double? backdropPullDepth,
-    double? aberration,
-    double? aberrationDepth,
-    LiquidGlassFrost? frost,
-    double? dispersion,
-    double? glintStrength,
-    double? contourStrength,
-    double? contourDirectionality,
-    double? bevelShadowStrength,
+    LiquidGlassLens? lens,
     double? sliderPosition,
-    LiquidGlassHaze? haze,
+    double? blur,
+    bool? reduceTransparency,
   })
-  final double dispersion
-  final LiquidGlassFrost frost
-  final double glintStrength
-  final LiquidGlassHaze haze
+  final LiquidGlassLens lens
+  final bool reduceTransparency
   final double refractionAmount
   final bool refractionFitsShape
   final double refractionHeight
@@ -482,6 +482,7 @@ sealed class LiquidShape extends OutlinedBorder
 @visibleForTesting void debugOverrideLiquidGlassSupport(
   LiquidGlassSupport? support,
 )
+void installLiquidGlassComposer()
 final ValueListenable<LiquidGlassSupport> liquidGlassSupport
 Future<LiquidGlassSupport> precacheLiquidGlass({bool warmUp = ...})
 
@@ -497,23 +498,17 @@ class LiquidGlassContentBend (see package:liquid_glass_renderer/liquid_glass_ren
 enum LiquidGlassDeviceClass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassDirectColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassField (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-class LiquidGlassFixedFrost (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-class LiquidGlassFixedHaze (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassFixedShadow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-class LiquidGlassFrost (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassFrostBand (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassGlow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassHardFrostBand (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-class LiquidGlassHaze (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassImageBackdropFilter (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassIos27ClearColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-class LiquidGlassIos27ClearFrost (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-class LiquidGlassIos27ClearHaze (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassIos27LensColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassIos27RegularColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-class LiquidGlassIos27RegularFrost (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-class LiquidGlassIos27RegularHaze (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassIos27RegularShadow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassLayerFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassLens (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassMaterial (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassPathSilhouette (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassPendingSupport (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
@@ -544,12 +539,12 @@ final class GlassFrameReport
   final int lateRepaints
   final int layersReplayed
   final List<String> notes
+  final int passBudget
+  final int passes
   final int picturesRecorded
   final bool planned
   final List<GlassReadReport> reads
   final int repaintsAsked
-  final int targetBudget
-  final int targetCount
   final Duration walkDuration
   overrides: toString
 typedef GlassFrameReportCallback = void Function(GlassFrameReport)
@@ -562,9 +557,9 @@ final class GlassReadReport
   final Rect footprint
   final int glassCount
   final bool hasBand
-  final int level
+  final int nesting
+  final int passes
   final GlassReadSource source
-  final int targetCount
   overrides: toString
 enum GlassReadSource
   scene,
@@ -632,5 +627,6 @@ class LiquidGlassLayer (see package:liquid_glass_renderer/liquid_glass_renderer.
 class LiquidGlassReportOverlay (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassVisibility (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 function debugOverrideLiquidGlassSupport (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+function installLiquidGlassComposer (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 variable liquidGlassSupport (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 function precacheLiquidGlass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)

@@ -359,6 +359,51 @@ void main() {
       }
     });
 
+    testWidgets('glass wears the face of Increase Contrast from the traits', (
+      tester,
+    ) async {
+      for (final glass in [const Glass.regular(), const Glass.clear()]) {
+        for (final highContrast in [true, false]) {
+          await tester.pumpWidget(
+            MediaQuery(
+              data: MediaQueryData(highContrast: highContrast),
+              child: _app(
+                const LiquidGlassRenderer(),
+                GlassSurface(
+                  glass: glass,
+                  child: const SizedBox(width: 60, height: 30),
+                ),
+              ),
+            ),
+          );
+          final expected = LiquidGlassRenderer.materialOf(
+            glass,
+            Brightness.light,
+            highContrast: highContrast,
+          ).appearance;
+          final reason = '$glass, high contrast $highContrast';
+          expect(
+            tester
+                .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
+                .frame!
+                .value
+                .defaultAppearance,
+            expected,
+            reason: reason,
+          );
+          expect(
+            tester
+                .widget<LiquidGlass>(findShown(LiquidGlass))
+                .frame!
+                .value
+                .appearance,
+            anyOf(isNull, expected),
+            reason: reason,
+          );
+        }
+      }
+    });
+
     testWidgets('a lifted lens pulls by its description and bends and parts '
         'colors by its height', (tester) async {
       Future<LiquidGlassSettings> lifted(GlassLens lens, Rect? rect) async {
@@ -383,33 +428,33 @@ void main() {
 
       const rect = Rect.fromLTWH(0, 0, 114, 70);
       final large = await lifted(
-        const GlassLens(pull: 9, pullHeight: 36),
+        const GlassLens(pull: 9, pullDepth: 36),
         rect,
       );
-      expect(large.backdropShrink, 0);
-      expect(large.backdropPull, 9);
-      expect(large.backdropPullDepth, 36);
-      expect(large.dispersion, 0);
-      expect(large.frost, const LiquidGlassFrost.sigma(0));
+      expect(large.lens.shrink, 0);
+      expect(large.lens.pull, 9);
+      expect(large.lens.pullDepth, 36);
+      expect(large.lens.dispersion, 0);
+      expect(large.blur, 0);
       expect(large.refractionAmount, moreOrLessEquals(10.5));
       expect(large.refractionHeight, moreOrLessEquals(7));
-      expect(large.aberration, moreOrLessEquals(3.684, epsilon: 1e-3));
-      expect(large.aberrationDepth, moreOrLessEquals(14));
+      expect(large.lens.aberration, moreOrLessEquals(3.684, epsilon: 1e-3));
+      expect(large.lens.aberrationDepth, moreOrLessEquals(14));
 
       final small = await lifted(
-        const GlassLens(pull: 9, pullHeight: 36, small: true),
+        const GlassLens(pull: 9, pullDepth: 36, small: true),
         const Rect.fromLTWH(0, 0, 58, 38.33),
       );
-      expect(small.backdropPull, 9);
+      expect(small.lens.pull, 9);
       expect(small.refractionAmount, moreOrLessEquals(11.5, epsilon: 1e-2));
       expect(small.refractionHeight, moreOrLessEquals(6.9, epsilon: 1e-2));
-      expect(small.aberration, 0);
-      expect(small.frost, const LiquidGlassFrost.sigma(0));
+      expect(small.lens.aberration, 0);
+      expect(small.blur, 0);
 
       final still = await lifted(const GlassLens(small: true), null);
-      expect(still.backdropPull, 0);
+      expect(still.lens.pull, 0);
       expect(still.refractionAmount, 0);
-      expect(still.aberration, 0);
+      expect(still.lens.aberration, 0);
     });
 
     testWidgets('the glass of a lifted knob lifts black to a tenth of white, '
@@ -436,19 +481,24 @@ void main() {
 
       final knob = await lifted(const GlassLens(small: true), 1);
       expect(
-        knob.tint,
-        const Color.from(alpha: 0.1, red: 1, green: 1, blue: 1),
+        knob.colorModel,
+        const LiquidGlassColorModel.ios27SmallLens(
+          brightness: Brightness.light,
+        ),
       );
+      expect(knob.tint.a, 0);
       expect(knob.visibility, 1);
-      expect(knob.colorModel, const LiquidGlassColorModel.direct());
       // The face comes with the glass, by its visibility.
       final rising = await lifted(const GlassLens(small: true), 0.1);
-      expect(rising.tint, knob.tint);
+      expect(rising.colorModel, knob.colorModel);
       expect(rising.visibility, GlassFrame.glassnessAt(0.1));
 
       final selection = await lifted(const GlassLens(), 1);
       expect(selection.tint.a, 0);
-      expect(selection.colorModel, const LiquidGlassColorModel.direct());
+      expect(
+        selection.colorModel,
+        const LiquidGlassColorModel.ios27Lens(brightness: Brightness.light),
+      );
     });
 
     testWidgets('each control describes its lens by its own measurement', (
@@ -470,7 +520,7 @@ void main() {
             selectedIndex: 0,
             onDestinationSelected: (_) {},
           ),
-          const GlassLens(pull: 9, pullHeight: 36),
+          const GlassLens(pull: 9, pullDepth: 36),
         ),
         (
           GlassSegmentedControl<int>(
@@ -481,11 +531,11 @@ void main() {
             groupValue: 0,
             onChanged: (_) {},
           ),
-          const GlassLens(pull: 9, pullHeight: 36),
+          const GlassLens(pull: 9, pullDepth: 36),
         ),
         (
           GlassSwitch(value: true, onChanged: (_) {}),
-          const GlassLens(pull: 9, pullHeight: 36, small: true),
+          const GlassLens(pull: 9, pullDepth: 36, small: true),
         ),
         (
           GlassSlider(value: 0.5, onChanged: (_) {}),
@@ -723,7 +773,7 @@ void main() {
       );
       expect(
         layer().settings,
-        const LiquidGlassSettings.ios27Regular(brightness: .dark),
+        const LiquidGlassSettings.ios27Regular(),
       );
     });
 
@@ -755,7 +805,7 @@ void main() {
         ),
       );
       const clear = LiquidGlassSettings.ios27Clear();
-      const regular = LiquidGlassSettings.ios27Regular(brightness: .light);
+      const regular = LiquidGlassSettings.ios27Regular();
       for (final renderer in [
         const LiquidGlassRenderer(),
         const FakeGlassRenderer(),
@@ -1197,7 +1247,7 @@ const _capable = LiquidGlassSupport.available(
 const _touch = GlassTouchGlow(
   wash: 0.04,
   center: Offset(30, 22),
-  radius: 20,
+  sigma: 20,
   spot: 0.3,
 );
 

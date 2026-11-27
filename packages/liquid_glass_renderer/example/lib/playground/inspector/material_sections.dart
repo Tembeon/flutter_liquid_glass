@@ -5,7 +5,8 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/playground/inspector/grouped_list.dart';
 import 'package:liquid_glass_renderer_example/playground/playground_state.dart';
 
-/// Refraction and lighting controls for the layer-wide settings.
+/// Refraction controls for the layer-wide settings, and the lit rim of a
+/// direct appearance.
 class MaterialSections extends StatelessWidget {
   const MaterialSections({required this.material, super.key});
 
@@ -46,31 +47,35 @@ class MaterialSections extends StatelessWidget {
                 ),
                 SliderRow(
                   title: 'Backdrop Shrink',
-                  value: settings.backdropShrink,
+                  value: settings.lens.shrink,
                   min: 0,
                   max: 0.5,
                   format: (v) => v.toStringAsFixed(2),
-                  onChanged: (v) => edit(settings.copyWith(backdropShrink: v)),
+                  onChanged: (v) => edit(
+                    settings.copyWith(lens: settings.lens.copyWith(shrink: v)),
+                  ),
                 ),
                 SliderRow(
                   title: 'Dispersion',
-                  value: dispersionToTrack(settings.dispersion),
+                  value: dispersionToTrack(settings.lens.dispersion),
                   min: -1,
                   max: 1,
                   format: (t) => trackToDispersion(t).toStringAsFixed(3),
-                  onChanged: (t) =>
-                      edit(settings.copyWith(dispersion: trackToDispersion(t))),
+                  onChanged: (t) => edit(
+                    settings.copyWith(
+                      lens: settings.lens.copyWith(
+                        dispersion: trackToDispersion(t),
+                      ),
+                    ),
+                  ),
                 ),
                 SliderRow(
                   title: 'Blur',
-                  value: _fixedBlur(settings.frost) ?? 0,
+                  value: settings.blur ?? 0,
                   min: 0,
                   max: 30,
-                  format: (v) => _fixedBlur(settings.frost) == null
-                      ? 'iOS 27'
-                      : _points(v),
-                  onChanged: (v) =>
-                      edit(settings.copyWith(frost: LiquidGlassFrost.sigma(v))),
+                  format: (v) => settings.blur == null ? 'iOS 27' : _points(v),
+                  onChanged: (v) => edit(settings.copyWith(blur: v)),
                 ),
                 SwitchRow(
                   title: 'Fit Small Shapes',
@@ -80,37 +85,45 @@ class MaterialSections extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 28),
-            InspectorCard(
-              header: 'Lighting',
-              children: [
-                SliderRow(
-                  title: 'Glint',
-                  value: settings.glintStrength,
-                  min: 0,
-                  max: 2,
-                  format: (v) => v.toStringAsFixed(2),
-                  onChanged: (v) => edit(settings.copyWith(glintStrength: v)),
-                ),
-                SliderRow(
-                  title: 'Contour',
-                  value: settings.contourStrength,
-                  min: 0,
-                  max: 1,
-                  format: (v) => v.toStringAsFixed(2),
-                  onChanged: (v) => edit(settings.copyWith(contourStrength: v)),
-                ),
-                SliderRow(
-                  title: 'Inner Shadow',
-                  value: settings.bevelShadowStrength,
-                  min: 0,
-                  max: 1,
-                  format: (v) => v.toStringAsFixed(2),
-                  onChanged: (v) =>
-                      edit(settings.copyWith(bevelShadowStrength: v)),
-                ),
-              ],
-            ),
+            if (value.appearance.colorModel
+                case final LiquidGlassDirectColorModel direct) ...[
+              const SizedBox(height: 28),
+              InspectorCard(
+                header: 'Lighting',
+                children: [
+                  SliderRow(
+                    title: 'Glint',
+                    value: direct.glintStrength,
+                    min: 0,
+                    max: 2,
+                    format: (v) => v.toStringAsFixed(2),
+                    onChanged: (v) => material.value = value.withColorModel(
+                      _rimOf(direct, glint: v),
+                    ),
+                  ),
+                  SliderRow(
+                    title: 'Contour',
+                    value: direct.contourStrength,
+                    min: 0,
+                    max: 1,
+                    format: (v) => v.toStringAsFixed(2),
+                    onChanged: (v) => material.value = value.withColorModel(
+                      _rimOf(direct, contour: v),
+                    ),
+                  ),
+                  SliderRow(
+                    title: 'Inner Shadow',
+                    value: direct.bevelShadowStrength,
+                    min: 0,
+                    max: 1,
+                    format: (v) => v.toStringAsFixed(2),
+                    onChanged: (v) => material.value = value.withColorModel(
+                      _rimOf(direct, bevelShadow: v),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 28),
           ],
         );
@@ -121,12 +134,22 @@ class MaterialSections extends StatelessWidget {
 
 String _points(double value) => '${value.toStringAsFixed(1)} pt';
 
-// The blur of a frost set by hand, or null for one fitted to iOS 27, which
-// follows the Liquid Glass slider and the size of the glass.
-double? _fixedBlur(LiquidGlassFrost frost) => switch (frost) {
-  LiquidGlassFixedFrost(:final sigma) => sigma,
-  LiquidGlassIos27RegularFrost() || LiquidGlassIos27ClearFrost() => null,
-};
+// [direct] with the rim strengths given in place of its own.
+LiquidGlassColorModel _rimOf(
+  LiquidGlassDirectColorModel direct, {
+  double? glint,
+  double? contour,
+  double? bevelShadow,
+}) => LiquidGlassColorModel.direct(
+  saturation: direct.saturation,
+  transmissionGamma: direct.transmissionGamma,
+  vibrancy: direct.vibrancy,
+  brightness: direct.brightness,
+  glintStrength: glint ?? direct.glintStrength,
+  contourStrength: contour ?? direct.contourStrength,
+  contourDirectionality: direct.contourDirectionality,
+  bevelShadowStrength: bevelShadow ?? direct.bevelShadowStrength,
+);
 
 /// Largest dispersion on the slider. At ±2 one channel no longer refracts and
 /// the other refracts twice as far; beyond it the channels cross over.

@@ -80,38 +80,35 @@ sealed class FullGlass {
 
   static Future<void>? _warmUp;
 
+  /// The programs [load] loads, each of which the warm-up draws: those the
+  /// Flutter tool builds, drawn on any engine, and where the engine draws
+  /// shader filters the hook's too, every final shader among them.
+  static final List<String> programs = [
+    for (final program in ShaderProgram.values)
+      if (shaderFilters || program.compiler == ShaderCompiler.flutterTool)
+        program.key,
+    if (shaderFilters) ...FinalShaderVariant.assetKeys,
+  ];
+
   static Future<FullGlass> _load() async {
     final generation = _overrideGeneration;
     final finals = FinalShaderVariant.assetKeys;
     GeometryBundle? bundle;
     await Future.wait<void>([
-      GlassShaderPrograms.precacheShaders([
-        ...ShaderKeys.fakeLayerAssets,
-        ShaderKeys.bentContent,
-      ]),
-      if (shaderFilters) ...[
-        GlassShaderPrograms.precacheShaders([
-          ...finals,
-          ShaderKeys.backdropFrost,
-          ShaderKeys.backdropFrostAxis,
-          ShaderKeys.backdropFrostSquare,
-          ShaderKeys.backdropHazeStrip,
-          ShaderKeys.backdropHazeMix,
-        ]),
+      GlassShaderPrograms.precacheShaders(programs),
+      if (shaderFilters)
         _guard(() async {
           bundle = await GeometryBundle.load(
-            ShaderKeys.gpuGeometryShaderBundle,
+            geometryBundleKey,
           );
         }),
-      ],
     ]);
-    final programs = finals.map(GlassShaderPrograms.cached).nonNulls.toList();
+    final loaded = finals.map(GlassShaderPrograms.cached).nonNulls.toList();
     final FullGlass found;
     if (!shaderFilters) {
       found = _first;
-    } else if (bundle case final bundle?
-        when programs.length == finals.length) {
-      found = FullGlassReady._(programs, bundle);
+    } else if (bundle case final bundle? when loaded.length == finals.length) {
+      found = FullGlassReady._(loaded, bundle);
     } else {
       found = const FullGlassUnavailable._(
         'A full-glass program or the Flutter GPU geometry bundle did not '

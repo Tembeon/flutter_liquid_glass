@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
@@ -22,9 +23,7 @@ Widget _scene() => Directionality(
     child: const ColoredBox(
       color: _gray,
       child: LiquidGlassLayer(
-        settings: LiquidGlassSettings.ios27Regular(
-          brightness: Brightness.light,
-        ),
+        settings: LiquidGlassSettings.ios27Regular(),
         backdrop: LiquidGlassBackdrop.solid(_gray),
         child: Stack(
           children: [
@@ -73,11 +72,9 @@ GlassFace _face(Color tint) {
     brightness: Brightness.light,
   );
   return GlassFace.of(
-    settings: const LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.light,
-    ),
+    settings: const LiquidGlassSettings.ios27Regular(),
     appearance: appearance.copyWith(tint: tint).wornByNone,
-    colorModels: [appearance.wornByNone.colorModel.parameters!],
+    colorModels: [(appearance.wornByNone.colorModel as WornRecipe).look],
     devicePixelRatio: 1,
     blurs: true,
   );

@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
-import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
@@ -52,12 +51,13 @@ enum LiquidGlassGeometryState {
   /// The geometry is up to date.
   updated,
 
-  /// The geometry may be reused: its shapes may only have moved together,
-  /// which the layer follows by moving the geometry it encoded.
-  mightNeedUpdate,
+  /// The geometry is kept if its shapes' outlines held when they are
+  /// gathered again: they may only have moved together, which the layer
+  /// follows by moving the geometry it encoded.
+  toCompare,
 
   /// The geometry has to be built again.
-  needsUpdate,
+  toRebuild,
 }
 
 /// Result of checking one geometry node against its owning layer.
@@ -125,7 +125,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   set devicePixelRatio(double value) {
     if (_devicePixelRatio == value) return;
     _devicePixelRatio = value;
-    markGeometryNeedsUpdate(force: true);
+    markGeometryToRebuild();
     markNeedsPaint();
   }
 
@@ -141,24 +141,26 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     _renderLink?.registerGeometry(this);
   }
 
-  LiquidGlassGeometryState _geometryState =
-      LiquidGlassGeometryState.needsUpdate;
+  LiquidGlassGeometryState _geometryState = LiquidGlassGeometryState.toRebuild;
 
   GeometryCache? _geometry;
 
   int _revision = 0;
 
-  /// Marks the geometry as needing an update.
-  ///
-  /// If [force] is true, the geometry will be marked as definitely needing an
-  /// update. Otherwise, it will be marked as possibly needing an update,
-  /// unless it is already marked as definitely needing an update.
+  /// Marks the geometry to be gathered again and kept if its shapes'
+  /// outlines held, unless it is already to be rebuilt.
   @protected
-  void markGeometryNeedsUpdate({bool force = false}) {
-    _geometryState =
-        force || _geometryState == LiquidGlassGeometryState.needsUpdate
-        ? LiquidGlassGeometryState.needsUpdate
-        : LiquidGlassGeometryState.mightNeedUpdate;
+  void markGeometryToCompare() {
+    if (_geometryState != LiquidGlassGeometryState.toRebuild) {
+      _geometryState = LiquidGlassGeometryState.toCompare;
+    }
+    _renderLink?.markDirty();
+  }
+
+  /// Marks the geometry to be built again.
+  @protected
+  void markGeometryToRebuild() {
+    _geometryState = LiquidGlassGeometryState.toRebuild;
     _renderLink?.markDirty();
   }
 
@@ -179,7 +181,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   /// Records that a translation was applied to the retained layer instead of
   /// invalidating this node's local geometry.
   void acceptCompositorTranslation() {
-    if (_geometryState == LiquidGlassGeometryState.mightNeedUpdate) {
+    if (_geometryState == LiquidGlassGeometryState.toCompare) {
       _geometryState = LiquidGlassGeometryState.updated;
     }
   }
@@ -220,11 +222,12 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
 
   /// The shapes this node draws on a layer whose default appearance is
   /// [defaultAppearance], their bounds in its own coordinates, and whether
-  /// any shape changed against [geometry].
+  /// any shape's outline changed against [geometry]
+  /// ([ShapeGeometry.sameOutline]).
   (
     Rect bounds,
     List<ShapeGeometry> geometries,
-    bool needsUpdate,
+    bool outlineChanged,
   )
   gatherShapeData(LiquidGlassAppearance defaultAppearance);
 
@@ -265,9 +268,9 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   /// paint (PaintingContext.pushTransform) is not followed.
   ///
   /// Called from the layer's paint and compositing hooks so descendant glass
-  /// does not need its own always-composite tracking layers. The two change
-  /// flags let the layer distinguish a uniformly translated geometry node
-  /// from shapes moving inside a blend group.
+  /// does not need its own always-composite tracking layers. The poll's
+  /// `childChanged` tells shapes moving inside a blend group from a
+  /// geometry node moved as a whole, which only its transform follows.
   ///
   /// With [record] false it changes nothing: the transforms stay the next
   /// poll's baseline and the geometry is not marked, so it can be asked
@@ -289,7 +292,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     if (record) {
       _transformMayLag = last;
       if (baseline == null || selfChanged) _lastTransformToLayer = toLayer;
-      if (!childChanged && selfChanged) markGeometryNeedsUpdate();
+      if (!childChanged && selfChanged) markGeometryToCompare();
     }
     return (childChanged: childChanged, transform: toLayer);
   }
@@ -297,7 +300,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   /// Tells the geometry that the default appearance of its layer changed,
   /// which its shapes that set none of their own wear.
   @internal
-  void defaultAppearanceChanged() => markGeometryNeedsUpdate();
+  void defaultAppearanceChanged() => markGeometryToCompare();
 
   /// Whether [candidate] was current before polling compositor motion.
   @internal
@@ -314,13 +317,13 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     if (cached != null && _geometryState == LiquidGlassGeometryState.updated) {
       return cached;
     }
-    final (layerBounds, shapes, anyShapeChangedInLayer) = gatherShapeData(
+    final (layerBounds, shapes, outlineChanged) = gatherShapeData(
       defaultAppearance,
     );
     final reusesGeometry =
         cached != null &&
-        _geometryState == LiquidGlassGeometryState.mightNeedUpdate &&
-        !anyShapeChangedInLayer &&
+        _geometryState == LiquidGlassGeometryState.toCompare &&
+        !outlineChanged &&
         !_visibilityChanged(cached.shapes, shapes);
     _geometryState = LiquidGlassGeometryState.updated;
     if (reusesGeometry) {
@@ -372,26 +375,20 @@ class GeometryCache {
 @immutable
 class ShapeGeometry {
   /// Describes one shape as its layer draws it.
-  ShapeGeometry({
+  const ShapeGeometry({
     required this.renderObject,
     required this.shape,
     required this.shapeBounds,
     required this.appearance,
     this.shadows = const [],
     this.shapeToGeometry,
-  }) : _rawCornerRadius = shape.cornerRadius,
-       _rawBottomRadius = shape.bottomCornerRadius,
-       _rawShapeType = shape.rawType;
+  });
 
   /// The render object of the shape.
   final LiquidGlassShapeRenderObject renderObject;
 
   /// The shape.
   final LiquidShape shape;
-
-  final RawShapeType _rawShapeType;
-  final double _rawCornerRadius;
-  final double _rawBottomRadius;
 
   /// The appearance of the shape, as glass of its size wears it.
   final WornAppearance appearance;
@@ -428,21 +425,12 @@ class ShapeGeometry {
     shapeToGeometry,
   );
 
-  // What the shape set encodes for the geometry shaders, which only it
-  // reads.
-
-  /// The kind of the shape, as the geometry shaders tell it.
-  @internal
-  RawShapeType get encodedShapeType => _rawShapeType;
-
-  /// The corner radius the geometry shaders draw the shape with.
-  @internal
-  double get encodedCornerRadius => _rawCornerRadius;
-
-  /// The radius of the two bottom corners: [encodedCornerRadius] except for a
-  /// [RawShapeType.squirclePair].
-  @internal
-  double get encodedBottomRadius => _rawBottomRadius;
+  /// Whether [other] has this shape's outline where it lies: its bounds, its
+  /// shape and its transform to the geometry.
+  bool sameOutline(ShapeGeometry other) =>
+      other.shapeBounds == shapeBounds &&
+      other.shape == shape &&
+      MatrixUtils.matrixEquals(other.shapeToGeometry, shapeToGeometry);
 
   @override
   String toString() =>

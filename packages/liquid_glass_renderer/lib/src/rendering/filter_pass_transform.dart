@@ -1,6 +1,6 @@
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
+import 'package:liquid_glass_renderer/src/rendering/opacity_pass_seed.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 import 'package:meta/meta.dart';
 
@@ -9,18 +9,18 @@ import 'package:meta/meta.dart';
 /// compositor motion applied below [owner].
 ///
 /// Filter fragment coordinates are local to the innermost enclosing pass: the
-/// screen at the root, else a seeded fractional-opacity pass ([seeding])
-/// bounded by the enclosing clips.
+/// screen at the root, else a seeded fractional-opacity pass
+/// ([insideOpacityPass]) bounded by the enclosing clips.
 @internal
 Matrix4 filterPassTransform(
   RenderObject owner, {
-  required bool seeding,
+  required bool insideOpacityPass,
   required double devicePixelRatio,
   required Offset translation,
 }) {
   final Matrix4 transform;
-  if (seeding) {
-    final origin = GlassCompositionProbe.seededPassOrigin(
+  if (insideOpacityPass) {
+    final origin = OpacityPassSeed.opacityPassOrigin(
       owner,
       devicePixelRatio,
     );

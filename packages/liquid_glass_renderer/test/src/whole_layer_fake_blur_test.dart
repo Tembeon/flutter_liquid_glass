@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:material_ui/material_ui.dart';
@@ -24,9 +24,7 @@ void runWholeLayerFakeBlurTests(SubmittedSceneCapture binding) {
         '${animated ? "FadeTransition" : "Opacity"} (copies=$copies)', (
       tester,
     ) async {
-      final readsCopies = glassReadsCopies;
       glassReadsCopies = copies;
-      addTearDown(() => glassReadsCopies = readsCopies);
       final oldSize = (binding.captureWidth, binding.captureHeight);
       binding
         ..captureWidth = 240
@@ -44,18 +42,13 @@ void runWholeLayerFakeBlurTests(SubmittedSceneCapture binding) {
       });
       await tester.runAsync(
         () => GlassShaderPrograms.precacheShaders([
-          ShaderKeys.fakeGlassSurface,
-          ShaderKeys.backdropFrost,
+          ShaderProgram.fakeGlassSurface.key,
+          ShaderProgram.backdropFrost.key,
         ]),
       );
       final opacity = AnimationController(vsync: tester, value: 1);
       addTearDown(opacity.dispose);
-      const settings = LiquidGlassSettings(
-        frost: LiquidGlassFrost.sigma(8),
-        glintStrength: 0,
-        contourStrength: 0,
-        bevelShadowStrength: 0,
-      );
+      const settings = LiquidGlassSettings(blur: 8);
       const shape = LiquidRoundedRectangle(radius: 16);
       const content = SizedBox(
         width: 176,
@@ -69,6 +62,14 @@ void runWholeLayerFakeBlurTests(SubmittedSceneCapture binding) {
       );
       const glass = FakeGlass(
         settings: settings,
+        appearance: LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            glintStrength: 0,
+            contourStrength: 0,
+            bevelShadowStrength: 0,
+          ),
+        ),
         shape: shape,
         child: content,
       );
@@ -175,7 +176,7 @@ void runWholeLayerFakeBlurTests(SubmittedSceneCapture binding) {
               'not disappear as soon as native opacity creates a surface.',
         );
       }
-    });
+    }, tags: copies ? 'composer' : null);
   }
 }
 

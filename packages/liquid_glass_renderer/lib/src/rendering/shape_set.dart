@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
+import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
 
@@ -139,12 +140,12 @@ final class ShapeSet {
         localSize.center(Offset.zero),
       );
 
-      final pair = shape.encodedShapeType == RawShapeType.squirclePair;
-      if (pair) {
+      final outline = shape.shape;
+      if (outline.isPair) {
         final halves = roundedSuperellipsePairParameters(
           localSize,
-          shape.encodedCornerRadius,
-          shape.encodedBottomRadius,
+          outline.cornerRadius,
+          outline.bottomCornerRadius,
           scale: dpr,
         );
         superellipses.addAll(halves.top.floats);
@@ -153,16 +154,17 @@ final class ShapeSet {
         superellipses.addAll(
           roundedSuperellipseParameters(
             localSize,
-            shape.encodedCornerRadius,
+            outline.cornerRadius,
             scale: dpr,
           ).floats,
         );
         superellipsesLower.addAll(List<double>.filled(squircleFloats, 0));
       }
       final center = centerInMatte * dpr;
-      final cornerRadius = shape.encodedCornerRadius * dpr;
+      final cornerRadius = outline.cornerRadius * dpr;
+      final type = outline.rawType;
       final halfExtents = _matteHalfExtents(
-        shape.encodedShapeType,
+        type,
         localSize * dpr / 2,
         cornerRadius,
         axisX,
@@ -176,7 +178,7 @@ final class ShapeSet {
       ]);
       shapes.addAll(
         row(
-          type: shape.encodedShapeType,
+          type: type,
           width: localSize.width * dpr,
           height: localSize.height * dpr,
           radius: cornerRadius,
@@ -262,7 +264,7 @@ final class ShapeSet {
       ),
       boxes: List.unmodifiable(boxes),
       turns: List.filled(count, 0),
-      appearances: List.filled(count, WornAppearance.plain),
+      appearances: List.filled(count, WornAppearance.unlit),
     );
   }
 
@@ -345,6 +347,12 @@ final class ShapeSet {
   double squircleAt(int shape, SquircleLane lane, {bool lower = false}) =>
       (lower ? superellipsesLower : superellipses)[shape * squircleFloats +
           lane.index];
+
+  /// The radius of the bottom corners of the pair [shape], which its lower
+  /// row holds in place of the top octant's semi-axis (`pairBottomRadius` in
+  /// sdf.glsl).
+  double pairBottomRadiusAt(int shape) =>
+      squircleAt(shape, SquircleLane.topAxis, lower: true);
 
   /// 4 floats a shape: its box in the matte.
   final List<double> boxes;

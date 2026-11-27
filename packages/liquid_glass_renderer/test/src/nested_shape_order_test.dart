@@ -21,9 +21,14 @@ void main() {
           ..devicePixelRatio = 1;
         addTearDown(tester.view.reset);
         const settings = LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(0),
+          blur: 0,
         );
-        const appearance = LiquidGlassAppearance(tint: Color(0x803090FF));
+        const appearance = LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+          tint: Color(0x803090FF),
+        );
         const shape = LiquidRoundedRectangle(radius: 20);
 
         Future<({Uint8List png, Uint8List rgba})> render({

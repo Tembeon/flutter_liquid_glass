@@ -133,7 +133,7 @@ Future<((int, int, int, int), Uint8List)> _cost(
   final report = last!;
   return (
     (
-      report.targetCount,
+      report.passes,
       report.reads.length,
       report.filtersBuilt,
       report.picturesRecorded,

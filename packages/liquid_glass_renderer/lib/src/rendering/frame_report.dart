@@ -25,20 +25,20 @@ enum GlassReadSource {
 final class GlassReadReport {
   const GlassReadReport._({
     required this.source,
-    required this.level,
+    required this.nesting,
     required this.glassCount,
     required this.hasBand,
     required this.footprint,
-    required this.targetCount,
+    required this.passes,
     required this.changed,
   });
 
   /// Where its backdrop came from.
   final GlassReadSource source;
 
-  /// How deep it lies: zero over pictures alone, else one more than the
-  /// deepest read it holds.
-  final int level;
+  /// How deep it nests reads: zero over pictures alone, else one more than
+  /// the deepest read it nests.
+  final int nesting;
 
   /// How many glass surfaces draw from it.
   final int glassCount;
@@ -49,8 +49,8 @@ final class GlassReadReport {
   /// What it holds of what lies under the glass, in logical pixels.
   final Rect footprint;
 
-  /// Offscreen targets it takes this frame.
-  final int targetCount;
+  /// The passes of the frame it takes, each an offscreen target.
+  final int passes;
 
   /// Whether what it holds differs from the last frame.
   final bool changed;
@@ -59,7 +59,7 @@ final class GlassReadReport {
   String toString() {
     final who = hasBand ? 'band + $glassCount glass' : '$glassCount glass';
     final size = '${footprint.width.round()}x${footprint.height.round()}';
-    return '${source.name}  lvl$level  $who  $size  targets $targetCount'
+    return '${source.name}  nesting $nesting  $who  $size  passes $passes'
         '${changed ? '  changed' : ''}';
   }
 }
@@ -73,15 +73,18 @@ final class GlassReadReport {
 ///
 /// Reports exist in debug and profile builds while someone asks for them
 /// ([GlassFrameReports.addListener], [debugPrintGlassFrameReports],
-/// `LiquidGlassReportOverlay`).
+/// `LiquidGlassReportOverlay`). The counts of work done ([filtersBuilt],
+/// [picturesRecorded], [imagesDrawn], [layersReplayed], [repaintsAsked],
+/// [lateRepaints]) are the frame's across every view it draws: with two
+/// views, each view's report carries both views' work.
 @immutable
 final class GlassFrameReport {
   const GlassFrameReport._({
     required this.frame,
     required this.planned,
     required this.reads,
-    required this.targetBudget,
-    required this.targetCount,
+    required this.passBudget,
+    required this.passes,
     required this.walkDuration,
     required this.compileDuration,
     required this.emitDuration,
@@ -104,11 +107,11 @@ final class GlassFrameReport {
   /// The frame's reads in paint order.
   final List<GlassReadReport> reads;
 
-  /// Targets a frame may issue before reads move to images.
-  final int targetBudget;
+  /// The passes a frame may issue before reads move to images.
+  final int passBudget;
 
-  /// Offscreen targets the frame takes.
-  final int targetCount;
+  /// The passes the frame takes, each an offscreen target.
+  final int passes;
 
   /// Time spent comparing the layer tree with the last frame's.
   final Duration walkDuration;
@@ -158,8 +161,8 @@ final class GlassFrameReport {
   String toString() {
     final head =
         'frame $frame${planned ? '' : ' (as planned before)'}  '
-        'reads ${reads.length}  targets $targetCount/'
-        '$targetBudget  images $imageReads  backdrop $backdropReads  '
+        'reads ${reads.length}  passes $passes/'
+        '$passBudget  images $imageReads  backdrop $backdropReads  '
         'walk ${walkDuration.inMicroseconds}us  '
         'compile ${compileDuration.inMicroseconds}us  '
         'emit ${emitDuration.inMicroseconds}us';
@@ -186,7 +189,8 @@ abstract final class GlassFrameReports {
   static final _listeners = <GlassFrameReportCallback>[];
 
   /// Calls [listener] after every frame with glass, in debug and profile
-  /// builds. Listening costs the frame the report.
+  /// builds. Listening costs the frame the report. The frame's composer
+  /// writes the reports, so glass planned without it reports nothing.
   static void addListener(GlassFrameReportCallback listener) {
     if (kReleaseMode) return;
     if (!glassFrameReportsWanted) GlassWork.clear();
@@ -217,32 +221,32 @@ final _pendingReports = <GlassFrameReport Function()>[];
 
 /// Hands the report of frame [frame], which drew [plan], to the listeners
 /// once the frame is over, when [GlassWork] holds what its scene did as
-/// well. The frame took [walk] to compare the layer tree, was [planned]
-/// that long after its start and [done] at the end; it [stands] on the last
-/// plan where it did not plan, and may issue [targetBudget] targets.
+/// well. The frame [planned] or stood on the last plan, took [walk] to
+/// compare the layer tree, had its plan [compiled] that long after its start
+/// and was [done] at the end, and may issue [passBudget] passes.
 @internal
 void reportGlassFrame({
   required int frame,
   required GlassPlan plan,
-  required bool stands,
-  required int targetBudget,
+  required bool planned,
+  required int passBudget,
   required Duration walk,
-  required Duration planned,
+  required Duration compiled,
   required Duration done,
 }) {
   final reads = [
-    for (final read in plan.reads) _readReportOf(read, stands: stands),
+    for (final read in plan.reads) _readReportOf(read),
   ];
   _pendingReports.add(
     () => GlassFrameReport._(
       frame: frame,
-      planned: !stands,
+      planned: planned,
       reads: reads,
-      targetBudget: targetBudget,
-      targetCount: plan.issuedTargets,
+      passBudget: passBudget,
+      passes: plan.issuedPasses,
       walkDuration: walk,
-      compileDuration: planned - walk,
-      emitDuration: done - planned,
+      compileDuration: compiled - walk,
+      emitDuration: done - compiled,
       filtersBuilt: GlassWork.filters,
       picturesRecorded: GlassWork.pictures,
       imagesDrawn: GlassWork.images,
@@ -267,18 +271,17 @@ void reportGlassFrame({
   });
 }
 
-GlassReadReport _readReportOf(GlassRead read, {required bool stands}) =>
-    GlassReadReport._(
-      source: switch (read.source) {
-        SceneRead() => GlassReadSource.scene,
-        ImageRead(:final held) =>
-          held || stands ? GlassReadSource.heldImage : GlassReadSource.image,
-        BackdropRead() => GlassReadSource.backdrop,
-      },
-      level: read.level,
-      glassCount: read.glassMembers.length,
-      hasBand: read.lead.isBand,
-      footprint: read.footprint,
-      targetCount: read.targets,
-      changed: !stands && read.changed,
-    );
+GlassReadReport _readReportOf(GlassRead read) => GlassReadReport._(
+  source: switch (read.source) {
+    SceneRead() => GlassReadSource.scene,
+    ImageRead(:final held) =>
+      held ? GlassReadSource.heldImage : GlassReadSource.image,
+    BackdropRead() => GlassReadSource.backdrop,
+  },
+  nesting: read.nesting,
+  glassCount: read.glassMembers.length,
+  hasBand: read.lead.isBand,
+  footprint: read.footprint,
+  passes: read.passes,
+  changed: read.changed,
+);

@@ -5,9 +5,8 @@ import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_frames.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 import 'package:meta/meta.dart';
 
@@ -27,13 +26,13 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    GlassComposer.track(owner, this);
+    GlassFrames.track(owner, this);
   }
 
   @mustCallSuper
   @override
   void detach() {
-    GlassComposer.untrack(owner!, this);
+    GlassFrames.untrack(owner!, this);
     super.detach();
   }
 
@@ -46,7 +45,7 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   @mustCallSuper
   @override
   void paint(PaintingContext context, ui.Offset offset) {
-    GlassComposer.sitePainted(owner!);
+    GlassFrames.sitePainted(owner!);
     final tracking = (layer ??= TransformTrackingLayer())
       .._site = this
       .._paintOffset = offset;
@@ -55,8 +54,8 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   }
 
   /// The transform to the screen changed. Runs before paint when the view's
-  /// composer polls, where a repaint lands in the same frame, and otherwise
-  /// while the layer composites (see [GlassComposer.repaint]).
+  /// glass polls, where a repaint lands in the same frame, and otherwise
+  /// while the layer composites (see [GlassFrames.repaint]).
   void onTransformChanged();
 
   /// What this site asks of the frame (see [PlanSite.ask]).
@@ -70,20 +69,20 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   /// paint that what it retained no longer matches its shapes and could not
   /// take them in place, so that it would paint a frame late.
   ///
-  /// The view's [GlassComposer] asks it before paint, at most once a pass,
+  /// The view's [GlassFrames] asks it before paint, at most once a pass,
   /// of a site with a repaint boundary marked under it, and marks the site
   /// on yes. It records nothing and may be asked more than once a frame.
   bool paintsLate() => false;
 
-  /// The composer pass that last asked [paintsLate].
-  int composerAsked = 0;
+  /// The pass that last asked [paintsLate].
+  int paintsLateAsked = 0;
 
-  /// The composer pass whose [paintsLate] said yes.
-  int composerMarks = 0;
+  /// The pass whose [paintsLate] said yes.
+  int paintsLateMarked = 0;
 
   /// Runs every frame, before the frame's plan, including frames where the
   /// tracked transform is unchanged: where the glass polls its retained motion.
-  /// Repaints from here go through [GlassComposer.repaint].
+  /// Repaints from here go through [GlassFrames.repaint].
   void onPreparing() {}
 
   /// Whether this frame may run [onResting] in place of [onPreparing] when
@@ -118,11 +117,11 @@ class TransformTrackingLayer extends OffsetLayer implements PlanSite {
   Offset _paintOffset = Offset.zero;
 
   @override
-  SiteNode? formNode;
+  SiteWalk? walk;
 
   @override
   void updateSubtreeNeedsAddToScene() {
-    composeUnlessPlanned(this);
+    planUnlessPlanned(this);
     super.updateSubtreeNeedsAddToScene();
   }
 
@@ -140,13 +139,13 @@ class TransformTrackingLayer extends OffsetLayer implements PlanSite {
     final site = _site;
     if (site == null || !site.attached) return SiteAsk.none;
     final last = _lastComposited;
-    final node = formNode;
+    final node = walk;
     if (last != null && site.mayRest && (node?.rests ?? false)) {
       assert(
         _near(transformToNow(site), last),
         'A site moved with no layer around it changing.',
       );
-      GlassComposer.debugRests++;
+      GlassFrames.debugRests++;
       _composited = last;
       site.onResting();
     } else {

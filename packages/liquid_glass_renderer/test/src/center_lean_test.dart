@@ -52,9 +52,7 @@ void main() {
   testWidgets('regular glass more than 64 across leans to its center', (
     tester,
   ) async {
-    const regular = LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.light,
-    );
+    const regular = LiquidGlassSettings.ios27Regular();
     expect(await _leans(tester, regular, const Size(200, 65)), isTrue);
     expect(await _leans(tester, regular, const Size(65, 300)), isTrue);
     expect(await _leans(tester, regular, const Size(200, 64)), isFalse);

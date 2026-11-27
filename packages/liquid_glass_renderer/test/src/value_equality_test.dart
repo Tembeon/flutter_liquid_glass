@@ -3,11 +3,13 @@ import 'dart:ui';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 
 // Values built at run time, so that const canonicalisation cannot make two
 // of them identical.
 double _n(double value) => double.parse('$value');
+bool _b(bool value) => bool.parse('$value');
 
 void _holdsValue(Object a, Object same, List<Object> different) {
   expect(identical(a, same), isFalse);
@@ -56,17 +58,37 @@ void main() {
 
   test('appearances compare by tint, visibility and color model', () {
     _holdsValue(
-      LiquidGlassAppearance(tint: Color(0x40FF0000 + _n(1).toInt())),
-      LiquidGlassAppearance(tint: Color(0x40FF0000 + _n(1).toInt())),
+      LiquidGlassAppearance(
+        colorModel: const LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+        ),
+        tint: Color(0x40FF0000 + _n(1).toInt()),
+      ),
+      LiquidGlassAppearance(
+        colorModel: const LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+        ),
+        tint: Color(0x40FF0000 + _n(1).toInt()),
+      ),
       [
-        LiquidGlassAppearance(tint: Color(0x40FF0000 + _n(2).toInt())),
         LiquidGlassAppearance(
+          colorModel: const LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+          tint: Color(0x40FF0000 + _n(2).toInt()),
+        ),
+        LiquidGlassAppearance(
+          colorModel: const LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
           tint: Color(0x40FF0000 + _n(1).toInt()),
           visibility: _n(0.5),
         ),
         LiquidGlassAppearance(
           tint: Color(0x40FF0000 + _n(1).toInt()),
-          colorModel: const LiquidGlassColorModel.ios27Clear(),
+          colorModel: const LiquidGlassColorModel.ios27Clear(
+            brightness: Brightness.light,
+          ),
         ),
       ],
     );
@@ -74,50 +96,122 @@ void main() {
 
   test('color models compare by parameters and adjustments', () {
     _holdsValue(
-      LiquidGlassColorModel.direct(saturation: _n(1.2)),
-      LiquidGlassColorModel.direct(saturation: _n(1.2)),
+      LiquidGlassColorModel.direct(
+        brightness: Brightness.light,
+        saturation: _n(1.2),
+      ),
+      LiquidGlassColorModel.direct(
+        brightness: Brightness.light,
+        saturation: _n(1.2),
+      ),
       [
-        LiquidGlassColorModel.direct(saturation: _n(1.3)),
         LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          saturation: _n(1.3),
+        ),
+        LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
           saturation: _n(1.2),
           transmissionGamma: _n(2),
         ),
-        LiquidGlassColorModel.direct(saturation: _n(1.2), vibrancy: _n(1)),
+        LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          saturation: _n(1.2),
+          vibrancy: _n(1),
+        ),
+        LiquidGlassColorModel.direct(
+          saturation: _n(1.2),
+          brightness: Brightness.dark,
+        ),
+        LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          saturation: _n(1.2),
+          glintStrength: 0,
+        ),
+        LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          saturation: _n(1.2),
+          contourStrength: 0,
+        ),
+        LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          saturation: _n(1.2),
+          contourDirectionality: 0,
+        ),
+        LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          saturation: _n(1.2),
+          bevelShadowStrength: 0,
+        ),
+      ],
+    );
+    expect(
+      const LiquidGlassColorModel.direct(brightness: Brightness.light),
+      const LiquidGlassColorModel.direct(
+        brightness: Brightness.light,
+        glintStrength: 0.6,
+        contourStrength: 0.43,
+        contourDirectionality: 0.77,
+        bevelShadowStrength: 0.036,
+      ),
+    );
+    _holdsValue(
+      LiquidGlassColorModel.ios27Regular(brightness: _dark()),
+      LiquidGlassColorModel.ios27Regular(brightness: _dark()),
+      [
+        const LiquidGlassColorModel.ios27Regular(brightness: Brightness.light),
+        const LiquidGlassColorModel.ios27Regular(
+          brightness: Brightness.dark,
+          highContrast: true,
+        ),
+        const LiquidGlassColorModel.ios27Clear(brightness: Brightness.light),
+        const LiquidGlassColorModel.direct(brightness: Brightness.light),
       ],
     );
     _holdsValue(
-      LiquidGlassColorModel.ios27Regular(
-        brightness: Brightness.dark,
-        transmissionGamma: _n(1),
+      LiquidGlassColorModel.ios27Clear(
+        brightness: Brightness.light,
+        highContrast: _b(true),
       ),
-      LiquidGlassColorModel.ios27Regular(
-        brightness: Brightness.dark,
-        transmissionGamma: _n(1),
+      const LiquidGlassColorModel.ios27Clear(
+        brightness: Brightness.light,
+        highContrast: true,
       ),
       [
-        LiquidGlassColorModel.ios27Regular(
+        const LiquidGlassColorModel.ios27Clear(brightness: Brightness.light),
+        const LiquidGlassColorModel.ios27Regular(
           brightness: Brightness.light,
-          transmissionGamma: _n(1),
+          highContrast: true,
         ),
-        LiquidGlassColorModel.ios27Regular(
-          brightness: Brightness.dark,
-          transmissionGamma: _n(1.1),
-        ),
-        const LiquidGlassColorModel.ios27Clear(),
-        const LiquidGlassColorModel.direct(),
+      ],
+    );
+    _holdsValue(
+      LiquidGlassColorModel.ios27Lens(brightness: _dark()),
+      const LiquidGlassColorModel.ios27Lens(brightness: Brightness.dark),
+      [
+        const LiquidGlassColorModel.ios27Lens(brightness: Brightness.light),
+        const LiquidGlassColorModel.ios27SmallLens(brightness: Brightness.dark),
+        const LiquidGlassColorModel.ios27Regular(brightness: Brightness.dark),
       ],
     );
   });
 
-  test('a color model is one of three kinds, each with its own fields', () {
+  test('a color model is one of four kinds, each with its own fields', () {
     String kind(LiquidGlassColorModel model) => switch (model) {
       LiquidGlassDirectColorModel(:final saturation) => 'direct $saturation',
       LiquidGlassIos27RegularColorModel(:final brightness) =>
         'regular ${brightness.name}',
       LiquidGlassIos27ClearColorModel() => 'clear',
+      LiquidGlassIos27LensColorModel(:final small) =>
+        small ? 'small lens' : 'lens',
     };
     expect(
-      kind(const LiquidGlassColorModel.direct(saturation: 2)),
+      kind(
+        const LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          saturation: 2,
+        ),
+      ),
       'direct 2.0',
     );
     expect(
@@ -126,13 +220,38 @@ void main() {
       ),
       'regular dark',
     );
-    expect(kind(const LiquidGlassColorModel.ios27Clear()), 'clear');
+    expect(
+      kind(
+        const LiquidGlassColorModel.ios27Clear(brightness: Brightness.light),
+      ),
+      'clear',
+    );
+    expect(
+      kind(const LiquidGlassColorModel.ios27Lens(brightness: Brightness.light)),
+      'lens',
+    );
+    expect(
+      kind(
+        const LiquidGlassColorModel.ios27SmallLens(
+          brightness: Brightness.light,
+        ),
+      ),
+      'small lens',
+    );
   });
 
   test('every appearance constructor defaults to one tint', () {
     const none = Color(0x00000000);
-    expect(const LiquidGlassAppearance().tint, none);
-    expect(const LiquidGlassAppearance.ios27Clear().tint, none);
+    expect(
+      const LiquidGlassAppearance(
+        colorModel: LiquidGlassColorModel.direct(brightness: Brightness.light),
+      ).tint,
+      none,
+    );
+    expect(
+      const LiquidGlassAppearance.ios27Clear(brightness: Brightness.light).tint,
+      none,
+    );
     expect(
       const LiquidGlassAppearance.ios27Regular(
         brightness: Brightness.light,
@@ -188,83 +307,82 @@ void main() {
     );
   });
 
-  test('color parameters, curves and ramps compare by every field', () {
+  test('worn models compare by their recipe and numbers', () {
     _holdsValue(
-      _toned(_n(0.5)),
-      _toned(_n(0.5)),
+      WornColorModel.recipe((
+        variant: GlassVariant.regular,
+        brightness: Brightness.light,
+        shortSide: _n(100),
+        greyTint: false,
+        highContrast: false,
+        lift: GlassLift.resting,
+      )),
+      WornColorModel.recipe((
+        variant: GlassVariant.regular,
+        brightness: Brightness.light,
+        shortSide: _n(100),
+        greyTint: false,
+        highContrast: false,
+        lift: GlassLift.resting,
+      )),
       [
-        _toned(_n(0.6)),
-        GlassColorParameters.ios27Regular(
-          brightness: Brightness.dark,
-          shortSide: double.infinity,
+        WornColorModel.recipe((
+          variant: GlassVariant.regular,
+          brightness: Brightness.light,
+          shortSide: _n(101),
           greyTint: false,
-        ).copyWith(toneHigh: _ramp(0.5)),
+          highContrast: false,
+          lift: GlassLift.resting,
+        )),
+        WornColorModel.recipe((
+          variant: GlassVariant.regular,
+          brightness: Brightness.light,
+          shortSide: _n(100),
+          greyTint: true,
+          highContrast: false,
+          lift: GlassLift.resting,
+        )),
+        WornColorModel.recipe((
+          variant: GlassVariant.regular,
+          brightness: Brightness.light,
+          shortSide: _n(100),
+          greyTint: false,
+          highContrast: true,
+          lift: GlassLift.resting,
+        )),
+        WornColorModel.recipe((
+          variant: GlassVariant.regular,
+          brightness: Brightness.light,
+          shortSide: _n(100),
+          greyTint: false,
+          highContrast: false,
+          lift: GlassLift.lens,
+        )),
+        WornColorModel.direct(brightness: Brightness.light, saturation: _n(1)),
+        const WornColorModel.direct(brightness: Brightness.dark),
+        const WornColorModel.direct(
+          brightness: Brightness.light,
+          rim: DirectRim(
+            glintStrength: 0.6,
+            contourStrength: 0,
+            contourDirectionality: 0,
+            bevelShadowStrength: 0,
+          ),
+        ),
       ],
     );
-    _holdsValue(GlassColorCurve(_n(1), _n(2)), GlassColorCurve(_n(1), _n(2)), [
-      GlassColorCurve(_n(1), _n(3)),
-      GlassColorCurve(_n(0), _n(2)),
-    ]);
-    _holdsValue(_ramp(0.1), _ramp(0.1), [
-      _ramp(0.2),
-      GlassToneRamp(base: _n(0.1), amplitude: _n(0.6)),
-    ]);
   });
 
   test('settings compare by every field', () {
     final settings = LiquidGlassSettings(refractionHeight: _n(20));
     _holdsValue(settings, LiquidGlassSettings(refractionHeight: _n(20)), [
       LiquidGlassSettings(refractionHeight: _n(21)),
-      settings.copyWith(frost: LiquidGlassFrost.sigma(_n(9))),
+      settings.copyWith(blur: _n(9)),
       settings.copyWith(sliderPosition: _n(0.5)),
-      settings.copyWith(glintStrength: _n(0.2)),
+      settings.copyWith(refractionFitsShape: false),
     ]);
     expect(settings.copyWith(), settings);
   });
-
-  test('frosts and hazes compare by variant and by their numbers', () {
-    LiquidGlassFrost regular() => const LiquidGlassFrost.ios27Regular();
-    _holdsValue(
-      LiquidGlassFrost.sigma(_n(4)),
-      LiquidGlassFrost.sigma(_n(4)),
-      [
-        LiquidGlassFrost.sigma(_n(5)),
-        regular(),
-        const LiquidGlassFrost.ios27Clear(),
-      ],
-    );
-    expect(regular(), isNot(const LiquidGlassFrost.ios27Clear()));
-    expect(regular().hashCode, regular().hashCode);
-
-    _holdsValue(
-      LiquidGlassHaze(lighten: _n(0.5)),
-      LiquidGlassHaze(lighten: _n(0.5)),
-      [
-        LiquidGlassHaze(lighten: _n(0.6)),
-        LiquidGlassHaze(darken: _n(0.5)),
-        LiquidGlassHaze(lighten: _n(0.5), sigma: _n(4)),
-        LiquidGlassHaze(lighten: _n(0.5), cover: _n(1)),
-        const LiquidGlassHaze.none(),
-        const LiquidGlassHaze.ios27Clear(),
-      ],
-    );
-    expect(
-      const LiquidGlassHaze.ios27Regular(brightness: Brightness.light),
-      isNot(const LiquidGlassHaze.ios27Regular(brightness: Brightness.dark)),
-    );
-    expect(
-      const LiquidGlassHaze.ios27Regular(brightness: Brightness.light),
-      isNot(const LiquidGlassHaze.ios27Clear()),
-    );
-  });
 }
 
-GlassToneRamp _ramp(double base) =>
-    GlassToneRamp(base: _n(base), amplitude: _n(0.5));
-
-GlassColorParameters _toned(double toneHighBase) =>
-    GlassColorParameters.ios27Regular(
-      brightness: Brightness.light,
-      shortSide: double.infinity,
-      greyTint: false,
-    ).copyWith(toneHigh: _ramp(toneHighBase));
+Brightness _dark() => Brightness.values[Brightness.dark.index];

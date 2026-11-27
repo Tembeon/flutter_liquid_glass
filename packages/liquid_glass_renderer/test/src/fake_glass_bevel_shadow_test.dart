@@ -9,12 +9,19 @@ import 'shared.dart';
 const _size = Size(200, 64);
 const _origin = Offset(20, 28);
 
-/// Darkening of FakeGlass over white, in 8-bit levels, 8 pt inside the top
-/// and bottom walls relative to the center of the face.
-Future<({double top, double bottom})> _innerShadow(
+/// Darkening of glass of [size] in [appearance] over white, in 8-bit
+/// levels: 8 pt inside the top and bottom walls relative to the center of
+/// the face, in the pixel just outside the left wall relative to the white,
+/// and from the row just above the middle to the row just below it.
+Future<({double top, double bottom, double side, double middle})> _innerShadow(
   WidgetTester tester,
-  LiquidGlassSettings settings,
-) async {
+  LiquidGlassSettings settings, {
+  LiquidGlassAppearance appearance = const LiquidGlassAppearance.ios27Regular(
+    brightness: Brightness.light,
+  ),
+  bool fake = true,
+  Size size = _size,
+}) async {
   tester.view
     ..devicePixelRatio = 1
     ..physicalSize = const Size(240, 120);
@@ -28,19 +35,17 @@ Future<({double top, double bottom})> _innerShadow(
         child: ColoredBox(
           color: Colors.white,
           child: LiquidGlassLayer(
-            fake: true,
+            fake: fake,
             settings: settings,
-            defaultAppearance: const LiquidGlassAppearance.ios27Regular(
-              brightness: Brightness.light,
-            ),
+            defaultAppearance: appearance,
             child: Stack(
               children: [
                 Positioned(
                   left: _origin.dx,
                   top: _origin.dy,
-                  child: const LiquidGlass(
-                    shape: LiquidRoundedSuperellipse(radius: 32),
-                    child: SizedBox(width: 200, height: 64),
+                  child: LiquidGlass(
+                    shape: const LiquidRoundedSuperellipse(radius: 32),
+                    child: SizedBox.fromSize(size: size),
                   ),
                 ),
               ],
@@ -66,38 +71,95 @@ Future<({double top, double bottom})> _innerShadow(
         lumaWeights.$3 * bytes.getUint8(i + 2);
   }
 
-  final x = _origin.dx + _size.width / 2;
-  final face = luma(x, _origin.dy + _size.height / 2);
+  final x = _origin.dx + size.width / 2;
+  final middle = _origin.dy + size.height / 2;
+  final face = luma(x, middle);
   return (
     top: face - luma(x, _origin.dy + 8),
-    bottom: face - luma(x, _origin.dy + _size.height - 8),
+    bottom: face - luma(x, _origin.dy + size.height - 8),
+    side: 255 - luma(_origin.dx - 1, middle),
+    middle: luma(x, middle) - luma(x, middle - 1),
   );
 }
 
 void main() {
-  final base = const LiquidGlassSettings.ios27Regular(
-    brightness: Brightness.light,
-    frost: LiquidGlassFrost.sigma(0),
-  ).copyWith(glintStrength: 0, contourStrength: 0);
+  const base = LiquidGlassSettings.ios27Regular(blur: 0);
 
   testWidgets(
-    'FakeGlass draws the preset inner shadow below the top wall only',
+    'FakeGlass of an iOS 27 look draws its ring shadow below the top wall '
+    'only, as real glass does',
     (tester) async {
-      final preset = await _innerShadow(tester, base);
+      final fake = await _innerShadow(tester, base);
+      final real = await _innerShadow(tester, base, fake: false);
+      final noBevel = await _innerShadow(
+        tester,
+        base,
+      );
+
+      // iOS 27 darkens white about 4 levels there.
+      expect(fake.top, inInclusiveRange(3, 6.5));
+      expect(fake.top, closeTo(real.top, 1.5));
+      expect(fake.bottom, lessThan(1.5));
+      expect(noBevel.top, closeTo(fake.top, 0.6));
+    },
+    skip: skipProperGlassTests,
+  );
+
+  testWidgets(
+    'FakeGlass of an iOS 27 look darkens just outside its side walls, as '
+    'real glass does',
+    (tester) async {
+      final fake = await _innerShadow(tester, base);
+      final real = await _innerShadow(tester, base, fake: false);
+
+      expect(real.side, greaterThan(10));
+      expect(fake.side, closeTo(real.side, 4));
+    },
+    skip: skipProperGlassTests,
+  );
+
+  testWidgets(
+    'the ring shadow of the top wall runs on past the middle of short glass',
+    (tester) async {
+      for (final fake in [false, true]) {
+        final short = await _innerShadow(
+          tester,
+          base,
+          fake: fake,
+          size: const Size(200, 28),
+        );
+        expect(short.middle.abs(), lessThan(1.5), reason: 'fake $fake');
+      }
+    },
+    skip: skipProperGlassTests,
+  );
+
+  testWidgets(
+    'FakeGlass of the direct model draws the bevel shadow it is given',
+    (tester) async {
+      LiquidGlassAppearance direct({double? bevel}) => LiquidGlassAppearance(
+        colorModel: LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          glintStrength: 0,
+          contourStrength: 0,
+          bevelShadowStrength: bevel,
+        ),
+      );
+      final preset = await _innerShadow(tester, base, appearance: direct());
       final none = await _innerShadow(
         tester,
-        base.copyWith(bevelShadowStrength: 0),
+        base,
+        appearance: direct(bevel: 0),
       );
       final strong = await _innerShadow(
         tester,
-        base.copyWith(bevelShadowStrength: 0.15),
+        base,
+        appearance: direct(bevel: 0.15),
       );
 
       expect(none.top, closeTo(0, 0.6));
-      // Measured on the iOS 27 references: about 4 levels on white.
-      expect(preset.top, inInclusiveRange(2.5, 5.5));
+      expect(preset.top, greaterThan(1));
       expect(preset.bottom, lessThan(1.5));
-      // The shadow follows the configured strength, as in real glass.
       expect(strong.top / preset.top, closeTo(0.15 / 0.036, 1));
     },
     skip: skipProperGlassTests,

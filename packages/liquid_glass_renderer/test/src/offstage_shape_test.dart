@@ -85,9 +85,12 @@ void main() {
               LiquidGlassLayer(
                 fake: fake,
                 settings: const LiquidGlassSettings(
-                  frost: LiquidGlassFrost.sigma(8),
+                  blur: 8,
                 ),
                 defaultAppearance: const LiquidGlassAppearance(
+                  colorModel: LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
+                  ),
                   tint: Color(0x80FF0000),
                 ),
                 child: grouped

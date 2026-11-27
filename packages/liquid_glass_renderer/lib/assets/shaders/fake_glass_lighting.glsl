@@ -3,6 +3,7 @@
 
 #include "contour.glsl"
 #include "fake_glass_lanes.glsl"
+#include "recipe_edges.glsl"
 #include "rim_light.glsl"
 #include "shader_constants.glsl"
 
@@ -11,21 +12,37 @@
 // profile instead of replacing the face.
 const float kAdditiveGlintScale = 0.75;
 
-vec4 fakeGlassLit(float distance, vec2 normal, float coverage) {
+vec4 fakeGlassLit(
+  float distance,
+  vec2 normal,
+  float coverage,
+  float halfSide
+) {
   float inward = max(-distance, 0.0);
-  float glint = rimGlint(
-    uGlintStrength,
-    normal,
-    glintProfile(inward, kGlintWidth)
-  );
-
   float tintAlpha = uTint.a;
-  vec3 faceProxy = uTint.rgb * tintAlpha + uFaceEmission;
-  vec3 glintTarget = vec3(uGlintLuminance) +
-      uGlintFaceGain * faceProxy +
-      uGlintVibrancy * (faceProxy - vec3(dot(faceProxy, LUMA_WEIGHTS)));
-  float materialCoverage = uExteriorOnly > 0.5 ? 0.0 : coverage;
-  if (uGlintOnly > 0.5) {
+  float materialCoverage = uOuterBandOnly > 0.5 ? 0.0 : coverage;
+  if (uLightOnly > 0.5) {
+    if (uHighlightOpacity > 0.0) {
+      float highlight = uHighlightOpacity * rimHighlight(
+        -distance,
+        normal,
+        uPixelSize,
+        uHighlightWidth,
+        uHighlightDiffuseWidth,
+        uHighlightSpread,
+        uHighlightDiffuseBias,
+        uHighlightCurvature
+      );
+      return vec4(vec3(uHighlightLift * highlight * materialCoverage), 0.0);
+    }
+    float glint = rimGlint(
+      uGlintStrength,
+      normal,
+      glintProfile(inward, kGlintWidth)
+    );
+    vec3 faceProxy = uTint.rgb * tintAlpha + uFaceEmission;
+    vec3 glintTarget = vec3(kGlintLuminance) +
+        kGlintVibrancy * (faceProxy - vec3(dot(faceProxy, LUMA_WEIGHTS)));
     return vec4(
       max(glintTarget, vec3(0.0)) * glint * materialCoverage *
           kAdditiveGlintScale,
@@ -48,11 +65,33 @@ vec4 fakeGlassLit(float distance, vec2 normal, float coverage) {
     normal,
     kBevelShadowDepth,
     kBevelShadowOffset,
-    uBevelStrength
+    uBevelShadowStrength
   );
-  float materialAlpha = 1.0 - (1.0 - tintAlpha) * (1.0 - shadow);
-  float exteriorContourAlpha = clamp(contourBand * contourStrength, 0.0, 1.0);
-  vec3 emissionUnshadowed = uFaceEmission * shadow * (1.0 - tintAlpha);
+  float ring = uRingOpacity > 0.0
+      ? ringShadowAcross(
+          -distance,
+          normal,
+          halfSide,
+          uRingOpacity,
+          uRingOffset,
+          uRingStroke,
+          uRingInverseRadius
+        )
+      : 0.0;
+  float unshaded = (1.0 - tintAlpha) * (1.0 - ring);
+  float materialAlpha = 1.0 - unshaded * (1.0 - shadow);
+  float edgeBandAlpha = clamp(contourBand * contourStrength, 0.0, 1.0);
+  if (uSpecularStrength > 0.0) {
+    edgeBandAlpha += uSpecularStrength * darkSpecular(
+      -distance - uSpecularInset,
+      normal,
+      uPixelSize,
+      uSpecularWidth,
+      uSpecularSpread,
+      uSpecularBias
+    );
+  }
+  vec3 emissionUnshadowed = uFaceEmission * shadow * unshaded;
   vec3 litPremultiplied = uTint.rgb * tintAlpha + emissionUnshadowed;
   float litAlpha = materialAlpha;
   if (litAlpha < 0.999) {
@@ -61,7 +100,7 @@ vec4 fakeGlassLit(float distance, vec2 normal, float coverage) {
         max(max(litPremultiplied.r, litPremultiplied.g), litPremultiplied.b);
     litAlpha = max(litAlpha, alphaCoveringColor);
   }
-  float alpha = litAlpha * materialCoverage + exteriorContourAlpha;
+  float alpha = litAlpha * materialCoverage + edgeBandAlpha;
   return vec4(
     max(litPremultiplied * materialCoverage, vec3(0.0)),
     clamp(alpha, 0.0, 1.0)

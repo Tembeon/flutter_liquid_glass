@@ -109,8 +109,10 @@ final class GlassTraits {
   /// Reduce Motion.
   final bool reduceMotion;
 
-  /// Reduce Transparency: the liquid renderer draws its surfaces flat, an
-  /// unmeasured stand-in for iOS's frosted glass.
+  /// Reduce Transparency: the liquid renderer draws iOS 27's glass for it
+  /// (`LiquidGlassSettings.reduceTransparency`: no refraction, a wide blur,
+  /// a nearly flat face), a lifted lens keeps its glass without its bend,
+  /// and a scroll edge covers its bar with the background over a hairline.
   final bool reduceTransparency;
 
   /// Prefer Cross-Fade Transitions, which iOS offers with Reduce Motion:
@@ -124,7 +126,7 @@ final class GlassTraits {
 
   /// Where the Liquid Glass slider of iOS 27 (Settings, Appearance) stands,
   /// from 0 (Clear) to 1 (Tinted): the liquid renderer's glass takes its
-  /// wash, border and blur from it (`LiquidGlassSettings.sliderPosition`).
+  /// wash and blur from it (`LiquidGlassSettings.sliderPosition`).
   final double glassTintAmount;
 
   /// Whether the system prefers that the app scale back resource-intensive

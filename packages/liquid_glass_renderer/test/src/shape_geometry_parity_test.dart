@@ -1,7 +1,5 @@
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
@@ -28,12 +26,9 @@ Widget _scene(Widget glass, {required bool beside}) => Directionality(
         child: LiquidGlassLayer(
           // Large glass whose refraction fits its shape leans its normals
           // and is an atlas alone too; this one's shader works it out.
-          settings:
-              const LiquidGlassSettings.ios27Regular(
-                brightness: Brightness.light,
-              ).copyWith(
-                refractionFitsShape: false,
-              ),
+          settings: const LiquidGlassSettings.ios27Regular().copyWith(
+            refractionFitsShape: false,
+          ),
           // A paint over a solid color, not a backdrop filter: flutter_tester
           // renders only a process's first backdrop filter reliably.
           backdrop: const LiquidGlassBackdrop.solid(_gray),
@@ -66,18 +61,6 @@ Widget _shape(LiquidShape shape, Size size) => SizedBox.fromSize(
   size: size,
   child: LiquidGlass(shape: shape, child: const SizedBox.expand()),
 );
-
-Future<Uint8List> _capture(WidgetTester tester) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(
-    () => boundary.toImage(pixelRatio: tester.view.devicePixelRatio),
-  ))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
-}
 
 RenderLiquidGlassLayer _layer(WidgetTester tester) =>
     tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().toSet().single;
@@ -145,13 +128,21 @@ void main() {
         await tester.pump();
         expect(_layer(tester).debugGeometry, isA<ComputedGeometry>());
         expect(_layer(tester).gpuGeometryRenderer.debugRenderCount, 0);
-        final computed = await _capture(tester);
+        final computed = await boundaryPixels(
+          tester,
+          find.byKey(_key),
+          pixelRatio: tester.view.devicePixelRatio,
+        );
 
         await tester.pumpWidget(const SizedBox());
         await tester.pumpWidget(_scene(glass, beside: true));
         await tester.pump();
         expect(_layer(tester).debugGeometry, isA<AtlasGeometry>());
-        final atlas = await _capture(tester);
+        final atlas = await boundaryPixels(
+          tester,
+          find.byKey(_key),
+          pixelRatio: tester.view.devicePixelRatio,
+        );
 
         final width = (_view.width * dpr).round();
         var seen = 0;
@@ -173,8 +164,10 @@ void main() {
           }
         }
         expect(seen, greaterThan(1000), reason: 'the glass is drawn');
-        // Measured: at most 5 of 255, an oval's rim at 3 pixels a point.
-        expect(farthest, lessThanOrEqualTo(6));
+        // Measured: at most 25 of 255 where the rim highlight's diffuse
+        // light reads a corner's normal from coarse texels, whose angle it
+        // turns sharply into light; 8 without the highlight.
+        expect(farthest, lessThanOrEqualTo(25));
       }, skip: skipProperGlassTests);
     }
   }

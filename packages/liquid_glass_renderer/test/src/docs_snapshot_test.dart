@@ -86,12 +86,10 @@ void _docsSnapshot({
 }
 
 const _clearGlass = LiquidGlassSettings.ios27Regular(
-  brightness: Brightness.light,
-  frost: LiquidGlassFrost.sigma(0),
+  blur: 0,
 );
 const _softGlass = LiquidGlassSettings.ios27Regular(
-  brightness: Brightness.light,
-  frost: LiquidGlassFrost.sigma(8),
+  blur: 8,
 );
 const _exampleShadow = LiquidGlassShadow(
   color: Color.from(alpha: 0.03, red: 0, green: 0, blue: 0),
@@ -208,6 +206,11 @@ class _Fallback extends StatelessWidget {
         ),
         SizedBox(width: 72),
         FakeGlass(
+          appearance: LiquidGlassAppearance(
+            colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
+          ),
           settings: _softGlass,
           shadows: [_exampleShadow],
           shape: LiquidRoundedSuperellipse(radius: 58),

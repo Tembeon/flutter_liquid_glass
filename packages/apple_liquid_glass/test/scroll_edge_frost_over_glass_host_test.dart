@@ -10,15 +10,13 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the band
 // frosts its copy through a runtime effect, which only Impeller draws.
 
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 
-const _light = LiquidGlassSettings.ios27Regular(brightness: Brightness.light);
+const _light = LiquidGlassSettings.ios27Regular(blur: 2.1);
 
 const _key = ValueKey('page');
 
@@ -149,15 +147,7 @@ double _meanInBand(Uint8List a, Uint8List b, double dpr) {
 }
 
 void main() {
-  setUp(() {
-    MotionClock.debugReset();
-    debugGlassHaze = false;
-  });
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassHaze = null;
-    debugGlassPolicy = const PlanPolicy();
-  });
+  setUp(MotionClock.debugReset);
 
   for (final dpr in [2.625, 3.0]) {
     testWidgets('the band at $dpr frosts a copy drawn in the frame over '
@@ -168,7 +158,7 @@ void main() {
       glassReadsCopies = false;
       final backdrop = await _scrolled(tester, dpr, glass: true, serves: false);
       glassReadsCopies = true;
-      debugGlassPolicy = const PlanPolicy(maxTargets: 64);
+      debugGlassPolicy = const PlanPolicy(maxPasses: 64);
       final copied = await _scrolled(tester, dpr, glass: true, serves: true);
       expect(_band(tester).debugImageCopy, isNull);
       expect(

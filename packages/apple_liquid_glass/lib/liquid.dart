@@ -13,7 +13,8 @@
 /// lit, no refraction) and `AdaptiveGlassRenderer` (real glass where the
 /// device draws it well, fake glass elsewhere and on the web), set in a
 /// `GlassRendererScope`, and `precacheGlass`, which readies the glass
-/// before the first frame. It also publishes what the liquid renderer
+/// before the first frame and gives what the device supports
+/// (`LiquidGlassSupport`). It also publishes what the liquid renderer
 /// reports of a frame for debugging (`GlassFrameReport`,
 /// `GlassFrameReports`, `LiquidGlassReportOverlay`,
 /// `debugPrintGlassFrameReports`).
@@ -24,7 +25,15 @@
 /// the app.
 library;
 
-export 'src/liquid/adaptive.dart' show AdaptiveGlassRenderer, precacheGlass;
+export 'src/liquid/adaptive.dart'
+    show
+        AdaptiveGlassRenderer,
+        LiquidGlassAvailableSupport,
+        LiquidGlassDeviceClass,
+        LiquidGlassPendingSupport,
+        LiquidGlassSupport,
+        LiquidGlassUnavailableSupport,
+        precacheGlass;
 export 'src/liquid/frame_report.dart'
     show
         GlassFrameReport,

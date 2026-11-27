@@ -1,13 +1,13 @@
-import 'dart:typed_data';
+@Tags(['composer'])
+library;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
+import 'package:liquid_glass_renderer/src/rendering/opacity_pass_seed.dart';
 import 'package:liquid_glass_renderer/src/widgets/consolidated_fake_glass_layer.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -49,12 +49,9 @@ Widget _scene({double shift = 0, double opacity = 1}) => Directionality(
             opacity: opacity,
             child: LiquidGlassLayer(
               fake: true,
-              settings:
-                  const LiquidGlassSettings.ios27Regular(
-                    brightness: Brightness.light,
-                  ).copyWith(
-                    frost: const LiquidGlassFrost.sigma(6),
-                  ),
+              settings: const LiquidGlassSettings.ios27Regular().copyWith(
+                blur: 6,
+              ),
               child: const LiquidGlass(
                 shape: LiquidRoundedSuperellipse(radius: 30),
                 child: SizedBox.expand(),
@@ -72,31 +69,7 @@ RenderConsolidatedFakeGlassLayer _glass(WidgetTester tester) =>
       find.byType(ConsolidatedFakeGlassLayer),
     );
 
-Future<Uint8List> _pixels(WidgetTester tester) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(boundary.toImage))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
-}
-
-int _difference(Uint8List a, Uint8List b) {
-  var largest = 0;
-  for (var i = 0; i < a.length; i++) {
-    final d = (a[i] - b[i]).abs();
-    if (d > largest) largest = d;
-  }
-  return largest;
-}
-
 void main() {
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassPolicy = const PlanPolicy();
-  });
-
   testWidgets(
     'grouped fake glass over a copy draws what reading the '
     'backdrop draws',
@@ -111,11 +84,11 @@ void main() {
       glassReadsCopies = false;
       await tester.pumpWidget(_scene());
       await tester.pump();
-      final reading = await _pixels(tester);
+      final reading = await boundaryPixels(tester, find.byKey(_key));
       expect(_glass(tester).debugDrewOverCopy, isFalse);
 
       glassReadsCopies = true;
-      debugGlassPolicy = const PlanPolicy(shaderFrost: false);
+      debugGlassPolicy = const PlanPolicy(shaderBlurs: false);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(_scene(shift: 0.3));
       await tester.pumpWidget(_scene());
@@ -126,10 +99,10 @@ void main() {
         ),
         isEmpty,
       );
-      final copied = await _pixels(tester);
+      final copied = await boundaryPixels(tester, find.byKey(_key));
       // NEAR: a blur Impeller downsamples takes other taps over a copy than
       // over the whole backdrop; at 2 px of frost the two do not differ.
-      expect(_difference(reading, copied), lessThanOrEqualTo(20));
+      expect(largestDifference(reading, copied), lessThanOrEqualTo(20));
     },
     skip: skipProperGlassTests,
     tags: 'macos_pixels',

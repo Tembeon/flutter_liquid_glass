@@ -145,13 +145,14 @@ final class _Pages {
       final x = layout.strips[i * 2];
       final y = layout.strips[i * 2 + 1];
       final texel = run.texel;
+      const apron = AtlasLayout.apron;
       quads.strip(
         x,
         y,
-        run.length * Tiling.size ~/ texel + 2,
-        run.tall * Tiling.size ~/ texel + 2,
-        bufferX: (run.column * Tiling.size - (x + 1) * texel).toDouble(),
-        bufferY: (run.row * Tiling.size - (top + y + 1) * texel).toDouble(),
+        AtlasLayout.stripWidthOf(run),
+        AtlasLayout.stripHeightOf(run),
+        bufferX: (run.column * Tiling.size - (x + apron) * texel).toDouble(),
+        bufferY: (run.row * Tiling.size - (top + y + apron) * texel).toDouble(),
         texel: texel,
         reach: reach,
         base: base,
@@ -245,7 +246,7 @@ final class _Pages {
 
   // The width of a square page of [texels], no narrower than [widest].
   static int _squareWidth(int texels, int widest) =>
-      math.max(widest, (math.sqrt(texels).ceil() + 31) & ~31);
+      math.max(widest, AtlasLayout.alignWidth(math.sqrt(texels).ceil()));
 
   // A page of the capacity no scene still reads: a spare, or a new one.
   _Page _take() {
@@ -270,10 +271,12 @@ final class _Pages {
     return _spares.removeAt(reusable)..begin();
   }
 
-  // An eighth over [rows], in the 16 rows a tiled GPU stores at a time, so
-  // atlases that grow a little keep their page's size and its textures.
-  static int _roomFor(int rows) =>
-      math.min(AtlasLayout.maxSize, (rows + (rows >> 3) + 15) & ~15);
+  // An eighth over [rows], aligned as an atlas, so atlases that grow a
+  // little keep their page's size and its textures.
+  static int _roomFor(int rows) => math.min(
+    AtlasLayout.maxSize,
+    AtlasLayout.alignHeight(rows + (rows >> 3)),
+  );
 
   /// Lets go of one atlas in [page]: once none is held and the page is
   /// drawn, it is a spare.
@@ -520,12 +523,12 @@ final class _Pages {
   }
 
   // How far past the reach the blends of [members] can still pull a texel's
-  // distance in: a quarter of each blend.
+  // distance in: each blend's smooth union depth.
   static double _smoothing(ShapeSet shapes, List<int> members) {
     final count = math.min(members.length, geometryMaxShapesPerDraw);
     var smoothing = 0.0;
     for (var row = 0; row < count; row++) {
-      smoothing += shapes.blendAt(members[row]) * 0.25;
+      smoothing += shapes.blendAt(members[row]) * smoothUnionDepth;
     }
     return smoothing;
   }

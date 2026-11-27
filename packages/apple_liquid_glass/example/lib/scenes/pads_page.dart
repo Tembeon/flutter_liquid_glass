@@ -309,7 +309,7 @@ final class _Pad extends Motion {
           : GlassTouchGlow(
               wash: 0.06 * lit,
               center: pad._touch.valueAt(t),
-              radius: 0.6 * pad._side,
+              sigma: 0.6 * pad._side,
               spot: 0.6 * lit,
             ),
     );

@@ -1,14 +1,16 @@
+@Tags(['composer'])
+library;
+
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_form.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_input.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
-import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_underlay.dart';
 
 import 'generated_layers.dart';
@@ -19,6 +21,12 @@ class _Blurred extends OffsetLayer {
   _Blurred(this.sigma);
 
   final double sigma;
+}
+
+class _Faded extends OffsetLayer {
+  _Faded(this.alpha);
+
+  int alpha;
 }
 
 typedef _Seen = ({ui.Picture? picture, Rect screen, int order});
@@ -292,16 +300,87 @@ void main() {
         SiteAsk(
           drawn: rect,
           reads: rect.inflate(8),
-          place: const Shifted(Offset.zero),
         ),
       );
 
       expect(form.limitUnder(site), ReadLimit.backdropOnly);
       expect(form.whyLimited(site), 'a platform view lies under it');
     });
+
+    test('glass fades under an opacity or an underlay short of whole', () {
+      addTearDown(LiquidGlassUnderlay.unregisterLayer<_Faded>);
+      LiquidGlassUnderlay.registerLayer<_Faded>(
+        (layer) => LiquidGlassLayerEffects(
+          transform: Matrix4.identity(),
+          alpha: layer.alpha,
+        ),
+      );
+      const rect = Rect.fromLTWH(10, 10, 44, 44);
+      final opacity = OpacityLayer(alpha: 255);
+      final underlay = _Faded(255);
+      final root = ContainerLayer()
+        ..append(
+          opacity..append(
+            underlay..append(
+              LiquidGlassBackdropFilterLayer(
+                filter: LiquidGlassBackdropFilter.image(
+                  ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                  sigma: 4,
+                ),
+                clip: rect,
+              ),
+            ),
+          ),
+        );
+      final form = GlassForm();
+      bool fades() {
+        form.lower(root, _dpr, GeneratedLayers.screen);
+        return form.sites.single.state.fades;
+      }
+
+      expect(fades(), isFalse);
+      opacity.alpha = 128;
+      expect(fades(), isTrue);
+      opacity.alpha = 255;
+      underlay.alpha = 128;
+      expect(fades(), isTrue);
+      underlay.alpha = 255;
+      expect(fades(), isFalse);
+    });
   });
 
   group('asks', () {
+    test('a site under another clip or state changes', () {
+      final form = GlassForm();
+      final root = ContainerLayer();
+      final site = WritableSiteFacts(Object());
+      const rect = Rect.fromLTWH(10, 10, 44, 44);
+      final ask = SiteAsk(
+        drawn: rect,
+        reads: rect.inflate(8),
+      );
+      bool changes({Rect? clip, StateChain? state}) {
+        form.lower(root, _dpr, GeneratedLayers.screen);
+        site.placeInWalk(
+          order: 0,
+          index: 0,
+          state: state ?? StateChain.root,
+          clip: clip,
+        );
+        form.noteAsk(site, ask);
+        return form.sitesChanged;
+      }
+
+      const cut = Rect.fromLTWH(0, 0, 100, 30);
+      final fading = StateChain(StateChain.root, 128, fades: true);
+      changes();
+      expect(changes(), isFalse);
+      expect(changes(clip: cut), isTrue);
+      expect(changes(clip: cut), isFalse);
+      expect(changes(clip: cut, state: fading), isTrue);
+      expect(changes(clip: cut, state: fading), isFalse);
+    });
+
     test('an equal ask is kept; another replans and logs what it draws', () {
       final form = GlassForm();
       final root = ContainerLayer();
@@ -311,7 +390,6 @@ void main() {
         drawn: rect,
         reads: rect.inflate(8),
         noJoin: noJoin,
-        place: const Shifted(Offset.zero),
         paints: paints,
       );
       form
@@ -323,13 +401,13 @@ void main() {
         ..lower(root, _dpr, GeneratedLayers.screen)
         ..noteAsk(site, ask());
       expect(identical(site.ask, first), isTrue);
-      expect(form.asksChanged, isFalse);
+      expect(form.sitesChanged, isFalse);
       expect(form.dirty.isEmpty, isTrue);
 
       form
         ..lower(root, _dpr, GeneratedLayers.screen)
         ..noteAsk(site, ask(noJoin: NoJoin.field));
-      expect(form.asksChanged, isTrue);
+      expect(form.sitesChanged, isTrue);
       expect(form.dirty.isEmpty, isTrue, reason: 'it draws the same');
 
       form

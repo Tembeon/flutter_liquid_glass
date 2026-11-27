@@ -88,6 +88,10 @@ final class _AtlasQuads {
       floats[at + 10] = 0;
       floats[at + 11] = 0;
     } else {
+      assert(
+        8 + Tiling.maxListed <= _quadFloats,
+        'The shapes a strip lists fit its ramp, the last vec4 of its quad.',
+      );
       for (var slot = 0; slot < Tiling.maxListed; slot++) {
         final place = members.placeAt(slot);
         floats[at + 8 + slot] = place < 0

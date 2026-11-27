@@ -47,13 +47,10 @@ Widget _row(int index) => SizedBox(
         width: 200,
         height: 60,
         child: LiquidGlassLayer(
-          // Another glint strength keeps each in a read of its own.
-          settings:
-              const LiquidGlassSettings.ios27Regular(
-                brightness: Brightness.light,
-              ).copyWith(
-                glintStrength: 0.1 + index / 100,
-              ),
+          // Another refraction keeps each in a read of its own.
+          settings: const LiquidGlassSettings.ios27Regular().copyWith(
+            refractionAmount: 60 + index / 100,
+          ),
           child: const LiquidGlass(
             shape: LiquidRoundedSuperellipse(radius: 20),
             child: SizedBox.expand(),
@@ -114,8 +111,6 @@ bool _glassOverFourthRow(Uint8List pixels, {required double scrolled}) {
 
 void main() {
   setUp(() => glassReadsCopies = true);
-  tearDown(() => glassReadsCopies = false);
-
   testWidgets('glass scrolled over a copy builds no backdrop filter', (
     tester,
   ) async {
@@ -144,8 +139,9 @@ void main() {
       report.reads.map((r) => r.source),
       isNot(contains(GlassReadSource.backdrop)),
     );
-    // Each read's own filter, which follows the glass, and no more.
-    expect(report.filtersBuilt, lessThanOrEqualTo(2 * report.reads.length));
+    // Each read's own filter, which follows the glass, and the two passes of
+    // its levels, which follow the screen's grid under it; no more.
+    expect(report.filtersBuilt, lessThanOrEqualTo(3 * report.reads.length));
   });
 
   testWidgets(

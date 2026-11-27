@@ -11,13 +11,14 @@ import 'package:liquid_glass_renderer/rendering.dart';
 /// 27.2 (notes private). UIKit draws the selected look of the items over
 /// the lens's glass and moves it away from the rim twice, each time along
 /// a quarter circle that is strongest at the rim: first by the bend the
-/// lens gives its content, 0.2 of its height over 0.16 of it
+/// lens gives its content, 0.2 of its short side over 0.16 of it
 /// ([LensShadowLaw.contentBend]), then by the bend the lift adds,
-/// [liftBend] over [liftBendHeight] on every lens. So the rim of a tab
+/// [liftBend] over [liftBendDepth] on every lens. So the rim of a tab
 /// bar's lens shows what lies 14 points inside it, 4.2 points deep shows
 /// what lies 8.4 points deep, the nearest to the rim that ever shows, and
 /// from 11.2 points deep everything shows in place. Both bends grow with
-/// the lift.
+/// the lift. Under Reduce Transparency UIKit takes the lift's bend away and
+/// keeps the content's own (iOS 27.2 simulator).
 ///
 /// What the bends show is parted with the glass under it: the lens parts
 /// the colors of everything inside its rim by one law, [parting] at the rim
@@ -29,34 +30,46 @@ abstract final class LensContentLaw {
   static const double liftBend = 17.5;
 
   /// How deep from the rim [liftBend] reaches.
-  static const double liftBendHeight = 11.2;
+  static const double liftBendDepth = 11.2;
 
-  /// The bends of a lens of [height] across its short side lifted by
-  /// [lift], from the one nearest the eye.
-  static List<LiquidGlassContentBend> bends(double height, {double lift = 1}) {
+  /// The bends of a lens of short side [shortSide] lifted by
+  /// [lift], from the one nearest the eye, under Reduce Transparency where
+  /// [reduceTransparency] says so.
+  static List<LiquidGlassContentBend> bends(
+    double shortSide, {
+    double lift = 1,
+    bool reduceTransparency = false,
+  }) {
     return [
-      LensShadowLaw.contentBend(height, small: false, lift: lift),
-      LiquidGlassContentBend(amount: liftBend * lift, height: liftBendHeight),
+      LensShadowLaw.contentBend(shortSide, small: false, lift: lift),
+      if (!reduceTransparency)
+        LiquidGlassContentBend(amount: liftBend * lift, depth: liftBendDepth),
     ];
   }
 
-  /// How far a lens of [height] across its short side, lifted by [lift],
-  /// parts colors at its rim, in points: 1 / 19 of the height.
-  static double parting(double height, {double lift = 1}) => height / 19 * lift;
+  /// How far a lens of short side [shortSide], lifted by [lift], parts
+  /// colors at its rim, in points: 1 / 19 of the short side.
+  static double parting(double shortSide, {double lift = 1}) =>
+      shortSide / 19 * lift;
 
-  /// How deep from the rim of a lens of [height] across its short side its
-  /// parting fades to nothing: 0.2 of the height.
-  static double partingDepth(double height) => 0.2 * height;
+  /// How deep from the rim of a lens of short side [shortSide] its parting
+  /// fades to nothing: 0.2 of the short side.
+  static double partingDepth(double shortSide) => 0.2 * shortSide;
 
-  /// How deep from the rim lies what a lens of [height] across its short
-  /// side, lifted by [lift], shows [depth] from its rim.
+  /// How deep from the rim lies what a lens of short side [shortSide],
+  /// lifted by [lift], shows [depth] from its rim.
   static double shownDepth(
     double depth, {
-    required double height,
+    required double shortSide,
     double lift = 1,
+    bool reduceTransparency = false,
   }) {
     var shown = depth;
-    for (final bend in bends(height, lift: lift)) {
+    for (final bend in bends(
+      shortSide,
+      lift: lift,
+      reduceTransparency: reduceTransparency,
+    )) {
       shown = bend.shownDepth(shown);
     }
     return shown;
@@ -81,6 +94,9 @@ abstract final class LensContentLaw {
 final class LensContentBend implements GlassLensContent {
   /// The device pixels per logical pixel the content is drawn at.
   double devicePixelRatio = 1;
+
+  /// Whether the content is bent as under Reduce Transparency.
+  bool reduceTransparency = false;
 
   final _bent = LiquidGlassBentContent();
 
@@ -112,7 +128,11 @@ final class LensContentBend implements GlassLensContent {
       rect: drawn,
       radius: placed.drawnRadius,
       clip: placed.edgeInBox.shift(offset),
-      bends: LensContentLaw.bends(body.shortestSide, lift: lift),
+      bends: LensContentLaw.bends(
+        body.shortestSide,
+        lift: lift,
+        reduceTransparency: reduceTransparency,
+      ),
       aberration: LensContentLaw.parting(body.shortestSide, lift: lift),
       aberrationDepth: LensContentLaw.partingDepth(body.shortestSide),
       devicePixelRatio: devicePixelRatio,

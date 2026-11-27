@@ -54,7 +54,7 @@ class GlassMaterial {
   final LiquidGlassSettings settings;
   final LiquidGlassAppearance appearance;
 
-  /// Whether [settings] differ from the [style] preset.
+  /// Whether [settings] or [appearance] differ from the [style] preset.
   final bool edited;
 
   GlassMaterial withStyle(GlassStyle value) => GlassMaterial.preset(
@@ -69,12 +69,12 @@ class GlassMaterial {
       brightness: value,
       sliderPosition: sliderPosition,
     );
-    return edited ? preset.withSettings(settings) : preset;
+    return edited ? _edited(preset, settings) : preset;
   }
 
   /// Moves the Liquid Glass slider while keeping manual edits.
   ///
-  /// A fitted frost and haze follow the slider; a blur set by hand stays.
+  /// A blur of the look follows the slider; one set by hand stays.
   /// The loupe ignores the slider.
   GlassMaterial withSliderPosition(double value) {
     final preset = GlassMaterial.preset(
@@ -83,9 +83,24 @@ class GlassMaterial {
       sliderPosition: value,
     );
     if (!edited) return preset;
-    if (!style.followsSlider) return preset.withSettings(settings);
-    return preset.withSettings(settings.copyWith(sliderPosition: value));
+    if (!style.followsSlider) return _edited(preset, settings);
+    return _edited(preset, settings.copyWith(sliderPosition: value));
   }
+
+  // [preset] with the edits made here: [edits] for its settings, and the
+  // rim of a direct appearance, which follows neither the scheme nor the
+  // slider.
+  GlassMaterial _edited(GlassMaterial preset, LiquidGlassSettings edits) =>
+      GlassMaterial(
+        style: preset.style,
+        brightness: preset.brightness,
+        sliderPosition: preset.sliderPosition,
+        settings: edits,
+        appearance: appearance.colorModel is LiquidGlassDirectColorModel
+            ? appearance
+            : preset.appearance,
+        edited: true,
+      );
 
   GlassMaterial withSettings(LiquidGlassSettings value) => GlassMaterial(
     style: style,
@@ -93,6 +108,16 @@ class GlassMaterial {
     sliderPosition: sliderPosition,
     settings: value,
     appearance: appearance,
+    edited: true,
+  );
+
+  /// This material with its appearance wearing [model].
+  GlassMaterial withColorModel(LiquidGlassColorModel model) => GlassMaterial(
+    style: style,
+    brightness: brightness,
+    sliderPosition: sliderPosition,
+    settings: settings,
+    appearance: appearance.copyWith(colorModel: model),
     edited: true,
   );
 
@@ -219,7 +244,7 @@ extension SelectValueListenable<S> on ValueListenable<S> {
 /// Replaces the blur of [settings] in deterministic harness runs.
 LiquidGlassSettings withTestFrost(LiquidGlassSettings settings) =>
     _useTestBackground
-    ? settings.copyWith(frost: LiquidGlassFrost.sigma(_testBlur.toDouble()))
+    ? settings.copyWith(blur: _testBlur.toDouble())
     : settings;
 
 /// Deterministic grid backdrop and frost for screenshots and harness runs.

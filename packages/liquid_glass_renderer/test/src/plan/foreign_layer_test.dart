@@ -1,5 +1,8 @@
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: glass is
 // drawn as on a device, and fake glass otherwise.
+@Tags(['composer'])
+library;
+
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
@@ -11,9 +14,7 @@ import 'package:liquid_glass_test/liquid_glass_test.dart';
 
 import '../shared.dart';
 
-const _settings = LiquidGlassSettings.ios27Regular(
-  brightness: Brightness.light,
-);
+const _settings = LiquidGlassSettings.ios27Regular();
 
 const _background = Color(0xFF204060);
 
@@ -97,8 +98,6 @@ Future<Color> _pixel(WidgetTester tester, Offset at) async {
 
 void main() {
   setUp(() => glassReadsCopies = true);
-  tearDown(() => glassReadsCopies = false);
-
   group('a container of a type nobody registered', () {
     testWidgets('keeps glass away from what it holds on its copy', (
       tester,

@@ -9,16 +9,14 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the band and
 // the glass over it are drawn by runtime effects, which only Impeller draws.
 //
 // A scroll edge and the button over it draw in the button's filter as they
 // draw in filters of their own.
 
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 
 const _viewSize = Size(300, 400);
 
@@ -88,9 +86,7 @@ Widget _page(
             width: tints ? 100 : 44,
             height: 44,
             child: LiquidGlassLayer(
-              settings: const LiquidGlassSettings.ios27Regular(
-                brightness: Brightness.light,
-              ),
+              settings: const LiquidGlassSettings.ios27Clear(),
               child: tints
                   ? Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -116,6 +112,9 @@ Widget _page(
                     )
                   : const LiquidGlass(
                       shape: LiquidRoundedSuperellipse(radius: 22),
+                      appearance: LiquidGlassAppearance.ios27Clear(
+                        brightness: Brightness.light,
+                      ),
                       child: SizedBox.expand(),
                     ),
             ),
@@ -170,50 +169,50 @@ Future<(Uint8List, bool)> _draw(
 }
 
 void main() {
-  // Glass that mixes a haze into its copy leaves a scroll edge to a read of
-  // its own: these hold the join of glass frosted by one blur.
+  // Glass that blurs what it shows leaves a scroll edge to a read of its
+  // own: these hold the join of glass that blurs nothing, clear glass at the
+  // slider's clear end.
   setUp(() {
     glassReadsCopies = true;
-    debugGlassHaze = false;
-  });
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassHaze = null;
-    debugGlassPolicy = const PlanPolicy();
   });
 
-  for (final hard in [true, false]) {
-    testWidgets('a ${hard ? 'hard' : 'soft'} edge joins the glass over it', (
+  testWidgets('a soft edge joins the glass over it', (tester) async {
+    if (!ui.ImageFilter.isShaderFilterSupported) return;
+    final view = _CapturingView(tester);
+    final (alone, mergedAlone) = await _draw(
       tester,
-    ) async {
-      if (!ui.ImageFilter.isShaderFilterSupported) return;
-      final view = _CapturingView(tester);
-      final (alone, mergedAlone) = await _draw(
-        tester,
-        view,
-        hard: hard,
-        groups: false,
-      );
-      final (merged, mergedOn) = await _draw(
-        tester,
-        view,
-        hard: hard,
-        groups: true,
-      );
-      expect(mergedAlone, isFalse);
-      expect(mergedOn, isTrue);
-      var sum = 0;
-      var most = 0;
-      for (var i = 0; i < alone.length; i++) {
-        if (i % 4 == 3) continue;
-        final delta = (alone[i] - merged[i]).abs();
-        sum += delta;
-        if (delta > most) most = delta;
-      }
-      final mean = sum / (alone.length * 3 / 4);
-      expect(mean, lessThan(0.5), reason: 'mean $mean, most $most');
-    });
-  }
+      view,
+      hard: false,
+      groups: false,
+    );
+    final (merged, mergedOn) = await _draw(
+      tester,
+      view,
+      hard: false,
+      groups: true,
+    );
+    expect(mergedAlone, isFalse);
+    expect(mergedOn, isTrue);
+    var sum = 0;
+    var most = 0;
+    for (var i = 0; i < alone.length; i++) {
+      if (i % 4 == 3) continue;
+      final delta = (alone[i] - merged[i]).abs();
+      sum += delta;
+      if (delta > most) most = delta;
+    }
+    final mean = sum / (alone.length * 3 / 4);
+    expect(mean, lessThan(0.5), reason: 'mean $mean, most $most');
+  });
+
+  // A hard edge frosts wider than a band's taps reach over a copy at the
+  // screen's pixels, which glass that blurs nothing reads.
+  testWidgets('a hard edge keeps a read of its own', (tester) async {
+    if (!ui.ImageFilter.isShaderFilterSupported) return;
+    final view = _CapturingView(tester);
+    final (_, mergedOn) = await _draw(tester, view, hard: true, groups: true);
+    expect(mergedOn, isFalse);
+  });
 
   // The glass draws the band's frost and fade for all the band covers, not
   // only under the glass.

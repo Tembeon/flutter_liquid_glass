@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -12,12 +13,14 @@ import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_field_image.dart';
 import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_frames.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/recording_shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
+import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 
 enum _FakeGlassPaintStage {
@@ -44,37 +47,24 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     required super.link,
     required super.settings,
     required super.defaultAppearance,
-    required this._surfaceShader,
-    required this._fieldShader,
   });
 
-  FragmentShader? _surfaceShader;
-
-  /// The surface shader of fake glass, or null before it has loaded.
-  FragmentShader? get surfaceShader => _surfaceShader;
-  set surfaceShader(FragmentShader? value) {
-    if (identical(_surfaceShader, value)) return;
-    _surfaceShader = value;
-    markNeedsPaint();
-  }
-
-  FragmentShader? _fieldShader;
-
-  /// The surface shader of a body its [field] describes, or null before it
-  /// has loaded.
-  FragmentShader? get fieldShader => _fieldShader;
-  set fieldShader(FragmentShader? value) {
-    if (identical(_fieldShader, value)) return;
-    _fieldShader = value;
-    if (field != null) markNeedsPaint();
-  }
-
-  /// The surface shader it draws with.
+  /// The surface shader its first shape drew with.
   @visibleForTesting
-  FragmentShader? get debugSurfaceShader => _surfaceShader;
+  FragmentShader? get debugSurfaceShader => _surfaceShaders.debugFirst;
 
-  final _surfaceShaders = FakeGlassSurfaceShaders();
-  final _fieldShaders = FakeGlassSurfaceShaders.field();
+  late final _surfaceShaders = RecordingShaders(
+    ShaderProgram.fakeGlassSurface,
+    onLoaded: () {
+      if (attached) markNeedsPaint();
+    },
+  );
+  late final _fieldShaders = RecordingShaders(
+    ShaderProgram.fakeGlassFieldSurface,
+    onLoaded: () {
+      if (attached && field != null) markNeedsPaint();
+    },
+  );
   final _fieldImage = FakeGlassFieldImage();
 
   /// Capture shared by this layer's own backdrop reads. Without it, a
@@ -110,7 +100,9 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   List<_BackdropClass> _cachedClipClasses = const [];
 
   bool get _sharedFilterMayReadCopy =>
-      glassReadsCopies && !_cachedClipClasses.contains(_BackdropClass.separate);
+      attached &&
+      GlassFrames.readsCopies(owner!) &&
+      !_cachedClipClasses.contains(_BackdropClass.separate);
 
   bool _sharesLayerBackdrop(WornAppearance appearance) =>
       fakeGlassTransfer(_look, appearance.colorModel) == _sharedTransfer;
@@ -127,11 +119,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   /// The bounds of the clip it last drew its backdrop in.
   @visibleForTesting
   Rect? debugClipBounds;
-
-  /// Whether the last composited frame drew the shared filter over a copy
-  /// rather than reading the backdrop.
-  @visibleForTesting
-  bool debugDrewOverCopy = false;
 
   /// The clip path it last drew its backdrop in.
   @visibleForTesting
@@ -150,7 +137,13 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   bool get encodesGeometry => false;
 
   @override
-  double get materialOutset => fakeGlassSurfaceOutset(_look);
+  double get materialOutset => frameShapes.drawn.fold(
+    0,
+    (most, drawn) => math.max(
+      most,
+      fakeGlassSurfaceOutset(_look, drawn.shape.appearance.colorModel),
+    ),
+  );
 
   late FakeGlassLook _look = FakeGlassLook.of(settings);
 
@@ -159,7 +152,8 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     // side: an animated scale changes it every frame, but the filter only
     // when the sigma does, and a new filter object is a new backdrop saveLayer
     // paint.
-    final sigma = _look.frostSigmaAt(
+    final sigma = _look.blurSigmaAt(
+      _sharedModel,
       devicePixelRatio,
       shapeShortSide: shortSide,
     );
@@ -334,14 +328,14 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       _paintFieldBody(canvas, offset, field);
       return;
     }
-    final shader = surfaceShader;
+    final shaded = _surfaceShaders.ready();
     final lit = link.lit;
-    if (shader == null && lit == null) return;
-    if (shader != null) _surfaceShaders.begin(shader);
+    if (!shaded && lit == null) return;
+    _surfaceShaders.begin();
     for (final drawn in frameShapes.drawn) {
       final shape = drawn.shape;
       final glow = identical(shape.renderObject, lit) ? drawn.glow : null;
-      if (shader == null && glow == null) continue;
+      if (!shaded && glow == null) continue;
       canvas
         ..save()
         ..translate(offset.dx, offset.dy)
@@ -358,8 +352,8 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         );
         canvas.restore();
       }
-      if (shader != null) {
-        paintFakeGlassSurfaceWithGlint(
+      if (shaded) {
+        paintFakeGlassSurfaceWithLight(
           canvas,
           shaders: _surfaceShaders,
           size: size,
@@ -392,8 +386,8 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       );
       canvas.restore();
     }
-    if (fieldShader case final shader?) {
-      _fieldShaders.begin(shader);
+    if (_fieldShaders.ready()) {
+      _fieldShaders.begin();
       paintFakeGlassFieldBody(
         canvas,
         shaders: _fieldShaders,
@@ -481,11 +475,10 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     _fate = fate;
     if (fate is! HiddenFate) return;
     if (_sharedRig.hasSlot) {
-      compositionSeedSuppressed = true;
-      debugDrewOverCopy = false;
+      reads = SiteReads.nothing;
       _sharedRig.hide();
     } else {
-      compositionSeedSuppressed = false;
+      reads = SiteReads.backdrop;
     }
   }
 
@@ -495,14 +488,10 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   void show(GlassRead read, ReadPixels pixels) {
     switch (pixels) {
       case ImagePixels(:final copy):
-        // Glass over its copy reads no backdrop: an opacity pass around it
-        // needs no seed, and a seeded one would stand in the copy's way.
-        compositionSeedSuppressed = true;
-        debugDrewOverCopy = true;
+        reads = SiteReads.copy;
         _sharedRig.showImage(copy);
       case BackdropPixels(:final group):
-        compositionSeedSuppressed = false;
-        debugDrewOverCopy = false;
+        reads = SiteReads.backdrop;
         if (_sharedRig.hasSlot) _sharedRig.showBackdrop(group);
       case ScenePixels():
         assert(false, 'Fake glass reads an image, never a copy in the scene.');
@@ -527,7 +516,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       'Every paint makes the retained slot and only dispose drops it, and a '
       'site is asked only after it painted.',
     );
-    GlassComposer.sitePainted(owner!);
+    GlassFrames.sitePainted(owner!);
     prepareFrameGeometry();
     slot!.removeAllChildren();
     final context = PaintingContext(

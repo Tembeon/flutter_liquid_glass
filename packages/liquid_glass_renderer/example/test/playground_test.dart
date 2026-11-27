@@ -22,13 +22,13 @@ void main() {
       expect(
         light.settings,
         withTestFrost(
-          const LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+          const LiquidGlassSettings.ios27Regular(),
         ),
       );
       expect(
         light.withBrightness(Brightness.dark).settings,
         withTestFrost(
-          const LiquidGlassSettings.ios27Regular(brightness: Brightness.dark),
+          const LiquidGlassSettings.ios27Regular(),
         ),
       );
 
@@ -63,14 +63,13 @@ void main() {
           reason: '$style',
         );
 
-        const byHand = LiquidGlassFrost.sigma(3);
         expect(
           preset
-              .withSettings(preset.settings.copyWith(frost: byHand))
+              .withSettings(preset.settings.copyWith(blur: 3))
               .withSliderPosition(1)
               .settings
-              .frost,
-          byHand,
+              .blur,
+          3,
           reason: '$style',
         );
       }
@@ -102,7 +101,6 @@ void main() {
         reset.settings,
         withTestFrost(
           const LiquidGlassSettings.ios27Regular(
-            brightness: Brightness.dark,
             sliderPosition: 0.5,
           ),
         ),
@@ -126,25 +124,13 @@ void main() {
     );
     expect(
       settingsSource(
-        const LiquidGlassSettings(
-          haze: LiquidGlassHaze(lighten: 0.5),
-        ),
-      ),
-      'const LiquidGlassSettings(\n'
-      '  haze: LiquidGlassHaze(sigma: 15.52, lighten: 0.5, darken: 0.0, '
-      'cover: 0.0),\n'
-      ')',
-    );
-    expect(
-      settingsSource(
         const LiquidGlassSettings.ios27Clear(
-          frost: LiquidGlassFrost.sigma(2),
+          blur: 2,
         ).copyWith(refractionFitsShape: true),
       ),
-      allOf(
-        contains('  frost: LiquidGlassFrost.sigma(2.0),\n'),
-        contains('  haze: LiquidGlassHaze.ios27Clear(),\n'),
-      ),
+      'const LiquidGlassSettings(\n'
+      '  blur: 2.0,\n'
+      ')',
     );
   });
 
@@ -161,7 +147,8 @@ void main() {
     }
   });
 
-  testWidgets('the lighting section edits the inner shadow', (tester) async {
+  testWidgets('the lighting section edits the inner shadow of a direct '
+      'appearance', (tester) async {
     tester.view
       ..physicalSize = const Size(1280, 2400)
       ..devicePixelRatio = 1;
@@ -169,7 +156,7 @@ void main() {
 
     final material = ValueNotifier(
       GlassMaterial.preset(
-        style: GlassStyle.regular,
+        style: GlassStyle.loupe,
         brightness: Brightness.light,
       ),
     );
@@ -192,7 +179,14 @@ void main() {
     );
     tester.widget<CupertinoSlider>(slider).onChanged!(0.5);
     await tester.pump();
-    expect(material.value.settings.bevelShadowStrength, 0.5);
+    expect(
+      material.value.appearance.colorModel,
+      isA<LiquidGlassDirectColorModel>().having(
+        (model) => model.bevelShadowStrength,
+        'bevelShadowStrength',
+        0.5,
+      ),
+    );
     expect(material.value.edited, isTrue);
   });
 

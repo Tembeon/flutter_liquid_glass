@@ -57,6 +57,9 @@ melos run test:select
 # Run tests without golden tests (useful for PRs without golden label)
 melos run test-without-goldens
 
+# Run the renderer's tests with no composer installed
+melos run test-without-composer
+
 # Update golden test images (on macOS 27.2.1 or 27.0.1, see Testing > Golden Tests)
 melos run update-goldens
 
@@ -83,11 +86,16 @@ flutter run --enable-impeller --enable-flutter-gpu
 
 ### Rendering Pipeline
 
-`liquid_glass_renderer` has four libraries, each a folder of `lib/src/`: `painting`
-(values: shapes, settings, appearance) < `plan` (the frame's plan) < `rendering` (render
-objects and layers that carry the plan out, and the frame's report) < `widgets`.
-`painting`, `rendering` and `widgets` each sit behind one library file that lists only
-its public API; `plan` has none and serves the package alone.
+`liquid_glass_renderer` has five libraries, each a folder of `lib/src/`: `painting`
+(values: shapes, settings, appearance) < `plan` (what a frame's reads are: sites, reads,
+copy layouts) < `rendering` (render objects and layers, the frame's report, and
+`GlassFrames`, which drives each view's glass and asks its `GlassPlanner` what every read
+draws) < `composer` (the planner that copies what lies under glass and shares reads) <
+`widgets` (which install the composer). `painting`, `rendering` and `widgets` each sit
+behind one library file that lists only its public API; `plan` and `composer` have none
+and serve the package alone. Rendering imports no composer: with none installed each
+glass reads its own backdrop (`DirectReads`), as tests run with
+`--dart-define=WITHOUT_GLASS_COMPOSER=true --exclude-tags composer` do.
 `test/layer_rules_test.dart` holds the order;
 `liquid_glass_renderer.dart` exports `painting` and `widgets`. The renderer animates
 nothing (no tickers, no gestures): motion belongs to the widget libraries on top, which
@@ -99,19 +107,22 @@ One frame of glass:
    among its glass, `LiquidGlass` is a shape, `LiquidGlassBlendGroup` fuses nearby shapes
    (at most 16 per draw, `geometryMaxShapesPerDraw`), `FakeGlass` draws a cheaper look
    from backdrop filters.
-2. **Composer** (`lib/src/rendering/glass_composer.dart`): a child `PipelineOwner` of the
-   view's owner, flushed after the view's paint and before any scene is built. It lowers
-   the view's layers into a `GlassForm` (`glass_form*.dart`; `_nodeOf` lists the layer
-   types it can copy past), asks every site (`SiteFacts`) what it needs, and compiles the plan.
-3. **Plan** (`lib/src/plan/`): `compilePlan` is a pure function of the sites' answers.
-   It decides each read's source (`SceneRead`: the copy's layers replayed inside the
-   read's filter; `ImageRead`: a held image; `BackdropRead`: the backdrop itself), which glass
-   shares a read, the copy's size and frost (`read_layout.dart`), and how many passes
-   that costs. `PlanPrices` (`plan_tuning.dart`) are measured on a Pixel 6a and only sign
-   these trades.
-4. **Reads** (`lib/src/rendering/read.dart`, `copy_*.dart`, `scene_out.dart`): carry the
-   plan out. The pixels of a read are `ScenePixels`, `ImagePixels` or `BackdropPixels`, one per
-   plan source. The backdrop glass shows is never a frame late.
+2. **Frames and composer** (`lib/src/rendering/glass_frames.dart`,
+   `lib/src/composer/glass_composer.dart`): `GlassFrames` is a child `PipelineOwner` of the
+   view's owner, flushed after the view's paint and before any scene is built, where it
+   asks its planner to plan. The composer lowers the view's layers into a `GlassForm`
+   (`glass_form*.dart`; `_nodeOf` lists the layer types it can copy past), asks every site
+   (`SiteFacts`) what it needs, and compiles the plan.
+3. **Plan** (`lib/src/composer/plan.dart`, its vocabulary in `lib/src/plan/`): `compilePlan`
+   is a pure function of the sites' answers. It decides each read's source (`SceneRead`: the
+   copy's layers replayed inside the read's filter; `ImageRead`: a held image;
+   `BackdropRead`: the backdrop itself), which glass shares a read, the copy's size and blur
+   (`read_layout.dart`), and how many passes that costs. `PlanPolicy` (`plan_policy.dart`)
+   holds the trades as pixels and passes, signed once on a Pixel 6a.
+4. **Reads** (`lib/src/composer/read.dart`, `lib/src/rendering/copy_*.dart`,
+   `scene_out.dart`): carry the plan out. The pixels of a read are `ScenePixels`,
+   `ImagePixels` or `BackdropPixels`, one per plan source. The backdrop glass shows is
+   never a frame late.
 5. **Geometry** (`lib/src/rendering/geometry_tiling*.dart`,
    `flutter_gpu_geometry_renderer*.dart`, `gpu/tile_*_fragment.glsl`): a Flutter GPU atlas.
    `Tiling` cuts a layer's buffer into 16 x 16 tiles and draws only the tiles near an
@@ -121,7 +132,7 @@ One frame of glass:
    look, the same pass writes their looks beside the atlas. Glass of one shape with no look
    of its own that does not lean (`geometryKindOf`) skips the atlas and works its shape
    out in the final shader (`shape_geometry.glsl`).
-6. **Final shader** (`liquid_glass_final_render_core.glsl`): refraction, frost, lighting
+6. **Final shader** (`liquid_glass_final_render_core.glsl`): refraction, blur, lighting
    and color, compiled into the variants `FinalShaderVariant.all` lists (one
    `liquid_glass_final_render*.frag` stub of defines each). They are not in `pubspec.yaml`'s
    `flutter.shaders` (they can't compile to SkSL, which fails Skia/web builds):
@@ -131,10 +142,10 @@ One frame of glass:
 ### Key Components
 
 - **Shapes** (`lib/src/painting/liquid_shape.dart`): RoundedSuperellipse, Oval, RoundedRectangle
-- **Settings** (`lib/src/painting/liquid_glass_settings.dart`): refraction, frost, lighting
+- **Settings** (`lib/src/painting/liquid_glass_settings.dart`): refraction, blur, lighting
 - **FakeGlass** (`lib/src/widgets/fake_glass.dart`, `lib/src/rendering/fake_glass.dart`): backdrop filters instead of the glass shader
 - **LiquidGlassGlow** (`lib/src/painting/liquid_glass_glow.dart`): the touch glow a widget sets on its glass frame by frame
-- **Color models** (`lib/src/painting/liquid_glass_color_model.dart`): the iOS 27 models follow the size of the glass that wears them: inside the package an appearance is worn at a shape's size (`WearAppearance.wear`, `lib/src/rendering/appearance.dart`), which gives the model of the shape's shorter side, a control's up to 64 pt, a panel's from 160 pt. Each shape resolves its own look in real glass and in FakeGlass, so a shape's look never depends on the other shapes of its layer and does not jump when a FakeGlass shape fades into a filter of its own (`appearance_size_independence_test.dart`). Keep it that way: no layer-wide size response. The frost is the one exception: a layer reads one copy, frosted by its smallest shape (`wornShortSide`).
+- **Color models** (`lib/src/painting/liquid_glass_color_model.dart`): the iOS 27 models follow the size of the glass that wears them: inside the package an appearance is worn at a shape's size (`WearAppearance.wear`, `lib/src/rendering/appearance.dart`), which gives the model of the shape's shorter side, a control's up to 64 pt, a panel's from 160 pt. Each shape resolves its own look in real glass and in FakeGlass, so a shape's look never depends on the other shapes of its layer and does not jump when a FakeGlass shape fades into a filter of its own (`appearance_size_independence_test.dart`). Keep it that way: no layer-wide size response. The blur is the one exception: a layer reads one copy, blurred at its smallest shape's size (`wornShortSide`) and as its first shape's color model blurs and fills (the layer's `_blurModel`); FakeGlass blurs each shape by its own model. The other exception is a declared limit: a layer shades at most three iOS 27 looks, and glass past them draws with the nearest one (`colorModelSlots`).
 
 ### Performance Considerations
 

@@ -11,7 +11,7 @@ import 'package:flutter/painting.dart';
 /// interaction, both color matrices over what lies behind them rather than
 /// paint of their own: a wash across the whole surface that adds [wash] to
 /// every color channel, and a soft spot under the finger, most at [center]
-/// and fading as a Gaussian of standard deviation [radius]. Both stay
+/// and fading as a Gaussian of standard deviation [sigma]. Both stay
 /// inside the surface's shape and under its content, and clamp at white.
 /// How much the spot brightens is the glass's own: a renderer reads it from
 /// the surface's glass with [gainOn]. The liquid renderer draws the glow on
@@ -27,7 +27,7 @@ class GlassTouchGlow {
   const GlassTouchGlow({
     required this.wash,
     required this.center,
-    required this.radius,
+    required this.sigma,
     required this.spot,
   });
 
@@ -39,7 +39,7 @@ class GlassTouchGlow {
   final Offset center;
 
   /// The standard deviation of the spot's falloff, in pixels.
-  final double radius;
+  final double sigma;
 
   /// How strongly the spot lights its center, as a share of the glass's
   /// own spot gain.
@@ -59,7 +59,7 @@ class GlassTouchGlow {
   GlassTouchGlow shift(Offset offset) => GlassTouchGlow(
     wash: wash,
     center: center + offset,
-    radius: radius,
+    sigma: sigma,
     spot: spot,
   );
 
@@ -68,11 +68,11 @@ class GlassTouchGlow {
       other is GlassTouchGlow &&
       other.wash == wash &&
       other.center == center &&
-      other.radius == radius &&
+      other.sigma == sigma &&
       other.spot == spot;
 
   @override
-  int get hashCode => Object.hash(wash, center, radius, spot);
+  int get hashCode => Object.hash(wash, center, sigma, spot);
 }
 
 /// How much a touch glow's spot brightens each glass, read from UIKit's

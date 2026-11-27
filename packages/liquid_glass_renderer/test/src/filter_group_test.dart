@@ -1,6 +1,8 @@
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: glass over a
 // copy is drawn by a runtime effect, which only Impeller draws. Without them
 // these tests return early.
+@Tags(['composer'])
+library;
 
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -8,11 +10,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/group_atlas.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
@@ -60,7 +61,7 @@ Widget _button(
   width: width,
   height: height,
   child: const LiquidGlassLayer(
-    settings: LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+    settings: LiquidGlassSettings.ios27Regular(),
     child: LiquidGlass(
       shape: LiquidRoundedSuperellipse(radius: 20),
       child: SizedBox.expand(),
@@ -98,7 +99,6 @@ Future<(Uint8List, int)> _draw(
   debugGlassPolicy = groups
       ? const PlanPolicy()
       : const PlanPolicy(maxShapes: 0);
-  addTearDown(() => debugGlassPolicy = const PlanPolicy());
   await tester.pumpWidget(
     View(view: view, child: const SizedBox()),
     wrapWithView: false,
@@ -150,8 +150,6 @@ void main() {
     glassReadsCopies = true;
     GroupAtlas.debugRenders = 0;
   });
-  tearDown(() => glassReadsCopies = false);
-
   Future<void> expectSame(
     WidgetTester tester,
     List<Widget> children, {
@@ -202,9 +200,7 @@ void main() {
       width: 80,
       height: 40,
       child: LiquidGlassLayer(
-        settings: const LiquidGlassSettings.ios27Regular(
-          brightness: Brightness.light,
-        ),
+        settings: const LiquidGlassSettings.ios27Regular(),
         child: LiquidGlass(
           shape: const LiquidRoundedSuperellipse(radius: 20),
           appearance: LiquidGlassAppearance.ios27Regular(
@@ -237,9 +233,7 @@ void main() {
       width: 100,
       height: 40,
       child: LiquidGlassLayer(
-        settings: const LiquidGlassSettings.ios27Regular(
-          brightness: Brightness.light,
-        ),
+        settings: const LiquidGlassSettings.ios27Regular(),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -345,6 +339,8 @@ void main() {
     );
   });
 
+  // The faded button reads an image of its own, in its own layer: a scene
+  // read's filter would lose the opacity.
   testWidgets('an opacity around one button leaves it out', (tester) async {
     await expectSame(
       tester,
@@ -359,9 +355,7 @@ void main() {
           child: Opacity(
             opacity: 0.5,
             child: LiquidGlassLayer(
-              settings: LiquidGlassSettings.ios27Regular(
-                brightness: Brightness.light,
-              ),
+              settings: LiquidGlassSettings.ios27Regular(),
               child: LiquidGlass(
                 shape: LiquidRoundedSuperellipse(radius: 20),
                 child: SizedBox.expand(),
@@ -370,8 +364,8 @@ void main() {
           ),
         ),
       ],
-      layersOn: 2,
-      layersOff: 3,
+      layersOn: 1,
+      layersOff: 2,
     );
   });
 

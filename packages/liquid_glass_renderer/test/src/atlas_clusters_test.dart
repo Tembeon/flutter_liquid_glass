@@ -1,15 +1,15 @@
 import 'dart:typed_data';
 
 import 'package:cupertino_ui/cupertino_ui.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 
 import 'shared.dart';
 
 const _key = ValueKey('screen');
 
-const _shapes = 20;
+const _shapes = geometryMaxShapesPerDraw + 4;
 
 // Rows 80 pixels apart put the second layer's buffer 160 pixels below the
 // first, on the same tile grid, so its glass keeps full density where one
@@ -36,12 +36,9 @@ Widget _scene(List<List<int>> layers) => Directionality(
         for (final shapes in layers)
           Positioned.fill(
             child: LiquidGlassLayer(
-              settings:
-                  const LiquidGlassSettings.ios27Regular(
-                    brightness: Brightness.light,
-                  ).copyWith(
-                    frost: const LiquidGlassFrost.sigma(0),
-                  ),
+              settings: const LiquidGlassSettings.ios27Regular().copyWith(
+                blur: 0,
+              ),
               child: Stack(
                 children: [
                   for (final i in shapes)
@@ -61,59 +58,44 @@ Widget _scene(List<List<int>> layers) => Directionality(
   ),
 );
 
-Future<Uint8List> _pixels(WidgetTester tester) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(boundary.toImage))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
-}
-
-int _difference(Uint8List a, Uint8List b) {
-  var largest = 0;
-  for (var i = 0; i < a.length; i++) {
-    final d = (a[i] - b[i]).abs();
-    if (d > largest) largest = d;
-  }
-  return largest;
-}
-
 void main() {
-  testWidgets('a layer of more than 16 shapes apart draws every one, as '
-      'layers of fewer draw them', (tester) async {
-    tester.view.physicalSize = const Size(380, 320);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    await tester.runAsync(precacheLiquidGlass);
-    final messages = <String>[];
-    final previousDebugPrint = debugPrint;
-    debugPrint = (message, {wrapWidth}) {
-      if (message != null) messages.add(message);
-    };
+  testWidgets(
+    'a layer of more than $geometryMaxShapesPerDraw shapes apart draws '
+    'every one, as layers of fewer draw them',
+    (tester) async {
+      tester.view.physicalSize = const Size(380, 320);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.runAsync(precacheLiquidGlass);
+      final messages = <String>[];
+      final previousDebugPrint = debugPrint;
+      debugPrint = (message, {wrapWidth}) {
+        if (message != null) messages.add(message);
+      };
 
-    Future<Uint8List> draw(List<List<int>> layers) async {
-      await tester.pumpWidget(const SizedBox());
-      await tester.pumpWidget(_scene(layers));
-      await tester.pump();
-      return _pixels(tester);
-    }
+      Future<Uint8List> draw(List<List<int>> layers) async {
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpWidget(_scene(layers));
+        await tester.pump();
+        return boundaryPixels(tester, find.byKey(_key));
+      }
 
-    final all = [for (var i = 0; i < _shapes; i++) i];
-    final Uint8List one;
-    final Uint8List two;
-    final Uint8List sixteen;
-    try {
-      one = await draw([all]);
-      two = await draw([all.sublist(0, 10), all.sublist(10)]);
-      sixteen = await draw([all.sublist(0, 16)]);
-    } finally {
-      debugPrint = previousDebugPrint;
-    }
+      final all = [for (var i = 0; i < _shapes; i++) i];
+      final Uint8List one;
+      final Uint8List two;
+      final Uint8List most;
+      try {
+        one = await draw([all]);
+        two = await draw([all.sublist(0, 10), all.sublist(10)]);
+        most = await draw([all.sublist(0, geometryMaxShapesPerDraw)]);
+      } finally {
+        debugPrint = previousDebugPrint;
+      }
 
-    expect(messages.where((m) => m.contains('are not drawn')), isEmpty);
-    expect(_difference(one, two), lessThanOrEqualTo(2));
-    expect(_difference(one, sixteen), greaterThan(10));
-  }, skip: skipProperGlassTests);
+      expect(messages.where((m) => m.contains('are not drawn')), isEmpty);
+      expect(largestDifference(one, two), lessThanOrEqualTo(2));
+      expect(largestDifference(one, most), greaterThan(10));
+    },
+    skip: skipProperGlassTests,
+  );
 }

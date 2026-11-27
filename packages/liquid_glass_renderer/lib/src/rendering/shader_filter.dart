@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 
 /// [ui.ImageFilter.shader] over [shader], reading its input bilinearly.
@@ -31,4 +32,22 @@ ui.ImageFilter shaderFilterNow(ui.FragmentShader shader) {
   final filter = bilinearShaderFilter(shader);
   ui.Paint().imageFilter = filter;
   return filter;
+}
+
+/// One transparent pixel: what a sampler is bound to where a draw has no image
+/// of its own for it.
+@internal
+final ui.Image transparentPixel = () {
+  final recorder = ui.PictureRecorder();
+  Canvas(recorder);
+  return recorder.endRecording().toImageSync(1, 1);
+}();
+
+/// [shaderFilterNow] of [shader], whose first sampler is what the filter
+/// reads: bound to [transparentPixel] at [ui.FilterQuality.low], which up to
+/// Flutter 3.47 is how the filter samples its input.
+@internal
+ui.ImageFilter inputShaderFilterNow(ui.FragmentShader shader) {
+  shader.setImageSampler(0, transparentPixel, filterQuality: FilterQuality.low);
+  return shaderFilterNow(shader);
 }

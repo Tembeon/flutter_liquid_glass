@@ -12,8 +12,12 @@ import 'gpu_test_helpers.dart';
 import 'shared.dart';
 
 Widget _glass(double width) => LiquidGlassLayer(
-  settings: const LiquidGlassSettings(
-    contourStrength: 0.3,
+  settings: const LiquidGlassSettings(),
+  defaultAppearance: const LiquidGlassAppearance(
+    colorModel: LiquidGlassColorModel.direct(
+      brightness: Brightness.light,
+      contourStrength: 0.3,
+    ),
   ),
   child: Row(
     mainAxisSize: MainAxisSize.min,
@@ -26,7 +30,13 @@ Widget _glass(double width) => LiquidGlassLayer(
       // A second appearance, so every render also writes a look.
       const LiquidGlass(
         shape: LiquidOval(),
-        appearance: LiquidGlassAppearance(tint: Color(0x552060FF)),
+        appearance: LiquidGlassAppearance(
+          tint: Color(0x552060FF),
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            contourStrength: 0.3,
+          ),
+        ),
         child: SizedBox(width: 44, height: 44),
       ),
     ],

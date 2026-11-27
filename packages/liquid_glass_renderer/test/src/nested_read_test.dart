@@ -2,7 +2,7 @@
 // its layer's corner, and the image cuts that layer. The black this led to
 // shows on Metal alone, so the test holds the layer to the cut rather than
 // looking at pixels.
-@Tags(['macos_pixels'])
+@Tags(['macos_pixels', 'composer'])
 library;
 
 import 'dart:ui' as ui;
@@ -10,22 +10,25 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 import 'package:liquid_glass_renderer/src/plan/impeller.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 
-Widget _glass(Rect rect, double glint, {double frost = 1.5}) =>
+Widget _glass(Rect rect, double glint, {double frost = 2}) =>
     Positioned.fromRect(
       rect: rect,
       child: LiquidGlassLayer(
         // A frost that a copy at half the screen's pixels bakes in place.
-        settings: LiquidGlassSettings.ios27Regular(
-          brightness: Brightness.light,
-          frost: LiquidGlassFrost.sigma(frost),
-        ).copyWith(glintStrength: glint),
+        settings: LiquidGlassSettings.ios27Regular(blur: frost),
+        defaultAppearance: LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            glintStrength: glint,
+          ),
+        ),
         child: const LiquidGlass(
           shape: LiquidRoundedSuperellipse(radius: 30),
           child: SizedBox.expand(),
@@ -36,8 +39,6 @@ Widget _glass(Rect rect, double glint, {double frost = 1.5}) =>
 void main() {
   setUp(() => glassReadsCopies = true);
   tearDown(() {
-    glassReadsCopies = false;
-    debugGlassPolicy = const PlanPolicy();
     GlassComposer.debugOnPlan = null;
   });
 
@@ -51,7 +52,7 @@ void main() {
     // Over budget the sheet reads an image and the glass under it stays live,
     // as on a screen of glass: the budget is the glass's own five targets,
     // its filter, the two axes of its frost and the two layers of its haze.
-    debugGlassPolicy = const PlanPolicy(maxTargets: 5);
+    debugGlassPolicy = const PlanPolicy(maxPasses: 5);
     GlassPlan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
 
@@ -84,19 +85,19 @@ void main() {
 
     final [glass, sheet] = plan!.reads;
     expect(glass.source, isA<SceneRead>());
-    expect(glass.share, 2);
-    expect(glass.layout.bakedFrost, greaterThan(0));
+    expect(glass.askedShare, 2);
+    expect(glass.layout.levels, isNotNull);
     expect(sheet.source, isA<ImageRead>());
-    expect(sheet.holds, contains(glass));
+    expect(sheet.nested, contains(glass));
 
     final copy = glass.layout;
     final image = sheet.layout;
-    expect(copy.layerRect.top, lessThan(image.footprintRect.top));
+    expect(copy.layerRect.top, lessThan(image.copyBounds.top));
     expect(
-      ImpellerLayers.keepsWhole(copy.layerRect, image.footprintRect),
+      ImpellerLayers.keepsWhole(copy.layerRect, image.copyBounds),
       isTrue,
     );
-    expect(copy.heldIn(image).top, image.footprintRect.top);
+    expect(copy.nestedIn(image).top, image.copyBounds.top);
   });
 
   testWidgets('glass held by a copy over it keeps its filters while it holds '
@@ -136,8 +137,8 @@ void main() {
     final [glass, sheet] = plan!.reads;
     expect(glass.source, isA<SceneRead>());
     expect(sheet.source, isA<SceneRead>());
-    expect(sheet.share, greaterThan(1));
-    expect(sheet.holds, contains(glass));
+    expect(sheet.askedShare, greaterThan(1));
+    expect(sheet.nested, contains(glass));
 
     GlassWork.filters = 0;
     for (var i = 0; i < 8; i++) {

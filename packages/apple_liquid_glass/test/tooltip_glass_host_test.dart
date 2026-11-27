@@ -7,7 +7,7 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 
 Widget _page() => WidgetsApp(
   color: const Color(0xFF000000),
@@ -70,8 +70,6 @@ void main() {
     MotionClock.debugReset();
     glassReadsCopies = true;
   });
-  tearDown(() => glassReadsCopies = false);
-
   testWidgets('glass beside a closed and an open tooltip reads a copy', (
     tester,
   ) async {

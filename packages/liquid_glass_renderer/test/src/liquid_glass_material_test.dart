@@ -8,8 +8,12 @@ Widget _layer(
   void Function(LiquidGlassRenderScope scope) read, {
   LiquidGlassSettings? settings,
   LiquidGlassAppearance? defaultAppearance,
+  bool highContrast = false,
 }) => MediaQuery(
-  data: MediaQueryData(platformBrightness: platform),
+  data: MediaQueryData(
+    platformBrightness: platform,
+    highContrast: highContrast,
+  ),
   child: Directionality(
     textDirection: TextDirection.ltr,
     child: LiquidGlassLayer(
@@ -35,8 +39,7 @@ void main() {
       );
       expect(
         regular.settings,
-        LiquidGlassSettings.ios27Regular(
-          brightness: brightness,
+        const LiquidGlassSettings.ios27Regular(
           sliderPosition: 0.5,
         ),
       );
@@ -55,6 +58,26 @@ void main() {
         ),
       );
     }
+    expect(
+      LiquidGlassMaterial.ios27Regular(
+        brightness: Brightness.light,
+        highContrast: true,
+      ).appearance,
+      const LiquidGlassAppearance.ios27Regular(
+        brightness: Brightness.light,
+        highContrast: true,
+      ),
+    );
+    expect(
+      LiquidGlassMaterial.ios27Clear(
+        brightness: Brightness.light,
+        highContrast: true,
+      ).appearance,
+      const LiquidGlassAppearance.ios27Clear(
+        brightness: Brightness.light,
+        highContrast: true,
+      ),
+    );
     const tint = Color(0xFF0A84FF);
     expect(
       LiquidGlassMaterial.ios27Regular(
@@ -67,12 +90,18 @@ void main() {
       ),
     );
 
-    final clear = LiquidGlassMaterial.ios27Clear(sliderPosition: 1);
+    final clear = LiquidGlassMaterial.ios27Clear(
+      brightness: Brightness.light,
+      sliderPosition: 1,
+    );
     expect(
       clear.settings,
       const LiquidGlassSettings.ios27Clear(sliderPosition: 1),
     );
-    expect(clear.appearance, const LiquidGlassAppearance.ios27Clear());
+    expect(
+      clear.appearance,
+      const LiquidGlassAppearance.ios27Clear(brightness: Brightness.light),
+    );
     expect(clear.shadows, isEmpty);
     expect(
       clear,
@@ -82,24 +111,30 @@ void main() {
 
   testWidgets(
     'a layer given no settings draws the regular glass of the platform '
-    'brightness',
+    'brightness and contrast',
     (tester) async {
       late LiquidGlassRenderScope scope;
-      for (final brightness in [
-        Brightness.dark,
-        Brightness.light,
-        Brightness.dark,
+      for (final (brightness, highContrast) in [
+        (Brightness.dark, false),
+        (Brightness.light, false),
+        (Brightness.light, true),
+        (Brightness.dark, true),
+        (Brightness.dark, false),
       ]) {
-        await tester.pumpWidget(_layer(brightness, (read) => scope = read));
+        await tester.pumpWidget(
+          _layer(
+            brightness,
+            (read) => scope = read,
+            highContrast: highContrast,
+          ),
+        );
         final material = LiquidGlassMaterial.ios27Regular(
           brightness: brightness,
+          highContrast: highContrast,
         );
-        expect(scope.settings, material.settings, reason: '$brightness');
-        expect(
-          scope.defaultAppearance,
-          material.appearance,
-          reason: '$brightness',
-        );
+        final reason = '$brightness, high contrast $highContrast';
+        expect(scope.settings, material.settings, reason: reason);
+        expect(scope.defaultAppearance, material.appearance, reason: reason);
       }
     },
   );
@@ -118,7 +153,9 @@ void main() {
       const LiquidGlassAppearance.ios27Regular(brightness: Brightness.dark),
     );
 
-    const appearance = LiquidGlassAppearance.ios27Clear();
+    const appearance = LiquidGlassAppearance.ios27Clear(
+      brightness: Brightness.light,
+    );
     await tester.pumpWidget(
       _layer(
         Brightness.dark,
@@ -128,7 +165,7 @@ void main() {
     );
     expect(
       scope.settings,
-      const LiquidGlassSettings.ios27Regular(brightness: Brightness.dark),
+      const LiquidGlassSettings.ios27Regular(),
     );
     expect(scope.defaultAppearance, appearance);
   });

@@ -78,6 +78,16 @@ transforms:
       - kind: 'removeParameter'
         name: 'backdropKey'
 
+  - title: 'Rename to blur'
+    date: 2026-11-27
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      field: 'frost'
+      inClass: 'LiquidGlassSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'blur'
+
   - title: 'Rename to sliderPosition'
     date: 2026-11-17
     element:
@@ -88,17 +98,7 @@ transforms:
       - kind: 'rename'
         newName: 'sliderPosition'
 
-  - title: 'Rename to glintStrength'
-    date: 2026-11-17
-    element:
-      uris: ['liquid_glass_renderer.dart']
-      field: 'highlight'
-      inClass: 'LiquidGlassSettings'
-    changes:
-      - kind: 'rename'
-        newName: 'glintStrength'
-
-  - title: 'Rename tintAmount and highlight'
+  - title: 'Rename to sliderPosition and blur'
     date: 2026-11-17
     element:
       uris: ['liquid_glass_renderer.dart']
@@ -109,10 +109,10 @@ transforms:
         oldName: 'tintAmount'
         newName: 'sliderPosition'
       - kind: 'renameParameter'
-        oldName: 'highlight'
-        newName: 'glintStrength'
+        oldName: 'frost'
+        newName: 'blur'
 
-  - title: 'Rename tintAmount and highlight'
+  - title: 'Rename to sliderPosition and blur'
     date: 2026-11-17
     element:
       uris: ['liquid_glass_renderer.dart']
@@ -123,10 +123,10 @@ transforms:
         oldName: 'tintAmount'
         newName: 'sliderPosition'
       - kind: 'renameParameter'
-        oldName: 'highlight'
-        newName: 'glintStrength'
+        oldName: 'frost'
+        newName: 'blur'
 
-  - title: 'Rename to sliderPosition'
+  - title: 'Rename to sliderPosition and blur, drop brightness'
     date: 2026-11-17
     element:
       uris: ['liquid_glass_renderer.dart']
@@ -136,8 +136,13 @@ transforms:
       - kind: 'renameParameter'
         oldName: 'tintAmount'
         newName: 'sliderPosition'
+      - kind: 'renameParameter'
+        oldName: 'frost'
+        newName: 'blur'
+      - kind: 'removeParameter'
+        name: 'brightness'
 
-  - title: 'Rename to sliderPosition'
+  - title: 'Rename to sliderPosition and blur'
     date: 2026-11-17
     element:
       uris: ['liquid_glass_renderer.dart']
@@ -147,8 +152,11 @@ transforms:
       - kind: 'renameParameter'
         oldName: 'tintAmount'
         newName: 'sliderPosition'
+      - kind: 'renameParameter'
+        oldName: 'frost'
+        newName: 'blur'
 
-  - title: 'Use ios27Regular(brightness: Brightness.light)'
+  - title: 'Rename to ios27Regular'
     date: 2026-11-17
     element:
       uris: ['liquid_glass_renderer.dart']
@@ -157,14 +165,8 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'ios27Regular'
-      - kind: 'addParameter'
-        index: 0
-        name: 'brightness'
-        style: 'required_named'
-        argumentValue:
-          expression: 'Brightness.light'
 
-  - title: 'Use ios27Regular(brightness: Brightness.dark)'
+  - title: 'Rename to ios27Regular'
     date: 2026-11-17
     element:
       uris: ['liquid_glass_renderer.dart']
@@ -173,12 +175,6 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'ios27Regular'
-      - kind: 'addParameter'
-        index: 0
-        name: 'brightness'
-        style: 'required_named'
-        argumentValue:
-          expression: 'Brightness.dark'
 
   - title: 'Use ios27Regular(brightness: Brightness.light)'
     date: 2026-11-17
@@ -276,3 +272,17 @@ transforms:
     changes:
       - kind: 'rename'
         newName: ''
+
+  - title: 'Spell the color model the appearance took by default'
+    date: 2026-11-26
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      constructor: ''
+      inClass: 'LiquidGlassAppearance'
+    changes:
+      - kind: 'addParameter'
+        index: 0
+        name: 'colorModel'
+        style: 'required_named'
+        argumentValue:
+          expression: 'LiquidGlassColorModel.direct(brightness: Brightness.light)'

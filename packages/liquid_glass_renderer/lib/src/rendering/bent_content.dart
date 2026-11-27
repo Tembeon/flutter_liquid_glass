@@ -6,9 +6,10 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
-import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
+import 'package:liquid_glass_renderer/src/rendering/recording_shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
+import 'package:meta/meta.dart';
 
 /// Paints content over a glass shape the way the shape shows it at its
 /// rim: every point shows what lies deeper under the rim by the shape's
@@ -44,18 +45,22 @@ final class LiquidGlassBentContent {
   ui.Image? _image;
   ui.ImageShader? _shader;
   ui.Vertices? _vertices;
-  ui.FragmentShader? _parting;
+  final _parting = RecordingShaders(ShaderProgram.bentContent);
 
-  /// Releases the picture and the mesh of the last paint.
+  /// Releases the picture and the mesh of the last paint, and the parting's
+  /// shaders.
   void dispose() {
+    _releasePaint();
+    _parting.dispose();
+  }
+
+  void _releasePaint() {
     _vertices?.dispose();
     _shader?.dispose();
     _image?.dispose();
-    _parting?.dispose();
     _vertices = null;
     _shader = null;
     _image = null;
-    _parting = null;
   }
 
   // Rings near the rim lie closer: a bend is steepest there.
@@ -72,12 +77,14 @@ final class LiquidGlassBentContent {
   ///
   /// With an [aberration] the colors of what the bends show part by it at
   /// the rim, fading to nothing [aberrationDepth] deep, along the way
-  /// `LiquidGlassSettings.aberration` describes; both are in logical
+  /// `LiquidGlassLens.aberration` describes; both are in logical
   /// pixels.
   ///
   /// [rect] and [clip] are in the coordinates [content] paints in when it
   /// is given [offset], and [content] is drawn at [devicePixelRatio]. With
-  /// no bend and no parting the content is painted as it is.
+  /// no bend and no parting the content is painted as it is. Colors part by
+  /// [aberration] only through two [bends] at most: past two, the content is
+  /// bent and not parted.
   void paint(
     PaintingContext context,
     Offset offset, {
@@ -93,24 +100,23 @@ final class LiquidGlassBentContent {
     final half = rect.shortestSide / 2;
     var reach = 0.0;
     for (final bend in bends) {
-      if (bend.amount != 0) reach = math.max(reach, bend.height);
+      if (bend.amount != 0) reach = math.max(reach, bend.depth);
     }
     reach = math.min(reach, half);
-    ui.FragmentProgram? program;
-    if (aberration > 0 && aberrationDepth > 0 && bends.length <= 2) {
-      program = GlassShaderPrograms.load(ShaderKeys.bentContent);
-    }
-    if ((reach <= 0 && program == null) ||
-        rect.isEmpty ||
-        devicePixelRatio <= 0) {
+    final parts =
+        aberration > 0 &&
+        aberrationDepth > 0 &&
+        bends.length <= 2 &&
+        _parting.ready();
+    if ((reach <= 0 && !parts) || rect.isEmpty || devicePixelRatio <= 0) {
       return content(context, offset);
     }
-    dispose();
+    _releasePaint();
     // On the pixels of the layer the content is drawn in, so the picture
     // is read texel for pixel wherever nothing bends.
     final bounds = ViewPixels(devicePixelRatio).outward(rect);
     final layer = OffsetLayer();
-    final offscreen = _Offscreen(layer, bounds);
+    final offscreen = OffscreenContext(layer, bounds);
     content(offscreen, offset);
     offscreen.finish();
     final image = _image = layer.toImageSync(
@@ -128,10 +134,9 @@ final class LiquidGlassBentContent {
         clip ??
         (Path()
           ..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(corners))));
-    if (program != null) {
+    if (parts) {
       _paintParted(
         context.canvas,
-        program,
         image,
         rect: rect,
         picture: picture,
@@ -159,7 +164,6 @@ final class LiquidGlassBentContent {
 
   void _paintParted(
     Canvas canvas,
-    ui.FragmentProgram program,
     ui.Image image, {
     required Rect rect,
     required Rect picture,
@@ -170,8 +174,6 @@ final class LiquidGlassBentContent {
     required double aberrationDepth,
     required double devicePixelRatio,
   }) {
-    final shader = _parting = program.fragmentShader()
-      ..setImageSampler(0, image, filterQuality: FilterQuality.low);
     final origin = picture.topLeft - rect.topLeft;
     final first = bends.isNotEmpty ? bends[0] : null;
     final second = bends.length > 1 ? bends[1] : null;
@@ -181,17 +183,20 @@ final class LiquidGlassBentContent {
       ..translate(rect.left, rect.top);
     var still = aberrationDepth;
     for (final bend in bends) {
-      if (bend.amount != 0) still = math.max(still, bend.height);
+      if (bend.amount != 0) still = math.max(still, bend.depth);
     }
     final middle = _onPixels(_middle(rect.size, radius, still), canvas);
     // The shader draws the picture as it is from [still] deep on.
     _paintMiddle(canvas, image, picture.shift(-rect.topLeft), middle);
     final quad = shaderQuad(Offset.zero & rect.size, canvas);
+    _parting.begin();
     // What the content takes of what lies under it, then the content.
     for (final (pass, blend) in const [
       (0.0, BlendMode.modulate),
       (1.0, BlendMode.plus),
     ]) {
+      final shader = _parting.next()
+        ..setImageSampler(0, image, filterQuality: FilterQuality.low);
       putLanes(shader, 0, BentContentLane.values, {
         BentContentLane.size: [rect.width, rect.height],
         BentContentLane.radius: [radius],
@@ -200,9 +205,9 @@ final class LiquidGlassBentContent {
         BentContentLane.pictureScale: [1 / picture.width, 1 / picture.height],
         BentContentLane.bends: [
           first?.amount ?? 0,
-          first?.height ?? 0,
+          first?.depth ?? 0,
           second?.amount ?? 0,
-          second?.height ?? 0,
+          second?.depth ?? 0,
         ],
         BentContentLane.parting: [aberration, aberrationDepth],
         BentContentLane.pixel: [1 / devicePixelRatio],
@@ -351,11 +356,14 @@ final class LiquidGlassBentContent {
   }
 }
 
-// Records what is painted into a layer of its own, to be drawn as a
-// picture.
-final class _Offscreen extends PaintingContext {
-  _Offscreen(super.containerLayer, super.estimatedBounds);
+/// A painting context outside a render tree, recording into its container
+/// layer until [finish].
+@internal
+final class OffscreenContext extends PaintingContext {
+  /// A context that records into [containerLayer].
+  OffscreenContext(super.containerLayer, super.estimatedBounds);
 
+  /// Ends the picture being recorded.
   void finish() => stopRecordingIfNeeded();
 }
 

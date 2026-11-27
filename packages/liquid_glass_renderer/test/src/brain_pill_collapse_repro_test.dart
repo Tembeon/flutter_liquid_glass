@@ -34,7 +34,11 @@ void main() {
     bool viaAppearance = false,
   }) {
     final appearance = viaAppearance
-        ? const LiquidGlassAppearance().copyWith(visibility: v)
+        ? const LiquidGlassAppearance(
+            colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
+          ).copyWith(visibility: v)
         : null;
     var glass = switch (config.kind) {
       _AKind.grouped || _AKind.plain => LiquidGlass(
@@ -44,7 +48,13 @@ void main() {
       ),
       _AKind.standaloneFake => FakeGlass(
         shape: shape,
-        appearance: appearance ?? const LiquidGlassAppearance(),
+        appearance:
+            appearance ??
+            const LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+            ),
         child: probeChild,
       ),
     };

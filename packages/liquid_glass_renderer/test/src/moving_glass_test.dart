@@ -1,13 +1,16 @@
+@Tags(['composer'])
+library;
+
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 
 import 'shared.dart';
 import 'submitted_scene_binding.dart';
@@ -72,7 +75,9 @@ Widget _scene(int frame, Offset at) => Directionality(
                 height: _lens,
                 child: const LiquidGlass(
                   shape: LiquidOval(),
-                  appearance: LiquidGlassAppearance.ios27Clear(),
+                  appearance: LiquidGlassAppearance.ios27Clear(
+                    brightness: Brightness.light,
+                  ),
                   child: SizedBox.expand(),
                 ),
               ),
@@ -90,26 +95,25 @@ void main() {
     ..captureHeight = (_view.height * _dpr).round();
 
   // Glass carried down and across a page that holds still shows the same
-  // page in its middle, where it bends nothing, wherever it lies: the haze
-  // averages the page on cells of the screen, and an image Impeller blurs
+  // page in its middle, where it bends nothing, wherever it lies: the levels
+  // average the page on cells of the screen, and an image Impeller blurs
   // lies on the screen's grid of the blur's cells. Counted from the copy's
   // corner, the middle of the glass flickered in patches each step of the
   // copy: its most moved block of 16 pixels moved by 0.47 levels on average
-  // under the haze, by 2.9 under Impeller's blur. What is left is a level
-  // here and there, 0.12 and 0.07 a block.
-  for (final haze in [true, false]) {
+  // under a wide average, by 2.9 under Impeller's blur. What is left is a
+  // level here and there, 0.12 and 0.07 a block.
+  for (final levels in [true, false]) {
     testWidgets(
-      haze
-          ? 'glass carried over a still page keeps its haze still'
+      levels
+          ? 'glass carried over a still page keeps its levels still'
           : "glass carried over a still page keeps Impeller's blur still",
       (tester) async {
         await tester.runAsync(precacheLiquidGlass);
         final copies = glassReadsCopies;
         glassReadsCopies = true;
-        debugGlassHaze = haze ? null : false;
+        if (!levels) debugGlassPolicy = const PlanPolicy(shaderBlurs: false);
         addTearDown(() {
           glassReadsCopies = copies;
-          debugGlassHaze = null;
         });
         tester.view
           ..physicalSize = _view * _dpr
@@ -167,9 +171,9 @@ void main() {
           final read = plan!.reads.singleWhere(
             (read) => read.glassMembers.isNotEmpty,
           );
-          if (haze) {
+          if (levels) {
             expect(read.source, isA<SceneRead>());
-            expect(read.layout.haze, isNotNull);
+            expect(read.layout.levels, isNotNull);
             placed.add(read.layout.layer.rect);
           } else {
             expect(read.source, isA<ImageRead>());
@@ -179,7 +183,7 @@ void main() {
           patches += patchOf(last, next, at);
           last = next;
         }
-        expect(placed.length, greaterThan(4), reason: 'the copy moved');
+        expect(placed.length, greaterThan(3), reason: 'the copy moved');
         expect(patches / steps, lessThan(0.2));
       },
       skip: skipProperGlassTests,

@@ -2,9 +2,9 @@
 /// what lies behind it.
 ///
 /// `LiquidShape` and its kinds give the outline, `LiquidGlassSettings` the
-/// optics (refraction, frost, glint, contour), `LiquidGlassFrost` how far
-/// the glass blurs what it shows, `LiquidGlassHaze` the wide blur mixed into
-/// it, `LiquidGlassAppearance` and `LiquidGlassColorModel` the color,
+/// optics (the blur, and the lens in `LiquidGlassLens`),
+/// `LiquidGlassAppearance` and `LiquidGlassColorModel` the color, the
+/// material and the lit rim,
 /// `LiquidGlassMaterial` settings, an appearance and shadows that belong
 /// together, `LiquidGlassBackdrop` where the
 /// glass takes what it shows through, `LiquidGlassBackdropFilter` what a
@@ -14,8 +14,9 @@
 /// raises on a shape, `LiquidGlassShadow` a shadow a shape casts and
 /// `LiquidGlassSilhouette` the outline glass casts its shadows by,
 /// `LiquidGlassContentBend` how a shape bends what is drawn over
-/// it at its rim, `LiquidGlassShapeFrame` one frame of a live shape and
-/// `LiquidGlassBody` where that frame draws its body.
+/// it at its rim, `LiquidGlassShapeFrame` one frame of a live shape,
+/// `LiquidGlassBody` where that frame draws its body and
+/// `LiquidGlassLayerFrame` one frame of a live layer.
 /// `LiquidGlassSupport` says whether the device draws full glass, and on
 /// what GPU.
 ///
@@ -45,24 +46,14 @@ export 'src/painting/liquid_glass_color_model.dart'
         LiquidGlassColorModel,
         LiquidGlassDirectColorModel,
         LiquidGlassIos27ClearColorModel,
+        LiquidGlassIos27LensColorModel,
         LiquidGlassIos27RegularColorModel;
 export 'src/painting/liquid_glass_content_bend.dart'
     show LiquidGlassContentBend;
 export 'src/painting/liquid_glass_field.dart' show LiquidGlassField;
-export 'src/painting/liquid_glass_frost.dart'
-    show
-        LiquidGlassFixedFrost,
-        LiquidGlassFrost,
-        LiquidGlassIos27ClearFrost,
-        LiquidGlassIos27RegularFrost;
 export 'src/painting/liquid_glass_glow.dart' show LiquidGlassGlow;
-export 'src/painting/liquid_glass_haze.dart'
-    show
-        LiquidGlassFixedHaze,
-        LiquidGlassHaze,
-        LiquidGlassIos27ClearHaze,
-        LiquidGlassIos27RegularHaze;
 export 'src/painting/liquid_glass_layer_frame.dart' show LiquidGlassLayerFrame;
+export 'src/painting/liquid_glass_lens.dart' show LiquidGlassLens;
 export 'src/painting/liquid_glass_material.dart' show LiquidGlassMaterial;
 export 'src/painting/liquid_glass_settings.dart' show LiquidGlassSettings;
 export 'src/painting/liquid_glass_shadow.dart'

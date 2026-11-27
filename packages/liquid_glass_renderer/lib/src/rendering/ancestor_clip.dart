@@ -3,23 +3,16 @@ import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/rendering/clip_shape.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 
-/// The clip [ancestor] applies to [child], in [ancestor]'s coordinates, or
-/// `null` when it does not clip. Impeller derives a backdrop pass's coverage
-/// from these clips, so glass and captures use the same list to predict the
-/// pass origin their filters see.
-Rect? clipOfAncestor(RenderObject ancestor, RenderObject child) =>
-    ancestor is RenderViewportBase
-    ? _approximateClip(ancestor, child)
-    : paintClipOfAncestor(ancestor, child);
-
 Rect? _approximateClip(RenderObject ancestor, RenderObject child) =>
     ancestor.describeApproximatePaintClip(child);
 
-/// The clip [ancestor] paints around [child], in [ancestor]'s coordinates.
+/// The clip [ancestor] paints around [child], in [ancestor]'s coordinates,
+/// or `null` when it does not clip: the clip layers the framework pushes,
+/// which Impeller derives a pass's coverage from.
 ///
-/// Unlike [clipOfAncestor], a viewport only counts while its content
-/// overflows, mirroring [RenderViewportBase.paint]; its approximate clip API
-/// reports per-sliver semantics instead.
+/// A viewport counts only while its content overflows, mirroring
+/// [RenderViewportBase.paint]; its approximate clip API reports per-sliver
+/// semantics instead.
 Rect? paintClipOfAncestor(RenderObject ancestor, RenderObject child) =>
     switch (clipShapeOf(ancestor)) {
       (_, Clip.none) => null,
@@ -30,15 +23,15 @@ Rect? paintClipOfAncestor(RenderObject ancestor, RenderObject child) =>
       },
     };
 
-/// The shape a clip render object paints, in its own coordinates, with the
-/// behavior it paints it with, or null for a render object that is not a
-/// clip.
-(ClipShape, Clip)? clipShapeOf(RenderObject node) => switch (node) {
-  final RenderClipRect clip => (
+/// How [node] clips what it paints, worked out when called, or null for a
+/// render object that does not clip: the one list of the clip render
+/// objects glass knows.
+(ClipShape, Clip) Function()? clipOf(RenderObject node) => switch (node) {
+  final RenderClipRect clip => () => (
     RectClip(clip.clipper?.getClip(clip.size) ?? Offset.zero & clip.size),
     clip.clipBehavior,
   ),
-  final RenderClipRRect clip => (
+  final RenderClipRRect clip => () => (
     RRectClip(
       clip.clipper?.getClip(clip.size) ??
           clip.borderRadius
@@ -47,7 +40,7 @@ Rect? paintClipOfAncestor(RenderObject ancestor, RenderObject child) =>
     ),
     clip.clipBehavior,
   ),
-  final RenderClipRSuperellipse clip => (
+  final RenderClipRSuperellipse clip => () => (
     RSuperellipseClip(
       clip.clipper?.getClip(clip.size) ??
           clip.borderRadius
@@ -56,24 +49,29 @@ Rect? paintClipOfAncestor(RenderObject ancestor, RenderObject child) =>
     ),
     clip.clipBehavior,
   ),
-  final RenderClipOval clip => (
+  final RenderClipOval clip => () => (
     OvalClip(clip.clipper?.getClip(clip.size) ?? Offset.zero & clip.size),
     clip.clipBehavior,
   ),
-  final RenderClipPath clip => (
+  final RenderClipPath clip => () => (
     switch (clip.clipper?.getClip(clip.size)) {
       final path? => PathClip(path),
       null => RectClip(Offset.zero & clip.size),
     },
     clip.clipBehavior,
   ),
-  final RenderViewportBase viewport => (
+  final RenderViewportBase viewport => () => (
     RectClip(Offset.zero & viewport.size),
     // As RenderViewportBase.paint does.
     _overflows(viewport) ? viewport.clipBehavior : Clip.none,
   ),
   _ => null,
 };
+
+/// The shape a clip render object paints, in its own coordinates, with the
+/// behavior it paints it with, or null for a render object that is not a
+/// clip.
+(ClipShape, Clip)? clipShapeOf(RenderObject node) => clipOf(node)?.call();
 
 /// Whether [viewport]'s content paints past its bounds, by the rule the
 /// viewport's own `hasVisualOverflow` follows: a sliver laid out with visual
@@ -166,7 +164,7 @@ Rect? screenClipAbove(RenderObject node) {
   for (var i = path.length - 1; i > 0; i--) {
     final ancestor = path[i];
     final child = path[i - 1];
-    final clip = clipOfAncestor(ancestor, child);
+    final clip = paintClipOfAncestor(ancestor, child);
     if (clip != null) {
       final screenClip = MatrixUtils.transformRect(toScreen, clip);
       result = result?.intersect(screenClip) ?? screenClip;

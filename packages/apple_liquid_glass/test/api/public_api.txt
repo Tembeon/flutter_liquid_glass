@@ -1104,12 +1104,12 @@ final class GlassLens
   const GlassLens.lifted({bool small = ..., BoxShadow? restingShadow})
   const GlassLens({
     double pull = ...,
-    double pullHeight = ...,
+    double pullDepth = ...,
     bool small = ...,
     BoxShadow? restingShadow,
   })
   final double pull
-  final double pullHeight
+  final double pullDepth
   final BoxShadow? restingShadow
   final bool small
   overrides: ==, hashCode
@@ -3049,13 +3049,13 @@ class GlassTouchGlow
   const GlassTouchGlow({
     required double wash,
     required Offset center,
-    required double radius,
+    required double sigma,
     required double spot,
   })
   final Offset center
   double gainOn(Glass glass, Brightness brightness)
-  final double radius
   GlassTouchGlow shift(Offset offset)
+  final double sigma
   final double spot
   final double wash
   overrides: ==, hashCode
@@ -3216,6 +3216,8 @@ base class LiquidGlassRenderer extends GlassRenderer
     Glass glass,
     Brightness brightness, {
     double sliderPosition = ...,
+    bool highContrast = ...,
+    bool reduceTransparency = ...,
   })
   @internal static List<LiquidGlassShadow> shadowsOf(
     GlassRole role,
@@ -4193,6 +4195,7 @@ class RenderScrollEdge extends RenderBox
     required Brightness brightness,
     required double devicePixelRatio,
     required bool following,
+    bool reduceTransparency = ...,
   })
   @protected LiquidGlassFrostBand bandAt(double presence)
   Brightness get brightness
@@ -4212,6 +4215,8 @@ class RenderScrollEdge extends RenderBox
   )
   @protected void paintFade(PaintingContext context, Offset offset)
   double get presence
+  bool get reduceTransparency
+  set reduceTransparency(bool value)
   @protected bool updateBand(double presence)
   overrides: alwaysNeedsCompositing, attach, computeDryLayout, detach, dispose, hitTestSelf, isRepaintBoundary, paint, sizedByParent
 class ScrollAway
@@ -4845,7 +4850,7 @@ PopoverPlacement placePopover({
   EdgeInsets padding = ...,
   TextDirection textDirection = ...,
 })
-Future<void> precacheGlass({bool warmUp = ...})
+Future<LiquidGlassSupport> precacheGlass({bool warmUp = ...})
 SearchBarGeometry searchBarLayout({
   required double width,
   required double bottom,
@@ -5088,8 +5093,13 @@ re-exported from package:liquid_glass_renderer:
   GlassFrameReports
   GlassReadReport
   GlassReadSource
+  LiquidGlassAvailableSupport
+  LiquidGlassDeviceClass
   LiquidGlassField
+  LiquidGlassPendingSupport
   LiquidGlassReportOverlay
+  LiquidGlassSupport
+  LiquidGlassUnavailableSupport
   LiquidOval
   LiquidRoundedRectangle
   LiquidRoundedSuperellipse
@@ -5149,7 +5159,12 @@ re-exported from package:liquid_glass_renderer:
   GlassFrameReports
   GlassReadReport
   GlassReadSource
+  LiquidGlassAvailableSupport
+  LiquidGlassDeviceClass
+  LiquidGlassPendingSupport
   LiquidGlassReportOverlay
+  LiquidGlassSupport
+  LiquidGlassUnavailableSupport
   debugPrintGlassFrameReports
 
 # package:apple_liquid_glass/motions.dart

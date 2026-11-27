@@ -5,6 +5,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/widgets.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/widgets.dart'
+    show installLiquidGlassComposer;
 import 'package:meta/meta.dart';
 
 /// A scroll edge effect as [details] describe it, whose band blurs the
@@ -44,6 +46,7 @@ class _EdgePaint extends LeafRenderObjectWidget {
 
   @override
   RenderObject createRenderObject(BuildContext context) {
+    installLiquidGlassComposer();
     teachLiquidUnderlay();
     return _RenderEdge(
       details: details,

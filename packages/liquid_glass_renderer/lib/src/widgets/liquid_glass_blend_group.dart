@@ -1,12 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_place.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_host.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
+
+const double _defaultBlend = 20;
 
 /// A widget that groups multiple liquid glass shapes for blending.
 ///
@@ -26,7 +29,7 @@ class LiquidGlassBlendGroup extends StatefulWidget {
   /// Creates a new [LiquidGlassBlendGroup].
   const LiquidGlassBlendGroup({
     required this.child,
-    this.blend = 20.0,
+    this.blend = _defaultBlend,
     super.key,
   });
 
@@ -45,7 +48,9 @@ class LiquidGlassBlendGroup extends StatefulWidget {
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
-    properties.add(DoubleProperty('blend', blend, defaultValue: 20.0));
+    properties.add(
+      DoubleProperty('blend', blend, defaultValue: _defaultBlend),
+    );
   }
 }
 
@@ -60,23 +65,21 @@ class _LiquidGlassBlendGroupState extends State<LiquidGlassBlendGroup> {
 
   @override
   Widget build(BuildContext context) {
-    final host = GlassHost.of(context);
-    if (host != null && host.inBody) {
+    if (GlassHost.of(context)?.place is InBody) {
       return nestedGlassLayer(context, _buildGroup);
     }
     return _buildGroup(context);
   }
 
   Widget _buildGroup(BuildContext context) {
-    final renderLink = GlassHost.of(context)?.link;
-    if (renderLink == null) throw noLiquidGlassLayerError(context);
-    return GlassHost.layer(
-      link: renderLink,
-      group: _geometryLink,
+    final place = GlassHost.of(context)?.place;
+    if (place is! DrawnPlace) throw noLiquidGlassLayerError(context);
+    return GlassHost(
+      place: InGroup(place.link, _geometryLink),
       child: _RawLiquidGlassBlendGroup(
         blend: widget.blend,
         link: _geometryLink,
-        renderLink: renderLink,
+        renderLink: place.link,
         child: widget.child,
       ),
     );
@@ -113,6 +116,7 @@ class _RawLiquidGlassBlendGroup extends SingleChildRenderObjectWidget {
     renderObject
       ..blend = blend
       ..devicePixelRatio = glassDevicePixelRatioOf(context)
-      ..link = link;
+      ..link = link
+      ..renderLink = renderLink;
   }
 }

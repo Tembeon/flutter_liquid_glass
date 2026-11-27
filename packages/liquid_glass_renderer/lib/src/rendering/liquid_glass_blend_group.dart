@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shape_helpers.dart';
@@ -15,30 +16,46 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     required super.devicePixelRatio,
     required this._link,
     required this._blend,
-  }) {
-    link
-      ..addListener(_onLinkUpdate)
-      ..onMembershipChanged = _onMembershipChanged
-      ..onGlowChanged = _onGlowChanged;
-  }
+  });
 
   GlassGroupLink _link;
 
-  /// The link that provides shape information to this geometry.
+  /// The link that provides shape information to this geometry, followed
+  /// while the group is attached.
   GlassGroupLink get link => _link;
 
   set link(GlassGroupLink value) {
     if (_link == value) return;
-    _link
-      ..removeListener(_onLinkUpdate)
-      ..onMembershipChanged = null
-      ..onGlowChanged = null;
+    if (attached) _unhook(_link);
     _link = value;
-    value
-      ..addListener(_onLinkUpdate)
-      ..onMembershipChanged = _onMembershipChanged
-      ..onGlowChanged = _onGlowChanged;
+    if (attached) _hook(value);
     markNeedsPaint();
+  }
+
+  void _hook(GlassGroupLink link) => link
+    ..addListener(_onLinkUpdate)
+    ..onMembershipChanged = _onMembershipChanged
+    ..onGlowChanged = _onGlowChanged;
+
+  void _unhook(GlassGroupLink link) {
+    link.removeListener(_onLinkUpdate);
+    if (link.onMembershipChanged == _onMembershipChanged) {
+      link
+        ..onMembershipChanged = null
+        ..onGlowChanged = null;
+    }
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _hook(_link);
+  }
+
+  @override
+  void detach() {
+    _unhook(_link);
+    super.detach();
   }
 
   double _blend;
@@ -49,7 +66,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   set blend(double value) {
     if (_blend == value) return;
     _blend = value;
-    markGeometryNeedsUpdate(force: true);
+    markGeometryToRebuild();
     markNeedsPaint();
   }
 
@@ -59,12 +76,12 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   @override
   void updatePaintOrder() {
     if (sortGlassPaintOrder(this, link.shapes, (shape) => shape)) {
-      markGeometryNeedsUpdate(force: true);
+      markGeometryToRebuild();
     }
   }
 
   void _onLinkUpdate() {
-    markGeometryNeedsUpdate();
+    markGeometryToCompare();
     markNeedsPaint();
   }
 
@@ -110,7 +127,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
         changed = true;
       }
     }
-    if (changed) markGeometryNeedsUpdate();
+    if (changed) markGeometryToCompare();
     return changed;
   }
 
@@ -134,7 +151,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   ) {
     final shapes = <ShapeGeometry>[];
     final cachedShapes = geometry?.shapes ?? [];
-    var anyShapeChangedInLayer = false;
+    var outlineChanged = false;
     Rect? layerBounds;
     Rect? everyBounds;
     for (final renderObject in link.shapes) {
@@ -153,21 +170,17 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
       final existingShape = cachedShapes.length > index
           ? cachedShapes[index]
           : null;
-      if (existingShape == null ||
-          existingShape.shapeBounds != shapeData.shapeBounds ||
-          existingShape.shape != shapeData.shape ||
-          !MatrixUtils.matrixEquals(
-            existingShape.shapeToGeometry,
-            shapeData.shapeToGeometry,
-          )) {
-        anyShapeChangedInLayer = true;
+      if (existingShape == null || !existingShape.sameOutline(shapeData)) {
+        outlineChanged = true;
       }
     }
-    if (cachedShapes.length != shapes.length) anyShapeChangedInLayer = true;
+    if (cachedShapes.length != shapes.length) outlineChanged = true;
     return (
-      (layerBounds ?? everyBounds ?? Rect.zero).inflate(blend * .25),
+      (layerBounds ?? everyBounds ?? Rect.zero).inflate(
+        blend * smoothUnionDepth,
+      ),
       shapes,
-      anyShapeChangedInLayer,
+      outlineChanged,
     );
   }
 

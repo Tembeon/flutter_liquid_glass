@@ -29,9 +29,7 @@ void main() {
             CupertinoApp(
               home: LiquidGlassLayer(
                 fake: fake,
-                settings: const LiquidGlassSettings.ios27Regular(
-                  brightness: Brightness.light,
-                ),
+                settings: const LiquidGlassSettings.ios27Regular(),
                 defaultAppearance: const LiquidGlassAppearance.ios27Regular(
                   brightness: Brightness.light,
                 ),

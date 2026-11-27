@@ -28,7 +28,6 @@ enum GlassStyle {
     required double sliderPosition,
   }) => switch (this) {
     regular => LiquidGlassSettings.ios27Regular(
-      brightness: brightness,
       sliderPosition: sliderPosition,
     ),
     clear => LiquidGlassSettings.ios27Clear(sliderPosition: sliderPosition),
@@ -37,8 +36,10 @@ enum GlassStyle {
 
   LiquidGlassAppearance appearance(Brightness brightness) => switch (this) {
     regular => LiquidGlassAppearance.ios27Regular(brightness: brightness),
-    clear => const LiquidGlassAppearance.ios27Clear(),
-    loupe => const LiquidGlassAppearance(),
+    clear => const LiquidGlassAppearance.ios27Clear(
+      brightness: Brightness.light,
+    ),
+    loupe => LiquidGlassLoupe.defaultAppearance,
   };
 }
 

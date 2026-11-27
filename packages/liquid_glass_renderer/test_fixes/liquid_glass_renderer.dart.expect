@@ -31,17 +31,23 @@ Widget backdropGroups() {
 }
 
 LiquidGlassSettings slider(LiquidGlassSettings base) {
-  final light = LiquidGlassSettings.ios27Regular(brightness: Brightness.light, sliderPosition: 0.5);
-  final dark = LiquidGlassSettings.ios27Regular(brightness: Brightness.dark);
+  final light = LiquidGlassSettings.ios27Regular(sliderPosition: 0.5, blur: 3);
+  final dark = LiquidGlassSettings.ios27Regular();
   final regular = LiquidGlassSettings.ios27Regular(
-    brightness: Brightness.dark,
     sliderPosition: 1,
+    blur: 6,
   );
-  final clear = LiquidGlassSettings.ios27Clear(sliderPosition: 0.25);
-  const plain = LiquidGlassSettings(sliderPosition: 0.5, glintStrength: 0.4);
+  final clear = LiquidGlassSettings.ios27Clear(sliderPosition: 0.25, blur: 1);
+  const plain = LiquidGlassSettings(sliderPosition: 0.5, blur: 4);
   return base.copyWith(
-    sliderPosition: light.sliderPosition + dark.sliderPosition + clear.sliderPosition,
-    glintStrength: regular.glintStrength + plain.glintStrength,
+    blur: 2,
+    sliderPosition:
+        light.sliderPosition +
+        light.blur +
+        dark.sliderPosition +
+        regular.sliderPosition +
+        clear.sliderPosition +
+        plain.sliderPosition,
   );
 }
 
@@ -51,6 +57,7 @@ List<LiquidGlassAppearance> appearances() => [
   const LiquidGlassAppearance(
     colorModel: LiquidGlassColorModel.ios27Regular(brightness: Brightness.light),
   ),
+  const LiquidGlassAppearance(colorModel: LiquidGlassColorModel.direct(brightness: Brightness.light), tint: Color(0x33FFFFFF)),
 ];
 
 List<LiquidShape> shapes(LiquidRoundedRectangle box) => [

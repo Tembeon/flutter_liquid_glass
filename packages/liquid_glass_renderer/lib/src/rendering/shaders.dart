@@ -9,57 +9,83 @@ final String _shadersRoot = isLocalTest
     ? ''
     : 'packages/liquid_glass_renderer/';
 
-/// The asset keys of the shaders glass draws with.
-abstract class ShaderKeys {
-  const ShaderKeys._();
+/// The folder of the package the shader programs' sources lie in, each a
+/// `.frag` at its top.
+const String shaderSources = 'lib/assets/shaders/';
 
-  /// The compiled final shader [name], a FinalShaderVariant's.
-  static String finalRender(String name) =>
-      '${_shadersRoot}build/shaderbundles/$name.iplr';
+/// The folder of the package the build hook writes its programs to.
+const String shaderBundles = 'build/shaderbundles/';
 
-  /// The shader a FakeGlass draws its surface with.
-  static final List<String> fakeSurfaceAssets = [fakeGlassSurface];
+/// What builds a shader program from its source.
+enum ShaderCompiler {
+  /// The Flutter tool, from `flutter.shaders` in the pubspec, for every
+  /// backend including SkSL: drawn on any engine.
+  flutterTool,
 
-  /// The shaders a layer of fake glass draws its surfaces with: a shape's,
-  /// then a field body's.
-  static final List<String> fakeLayerAssets = [
-    fakeGlassSurface,
-    fakeGlassFieldSurface,
-  ];
+  /// The package's build hook, to `<stem>.iplr` in [shaderBundles], for
+  /// Impeller's backends alone: drawn where the engine draws shader filters.
+  /// It builds every program of [shaderSources] the Flutter tool does not.
+  ///
+  /// `flutter.shaders` are compiled to SkSL too, which these programs'
+  /// sampling cannot be written in: Impeller builds would warn and Skia
+  /// builds (such as `flutter build web`) fail.
+  hook;
 
-  /// The compiled shader a LiquidGlassBackdropFrost draws a copy with.
-  static final String backdropFrost =
-      '${_shadersRoot}build/shaderbundles/backdrop_frost.iplr';
-
-  /// The compiled shader that draws a narrow frost into a copy in one pass.
-  static final String backdropFrostSquare =
-      '${_shadersRoot}build/shaderbundles/backdrop_frost_square.iplr';
-
-  /// The compiled shader that draws one axis of a frost into a copy.
-  static final String backdropFrostAxis =
-      '${_shadersRoot}build/shaderbundles/backdrop_frost_axis.iplr';
-
-  /// The compiled shader that averages a copy into the strip its haze reads.
-  static final String backdropHazeStrip =
-      '${_shadersRoot}build/shaderbundles/backdrop_haze_strip.iplr';
-
-  /// The compiled shader that mixes a copy's haze into it.
-  static final String backdropHazeMix =
-      '${_shadersRoot}build/shaderbundles/backdrop_haze_mix.iplr';
-
-  /// The surface shader of fake glass.
-  static final fakeGlassSurface =
-      '${_shadersRoot}lib/assets/shaders/fake_glass_surface.frag';
-
-  /// The surface shader of a fake glass body a field describes.
-  static final fakeGlassFieldSurface =
-      '${_shadersRoot}lib/assets/shaders/fake_glass_field_surface.frag';
-
-  /// The shader that draws content over a shape with its colors parted.
-  static final bentContent =
-      '${_shadersRoot}lib/assets/shaders/bent_content.frag';
-
-  /// The Flutter GPU shader bundle of the geometry renderer.
-  static final String gpuGeometryShaderBundle =
-      '${_shadersRoot}build/shaderbundles/liquid_glass_renderer.shaderbundle';
+  /// The asset key of the program of [stem] this compiler builds.
+  String keyOf(String stem) => switch (this) {
+    flutterTool => '$_shadersRoot$shaderSources$stem.frag',
+    hook => '$_shadersRoot$shaderBundles$stem.iplr',
+  };
 }
+
+/// The shader programs glass draws with, but for the final shader's
+/// variants (FinalShaderVariant), which the hook builds.
+enum ShaderProgram {
+  /// The surface of fake glass.
+  fakeGlassSurface('fake_glass_surface', ShaderCompiler.flutterTool),
+
+  /// The surface of a fake glass body a field describes.
+  fakeGlassFieldSurface(
+    'fake_glass_field_surface',
+    ShaderCompiler.flutterTool,
+  ),
+
+  /// Content drawn over a shape with its colors parted.
+  bentContent('bent_content', ShaderCompiler.flutterTool),
+
+  /// A copy drawn through a LiquidGlassBackdropFrost.
+  backdropFrost('backdrop_frost', ShaderCompiler.hook),
+
+  /// A narrow frost drawn into a copy in one pass.
+  backdropFrostSquare('backdrop_frost_square', ShaderCompiler.hook),
+
+  /// One axis of a frost drawn into a copy.
+  backdropFrostAxis('backdrop_frost_axis', ShaderCompiler.hook),
+
+  /// The levels a copy carries beside it, up to the level the coarser ones
+  /// average.
+  copyLevels('copy_levels', ShaderCompiler.hook),
+
+  /// The coarser levels a copy carries beside it, and its fill level.
+  copyLevelsCover('copy_levels_cover', ShaderCompiler.hook);
+
+  const ShaderProgram(this.stem, this.compiler);
+
+  /// The name of its source in [shaderSources], without `.frag`.
+  final String stem;
+
+  /// What builds it.
+  final ShaderCompiler compiler;
+
+  /// Its asset key.
+  String get key => compiler.keyOf(stem);
+}
+
+/// The name of the Flutter GPU shader bundle of the geometry renderer,
+/// which the hook builds into [shaderBundles] from
+/// `<name>.shaderbundle.json` at the package's root.
+const String geometryBundleName = 'liquid_glass_renderer';
+
+/// The asset key of the Flutter GPU shader bundle of the geometry renderer.
+String get geometryBundleKey =>
+    '$_shadersRoot$shaderBundles$geometryBundleName.shaderbundle';

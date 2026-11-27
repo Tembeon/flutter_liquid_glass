@@ -1,11 +1,10 @@
-import 'dart:typed_data';
-
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:material_ui/material_ui.dart';
+
+import 'shared.dart';
 
 const _key = ValueKey('screen');
 
@@ -44,12 +43,9 @@ Widget underlayScene({double shift = 0, double frost = 0, double scale = 1}) =>
               child: Transform.scale(
                 scale: scale,
                 child: LiquidGlassLayer(
-                  settings:
-                      const LiquidGlassSettings.ios27Regular(
-                        brightness: Brightness.light,
-                      ).copyWith(
-                        frost: LiquidGlassFrost.sigma(frost),
-                      ),
+                  settings: const LiquidGlassSettings.ios27Regular().copyWith(
+                    blur: frost,
+                  ),
                   child: const Padding(
                     padding: EdgeInsets.all(10),
                     child: LiquidGlass(
@@ -70,26 +66,6 @@ RenderLiquidGlassLayer underlayGlass(WidgetTester tester) =>
     tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().toSet().single;
 
 /// The scene's pixels.
-Future<Uint8List> underlayPixels(WidgetTester tester) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(boundary.toImage))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
-}
-
-/// The largest channel difference between two frames.
-int largestDifference(Uint8List a, Uint8List b) {
-  var largest = 0;
-  for (var i = 0; i < a.length; i++) {
-    final d = (a[i] - b[i]).abs();
-    if (d > largest) largest = d;
-  }
-  return largest;
-}
-
 /// Renders the scene reading its backdrop, then over a copy, and returns
 /// the largest channel difference.
 Future<int> underlayParity(
@@ -100,15 +76,17 @@ Future<int> underlayParity(
   tester.view.physicalSize = const Size(260, 200);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  addTearDown(() => glassReadsCopies = false);
   // flutter_tester renders only a process's first backdrop filter reliably,
   // so the reference reads the backdrop first.
   glassReadsCopies = false;
   await tester.pumpWidget(underlayScene(frost: frost, scale: scale));
-  final reading = await underlayPixels(tester);
+  final reading = await boundaryPixels(tester, find.byKey(_key));
   glassReadsCopies = true;
   await tester.pumpWidget(const SizedBox());
   await tester.pumpWidget(underlayScene(frost: frost, scale: scale));
   expect(underlayGlass(tester).debugDrewOverCopy, isTrue);
-  return largestDifference(reading, await underlayPixels(tester));
+  return largestDifference(
+    reading,
+    await boundaryPixels(tester, find.byKey(_key)),
+  );
 }

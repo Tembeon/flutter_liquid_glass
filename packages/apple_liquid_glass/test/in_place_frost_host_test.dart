@@ -13,7 +13,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 
 const _viewSize = Size(300, 600);
 const _dpr = 3.0;
@@ -51,12 +51,10 @@ const _wide = Rect.fromLTWH(20, 60, 260, 60);
 Widget _glass(Rect rect) => Positioned.fromRect(
   rect: rect,
   child: LiquidGlassLayer(
-    // Other highlights keep each in a read of its own.
-    settings:
-        const LiquidGlassSettings.ios27Regular(brightness: Brightness.light)
-            .copyWith(
-              glintStrength: rect.width / 1000,
-            ),
+    // Other refractions keep each in a read of its own.
+    settings: const LiquidGlassSettings.ios27Regular().copyWith(
+      refractionAmount: 60 + rect.width / 1000,
+    ),
     child: const LiquidGlass(
       shape: LiquidRoundedSuperellipse(radius: 20),
       child: SizedBox.expand(),
@@ -122,8 +120,6 @@ Future<Uint8List> _draw(
 
 void main() {
   setUp(() => glassReadsCopies = true);
-  tearDown(() => glassReadsCopies = false);
-
   testWidgets('glass reads its own copy with other glass in the frame', (
     tester,
   ) async {

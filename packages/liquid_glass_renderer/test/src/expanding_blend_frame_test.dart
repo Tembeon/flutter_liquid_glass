@@ -39,6 +39,7 @@ void main() {
                     LiquidGlassLayer(
                       fake: fake,
                       settings: settingsWithoutLighting,
+                      defaultAppearance: appearanceWithoutLighting,
                       child: StatefulBuilder(
                         builder: (context, setState) {
                           update = setState;
@@ -54,10 +55,13 @@ void main() {
                                             tint: Color(0x40FF0000),
                                             colorModel:
                                                 LiquidGlassColorModel.direct(
+                                                  brightness: Brightness.light,
                                                   saturation: 1.2,
                                                 ),
                                           )
-                                        : const LiquidGlassAppearance(),
+                                        : const LiquidGlassAppearance(
+                                            colorModel: unlitDirect,
+                                          ),
                                     shape: const LiquidRoundedRectangle(
                                       radius: 30,
                                     ),
@@ -73,10 +77,13 @@ void main() {
                                             tint: Color(0x400000FF),
                                             colorModel:
                                                 LiquidGlassColorModel.direct(
+                                                  brightness: Brightness.light,
                                                   saturation: 0.8,
                                                 ),
                                           )
-                                        : const LiquidGlassAppearance(),
+                                        : const LiquidGlassAppearance(
+                                            colorModel: unlitDirect,
+                                          ),
                                     shape: const LiquidOval(),
                                     child: const SizedBox.square(dimension: 60),
                                   ),

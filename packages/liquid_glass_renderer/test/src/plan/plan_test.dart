@@ -1,19 +1,22 @@
+@Tags(['composer'])
+library;
+
 import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/painting.dart' show AxisDirection;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_form.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_input.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_ledger.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
-import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/plan/band_look.dart';
 import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_ledger.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
 
 const _screen = Rect.fromLTWH(0, 0, 411, 914);
 
@@ -25,12 +28,6 @@ final class _Scene implements PlanScenery {
 
   @override
   final DirtyLog dirty = DirtyLog();
-
-  @override
-  Rect get screen => _screen;
-
-  @override
-  double get devicePixelRatio => 2.625;
 
   int texturesBefore = -1;
   int platformBefore = -1;
@@ -56,13 +53,13 @@ final class _Scene implements PlanScenery {
   int saved = 0;
 
   @override
-  int savedUnder(int order, Rect band, {required bool flat}) => saved;
+  int passesUnder(int order, Rect band, {required bool flat}) => saved;
 }
 
 FilterLook _look(int look, {bool frost = true}) => FilterLook(
   key: look,
-  need: frost ? const CopyNeed(share: 2, shaderFrost: 8) : const CopyNeed(),
-  drawsBand: frost,
+  need: frost ? const FrostNeed(8, share: 2) : const PlainNeed(),
+  glass: GlassLook(drawsBand: frost),
 );
 
 WritableSiteFacts _site(int order, Rect drawn, {int look = 0, int floor = -1}) {
@@ -73,7 +70,6 @@ WritableSiteFacts _site(int order, Rect drawn, {int look = 0, int floor = -1}) {
         drawn: drawn,
         reads: drawn.inflate(8),
         look: _look(look),
-        place: const Shifted(Offset.zero),
       ),
     )
     ..settleFloor(floor);
@@ -94,7 +90,7 @@ extension on WritableSiteFacts {
     SiteRole? role,
     NoJoin? noJoin,
     bool? groupsBackdrop,
-    ScreenPlace? place,
+    bool? backdropOnly,
   }) => SiteAsk(
     drawn: ask.drawn,
     reads: ask.reads,
@@ -102,7 +98,7 @@ extension on WritableSiteFacts {
     role: role ?? ask.role,
     noJoin: noJoin ?? ask.noJoin,
     groupsBackdrop: groupsBackdrop ?? ask.groupsBackdrop,
-    place: place ?? ask.place,
+    backdropOnly: backdropOnly ?? ask.backdropOnly,
   );
 }
 
@@ -158,7 +154,7 @@ _Scene _generated(int seed) {
       sites.last.takeAsk(sites.last._with(noJoin: NoJoin.field));
     }
     if (random.nextInt(40) == 0) {
-      sites.last.takeAsk(sites.last._with(place: const Turned()));
+      sites.last.takeAsk(sites.last._with(backdropOnly: true));
     }
     if (random.nextInt(30) == 0) sites.last.takeAsk(SiteAsk.none);
   }
@@ -173,18 +169,63 @@ _Scene _generated(int seed) {
   return scene;
 }
 
+PlanBasis _basis({
+  PlanPolicy policy = const PlanPolicy(),
+  bool explain = false,
+}) => PlanBasis(
+  screen: _screen,
+  devicePixelRatio: 2.625,
+  policy: policy,
+  explain: explain,
+);
+
 GlassPlan _plan(
   PlanScenery scene, {
-  PlanPrices prices = const PlanPrices(),
-  PlanPolicy policy = const PlanPolicy(),
+  PlanBasis? basis,
   PlanLedger? ledger,
   int frame = 100,
 }) {
   final used = ledger ?? PlanLedger();
-  final (plan, edits) = compilePlan(scene, used, prices, policy, frame);
+  final (plan, edits) = compilePlan(scene, used, basis ?? _basis(), frame);
   edits.applyTo(used, frame);
   return plan;
 }
+
+// What a read decided, to hold a kept plan against one planned anew.
+List<Object?> _decided(GlassRead read) => [
+  read.lead,
+  [for (final member in read.members) member],
+  switch (read.source) {
+    ImageRead(:final held) => 'image $held',
+    final source => source.runtimeType,
+  },
+  read.changed,
+  read.nesting,
+  read.passesUnder,
+  switch (read.source) {
+    SceneRead(:final wait) => wait,
+    _ => null,
+  },
+  if (read.source is! BackdropRead) ...[
+    read.layout.room,
+    read.layout.share,
+    read.layout.reads,
+  ],
+];
+
+Object _remembered(PlanLedger ledger) => {
+  for (final MapEntry(:key, value: memo) in ledger.reads.entries)
+    key: [
+      memo.changedAt,
+      memo.misses,
+      memo.boughtAt,
+      memo.forBudget,
+      memo.seenAt,
+      memo.nested,
+      memo.lastFootprint,
+      memo.layout?.room,
+    ],
+};
 
 void main() {
   group('joining', () {
@@ -203,10 +244,8 @@ void main() {
       final (plan, _) = compilePlan(
         _Scene(sites),
         PlanLedger(),
-        const PlanPrices(),
-        const PlanPolicy(),
+        _basis(explain: true),
         100,
-        explain: true,
       );
       expect(plan.notes, hasLength(2));
       expect(plan.notes.first, endsWith('painted over after its lead'));
@@ -221,18 +260,16 @@ void main() {
         final (plan, _) = compilePlan(
           _Scene(sites),
           PlanLedger(),
-          const PlanPrices(),
-          PlanPolicy(maxShapes: maxShapes),
+          _basis(policy: PlanPolicy(maxShapes: maxShapes), explain: true),
           100,
-          explain: true,
         );
         return plan.notes;
       }
 
-      const imageRead = ImageReadFilter(blur: (4, 4));
+      const imageRead = BlurredImage(4, 4);
       FilterLook readsImage(int look) => FilterLook(
         key: look,
-        need: const CopyNeed(),
+        need: const PlainNeed(),
         imageRead: imageRead,
       );
 
@@ -263,10 +300,8 @@ void main() {
         final (told, _) = compilePlan(
           _generated(seed),
           PlanLedger(),
-          const PlanPrices(),
-          const PlanPolicy(),
+          _basis(explain: true),
           100,
-          explain: true,
         );
         expect(told.reads.length, quiet.reads.length, reason: 'seed $seed');
         for (var i = 0; i < quiet.fates.length; i++) {
@@ -295,7 +330,7 @@ void main() {
       ];
       final plan = _plan(_Scene(over));
       expect(plan.reads, hasLength(2));
-      expect(plan.reads[1].level, 1);
+      expect(plan.reads[1].nesting, 1);
     });
 
     test('a clip of the lead that would cut glass keeps it apart', () {
@@ -311,11 +346,10 @@ void main() {
           drawn: band.ask.drawn,
           reads: band.ask.reads,
           look: const FilterLook(
-            key: 'band',
-            need: CopyNeed(share: 2, shaderFrost: 2),
+            key: null,
+            need: FrostNeed(2, share: 2),
           ),
           role: const BandSiteRole(_bandLook),
-          place: const Shifted(Offset.zero),
         ),
       );
       final glass = _site(2, const Rect.fromLTWH(8, 50, 44, 44));
@@ -323,8 +357,8 @@ void main() {
         glass._with(
           look: const FilterLook(
             key: 'a',
-            need: CopyNeed(share: 2, shaderFrost: 2),
-            drawsBand: true,
+            need: FrostNeed(2, share: 2),
+            glass: GlassLook(drawsBand: true),
           ),
         ),
       );
@@ -339,7 +373,7 @@ void main() {
       final other = _site(2, const Rect.fromLTWH(200, 0, 100, 100));
       other.takeAsk(
         other._with(
-          look: const FilterLook(key: 'other', need: CopyNeed()),
+          look: const FilterLook(key: 'other', need: PlainNeed()),
         ),
       );
       final top = _site(4, const Rect.fromLTWH(250, 50, 20, 20));
@@ -355,14 +389,14 @@ void main() {
         top._with(
           look: const FilterLook(
             key: 'thick',
-            need: CopyNeed(share: 4, shaderFrost: 20),
+            need: FrostNeed(20, share: 4),
           ),
         ),
       );
       top.settleFloor(-1);
       final plan = _plan(_Scene([low, top]));
       expect(plan.reads, hasLength(2));
-      expect(plan.reads[1].holds, [plan.reads[0]]);
+      expect(plan.reads[1].nested, [plan.reads[0]]);
     });
 
     test('chrome at both ends of the screen does not share a whole screen', () {
@@ -394,9 +428,11 @@ void main() {
       expect((read.source as ImageRead).held, isTrue);
     });
 
-    FilterLook look(double frost, {ImageReadFilter? imageRead}) => FilterLook(
+    FilterLook look(double blur, {ImageReadFilter? imageRead}) => FilterLook(
       key: 'glass',
-      need: CopyNeed(share: 2, shaderFrost: frost),
+      need: blur > 0
+          ? LevelNeed(CopyLevels(least: blur, most: blur), share: 2)
+          : const PlainNeed(share: 2),
       imageRead: imageRead,
     );
 
@@ -410,7 +446,7 @@ void main() {
       expect(read.source, const ImageRead(held: true));
     });
 
-    test('a held image goes when the frost baked into it changes', () {
+    test('a held image goes when the levels drawn into it change', () {
       final site = _site(0, const Rect.fromLTWH(20, 200, 200, 90));
       site.takeAsk(site._with(look: look(4)));
       final scene = _Scene([site]);
@@ -430,7 +466,7 @@ void main() {
       final site = _site(0, const Rect.fromLTWH(20, 200, 200, 90));
       site.takeAsk(
         site._with(
-          look: look(0, imageRead: const ImageReadFilter(blur: (4, 4))),
+          look: look(0, imageRead: const BlurredImage(4, 4)),
         ),
       );
       final scene = _Scene([site]);
@@ -440,7 +476,7 @@ void main() {
       expect(held.source, const ImageRead(held: true));
       site.takeAsk(
         site._with(
-          look: look(0, imageRead: const ImageReadFilter(blur: (8, 8))),
+          look: look(0, imageRead: const BlurredImage(8, 8)),
         ),
       );
       final read = _plan(scene, ledger: ledger, frame: 3).reads.single;
@@ -452,7 +488,7 @@ void main() {
       final filtered = _site(2, const Rect.fromLTWH(20, 200, 200, 90));
       filtered.takeAsk(
         filtered._with(
-          look: look(0, imageRead: const ImageReadFilter(blur: (4, 4))),
+          look: look(0, imageRead: const BlurredImage(4, 4)),
         ),
       );
       final over = _site(4, const Rect.fromLTWH(20, 200, 200, 90));
@@ -460,6 +496,16 @@ void main() {
       final plan = _plan(scene, frame: 1);
       expect(plan.reads.first.source, isA<BackdropRead>());
       expect(plan.reads.last.source, isA<BackdropRead>());
+    });
+
+    test('fading glass reads an image, or the backdrop over a texture', () {
+      final site = _site(2, const Rect.fromLTWH(20, 200, 200, 90));
+      final scene = _Scene([site])..changedAt = 100;
+      expect(_plan(scene).reads.single.source, isA<SceneRead>());
+      site._place(state: StateChain(StateChain.root, 128, fades: true));
+      expect(_plan(scene).reads.single.source, const ImageRead(held: false));
+      scene.texturesBefore = 1;
+      expect(_plan(scene).reads.single.source, isA<BackdropRead>());
     });
 
     test('a menu over a page long still buys in its first frame', () {
@@ -524,7 +570,7 @@ void main() {
     test('an image the budget buys has room and losing it is no miss', () {
       final site = _site(0, Rect.zero);
       final ledger = PlanLedger();
-      const policy = PlanPolicy(maxTargets: 0);
+      const policy = PlanPolicy(maxPasses: 0);
       GlassRead frame(int frame, double left) {
         final drawn = Rect.fromLTWH(left, 200, 120, 60);
         site.takeAsk(
@@ -532,13 +578,12 @@ void main() {
             drawn: drawn,
             reads: drawn.inflate(8),
             look: _look(0),
-            place: const Shifted(Offset.zero),
           ),
         );
         return _plan(
           _Scene([site]),
+          basis: _basis(policy: policy),
           ledger: ledger,
-          policy: policy,
           frame: frame,
         ).reads.single;
       }
@@ -582,27 +627,27 @@ void main() {
       final plan = _plan(live(pair()));
       expect(plan.reads, hasLength(2));
       expect(plan.reads.every((read) => read.source is BackdropRead), isTrue);
-      expect(plan.reads.first.backdropGroup, isNotNull);
-      expect(plan.reads.last.backdropGroup, plan.reads.first.backdropGroup);
+      expect(_groupOf(plan.reads.first), isNotNull);
+      expect(_groupOf(plan.reads.last), _groupOf(plan.reads.first));
     });
 
     test('keeps a read apart when something paints under it', () {
       final sites = pair();
       sites.last.settleFloor(2);
       final plan = _plan(live(sites));
-      expect(plan.reads.map((read) => read.backdropGroup), [null, null]);
+      expect(plan.reads.map(_groupOf), [null, null]);
     });
 
     test('keeps a read apart when it reads what the last one drew', () {
       final plan = _plan(live(pair(gap: 30)));
-      expect(plan.reads.map((read) => read.backdropGroup), [null, null]);
+      expect(plan.reads.map(_groupOf), [null, null]);
     });
 
     test('keeps a read apart under another clip', () {
       final sites = pair();
-      sites.last._place(state: const StateChain(StateChain.root, 'clip'));
+      sites.last._place(state: StateChain(StateChain.root, 'clip'));
       final plan = _plan(live(sites));
-      expect(plan.reads.map((read) => read.backdropGroup), [null, null]);
+      expect(plan.reads.map(_groupOf), [null, null]);
     });
 
     test('leaves out glass that has no geometry', () {
@@ -611,7 +656,7 @@ void main() {
         sites.last._with(noJoin: NoJoin.noGeometry, groupsBackdrop: false),
       );
       final plan = _plan(live(sites));
-      expect(plan.reads.map((read) => read.backdropGroup), [null, null]);
+      expect(plan.reads.map(_groupOf), [null, null]);
     });
 
     test('numbers runs apart', () {
@@ -621,14 +666,14 @@ void main() {
         _site(7, const Rect.fromLTWH(208, 300, 44, 44), look: 3, floor: 4),
       ];
       final plan = _plan(live(sites));
-      final groups = [for (final read in plan.reads) read.backdropGroup];
+      final groups = [for (final read in plan.reads) _groupOf(read)];
       expect(groups, [0, 0, 1, 1]);
     });
 
     test('never groups a read that uses a scene copy or an image', () {
       final plan = _plan(_Scene(pair()));
       expect(
-        plan.reads.map((read) => read.backdropGroup),
+        plan.reads.map(_groupOf),
         everyElement(isNull),
       );
     });
@@ -641,7 +686,7 @@ void main() {
       for (var seed = 0; seed < seeds; seed++) {
         final scene = _generated(seed);
         final plan = _plan(scene);
-        if (plan.issuedTargets <= const PlanPolicy().maxTargets) continue;
+        if (plan.issuedPasses <= const PlanPolicy().maxPasses) continue;
         final stuck = plan.reads.where((read) => read.source is! ImageRead);
         for (final read in stuck) {
           expect(
@@ -649,7 +694,7 @@ void main() {
                 read.source is BackdropRead,
             isTrue,
             reason:
-                'seed $seed left ${plan.issuedTargets} targets on a read '
+                'seed $seed left ${plan.issuedPasses} targets on a read '
                 'that could use an image',
           );
         }
@@ -668,8 +713,8 @@ void main() {
       final plan = _plan(_Scene(rows));
       expect(plan.reads, hasLength(12));
       expect(
-        plan.issuedTargets,
-        lessThanOrEqualTo(const PlanPolicy().maxTargets),
+        plan.issuedPasses,
+        lessThanOrEqualTo(const PlanPolicy().maxPasses),
       );
     });
 
@@ -679,7 +724,7 @@ void main() {
         final a = _plan(scene);
         final b = _plan(scene);
         expect(b.reads.length, a.reads.length, reason: 'seed $seed');
-        expect(b.issuedTargets, a.issuedTargets, reason: 'seed $seed');
+        expect(b.issuedPasses, a.issuedPasses, reason: 'seed $seed');
         for (var i = 0; i < a.reads.length; i++) {
           expect(
             b.reads[i].members.length,
@@ -688,6 +733,103 @@ void main() {
           );
         }
       }
+    });
+
+    test('keeps a plan over what changed under it as it would plan anew', () {
+      var kept = 0;
+      var planned = 0;
+      for (var seed = 0; seed < 600; seed++) {
+        final random = Random(seed);
+        final scene = _generated(seed)..changedAt = 100;
+        final keeping = PlanLedger();
+        final fresh = PlanLedger();
+        var basis = _basis();
+        var plan = _plan(scene, ledger: keeping);
+        _plan(scene, ledger: fresh);
+        for (var frame = 101; frame < 160; frame++) {
+          scene.dirty.clear();
+          if (random.nextInt(3) > 0) {
+            scene.dirty.add(
+              random.nextInt(90),
+              Rect.fromLTWH(
+                0,
+                random.nextDouble() * 900,
+                411,
+                10 + random.nextDouble() * 200,
+              ),
+            );
+          }
+          PlanBasis changed({
+            Rect? screen,
+            double? devicePixelRatio,
+            PlanPolicy? policy,
+            bool? copies,
+            bool? explain,
+          }) => PlanBasis(
+            screen: screen ?? basis.screen,
+            devicePixelRatio: devicePixelRatio ?? basis.devicePixelRatio,
+            policy: policy ?? basis.policy,
+            copies: copies ?? basis.copies,
+            explain: explain ?? basis.explain,
+          );
+          switch (random.nextInt(20)) {
+            case 0:
+              basis = changed(
+                devicePixelRatio: basis.devicePixelRatio == 2.625 ? 3 : 2.625,
+              );
+            case 1:
+              basis = changed(
+                screen: basis.screen == _screen
+                    ? _screen.topLeft & const Size(411, 500)
+                    : _screen,
+              );
+            case 2:
+              basis = changed(
+                policy: PlanPolicy(
+                  maxPasses: basis.policy.maxPasses == 24 ? 4 : 24,
+                ),
+              );
+            case 3:
+              basis = changed(copies: !basis.copies);
+            case 6:
+              basis = changed(explain: !basis.explain);
+            case 4:
+              scene.texturesBefore = scene.texturesBefore < 0
+                  ? random.nextInt(60)
+                  : -1;
+            case 5:
+              scene.saved = 1 - scene.saved;
+          }
+          final anew = _plan(
+            scene,
+            basis: basis,
+            ledger: fresh,
+            frame: frame,
+          );
+          final reason = 'seed $seed frame $frame';
+          if (keepPlan(plan, scene, keeping, basis, frame) case (
+            final again,
+            final edits,
+          )) {
+            kept++;
+            edits.applyTo(keeping, frame);
+            expect(
+              [for (final read in again.reads) _decided(read)],
+              [for (final read in anew.reads) _decided(read)],
+              reason: reason,
+            );
+            expect(again.issuedPasses, anew.issuedPasses, reason: reason);
+            expect(again.dueAt, anew.dueAt, reason: reason);
+            expect(again.basis.explain, basis.explain, reason: reason);
+            plan = again;
+          } else {
+            planned++;
+            plan = _plan(scene, basis: basis, ledger: keeping, frame: frame);
+          }
+          expect(_remembered(keeping), _remembered(fresh), reason: reason);
+        }
+      }
+      expect(kept, greaterThan(planned));
     });
 
     test('draws each read from the geometry of the glass it draws', () {
@@ -708,15 +850,17 @@ void main() {
               look: FilterLook(
                 key: look.key,
                 need: look.need,
-                drawsBand: look.drawsBand,
-                census: censuses[(seed + i) % censuses.length],
+                glass: GlassLook(
+                  drawsBand: look.glass?.drawsBand ?? false,
+                  census: censuses[(seed + i) % censuses.length],
+                ),
               ),
             ),
           );
         }
         for (final read in _plan(scene).reads) {
           final glass = [
-            for (final member in read.members) member.ask.look.census,
+            for (final member in read.members) member.ask.look.glass!.census,
           ];
           expect(
             read.geometryKind,
@@ -740,18 +884,13 @@ void main() {
       }
     });
 
-    test('moves by at most two targets when a price is three times off', () {
-      const base = PlanPrices();
-      final variants = <PlanPrices>[
+    test('moves by at most two targets when a trade is three times off', () {
+      const base = PlanPolicy();
+      final variants = <PlanPolicy>[
         for (final f in [1 / 3, 3.0]) ...[
-          PlanPrices(
-            passGpu: base.passGpu * f,
-            passRaster: base.passRaster * f,
-          ),
-          PlanPrices(copyGpuPerMpx: base.copyGpuPerMpx * f),
-          PlanPrices(deadGpuPerMpx: base.deadGpuPerMpx * f),
-          PlanPrices(rasterWeight: base.rasterWeight * f),
-          PlanPrices(imageRaster: base.imageRaster * f),
+          PlanPolicy(passPixels: base.passPixels * f),
+          PlanPolicy(deadWeight: base.deadWeight * f),
+          PlanPolicy(imagePasses: base.imagePasses * f),
         ],
       ];
       final moved = <int>[];
@@ -760,10 +899,13 @@ void main() {
         // Over a texture nothing can move to an image, and overlapping glass
         // doubles per level with no bound to hold it.
         if (scene.texturesBefore >= 0 || scene.platformBefore >= 0) continue;
-        final targets = _plan(scene).issuedTargets;
-        for (final prices in variants) {
-          final other = _plan(_generated(seed), prices: prices);
-          moved.add((other.issuedTargets - targets).abs());
+        final targets = _plan(scene).issuedPasses;
+        for (final policy in variants) {
+          final other = _plan(
+            _generated(seed),
+            basis: _basis(policy: policy),
+          );
+          moved.add((other.issuedPasses - targets).abs());
         }
       }
       moved.sort();
@@ -780,15 +922,15 @@ void main() {
     });
   });
 
-  group('prices', () {
+  group('policy', () {
     test('a large read pays for an image sooner than a small one', () {
-      const prices = PlanPrices();
-      final large = prices.rent(
+      const policy = PlanPolicy();
+      final large = policy.imageRent(
         const Rect.fromLTWH(0, 0, 400, 800),
         1,
         devicePixelRatio: 2.625,
       );
-      final small = prices.rent(
+      final small = policy.imageRent(
         const Rect.fromLTWH(0, 0, 44, 44),
         2,
         devicePixelRatio: 2.625,
@@ -797,3 +939,8 @@ void main() {
     });
   });
 }
+
+int? _groupOf(GlassRead read) => switch (read.source) {
+  BackdropRead(:final group) => group,
+  _ => null,
+};

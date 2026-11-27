@@ -57,8 +57,7 @@ base class LiquidGlassRenderer extends GlassRenderer {
       buildHighlights(context, details, _body(context, details));
 
   Widget _body(BuildContext context, GlassSurfaceDetails details) {
-    if (GlassTraits.of(context).reduceTransparency ||
-        details.role == GlassRole.track) {
+    if (details.role == GlassRole.track) {
       return FlatGlassRenderer.flatSurface(context, details);
     }
     if (details.role == GlassRole.lens) {
@@ -88,7 +87,6 @@ base class LiquidGlassRenderer extends GlassRenderer {
 
   @override
   Widget buildGroup(BuildContext context, GlassGroupDetails details) {
-    if (GlassTraits.of(context).reduceTransparency) return details.child;
     return _LiquidGroup(
       fake: fake,
       blend: details.merge.spacing,
@@ -103,21 +101,30 @@ base class LiquidGlassRenderer extends GlassRenderer {
   int get hashCode => runtimeType.hashCode;
 
   /// The iOS 27 material of [glass] in [brightness], at the Liquid Glass
-  /// slider position [sliderPosition].
+  /// slider position [sliderPosition], with the face of the Increase
+  /// Contrast setting where [highContrast] says so and as Reduce
+  /// Transparency draws it where [reduceTransparency] says so.
   @internal
   static LiquidGlassMaterial materialOf(
     Glass glass,
     Brightness brightness, {
     double sliderPosition = 0,
+    bool highContrast = false,
+    bool reduceTransparency = false,
   }) => glass.isClear
       ? LiquidGlassMaterial.ios27Clear(
+          brightness: brightness,
           sliderPosition: sliderPosition,
-          tint: glass.tint,
+          highContrast: highContrast,
+          reduceTransparency: reduceTransparency,
+          tint: glass.tint ?? const Color(0x00000000),
         )
       : LiquidGlassMaterial.ios27Regular(
           brightness: brightness,
           sliderPosition: sliderPosition,
-          tint: glass.tint,
+          highContrast: highContrast,
+          reduceTransparency: reduceTransparency,
+          tint: glass.tint ?? const Color(0x00000000),
         );
 
   /// The shadows a body of [role] made of [material] casts.
@@ -159,21 +166,19 @@ Color? _tintOf(GlassFrame frame, Color? own) {
   return Color.lerp(own ?? tint.withValues(alpha: 0), tint, amount);
 }
 
-/// The settings of [lens] lifted by [lift], its glass [height] across its
-/// short side, or null where its frame names no rect.
+/// The settings of [lens] lifted by [lift], its glass [shortSide] across
+/// where it is shortest, or null where its frame names no rect.
 ///
 /// Read from UIKit's lifted lenses on iOS 27.2 (tab bar 114 x 70,
 /// segmented control 110 x 44, switch 58 x 38.3, slider 57.3 x 37; notes
 /// private). The glass of a lifted lens bends its edge toward the middle by
-/// 0.15 of its height over 0.1 of it, a small lens (a knob or thumb) by 0.3
+/// 0.15 of its short side over 0.1 of it, a small lens (a knob or thumb) by 0.3
 /// over 0.18. A large lens parts the colors over its glass by seven reads,
-/// the farthest 1 / 19 of its height from its place, along the way
-/// [LiquidGlassSettings.aberration] describes, fading over 0.2 of the
-/// height from the edge; a small one parts none. Under the glass the lens
-/// pulls in its surroundings by its [GlassLens.pull]. Its rim is lit as at
-/// rest. Bend, pull and parting grow with the lift. The glass shades
-/// nothing itself: the shadow regular glass carries inside its rim is off,
-/// and the lens's own shadows are drawn over it ([LensShadowLaw]).
+/// the farthest 1 / 19 of its short side from its place, along the way
+/// [LiquidGlassLens.aberration] describes, fading over 0.2 of the
+/// short side from the edge; a small one parts none. Under the glass the lens
+/// pulls in its surroundings by its [GlassLens.pull]. Bend, pull and
+/// parting grow with the lift.
 ///
 /// The parting's reach is in points like every length here, 3.68 on the
 /// tab bar's lens. Around that lens's rounded end a host capture puts red
@@ -187,7 +192,7 @@ Color? _tintOf(GlassFrame frame, Color? own) {
 ///
 /// At rest UIKit's lens configuration bends what is behind a small lens by
 /// 50 and blurs it by 6, and a large lens rests clear. Neither mixes a wide
-/// blur into what it shows. A lens without a height keeps the bevel of the
+/// blur into what it shows. A lens without a short side keeps the bevel of the
 /// glass it rests as.
 ///
 /// What a large lens selects lies over this glass, bent by a law of its
@@ -196,48 +201,52 @@ LiquidGlassSettings _lensSettings(
   LiquidGlassSettings base,
   double lift, {
   required GlassLens lens,
-  required double? height,
+  required double? shortSide,
 }) {
   final l = lift.clamp(0.0, 1.0);
   final small = lens.small;
   final settings = base.copyWith(
-    frost: LiquidGlassFrost.sigma(small ? 6 * (1 - l) : 0),
-    haze: const LiquidGlassHaze.none(),
-    dispersion: 0,
-    bevelShadowStrength: 0,
-    backdropPull: lens.pull * l,
-    backdropPullDepth: lens.pullHeight,
+    blur: small ? 6 * (1 - l) : 0,
+    lens: base.lens.copyWith(
+      pull: lens.pull * l,
+      pullDepth: lens.pullDepth,
+      dispersion: 0,
+    ),
   );
-  if (height == null) {
+  if (shortSide == null) {
     return small ? settings.copyWith(refractionAmount: 50 * (1 - l)) : settings;
   }
-  final lifted = (small ? 0.3 : 0.15) * height;
-  final bevel = (small ? 0.18 : 0.1) * height;
+  final lifted = (small ? 0.3 : 0.15) * shortSide;
+  final bevel = (small ? 0.18 : 0.1) * shortSide;
   return settings.copyWith(
     refractionAmount: small ? 50 + (lifted - 50) * l : lifted * l,
     refractionHeight: small
         ? base.refractionHeight + (bevel - base.refractionHeight) * l
         : bevel,
-    aberration: small ? 0 : LensContentLaw.parting(height, lift: l),
-    aberrationDepth: LensContentLaw.partingDepth(height),
+    lens: settings.lens.copyWith(
+      aberration: small ? 0 : LensContentLaw.parting(shortSide, lift: l),
+      aberrationDepth: LensContentLaw.partingDepth(shortSide),
+    ),
   );
 }
 
 /// The appearance of the glass of [lens], [visibility] of the way from its
-/// resting platter to glass.
-///
-/// Read from UIKit's lifted lenses on iOS 27.2 (notes private). The face of
-/// a selection changes no color. The face of a knob or thumb lifts black to
-/// a tenth of white and leaves white where it is, `0.1 + 0.9 * c` for every
-/// channel: a tenth of white lies over what the lens shows, under its
-/// shadows and its rim light. On the iPhone 16 Pro references a held slider
-/// thumb over a black page shows 25 of 255.
-LiquidGlassAppearance _lensAppearance(GlassLens lens, double visibility) =>
-    lens.small
-    ? LiquidGlassAppearance(tint: _smallLensFace, visibility: visibility)
-    : LiquidGlassAppearance(visibility: visibility);
-
-const _smallLensFace = Color.from(alpha: 0.1, red: 1, green: 1, blue: 1);
+/// resting platter to glass: the recipe UIKit lifts out of a held control
+/// on iOS 27.2, [LiquidGlassColorModel.ios27Lens] for a selection, whose
+/// face changes no colour, and [LiquidGlassColorModel.ios27SmallLens] for a
+/// knob or thumb, whose face lifts black to a tenth of white (a held slider
+/// thumb over a black page shows 25 of 255 on the iPhone 16 Pro). The
+/// lens's ring and drop shadows are drawn over it ([LensShadowLaw]).
+LiquidGlassAppearance _lensAppearance(
+  GlassLens lens,
+  double visibility,
+  Brightness brightness,
+) => LiquidGlassAppearance(
+  visibility: visibility,
+  colorModel: lens.small
+      ? LiquidGlassColorModel.ios27SmallLens(brightness: brightness)
+      : LiquidGlassColorModel.ios27Lens(brightness: brightness),
+);
 
 class _LiquidSurface extends StatefulWidget {
   const _LiquidSurface({required this.details});
@@ -252,6 +261,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
   late final _shape = ValueNotifier(_shapeFrame);
   late LiquidGlassMaterial _material;
   late Brightness _brightness;
+  late bool _highContrast;
   _LiquidGroupState? _group;
 
   ValueListenable<GlassFrame> get _source => widget.details.frame;
@@ -264,6 +274,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
         ? _lensAppearance(
             widget.details.lens,
             GlassFrame.glassnessAt(frame.lift),
+            _brightness,
           )
         : tint == null
         ? _material.appearance
@@ -272,6 +283,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
                 ? Glass.clear(tint: tint)
                 : Glass.regular(tint: tint),
             _brightness,
+            highContrast: _highContrast,
           ).appearance;
     return LiquidGlassShapeFrame(
       shape: frame.shape,
@@ -287,7 +299,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       glow: switch (frame.glow) {
         final glow? => LiquidGlassGlow(
           center: glow.center,
-          radius: glow.radius,
+          sigma: glow.sigma,
           gain: glow.gainOn(widget.details.glass, _brightness),
           wash: glow.wash,
         ),
@@ -329,10 +341,13 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       _group = group;
     }
     group.reportGlass(this, widget.details.glass);
-    _brightness = GlassTraits.of(context).brightness;
+    final traits = GlassTraits.of(context);
+    _brightness = traits.brightness;
+    _highContrast = traits.highContrast;
     _material = LiquidGlassRenderer.materialOf(
       widget.details.glass,
       _brightness,
+      highContrast: _highContrast,
     );
     _shape.value = _shapeFrame;
     return LiquidGlass.live(

@@ -3,7 +3,13 @@ part of 'geometry_tiling.dart';
 /// The blend groups of a [ShapeSet]: shapes in chain order, a negative blend
 /// marker starting each group.
 final class _ShapeGroups {
-  _ShapeGroups._(this.groupOf, this.members, this._blends, this._smoothing);
+  _ShapeGroups._(
+    this.groupOf,
+    this.members,
+    this._blends,
+    this._blendSums,
+    this._smoothing,
+  );
 
   factory _ShapeGroups.of(ShapeSet shapes) {
     final groupOf = Int32List(shapes.count);
@@ -22,18 +28,19 @@ final class _ShapeGroups {
       members.last.add(i);
       groupOf[i] = members.length - 1;
     }
-    // A smooth fold lowers the union by at most a quarter of its radius.
     return _ShapeGroups._(
       groupOf,
       members,
       blends,
-      [for (final sum in sums) sum * 0.25],
+      sums,
+      [for (final sum in sums) sum * smoothUnionDepth],
     );
   }
 
   final Int32List groupOf;
   final List<List<int>> members;
   final List<double> _blends;
+  final List<double> _blendSums;
   final List<double> _smoothing;
 
   /// How far below its nearest member [group]'s union can reach.
@@ -46,9 +53,10 @@ final class _ShapeGroups {
   /// How far below its nearest member a shape's group can reach.
   double smoothing(int shape) => _smoothing[groupOf[shape]];
 
-  /// How far outside a shape its look can weigh in: 1.25 times its group's
-  /// blends, and a pixel.
-  double lookReach(int shape) => smoothing(shape) * 5 + 1;
+  /// How far outside a shape its look can weigh in: its group's blends, the
+  /// depth their fold reaches below them, and a pixel.
+  double lookReach(int shape) =>
+      _blendSums[groupOf[shape]] + smoothing(shape) + 1;
 }
 
 /// Classifies the tiles of a buffer group by group.
@@ -466,7 +474,7 @@ final class _Classifier {
       if (blend > 0) {
         final gap = max(0, max(shapeLower - upper, lower - shapeUpper));
         final bite = blend - gap;
-        lower = min(lower, shapeLower) - bite * bite * 0.25 / blend;
+        lower = min(lower, shapeLower) - bite * bite * smoothUnionDepth / blend;
       } else {
         lower = min(lower, shapeLower);
       }

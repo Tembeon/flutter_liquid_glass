@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
@@ -9,14 +7,13 @@ import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
-import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
+import 'package:liquid_glass_renderer/src/widgets/composer_install.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_visibility.dart';
-import 'package:liquid_glass_renderer/src/widgets/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/widgets/optimized_clip.dart';
 
 /// A lower-cost approximation of [LiquidGlass] without refraction geometry,
@@ -29,7 +26,7 @@ import 'package:liquid_glass_renderer/src/widgets/optimized_clip.dart';
 /// filtered as the backdrop is, the antialiased rim of the shape differs
 /// from reading the backdrop by up to 10 channel levels in the host test at
 /// a device pixel ratio of 1, and inside the rim by at most 2; a copy the
-/// shader frosts differs more (see `PlanPolicy.shaderFrost`).
+/// shader frosts differs more (see `PlanPolicy.shaderBlurs`).
 ///
 /// Glass that should be full glass wherever the device draws it goes in a
 /// [LiquidGlassLayer], which draws its [LiquidGlass] shapes as fake glass
@@ -47,8 +44,8 @@ class FakeGlass extends StatelessWidget {
   const FakeGlass({
     required this.shape,
     required this.child,
+    required this.appearance,
     this.settings = const LiquidGlassSettings(),
-    this.appearance = const LiquidGlassAppearance(),
     this.shadows = const [],
     super.key,
   });
@@ -58,18 +55,15 @@ class FakeGlass extends StatelessWidget {
 
   /// The settings for the glass effect.
   ///
-  /// This path approximates lighting and blur without refraction.
-  /// [LiquidGlassSettings.refractionAmount],
-  /// [LiquidGlassSettings.backdropShrink] and
-  /// [LiquidGlassSettings.dispersion] therefore have no effect, and
-  /// [LiquidGlassDirectColorModel.vibrancy] is likewise ignored. The
-  /// `transmissionGamma` of a color model is only approximated.
-  /// [LiquidGlassSettings.refractionHeight] only controls the width of the
-  /// approximate inner light bleed.
+  /// This path approximates lighting and blur without refraction: of the
+  /// settings it draws [LiquidGlassSettings.blur] and
+  /// [LiquidGlassSettings.sliderPosition] alone.
   final LiquidGlassSettings settings;
 
   /// Color and materialization controls for this shape, multiplied by the
-  /// nearest [LiquidGlassVisibility].
+  /// nearest [LiquidGlassVisibility]. Of its color model,
+  /// [LiquidGlassDirectColorModel.vibrancy] is ignored and
+  /// `transmissionGamma` only approximated.
   final LiquidGlassAppearance appearance;
 
   /// The shadows the glass shape casts, as
@@ -89,21 +83,18 @@ class FakeGlass extends StatelessWidget {
       opacity: drawnVisibility(shown.visibility),
       child: child,
     );
-    RawFakeGlass raw(ui.FragmentShader? surfaceShader) => RawFakeGlass(
-      shape: shape,
-      settings: settings,
-      shownAppearance: shown,
-      surfaceShader: surfaceShader,
-      child: content,
-    );
     final clipped = OptimizedClip(
       shape: shape,
       clipBehavior: Clip.antiAlias,
-      outset: fakeGlassSurfaceOutset(FakeGlassLook.of(settings)),
-      child: MultiShaderBuilder(
-        (_, shaders, _) => raw(shaders[ShaderKeys.fakeGlassSurface]),
-        assetKeys: ShaderKeys.fakeSurfaceAssets,
-        child: raw(null),
+      outset: fakeGlassSurfaceOutset(
+        FakeGlassLook.of(settings),
+        shown.wornByNone.colorModel,
+      ),
+      child: RawFakeGlass(
+        shape: shape,
+        settings: settings,
+        shownAppearance: shown,
+        child: content,
       ),
     );
     if (shadows.isEmpty) return clipped;
@@ -135,7 +126,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
     required this.shape,
     required this.settings,
     required this.shownAppearance,
-    required this.surfaceShader,
     required super.child,
     super.key,
   });
@@ -149,17 +139,14 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
   /// The appearance the glass shows: its own, faded.
   final LiquidGlassAppearance shownAppearance;
 
-  /// The surface shader, or null before it has loaded.
-  final ui.FragmentShader? surfaceShader;
-
   @override
   RenderObject createRenderObject(BuildContext context) {
+    installLiquidGlassComposer();
     return RenderFakeGlass(
       devicePixelRatio: glassDevicePixelRatioOf(context),
       shape: shape,
       settings: settings,
       shownAppearance: shownAppearance,
-      surfaceShader: surfaceShader,
     );
   }
 
@@ -169,7 +156,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
       ..devicePixelRatio = glassDevicePixelRatioOf(context)
       ..shape = shape
       ..settings = settings
-      ..shownAppearance = shownAppearance
-      ..surfaceShader = surfaceShader;
+      ..shownAppearance = shownAppearance;
   }
 }

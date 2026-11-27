@@ -163,8 +163,8 @@ A `LiquidGlassSupport` is one of three:
 | `LiquidGlassBlendGroup` | Melts the `LiquidGlass` shapes inside it into one surface. |
 | `LiquidGlassVisibility` | Fades the glass in a subtree in and out. |
 | `FakeGlass` | The fallback without refraction, used automatically where full glass is unavailable. |
-| `LiquidGlassSettings` | Refraction, frost, glint, contour and inner shadow, shared by a layer. |
-| `LiquidGlassAppearance` | Tint, color model and visibility, per shape or as a layer default. |
+| `LiquidGlassSettings` | Refraction, the lens and the blur, shared by a layer. |
+| `LiquidGlassAppearance` | Tint, color model (and with it the rim) and visibility, per shape or as a layer default. |
 | `LiquidGlassMaterial` | Settings, an appearance and shadows that match: one iOS 27 glass for a brightness. |
 
 `LiquidGlass` draws where the tree puts it:
@@ -292,8 +292,9 @@ fill a `LiquidGlassField` itself instead.
 ## iOS 27 presets and the Liquid Glass slider
 
 Glass is configured in three parts. `LiquidGlassSettings` on the layer holds
-the optics and lighting. `LiquidGlassAppearance` holds the color, either as
-the layer's `defaultAppearance` or per shape. A shape's `shadows` are a list
+the optics: the refraction, the lens and the blur. `LiquidGlassAppearance`
+holds the color and the lit rim, either as the layer's `defaultAppearance` or
+per shape. A shape's `shadows` are a list
 of `LiquidGlassShadow`. `LiquidGlassMaterial` gives all three for one iOS 27
 glass:
 
@@ -317,11 +318,10 @@ Every type names the two iOS 27 glasses the same way:
 
 | Material | Regular (`.regular`: toolbars, tab bars, `.glass` buttons) | Clear (`.clear`) |
 | --- | --- | --- |
-| `LiquidGlassMaterial` | `ios27Regular(brightness:)` | `ios27Clear()` |
-| `LiquidGlassSettings` | `ios27Regular(brightness:)` | `ios27Clear()` |
-| `LiquidGlassAppearance` | `ios27Regular(brightness:)` | `ios27Clear()` |
+| `LiquidGlassMaterial` | `ios27Regular(brightness:)` | `ios27Clear(brightness:)` |
+| `LiquidGlassSettings` | `ios27Regular()` | `ios27Clear()` |
+| `LiquidGlassAppearance` | `ios27Regular(brightness:)` | `ios27Clear(brightness:)` |
 | `LiquidGlassShadow` | `ios27Regular(brightness:)` | none: clear glass casts no shadow |
-| `LiquidGlassFrost`, `LiquidGlassHaze` | `ios27Regular(...)` | `ios27Clear()` |
 
 A layer given no `settings` and no `defaultAppearance` draws regular glass for
 the platform brightness: light glass in light mode, dark glass in dark mode.
@@ -330,6 +330,18 @@ The presets are fitted to Apple's glass at toolbar and button size. They are a
 starting point: Apple also varies its glass with the control's role, size and
 accessibility settings.
 
+### `reduceTransparency`: Reduce Transparency
+
+Under the Reduce Transparency accessibility setting iOS 27 keeps its glass but
+draws it otherwise: no refraction, a wide blur (35 points on a control's glass
+to 50 on a panel's), a nearly flat face, no ring shadow. Pass the setting as
+`reduceTransparency`; as with the slider, the renderer does not read the
+system value.
+
+```dart
+LiquidGlassMaterial.ios27Regular(brightness: brightness, reduceTransparency: true)
+```
+
 ### `sliderPosition`: the Liquid Glass slider
 
 iOS 27 has a Liquid Glass slider in Settings, from Clear (`0`) to Tinted
@@ -337,23 +349,24 @@ iOS 27 has a Liquid Glass slider in Settings, from Clear (`0`) to Tinted
 system setting; your app decides.
 
 ```dart
-LiquidGlassSettings.ios27Regular(brightness: brightness, sliderPosition: 0.5)
+LiquidGlassMaterial.ios27Regular(brightness: brightness, sliderPosition: 0.5)
 ```
 
 The settings store the position once, and everything fitted to iOS 27 follows
 it, so `settings.copyWith(sliderPosition: 1)` is the tinted glass:
 
-- **Wash.** The iOS 27 color model makes its neutral wash more opaque, and
-  dark glass denser.
-- **Contour.** The dark contour gets stronger.
-- **Blur.** A fitted `frost` (`LiquidGlassFrost.ios27Regular()`,
-  `LiquidGlassFrost.ios27Clear()`) and a fitted `haze` follow the slider, and
-  the frost also grows with the glass's short side; its dartdoc lists the
-  measured values.
+- **Wash.** The iOS 27 regular color model makes its neutral wash more
+  opaque, and dark glass denser.
+- **Blur.** Left out, `blur` is the blur of the glass the color model draws,
+  regular or clear, with its milky fill: both follow the slider, and the blur
+  also grows with the glass's short side. Direct glass blurs as regular glass
+  of its brightness, so its blur follows the slider too.
 
-The glint doesn't change. The direct color model ignores `sliderPosition`,
-and it never changes a frost or a haze you give as numbers:
-`LiquidGlassFrost.sigma(12)` is 12 logical pixels at every position and size.
+The edges don't change: neither the rim highlight or the direct model's
+glint, nor the dark edge (the iOS 27 models' dark specular, the direct model's
+contour). Neither do clear glass's face and the direct model's. A `blur` you
+give never changes: `blur: 12` is 12 logical pixels at every position and
+size, with no fill.
 
 ## Tint and color
 
@@ -380,12 +393,14 @@ and its opacity into tones that depend on the brightness of the backdrop,
 like Apple's single-tint API. Clear glass (`LiquidGlassColorModel.ios27Clear`)
 is the same in light and dark.
 
-For full control, use the direct model and tune each transfer yourself:
+For full control, use the direct model and tune each transfer yourself. Its
+`brightness` picks the rim and the blur it draws, as an iOS 27 model's does:
 
 ```dart
 const LiquidGlassAppearance(
   tint: Color(0x663B82F6),
   colorModel: LiquidGlassColorModel.direct(
+    brightness: Brightness.light,
     saturation: 1.4,
     transmissionGamma: 0.9,
     vibrancy: 0.15,
@@ -409,36 +424,39 @@ bevel refracts; the face shows the backdrop undisplaced.
   iOS 27 regular glass. The bevel is at most a quarter of the short side, and
   the rim samples no deeper than the center line. Clear glass sets it to
   `false`.
-- `backdropShrink`: shrinks the backdrop seen through the whole face. `0`
-  keeps its size and `0.08` shows it at 92%. It never enlarges, so the glass
-  never pixelates the backdrop. All glass in a layer shrinks about the center
-  of the layer's glass; give a shape its own layer to shrink it about itself.
-- `backdropPull` and `backdropPullDepth`: the edge reads the backdrop up to
-  `backdropPull` logical pixels outside the glass, falling to nothing
-  `backdropPullDepth` from the edge. Glass deeper than that shows its middle
-  in place and at its own size, where `backdropShrink` shows all of it smaller.
+
+### Lenses
+
+`lens: LiquidGlassLens(...)` holds what glass does as a lens to what lies under
+it. Every value defaults to `0`, which does none of it.
+
+- `shrink`: shrinks what the whole face shows. `0` keeps its size and `0.08`
+  shows it at 92%. It never enlarges, so the glass never pixelates the
+  backdrop. All glass in a layer shrinks about the center of the layer's
+  glass; give a shape its own layer to shrink it about itself.
+- `pull` and `pullDepth`: the edge reads the backdrop up to `pull` logical
+  pixels outside the glass, falling to nothing `pullDepth` from the edge.
+  Glass deeper than that shows its middle in place and at its own size, where
+  `shrink` shows all of it smaller.
 - `dispersion`: splits the colors in the refracted edge. Red moves by
   `1 + dispersion / 2` and blue by `1 - dispersion / 2` times the edge
   displacement; negative values bend blue more, as real glass does. iOS 27
-  regular and clear glass show none, so it defaults to `0`, which is also the
-  cheapest setting to render.
+  regular and clear glass show none, which is also the cheapest to render.
 - `aberration` and `aberrationDepth`: parts the colors of everything the glass
   shows, not only of the bevel: red shows what lies up to `aberration` logical
   pixels one way and blue what lies as far the other way, along the direction
-  iOS 27 parts them in (the dartdoc of `aberration` gives it), in full at the
-  edge and fading to nothing `aberrationDepth` from it. Glass that
-  parts colors draws with a larger shader variant, so leave it at `0` where it
-  is not wanted.
+  iOS 27 parts them in (the dartdoc of `LiquidGlassLens.aberration` gives it), in
+  full at the edge and fading to nothing `aberrationDepth` from it. Glass that
+  parts colors draws with a larger shader variant.
 
-`backdropPull` and `aberration` give a lifted iOS lens its look. Both default
-to `0`.
+`pull` and `aberration` give a lifted iOS lens its look.
 
 The backdrop is always sampled bilinearly, so refracted lines move smoothly
 instead of snapping to whole pixels.
 
 ### Magnifiers
 
-`backdropShrink` never magnifies, because enlarging a captured backdrop makes
+`LiquidGlassLens.shrink` never magnifies, because enlarging a captured backdrop makes
 it blurry. The [example playground](#example-playground) shows how to build an
 iOS 27 text loupe instead: it re-renders the content under the lens at the
 magnified resolution and draws a `LiquidGlass` on a layer of its own on top,
@@ -456,14 +474,16 @@ The glint is the thin bright line along the rim, on the two walls facing
 along the light. It recolors the glass instead of adding white: glass over color glints in that
 color.
 
-`glintStrength` sets its strength; the presets keep it as soft as the rim of iOS 27
-glass. The line is a hairline, equally bright on both walls, and fades around
-corners as on iOS 27.
+The iOS 27 color models draw the rim of iOS 27 glass. The direct model
+(`LiquidGlassColorModel.direct`) sets its own: `glintStrength` is the glint's
+strength, by default as soft as the rim of iOS 27 glass. The line is a
+hairline, equally bright on both walls, and fades around corners as on iOS 27.
 
-Two more strengths shape the rim: `contourStrength` is the thin dark contour
-just outside the silhouette (`contourDirectionality` concentrates it where the
-glint fades), and `bevelShadowStrength` is the faint inner shadow the rim casts
-on the face. The defaults and presets set all of them.
+Two more strengths shape the direct model's rim: `contourStrength` is the thin
+dark contour just outside the silhouette (`contourDirectionality` concentrates
+it where the glint fades), and `bevelShadowStrength` is the faint inner shadow
+the rim casts on the face. Their defaults follow the model's `brightness`. A
+layer lights one rim: the first direct model's among its shapes.
 
 ### HDR
 
@@ -526,9 +546,10 @@ pipeline. Layers use it automatically where full glass is unavailable (Skia,
 the web, no Flutter GPU). Set `fake: true` on a layer to use it on purpose, or
 to test that path.
 
-It keeps frost, tint, the color model, the glint, the contour, the inner
-shadow, visibility and exterior shadows. It leaves out refraction,
-`backdropShrink`, `dispersion` and the direct model's vibrancy.
+It keeps the blur, tint, the color model, the glint, the contour, the inner
+shadow, visibility and exterior shadows. It leaves out refraction, the lens
+(`pull`, `shrink`, `aberration` and `dispersion`), and the direct model's
+vibrancy.
 
 `FakeGlass` is not a cheaper mode: it pays for the same backdrop readback and
 blur as full glass (see below).
@@ -575,9 +596,9 @@ Best practices:
 - **Mind the blur.** Larger blurs cost more, but Impeller picks a power-of-two
   downsample factor from the blur's device-space size and only starts
   downsampling past a few device pixels, so very small blurs can cost more than
-  moderate ones. A frost fitted to iOS 27, the default, is raised to that
-  point per device and scaled by the glass's short side; a
-  `LiquidGlassFrost.sigma` is used as given.
+  moderate ones. The blur fitted to iOS 27, the default, is raised to that
+  point per device and scaled by the glass's short side; a `blur` you give is
+  used as given.
 - **For low power, don't sample the backdrop.** `FakeGlass` pays the same copy
   and blur as full glass. When the device or power state calls for it, draw an
   opaque surface instead.
@@ -612,15 +633,21 @@ changes:
 - `LiquidGlass.precache()` becomes `precacheLiquidGlass()`.
 - `LiquidGlass.grouped(...)` becomes `LiquidGlass(...)`. The fix skips a call
   written with its own `const`.
-- On `LiquidGlassSettings`, `tintAmount` becomes `sliderPosition` and
-  `highlight` becomes `glintStrength`.
-- `ios27RegularLight(...)` and `ios27RegularDark(...)` on
-  `LiquidGlassSettings` and `LiquidGlassAppearance` become
-  `ios27Regular(brightness: ...)`.
+- On `LiquidGlassSettings`, `tintAmount` becomes `sliderPosition`.
+- `ios27RegularLight(...)` and `ios27RegularDark(...)` become
+  `ios27Regular()` on `LiquidGlassSettings` and
+  `ios27Regular(brightness: ...)` on `LiquidGlassAppearance`.
 - `LiquidGlassColorModel.ios27` becomes `LiquidGlassColorModel.ios27Regular`.
 
   The fix skips a call of these three written with its own `const`
   (`const LiquidGlassColorModel.ios27(...)`): change those by hand.
+- On `LiquidGlassSettings`, `frost` becomes `blur`, and the settings'
+  `ios27Regular` no longer takes a `brightness` (the appearance carries it).
+  A `frost` you gave is the same `blur`; left out, the blur now follows iOS
+  27's law for the glass's color model and `sliderPosition`.
+- `LiquidGlassAppearance(...)` takes a `colorModel`. The fix spells the light
+  direct model it took by default; pass your page's brightness where it is
+  dark.
 - On `LiquidRoundedSuperellipse` and `LiquidRoundedRectangle`, the
   `borderRadius` argument becomes `radius`.
 - `useBackdropGroup` and `backdropKey` are dropped from `LiquidGlassLayer`,
@@ -631,6 +658,22 @@ changes:
 
 A few changes need a hand:
 
+- `backdropShrink` and `dispersion` moved from `LiquidGlassSettings` into its
+  `lens`: write `LiquidGlassSettings(backdropShrink: s, dispersion: d)` and
+  `copyWith(backdropShrink: s, dispersion: d)` as
+  `lens: LiquidGlassLens(shrink: s, dispersion: d)`.
+- `LiquidGlass.shape` and `LiquidGlassLayer.settings` are nullable: null on a
+  `.live` glass or layer, and for a layer given no settings.
+- `LiquidGlassColorModel.ios27Clear(...)`, `LiquidGlassAppearance.ios27Clear(...)`
+  and `LiquidGlassMaterial.ios27Clear(...)` take a `brightness`, which only
+  Reduce Transparency's fill reads (`LiquidGlassSettings.reduceTransparency`):
+  `brightness: Brightness.light` draws what they drew before; pass your page's
+  brightness.
+- `LiquidGlassColorModel.direct(...)` takes a `brightness` and
+  `FakeGlass(...)` an `appearance`. `brightness: Brightness.light` and
+  `appearance: LiquidGlassAppearance(colorModel:
+  LiquidGlassColorModel.direct(brightness: Brightness.light))` draw what they
+  drew before; pass your page's brightness where it is dark.
 - A `LiquidGlass` draws where the tree puts it, and no constructor says it a
   second time. Any `LiquidGlass` inside a `LiquidGlassBlendGroup` now blends
   with the group: move a shape that should not blend out of the group.
@@ -662,18 +705,17 @@ A few changes need a hand:
 - `LiquidGlassSettings`, `LiquidGlassAppearance`, `LiquidGlassColorModel` and
   the shapes no longer mix in `Equatable`, so `props` is gone. `==` and
   `hashCode` still compare values.
-- `LiquidGlassSettings.frost` is a `LiquidGlassFrost`: write `frost: 12` as
-  `frost: LiquidGlassFrost.sigma(12)`. Leave it out for the frost fitted to
-  iOS 27, which now follows `sliderPosition`, as the settings' haze does: a
-  `copyWith(sliderPosition:)` moves both.
 - `LiquidGlassSettings.ios27RegularFrost`, `ios27ClearFrost` and
-  `frostSigmaAt` are gone: `LiquidGlassFrost.ios27Regular()` and
-  `LiquidGlassFrost.ios27Clear()` are those blurs.
+  `frostSigmaAt` are gone: leave `blur` out for those blurs.
+- The rim moved from `LiquidGlassSettings` to the direct color model: write
+  `LiquidGlassSettings(highlight: g, contourStrength: c)` as
+  `LiquidGlassAppearance(colorModel: LiquidGlassColorModel.direct(brightness: b, glintStrength: g, contourStrength: c))`,
+  likewise `contourDirectionality` and `bevelShadowStrength`.
 - `toJson` and `fromJson` are gone from `LiquidGlassSettings`,
   `LiquidGlassAppearance` and `LiquidGlassColorModel`. Read and write the
   fields you store yourself.
 - `LiquidGlassColorModel` is sealed: `direct(...)`, `ios27Regular(...)` and
-  `ios27Clear()` build a `LiquidGlassDirectColorModel`, a
+  `ios27Clear(...)` build a `LiquidGlassDirectColorModel`, a
   `LiquidGlassIos27RegularColorModel` and a `LiquidGlassIos27ClearColorModel`.
   `saturation` and `vibrancy` are on the direct model alone, so read them
   after a type test or compare models with `==`.
@@ -693,10 +735,9 @@ A few changes need a hand:
   `LiquidRoundedRectangle` is now a `BorderRadius`; the number is `topRadius`
   or `radius`. `copyWith(borderRadius: r)` on a superellipse set all four
   corners; build `LiquidRoundedSuperellipse(radius: r)` instead.
-- A `LiquidGlassLayer` without `settings` now draws the regular glass of the
-  platform brightness, as it did for its default appearance: in dark mode its
-  haze and contour are the dark ones. Pass `const LiquidGlassSettings()` to
-  keep the light ones.
+- A `LiquidGlassLayer` without a `defaultAppearance` now draws the regular
+  glass of the platform brightness: in dark mode its color, fill and rim are
+  the dark ones. Pass a `defaultAppearance` to keep the light ones.
 
 ## Limitations
 
@@ -704,6 +745,9 @@ A few changes need a hand:
 - Full glass needs Impeller and Flutter GPU; the web renders `FakeGlass`.
 - At most 16 shapes that blend or touch; a field takes its looks from at most
   16 shapes.
+- A layer shades at most three iOS 27 looks exactly, a look being the glass's
+  kind and its size between 64 and 160 points. Glass past them draws with the
+  nearest look, and debug builds say so: give such glass layers of its own.
 - One corner radius per shape, except a superellipse's top and bottom pair
   (`LiquidRoundedSuperellipse.vertical`).
 - A glass widget's child is painted on top of the glass, never refracted by

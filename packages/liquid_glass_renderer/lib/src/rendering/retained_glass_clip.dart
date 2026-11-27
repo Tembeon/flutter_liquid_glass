@@ -149,14 +149,7 @@ Iterable<RenderBox> _clipAncestors(RenderBox shape, RenderBox owner) sync* {
     node != null && node != owner;
     node = node.parent
   ) {
-    if (node is RenderClipRect ||
-        node is RenderClipRRect ||
-        node is RenderClipRSuperellipse ||
-        node is RenderClipOval ||
-        node is RenderClipPath ||
-        node is RenderViewportBase) {
-      yield node as RenderBox;
-    }
+    if (node is RenderBox && clipOf(node) != null) yield node;
   }
 }
 
@@ -187,8 +180,12 @@ class _ClipEntry {
 
   void _reclip() => _clipperPath = null;
 
-  (ClipShape, Clip) _shapeOf(RenderBox source) {
-    if (source case RenderClipPath(:final clipper?, :final size)) {
+  (ClipShape, Clip) _shape() {
+    if (source case RenderClipPath(
+      :final clipper?,
+      :final size,
+      :final clipBehavior,
+    )) {
       if (!identical(clipper, _clipper)) {
         final old = _clipper;
         old?.removeListener(_reclip);
@@ -204,7 +201,7 @@ class _ClipEntry {
         _clipperPath = clipper.getClip(size);
         _clipperSize = size;
       }
-      return (PathClip(_clipperPath!), source.clipBehavior);
+      return (PathClip(_clipperPath!), clipBehavior);
     }
     return clipShapeOf(source)!;
   }
@@ -215,7 +212,7 @@ class _ClipEntry {
       layer.enabled = false;
       return;
     }
-    final (shape, behavior) = _shapeOf(source);
+    final (shape, behavior) = _shape();
     layer.enabled = behavior != Clip.none;
     if (!layer.enabled) return;
     layer.clipBehavior = behavior;

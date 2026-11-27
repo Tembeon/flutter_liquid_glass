@@ -39,10 +39,14 @@ abstract final class ImpellerLayers {
 
   /// The rows a layer keeps past the rows pinned in it. Impeller sometimes
   /// sizes a layer drawn under a transform a hair off whole pixels, as a
-  /// pressed sheet's, a row short; without the spare row a haze's mix finds
-  /// no strip and draws the copy unhazed, and the glass flickers from frame
-  /// to frame (sheet_haze_host_test).
+  /// pressed sheet's, a row short; without the spare row the copy's levels
+  /// lose their last row, the glass reads the copy unblurred there, and it
+  /// flickers from frame to frame.
   static const int spareRows = 1;
+
+  // Impeller draws a layer whole while a clip cuts off less than this part of
+  // it along each axis, against the part left.
+  static const double _mostCut = 0.3;
 
   /// Where an opacity pass that a glass seeds starts on the screen, in
   /// logical pixels: Impeller bounds it by the clips around it, rounded out
@@ -57,8 +61,8 @@ abstract final class ImpellerLayers {
   static bool keepsWhole(Rect layer, Rect clip) {
     final cut = layer.intersect(clip);
     if (cut.isEmpty) return false;
-    return (layer.width - cut.width) / cut.width < 0.3 &&
-        (layer.height - cut.height) / cut.height < 0.3;
+    return (layer.width - cut.width) / cut.width < _mostCut &&
+        (layer.height - cut.height) / cut.height < _mostCut;
   }
 
   /// Whether Impeller draws a layer of [layer] whole inside [clip] (logical
@@ -89,8 +93,8 @@ abstract final class ImpellerLayers {
       final cut = max(from - lo, 0) + max(hi - to, 0);
       final inside = min(hi, to) - max(lo, from);
       if (inside <= 0) return null;
-      // A margin below 30 % keeps rounding off the threshold.
-      final wanted = cut / 0.28;
+      // A margin below the bound keeps rounding off it.
+      final wanted = cut / (_mostCut - 0.02);
       if (inside >= wanted) return (lo, hi);
       if (lo < from && hi > to) return null;
       if (lo < from) {

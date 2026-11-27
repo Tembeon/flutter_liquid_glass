@@ -468,7 +468,10 @@ What the widgets do today:
   the system prefers that apps reduce their resource usage. Elsewhere, or to
   override it, pass it in with
   `GlassTraitsOverride(reduceTransparency: true, child: ...)`. The liquid and
-  fake renderers then draw the surfaces flat.
+  fake renderers then draw glass as iOS 27 does under it: no refraction, a
+  wide blur and a nearly flat face. A lifted lens keeps its glass but does
+  not bend what it shows, and a scroll edge, soft or hard, covers its bar
+  with the background and a hairline.
 
 ## Fidelity
 

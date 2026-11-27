@@ -62,9 +62,7 @@ Future<Uint8List> _layerShadows(
     Directionality(
       textDirection: TextDirection.ltr,
       child: LiquidGlassLayer(
-        settings: const LiquidGlassSettings.ios27Regular(
-          brightness: Brightness.light,
-        ),
+        settings: const LiquidGlassSettings.ios27Regular(),
         backdrop: const LiquidGlassBackdrop.solid(_gray),
         field: field,
         child: Stack(

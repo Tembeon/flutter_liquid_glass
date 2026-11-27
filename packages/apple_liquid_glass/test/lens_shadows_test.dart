@@ -6,7 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart'
-    show LiquidGlass, LiquidGlassContentBend, LiquidGlassLayer;
+    show LiquidGlass, LiquidGlassContentBend, LiquidGlassIos27LensColorModel;
 
 import 'glass_shown.dart';
 
@@ -92,7 +92,7 @@ void main() {
         'nothing shallower than 7.27', () {
       final bend = LensShadowLaw.contentBend(70, small: false);
       expect(bend.amount, moreOrLessEquals(14));
-      expect(bend.height, moreOrLessEquals(11.2));
+      expect(bend.depth, moreOrLessEquals(11.2));
       final shown = bend.shownDepth;
       expect(shown(0), moreOrLessEquals(14));
       expect(shown(4.2), moreOrLessEquals(7.271, epsilon: 2e-3));
@@ -105,7 +105,7 @@ void main() {
       expect(least, moreOrLessEquals(7.271, epsilon: 2e-3));
       expect(
         LensShadowLaw.contentBend(38, small: true),
-        const LiquidGlassContentBend(amount: 0, height: 0),
+        const LiquidGlassContentBend(amount: 0, depth: 0),
       );
     });
   });
@@ -221,12 +221,11 @@ void main() {
       expect(findShown(LensShadows), findsOneWidget);
       final glass = tester.widget<LiquidGlass>(findShown(LiquidGlass));
       expect(glass.frame!.value.shadows, isEmpty);
-      final settings = tester
-          .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
-          .frame!
-          .value
-          .settings;
-      expect(settings.bevelShadowStrength, 0);
+      // The lens recipe draws no ring shadow and no bleed (GlassRecipe).
+      expect(
+        glass.frame!.value.appearance!.colorModel,
+        isA<LiquidGlassIos27LensColorModel>(),
+      );
       for (final role in GlassRole.values) {
         final shadows = LiquidGlassRenderer.shadowsOf(
           role,

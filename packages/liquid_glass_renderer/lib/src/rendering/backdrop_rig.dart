@@ -7,13 +7,12 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/band_look.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 
 part 'package:liquid_glass_renderer/src/rendering/fake_backdrop_rig.dart';
 
@@ -27,11 +26,10 @@ ScreenPlace screenPlaceOf(Layer anchor, double devicePixelRatio) =>
 /// where the place is not [Shifted]: [filter] blurs by [sigma] logical
 /// pixels, or by [frost]'s, which a shader may draw over a copy instead.
 ///
-/// A filter [inScene] is a layer of the scene: a copy can replay it, and its
-/// frosted reads join only each other's. Otherwise a frosted read comes from
-/// an image. [band], given what the filter shows and the place's offset,
-/// makes a filter that draws over its backdrop a band the glass over it can
-/// draw.
+/// A filter [inScene] is a layer of the scene, which a copy can replay.
+/// Otherwise a frosted read comes from an image. [band], given what the
+/// filter shows and the place's offset, makes a filter that draws over its
+/// backdrop a band the glass over it can draw.
 @internal
 SiteAsk backdropFilterAsk({
   required Rect clip,
@@ -55,7 +53,7 @@ SiteAsk backdropFilterAsk({
       reads: drawn.inflate(reach),
       noJoin: NoJoin.noGeometry,
       groupsBackdrop: false,
-      place: const Turned(),
+      backdropOnly: true,
       paints: paints,
     );
   }
@@ -70,8 +68,8 @@ SiteAsk backdropFilterAsk({
       reads: shown.inflate(reach),
       look: FilterLook(
         key: null,
-        need: const CopyNeed(),
-        imageRead: ImageReadFilter(
+        need: const PlainNeed(),
+        imageRead: FilteredImage(
           filter: filter,
           clip: shown,
           blendMode: blendMode,
@@ -79,7 +77,6 @@ SiteAsk backdropFilterAsk({
       ),
       noJoin: NoJoin.noGeometry,
       groupsBackdrop: false,
-      place: place,
       paints: paints,
     );
   }
@@ -89,14 +86,13 @@ SiteAsk backdropFilterAsk({
     drawn: shown,
     reads: shown.inflate(need.reachAt(dpr)),
     look: FilterLook(
-      key: inScene ? 'band' : null,
+      key: null,
       need: need,
-      imageRead: inScene && over ? null : ImageReadFilter.none,
+      imageRead: inScene && over ? null : const PlainImage(),
     ),
     role: bandLook == null ? null : BandSiteRole(bandLook),
     noJoin: bandLook == null ? NoJoin.noGeometry : null,
     groupsBackdrop: bandLook != null,
-    place: place,
     paints: paints,
   );
 }
@@ -236,11 +232,20 @@ class BackdropRig {
     if (slot?.firstChild != null) slot!.removeAllChildren();
   }
 
-  /// Hands [filter] to the filter layer.
-  void bindFilter(ui.ImageFilter filter) {
-    (_filter.layer ??= _newFilterLayer())
-      ..filter = filter
-      ..backdropKey ??= key;
+  /// Hands [filter] to the filter layer. A [direct] read, which no frame's
+  /// plan groups, shares the backdrop of [group], or of [key] without one; any
+  /// other keeps the backdrop [showBackdrop] gave it.
+  void bindFilter(
+    ui.ImageFilter filter, {
+    bool direct = false,
+    BackdropKey? group,
+  }) {
+    final layer = (_filter.layer ??= _newFilterLayer())..filter = filter;
+    if (direct) {
+      layer.backdropKey = group ?? key;
+    } else {
+      layer.backdropKey ??= key;
+    }
   }
 
   // A filter made after the clip was painted goes into the clip: a retained

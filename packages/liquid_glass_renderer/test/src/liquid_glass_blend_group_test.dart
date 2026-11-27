@@ -81,7 +81,13 @@ void main() {
       Rect bounds() => tester.allRenderObjects
           .whereType<RenderLiquidGlassBlendGroup>()
           .firstWhere((group) => group.geometryBlend == 8)
-          .maybeRebuildGeometry(const LiquidGlassAppearance())!
+          .maybeRebuildGeometry(
+            const LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+            ),
+          )!
           .bounds;
 
       await tester.pumpWidget(group(hidden: 0));

@@ -1,16 +1,19 @@
+@Tags(['composer'])
+library;
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/opacity_pass_seed.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'plan_watch.dart';
 import 'shared.dart';
 
 const _key = ValueKey('screen');
@@ -71,13 +74,10 @@ Widget _pairScene({
               child: LiquidGlassLayer(
                 // Glass of one look joins one filter; [apart] gives the
                 // second glass a look of its own, so each reads its copy.
-                settings:
-                    const LiquidGlassSettings.ios27Regular(
-                      brightness: Brightness.light,
-                    ).copyWith(
-                      frost: LiquidGlassFrost.sigma(frost),
-                      refractionHeight: apart && key == null ? 12 : null,
-                    ),
+                settings: const LiquidGlassSettings.ios27Regular().copyWith(
+                  blur: frost,
+                  refractionHeight: apart && key == null ? 12 : null,
+                ),
                 child: Stack(
                   children: [
                     Positioned.fromRect(
@@ -241,12 +241,9 @@ Widget _scene({
               child: _following(
                 glassFollows,
                 LiquidGlassLayer(
-                  settings:
-                      const LiquidGlassSettings.ios27Regular(
-                        brightness: Brightness.light,
-                      ).copyWith(
-                        frost: LiquidGlassFrost.sigma(frost),
-                      ),
+                  settings: const LiquidGlassSettings.ios27Regular().copyWith(
+                    blur: frost,
+                  ),
                   child: Stack(
                     children: [
                       Positioned.fromRect(
@@ -266,12 +263,9 @@ Widget _scene({
         if (pair)
           Positioned.fill(
             child: LiquidGlassLayer(
-              settings:
-                  const LiquidGlassSettings.ios27Regular(
-                    brightness: Brightness.light,
-                  ).copyWith(
-                    frost: const LiquidGlassFrost.sigma(0),
-                  ),
+              settings: const LiquidGlassSettings.ios27Regular().copyWith(
+                blur: 0,
+              ),
               child: Stack(
                 children: [
                   Positioned.fromRect(
@@ -309,27 +303,6 @@ Iterable<BackdropFilterLayer> _backdropFilters(WidgetTester tester) => tester
     .whereType<BackdropFilterLayer>()
     .where((layer) => layer is! OpacitySeedLayer || layer.seeded);
 
-Future<Uint8List> _pixels(WidgetTester tester, {double pixelRatio = 1}) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(
-    () => boundary.toImage(pixelRatio: pixelRatio),
-  ))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
-}
-
-int _difference(Uint8List a, Uint8List b) {
-  var largest = 0;
-  for (var i = 0; i < a.length; i++) {
-    final d = (a[i] - b[i]).abs();
-    if (d > largest) largest = d;
-  }
-  return largest;
-}
-
 Future<void> _settle(WidgetTester tester, {double dot = 0}) async {
   for (var i = 0; i < 4; i++) {
     await tester.pumpWidget(_scene(dot: dot + i));
@@ -339,11 +312,6 @@ Future<void> _settle(WidgetTester tester, {double dot = 0}) async {
 void main() {
   setUp(() {
     glassReadsCopies = true;
-    debugGlassHaze = false;
-  });
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassHaze = null;
   });
 
   testWidgets('glass over a copy drawn in the very frame what lies under '
@@ -358,7 +326,7 @@ void main() {
     glassReadsCopies = false;
     await tester.pumpWidget(_scene());
     await tester.pump();
-    final reading = await _pixels(tester);
+    final reading = await boundaryPixels(tester, find.byKey(_key));
     expect(_backdropFilters(tester), isNotEmpty);
 
     glassReadsCopies = true;
@@ -368,7 +336,13 @@ void main() {
     await tester.pumpWidget(_scene());
     expect(_glass(tester).debugDrewOverCopy, isTrue);
     expect(_backdropFilters(tester), isEmpty);
-    expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
+    expect(
+      largestDifference(
+        reading,
+        await boundaryPixels(tester, find.byKey(_key)),
+      ),
+      lessThanOrEqualTo(1),
+    );
   }, skip: skipProperGlassTests);
 
   testWidgets('glass reads its backdrop over a layer the copy cannot draw', (
@@ -391,7 +365,7 @@ void main() {
     glassReadsCopies = false;
     await tester.pumpWidget(_scene(follower: true));
     await tester.pump();
-    final reading = await _pixels(tester);
+    final reading = await boundaryPixels(tester, find.byKey(_key));
 
     glassReadsCopies = true;
     await tester.pumpWidget(const SizedBox());
@@ -399,7 +373,13 @@ void main() {
     await tester.pumpWidget(_scene(follower: true));
     expect(_glass(tester).debugDrewOverCopy, isTrue);
     expect(_backdropFilters(tester), isEmpty);
-    expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
+    expect(
+      largestDifference(
+        reading,
+        await boundaryPixels(tester, find.byKey(_key)),
+      ),
+      lessThanOrEqualTo(1),
+    );
   }, skip: skipProperGlassTests);
 
   testWidgets('glass over a follower draws over a copy taken where the '
@@ -411,7 +391,7 @@ void main() {
     glassReadsCopies = false;
     await tester.pumpWidget(_scene(follower: true, leader: 70));
     await tester.pump();
-    final reading = await _pixels(tester);
+    final reading = await boundaryPixels(tester, find.byKey(_key));
 
     glassReadsCopies = true;
     await tester.pumpWidget(const SizedBox());
@@ -424,7 +404,13 @@ void main() {
     await tester.pumpWidget(_scene(follower: true, leader: 70));
     expect(watch.changes(_glass(tester)), captures + 1);
     expect(_glass(tester).debugDrewOverCopy, isTrue);
-    expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
+    expect(
+      largestDifference(
+        reading,
+        await boundaryPixels(tester, find.byKey(_key)),
+      ),
+      lessThanOrEqualTo(1),
+    );
   }, skip: skipProperGlassTests);
 
   testWidgets('glass under a follower draws over a copy taken where it '
@@ -438,7 +424,7 @@ void main() {
       _scene(follower: true, glassFollows: true, leader: 40),
     );
     await tester.pump();
-    final reading = await _pixels(tester);
+    final reading = await boundaryPixels(tester, find.byKey(_key));
 
     glassReadsCopies = true;
     await tester.pumpWidget(const SizedBox());
@@ -457,7 +443,13 @@ void main() {
     // it over the screen, where glass over its copy blends it unrounded. On
     // flutter_tester under Linux one channel of that pixel lands 2 apart
     // (macOS: 1); the geometry and where it reads agree to 1/65000 px.
-    expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(2));
+    expect(
+      largestDifference(
+        reading,
+        await boundaryPixels(tester, find.byKey(_key)),
+      ),
+      lessThanOrEqualTo(2),
+    );
   }, skip: skipProperGlassTests);
 
   testWidgets('glass in a fading group draws over its copy and leaves the '
@@ -565,9 +557,7 @@ void main() {
                       width: 50,
                       height: 40,
                       child: LiquidGlassLayer(
-                        settings: LiquidGlassSettings.ios27Regular(
-                          brightness: Brightness.light,
-                        ),
+                        settings: LiquidGlassSettings.ios27Regular(),
                         child: LiquidGlass(
                           shape: LiquidRoundedSuperellipse(radius: 20),
                           child: SizedBox.expand(),
@@ -665,7 +655,7 @@ void main() {
     // alone, as the upper glass's copy should hold it.
     glassReadsCopies = false;
     await tester.pumpWidget(_pairScene(top: 200, second: false));
-    final reading = await _pixels(tester);
+    final reading = await boundaryPixels(tester, find.byKey(_key));
     glassReadsCopies = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_pairScene(shift: 0.3, top: 200));
@@ -735,18 +725,14 @@ void main() {
               child: Transform(
                 transform: Matrix4.diagonal3Values(1, 1.2, 1),
                 child: layer(
-                  const LiquidGlassSettings.ios27Regular(
-                    brightness: Brightness.light,
-                  ).copyWith(frost: const LiquidGlassFrost.sigma(8)),
+                  const LiquidGlassSettings.ios27Regular().copyWith(blur: 8),
                   const Rect.fromLTWH(30, 40, 200, 90),
                 ),
               ),
             ),
             Positioned.fill(
               child: layer(
-                const LiquidGlassSettings.ios27Regular(
-                  brightness: Brightness.light,
-                ).copyWith(frost: const LiquidGlassFrost.sigma(0)),
+                const LiquidGlassSettings.ios27Regular().copyWith(blur: 0),
                 const Rect.fromLTWH(80, 60, 100, 60),
               ),
             ),
@@ -757,7 +743,7 @@ void main() {
 
     await tester.pumpWidget(scene(const Color(0xFF3B82F6)));
     await tester.pumpWidget(scene(const Color(0xFFF59E0B)));
-    final pixels = await _pixels(tester);
+    final pixels = await boundaryPixels(tester, find.byKey(_key));
     const center = (90 * 260 + 130) * 4;
     expect(pixels[center], greaterThan(150));
     expect(pixels[center + 1], greaterThan(90));
@@ -773,7 +759,7 @@ void main() {
     Future<Uint8List> draw() async {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(_pairScene(top: 160, apart: true));
-      return _pixels(tester);
+      return boundaryPixels(tester, find.byKey(_key));
     }
 
     // flutter_tester renders only a process's first backdrop filter
@@ -789,7 +775,7 @@ void main() {
     expect(glass.every((g) => g.debugDrewOverCopy), isTrue);
     final [a, b] = [for (final g in glass) g.debugImageCopy!.image];
     expect(a.isCloneOf(b), isTrue);
-    expect(_difference(reading, together), lessThanOrEqualTo(3));
+    expect(largestDifference(reading, together), lessThanOrEqualTo(3));
   }, skip: skipProperGlassTests);
 
   testWidgets('frosted copies apart are blurred in one layer and draw what '
@@ -797,13 +783,14 @@ void main() {
     tester.view.physicalSize = const Size(520, 720);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => glassReadsCopies = false);
-    debugGlassPolicy = const PlanPolicy(shaderFrost: false);
-    addTearDown(() => debugGlassPolicy = const PlanPolicy());
-
+    debugGlassPolicy = const PlanPolicy(shaderBlurs: false);
     glassReadsCopies = false;
     await tester.pumpWidget(_pairScene(frost: 6));
-    final reading = await _pixels(tester, pixelRatio: 2);
+    final reading = await boundaryPixels(
+      tester,
+      find.byKey(_key),
+      pixelRatio: 2,
+    );
     glassReadsCopies = true;
     await tester.pumpWidget(const SizedBox());
     final layers = GlassCopies.debugBlurLayers;
@@ -818,7 +805,10 @@ void main() {
     ];
     expect(a.isCloneOf(b), isTrue);
     expect(
-      _difference(reading, await _pixels(tester, pixelRatio: 2)),
+      largestDifference(
+        reading,
+        await boundaryPixels(tester, find.byKey(_key), pixelRatio: 2),
+      ),
       lessThanOrEqualTo(2),
     );
   }, skip: skipProperGlassTests);
@@ -828,18 +818,23 @@ void main() {
     tester.view.physicalSize = const Size(520, 720);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => glassReadsCopies = false);
-
     glassReadsCopies = false;
     await tester.pumpWidget(_pairScene(frost: 6));
-    final reading = await _pixels(tester, pixelRatio: 2);
+    final reading = await boundaryPixels(
+      tester,
+      find.byKey(_key),
+      pixelRatio: 2,
+    );
     glassReadsCopies = true;
     await tester.pumpWidget(const SizedBox());
     final layers = GlassCopies.debugBlurLayers;
     await tester.pumpWidget(_pairScene(frost: 6));
     expect(GlassCopies.debugBlurLayers, layers);
     expect(
-      _difference(reading, await _pixels(tester, pixelRatio: 2)),
+      largestDifference(
+        reading,
+        await boundaryPixels(tester, find.byKey(_key), pixelRatio: 2),
+      ),
       lessThanOrEqualTo(24),
       reason: 'NEAR: the shader frost (PlanPolicy.shaderFrost).',
     );
@@ -850,7 +845,6 @@ void main() {
     tester.view.physicalSize = const Size(520, 720);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => glassReadsCopies = false);
     List<bool> under() => [
       for (final g
           in tester.allRenderObjects
@@ -862,12 +856,12 @@ void main() {
     glassReadsCopies = false;
     await tester.pumpWidget(_pairScene(top: 160, shadowed: true));
     expect(under(), [false, false]);
-    final cut = await _pixels(tester, pixelRatio: 2);
+    final cut = await boundaryPixels(tester, find.byKey(_key), pixelRatio: 2);
     glassReadsCopies = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_pairScene(top: 160, shadowed: true));
     expect(under(), [true, true]);
-    final whole = await _pixels(tester, pixelRatio: 2);
+    final whole = await boundaryPixels(tester, find.byKey(_key), pixelRatio: 2);
     // The cut reached half a pixel into the glass's edge: only along the
     // edge do the two differ.
     bool nearEdge(Offset point) =>
@@ -904,7 +898,6 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     glassReadsCopies = true;
-    addTearDown(() => glassReadsCopies = false);
     List<RenderLiquidGlassLayer> glass() => tester.allRenderObjects
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
@@ -937,7 +930,6 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     glassReadsCopies = true;
-    addTearDown(() => glassReadsCopies = false);
     List<RenderLiquidGlassLayer> glass() => tester.allRenderObjects
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
@@ -964,7 +956,6 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     glassReadsCopies = true;
-    addTearDown(() => glassReadsCopies = false);
     final drawn = GlassCopies.debugImagesDrawn;
     await tester.pumpWidget(_pairScene(top: 160, shadowed: true));
     expect(GlassCopies.debugImagesDrawn, drawn + 1);

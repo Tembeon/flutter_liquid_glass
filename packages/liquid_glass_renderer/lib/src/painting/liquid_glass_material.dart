@@ -22,7 +22,9 @@ final class LiquidGlassMaterial {
 
   /// iOS 27 regular glass (`Glass.regular`, which Apple also uses for
   /// toolbars and `.glass` buttons) in [brightness], at the Liquid Glass
-  /// slider position [sliderPosition] and tinted with [tint].
+  /// slider position [sliderPosition], with the face of the Increase
+  /// Contrast setting where [highContrast] says so, as Reduce Transparency
+  /// draws it where [reduceTransparency] says so, and tinted with [tint].
   ///
   /// It is [LiquidGlassSettings.ios27Regular],
   /// [LiquidGlassAppearance.ios27Regular] and
@@ -30,37 +32,49 @@ final class LiquidGlassMaterial {
   factory LiquidGlassMaterial.ios27Regular({
     required Brightness brightness,
     double sliderPosition = 0,
-    Color? tint,
+    bool highContrast = false,
+    bool reduceTransparency = false,
+    Color tint = const Color(0x00000000),
   }) => LiquidGlassMaterial(
     settings: LiquidGlassSettings.ios27Regular(
-      brightness: brightness,
       sliderPosition: sliderPosition,
+      reduceTransparency: reduceTransparency,
     ),
-    appearance: tint == null
-        ? LiquidGlassAppearance.ios27Regular(brightness: brightness)
-        : LiquidGlassAppearance.ios27Regular(
-            brightness: brightness,
-            tint: tint,
-          ),
+    appearance: LiquidGlassAppearance.ios27Regular(
+      brightness: brightness,
+      highContrast: highContrast,
+      tint: tint,
+    ),
     shadows: brightness == Brightness.dark
         ? const [LiquidGlassShadow.ios27Regular(brightness: Brightness.dark)]
         : const [LiquidGlassShadow.ios27Regular(brightness: Brightness.light)],
   );
 
-  /// iOS 27 clear glass (`Glass.clear`), identical in light and dark, at
-  /// the Liquid Glass slider position [sliderPosition] and tinted with
-  /// [tint].
+  /// iOS 27 clear glass (`Glass.clear`) in [brightness], identical in light
+  /// and dark but under Reduce Transparency, at the Liquid Glass slider
+  /// position [sliderPosition], with the face of
+  /// the Increase Contrast setting where [highContrast] says so, as Reduce
+  /// Transparency draws it where [reduceTransparency] says so, and tinted
+  /// with [tint].
   ///
   /// It is [LiquidGlassSettings.ios27Clear] and
   /// [LiquidGlassAppearance.ios27Clear]; clear glass casts no shadow on iOS.
   factory LiquidGlassMaterial.ios27Clear({
+    required Brightness brightness,
     double sliderPosition = 0,
-    Color? tint,
+    bool highContrast = false,
+    bool reduceTransparency = false,
+    Color tint = const Color(0x00000000),
   }) => LiquidGlassMaterial(
-    settings: LiquidGlassSettings.ios27Clear(sliderPosition: sliderPosition),
-    appearance: tint == null
-        ? const LiquidGlassAppearance.ios27Clear()
-        : LiquidGlassAppearance.ios27Clear(tint: tint),
+    settings: LiquidGlassSettings.ios27Clear(
+      sliderPosition: sliderPosition,
+      reduceTransparency: reduceTransparency,
+    ),
+    appearance: LiquidGlassAppearance.ios27Clear(
+      brightness: brightness,
+      highContrast: highContrast,
+      tint: tint,
+    ),
   );
 
   /// What the layer of the glass draws with.
@@ -85,5 +99,7 @@ final class LiquidGlassMaterial {
       Object.hash(settings, appearance, Object.hashAll(shadows));
 
   @override
-  String toString() => 'LiquidGlassMaterial($settings, $appearance, $shadows)';
+  String toString() =>
+      'LiquidGlassMaterial(settings: $settings, appearance: $appearance, '
+      'shadows: $shadows)';
 }

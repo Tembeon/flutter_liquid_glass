@@ -6,7 +6,7 @@ import 'package:meta/meta.dart';
 
 /// Filter layers that start at a corner of their own and keep their size
 /// whatever they hold: the layers a filter reads by fragments counted from
-/// the layer's corner, as glass reads a copy and a frost or a haze runs over
+/// the layer's corner, as glass reads a copy and its levels are drawn under
 /// it. The only code that pins a layer so.
 ///
 /// Impeller sizes a layer by what is drawn in it. A pinned layer's first
@@ -59,4 +59,34 @@ abstract final class PinnedLayers {
   /// Whether [picture] pins a layer.
   @visibleForTesting
   static bool isPin(ui.Picture picture) => _made[picture] ?? false;
+}
+
+/// Pinned layers one inside the other, each filtered by one of [filters],
+/// the first outermost: what is drawn until [pop] comes out through all of
+/// them.
+///
+/// A layer a filter, not one layer with them all: each is then cut by a clip
+/// above it as what it filters is, where the second of two filters on one
+/// layer takes what the first left for the whole of it.
+@internal
+base class PinnedPasses {
+  /// Creates the passes of [filters].
+  const PinnedPasses(this.filters);
+
+  /// The filters, outermost first.
+  final List<ui.ImageFilter> filters;
+
+  /// Pushes the layers, each pinned to [size] from [origin].
+  void push(ui.SceneBuilder builder, Offset origin, Size size) {
+    for (final filter in filters) {
+      PinnedLayers.push(builder, filter, origin, size);
+    }
+  }
+
+  /// Ends what [push] began.
+  void pop(ui.SceneBuilder builder) {
+    for (var i = 0; i < filters.length; i++) {
+      builder.pop();
+    }
+  }
 }

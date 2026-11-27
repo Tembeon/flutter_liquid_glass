@@ -1,13 +1,12 @@
-import 'dart:ui';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_place.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
-import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
+import 'package:liquid_glass_renderer/src/widgets/composer_install.dart';
 import 'package:liquid_glass_renderer/src/widgets/consolidated_fake_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_host.dart';
@@ -16,7 +15,8 @@ import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_precache.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
-import 'package:liquid_glass_renderer/src/widgets/multi_shader_builder.dart';
+
+const LiquidGlassBackdrop _defaultBackdrop = LiquidGlassBackdrop.read();
 
 /// Represents a layer of multiple [LiquidGlass] shapes or
 /// [LiquidGlassBlendGroup]s that have shared [LiquidGlassSettings] and will be
@@ -29,6 +29,11 @@ import 'package:liquid_glass_renderer/src/widgets/multi_shader_builder.dart';
 /// Widgets between the layer and its [LiquidGlass] widgets that paint, such
 /// as a colored background, paint over the glass: the layer draws all of its
 /// glass before its child.
+///
+/// A layer draws up to three iOS 27 looks exactly, a look being the glass's
+/// kind and its size, which changes the look between 64 and 160 points.
+/// Glass past them draws with the look nearest its own, and debug builds
+/// say so: give glass of many sizes or kinds layers of its own.
 ///
 /// ## Example
 ///
@@ -80,7 +85,7 @@ class LiquidGlassLayer extends StatefulWidget {
     this.defaultAppearance,
     this.fake = false,
     this.field,
-    this.backdrop = const LiquidGlassBackdrop.read(),
+    this.backdrop = _defaultBackdrop,
     super.key,
   }) : frame = null;
 
@@ -99,7 +104,7 @@ class LiquidGlassLayer extends StatefulWidget {
     required ValueListenable<LiquidGlassLayerFrame> this.frame,
     required this.child,
     this.fake = false,
-    this.backdrop = const LiquidGlassBackdrop.read(),
+    this.backdrop = _defaultBackdrop,
     super.key,
   }) : settings = null,
        field = null,
@@ -113,18 +118,19 @@ class LiquidGlassLayer extends StatefulWidget {
 
   /// The settings for the liquid glass effect for all shapes in this layer.
   ///
-  /// When omitted, the iOS 27 regular settings follow the ambient platform
-  /// brightness, as [defaultAppearance] does, so glass given neither is the
-  /// light regular glass in light mode and the dark one in dark mode
-  /// ([LiquidGlassMaterial.ios27Regular]). A layer made with
-  /// [LiquidGlassLayer.live] takes them from its frame.
+  /// When omitted, `const LiquidGlassSettings()`, iOS 27 regular glass's
+  /// lens and blur, as [FakeGlass] takes; the brightness of glass given
+  /// neither settings nor [defaultAppearance] follows the platform through
+  /// its default appearance. A layer made with [LiquidGlassLayer.live] takes
+  /// them from its frame.
   final LiquidGlassSettings? settings;
 
   /// Appearance inherited by shapes that do not provide an override.
   ///
-  /// When omitted, the fitted iOS 27 regular appearance follows the ambient
-  /// platform brightness. A layer made with [LiquidGlassLayer.live] takes it
-  /// from its frame.
+  /// When omitted, the iOS 27 regular appearance follows the ambient
+  /// platform brightness and Increase Contrast setting
+  /// ([MediaQuery.highContrastOf]). A layer made with [LiquidGlassLayer.live]
+  /// takes it from its frame.
   final LiquidGlassAppearance? defaultAppearance;
 
   /// Whether to replace all liquid glass effects in this layer with
@@ -155,12 +161,15 @@ class LiquidGlassLayer extends StatefulWidget {
 
   /// The settings of the nearest [LiquidGlassLayer] above [context], which
   /// its glass draws with, or null where there is no layer; [context]
-  /// rebuilds when they change.
+  /// rebuilds when they change. Under a layer made with
+  /// [LiquidGlassLayer.live] they are those of the frame the layer last
+  /// built with: its frames rebuild nothing.
   static LiquidGlassSettings? maybeSettingsOf(BuildContext context) =>
       LiquidGlassRenderScope.maybeSettingsOf(context);
 
   /// The settings of the nearest [LiquidGlassLayer] above [context], which
-  /// its glass draws with; [context] rebuilds when they change.
+  /// its glass draws with; [context] rebuilds when they change, and under a
+  /// live layer they are as [maybeSettingsOf] says.
   ///
   /// There must be such a layer: [maybeSettingsOf] gives null where there is
   /// none.
@@ -185,7 +194,7 @@ class LiquidGlassLayer extends StatefulWidget {
         DiagnosticsProperty(
           'backdrop',
           backdrop,
-          defaultValue: const LiquidGlassBackdrop.read(),
+          defaultValue: _defaultBackdrop,
         ),
       )
       ..add(DiagnosticsProperty('frame', frame, defaultValue: null));
@@ -209,19 +218,20 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   final _layerKey = GlobalKey(debugLabel: 'LiquidGlassLayer.layer');
 
   LiquidGlassSettings get _settings =>
-      widget.frame?.value.settings ?? widget.settings ?? _platform.settings;
+      widget.frame?.value.settings ??
+      widget.settings ??
+      const LiquidGlassSettings();
 
   LiquidGlassField? get _field => widget.frame?.value.field ?? widget.field;
 
-  // iOS 27 regular glass in the platform brightness: what a layer given no
-  // settings or no default appearance draws with.
-  late LiquidGlassMaterial _platform;
+  late LiquidGlassAppearance _platformAppearance;
   Brightness? _platformBrightness;
+  bool _platformContrast = false;
 
   LiquidGlassAppearance get _defaultAppearance =>
       widget.frame?.value.defaultAppearance ??
       widget.defaultAppearance ??
-      _platform.appearance;
+      _platformAppearance;
 
   void _onLiveFrame() {
     if (_layerKey.currentContext?.findRenderObject()
@@ -273,9 +283,15 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   @override
   Widget build(BuildContext context) {
     final brightness = MediaQuery.platformBrightnessOf(context);
-    if (brightness != _platformBrightness) {
+    final highContrast = MediaQuery.maybeHighContrastOf(context) ?? false;
+    if (brightness != _platformBrightness ||
+        highContrast != _platformContrast) {
       _platformBrightness = brightness;
-      _platform = LiquidGlassMaterial.ios27Regular(brightness: brightness);
+      _platformContrast = highContrast;
+      _platformAppearance = LiquidGlassAppearance.ios27Regular(
+        brightness: brightness,
+        highContrast: highContrast,
+      );
     }
     final defaultAppearance = _defaultAppearance;
     final glass = widget.fake ? null : FullGlass.state.value;
@@ -299,8 +315,8 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
       child: LiquidGlassRenderScope(
         settings: _settings,
         defaultAppearance: defaultAppearance,
-        child: GlassHost.layer(
-          link: _link,
+        child: GlassHost(
+          place: OnLayer(_link),
           child: _RawShapes(
             key: _layerKey,
             glass: glass,
@@ -326,33 +342,23 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   }) {
     // A boundary of its own, as the real layer has: ancestor motion moves
     // the retained surfaces without recording them again.
-    Widget buildFakeSurfaceLayer(Map<String, FragmentShader> shaders) {
-      return RepaintBoundary(
-        child: LiquidGlassRenderScope(
-          settings: settings,
-          defaultAppearance: defaultAppearance,
-          fake: true,
-          child: GlassHost.layer(
+    return RepaintBoundary(
+      child: LiquidGlassRenderScope(
+        settings: settings,
+        defaultAppearance: defaultAppearance,
+        fake: true,
+        child: GlassHost(
+          place: OnLayer(_link),
+          child: ConsolidatedFakeGlassLayer(
+            key: _layerKey,
             link: _link,
-            child: ConsolidatedFakeGlassLayer(
-              key: _layerKey,
-              link: _link,
-              settings: settings,
-              defaultAppearance: defaultAppearance,
-              surfaceShader: shaders[ShaderKeys.fakeGlassSurface],
-              fieldShader: shaders[ShaderKeys.fakeGlassFieldSurface],
-              field: _field,
-              child: child,
-            ),
+            settings: settings,
+            defaultAppearance: defaultAppearance,
+            field: _field,
+            child: child,
           ),
         ),
-      );
-    }
-
-    return MultiShaderBuilder(
-      assetKeys: ShaderKeys.fakeLayerAssets,
-      (_, shaders, _) => buildFakeSurfaceLayer(shaders),
-      child: buildFakeSurfaceLayer(const {}),
+      ),
     );
   }
 }
@@ -379,6 +385,7 @@ class _RawShapes extends SingleChildRenderObjectWidget {
 
   @override
   RenderObject createRenderObject(BuildContext context) {
+    installLiquidGlassComposer();
     return RenderLiquidGlassLayer(
         glass: glass,
         devicePixelRatio: glassDevicePixelRatioOf(context),
@@ -387,7 +394,8 @@ class _RawShapes extends SingleChildRenderObjectWidget {
         link: link,
       )
       ..field = field
-      ..solidBackdrop = solidBackdrop;
+      ..solidBackdrop = solidBackdrop
+      ..backdropGroup = BackdropGroup.of(context)?.backdropKey;
   }
 
   @override
@@ -401,6 +409,7 @@ class _RawShapes extends SingleChildRenderObjectWidget {
       ..settings = settings
       ..defaultAppearance = defaultAppearance
       ..field = field
-      ..solidBackdrop = solidBackdrop;
+      ..solidBackdrop = solidBackdrop
+      ..backdropGroup = BackdropGroup.of(context)?.backdropKey;
   }
 }

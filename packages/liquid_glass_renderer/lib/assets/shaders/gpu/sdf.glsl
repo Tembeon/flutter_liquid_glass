@@ -378,7 +378,7 @@ SceneSample smoothUnionSample(SceneSample a, SceneSample b, float k) {
     float blend = angularBlendRadius(k, a.normal, b.normal);
     float e = max(blend - abs(a.distance - b.distance), 0.0);
     float distance = min(a.distance, b.distance) -
-        e * e * 0.25 / max(blend, 1e-4);
+        e * e * kSmoothUnionDepth / max(blend, 1e-4);
     // Weighted over the union's full radius, so the shape-relative profile
     // and the look stay continuous across a smooth group seam.
     float weightA = smoothMinWeight(a.distance, b.distance, k);
@@ -401,8 +401,8 @@ SceneSample smoothUnionSample(SceneSample a, SceneSample b, float k) {
     return result;
 }
 
-// The scene of the count shapes from row first, in chain order.
-SceneSample sceneSample(vec2 p, int first, int count) {
+// The scene before its first shape: no surface anywhere.
+SceneSample emptySceneSample() {
     SceneSample empty;
     empty.distance = 1e9;
     empty.halfMinor = 0.0;
@@ -411,6 +411,52 @@ SceneSample sceneSample(vec2 p, int first, int count) {
 #if SCENE_LOOKS
     empty.look = Look(vec4(0.0), vec4(0.0), vec4(0.0));
 #endif
+    return empty;
+}
+
+// The group marker of shape row [i]: -(blend + 1) where the shape starts a
+// group, its blend with the group where it joins one (shape_set.dart).
+float groupMarkerOf(int i) {
+    return uShapeData[i * SHAPE_ROW_VEC4S + SHAPE_PLACEMENT].w;
+}
+
+// Folds shape row [i] into the scene walked so far, in chain order: a shape
+// that [startsGroup] closes the open group into [result] and opens its own;
+// one that joins blends into the open group. Once a group has an exact
+// candidate, an enclosing-box lower bound beyond its smooth-union support
+// proves a joining primitive cannot affect the result, which skips the much
+// more expensive RSE/ellipse solve for distant shapes.
+void foldShape(
+    inout SceneSample result,
+    inout SceneSample groupResult,
+    int i,
+    bool startsGroup,
+    vec2 p
+) {
+    float marker = groupMarkerOf(i);
+    float groupBlend = marker < 0.0 ? -marker - 1.0 : marker;
+    if (
+        !startsGroup &&
+        cannotAffectGroup(
+            uShapeBounds[i],
+            p,
+            groupResult.distance + groupBlend
+        )
+    ) {
+        return;
+    }
+    SceneSample shapeValue = getShapeSampleFromArray(i, p, true);
+    if (startsGroup) {
+        result = result.distance < groupResult.distance ? result : groupResult;
+        groupResult = shapeValue;
+    } else {
+        groupResult = smoothUnionSample(groupResult, shapeValue, groupBlend);
+    }
+}
+
+// The scene of the count shapes from row first, in chain order.
+SceneSample sceneSample(vec2 p, int first, int count) {
+    SceneSample empty = emptySceneSample();
     if (count <= 0) {
         return empty;
     }
@@ -424,34 +470,7 @@ SceneSample sceneSample(vec2 p, int first, int count) {
     for (int n = 0; n < MAX_SHAPES; n++) {
         if (n >= shapeCount) break;
         int i = (first + n) & SHAPE_INDEX_MASK;
-        float marker = uShapeData[i * SHAPE_ROW_VEC4S + SHAPE_PLACEMENT].w;
-        bool startsGroup = marker < 0.0;
-        float groupBlend = startsGroup ? -marker - 1.0 : marker;
-        // Once a group has an exact candidate, an enclosing-box lower bound
-        // beyond its smooth-union support proves this primitive cannot affect
-        // the result. This avoids the much more expensive RSE/ellipse solve
-        // for distant shapes while retaining original evaluation order.
-        if (
-            !startsGroup &&
-            cannotAffectGroup(
-                uShapeBounds[i],
-                p,
-                groupResult.distance + groupBlend
-            )
-        ) {
-            continue;
-        }
-        SceneSample shapeValue = getShapeSampleFromArray(i, p, true);
-        if (startsGroup) {
-            result = result.distance < groupResult.distance ? result : groupResult;
-            groupResult = shapeValue;
-        } else {
-            groupResult = smoothUnionSample(
-                groupResult,
-                shapeValue,
-                groupBlend
-            );
-        }
+        foldShape(result, groupResult, i, groupMarkerOf(i) < 0.0, p);
     }
     return result.distance <= groupResult.distance ? result : groupResult;
 }
@@ -468,44 +487,19 @@ SceneSample listedSceneSample(vec2 p, vec4 members) {
             false
         );
     }
-    SceneSample empty;
-    empty.distance = 1e9;
-    empty.halfMinor = 0.0;
-    empty.normal = vec2(0.0);
-    empty.opticalNormal = vec2(0.0);
-#if SCENE_LOOKS
-    empty.look = Look(vec4(0.0), vec4(0.0), vec4(0.0));
-#endif
+    SceneSample empty = emptySceneSample();
     SceneSample result = empty;
     SceneSample groupResult = empty;
     for (int slot = 0; slot < 4; slot++) {
         float member = members[slot];
         if (member >= MEMBER_NONE) break;
-        bool startsGroup = member >= MEMBER_STARTS_GROUP;
-        int i = int(member) & SHAPE_INDEX_MASK;
-        float marker = uShapeData[i * SHAPE_ROW_VEC4S + SHAPE_PLACEMENT].w;
-        float groupBlend = marker < 0.0 ? -marker - 1.0 : marker;
-        if (
-            !startsGroup &&
-            cannotAffectGroup(
-                uShapeBounds[i],
-                p,
-                groupResult.distance + groupBlend
-            )
-        ) {
-            continue;
-        }
-        SceneSample shapeValue = getShapeSampleFromArray(i, p, true);
-        if (startsGroup) {
-            result = result.distance < groupResult.distance ? result : groupResult;
-            groupResult = shapeValue;
-        } else {
-            groupResult = smoothUnionSample(
-                groupResult,
-                shapeValue,
-                groupBlend
-            );
-        }
+        foldShape(
+            result,
+            groupResult,
+            int(member) & SHAPE_INDEX_MASK,
+            member >= MEMBER_STARTS_GROUP,
+            p
+        );
     }
     return result.distance <= groupResult.distance ? result : groupResult;
 }

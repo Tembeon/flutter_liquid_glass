@@ -66,7 +66,10 @@ final class GeometryBundle {
           ])
         : null;
     final fieldSlot = pipelines.first.fieldUniforms;
-    int tileField(String name) => fieldSlot.getMemberOffsetInBytes(name) ?? 0;
+    int tileField(String name) =>
+        fieldSlot.getMemberOffsetInBytes(name) ??
+        (throw StateError('The field shader has no uniform member $name.'));
+
     final fieldOffsets = (
       bufferToGrid: tileField('uBufferToGrid'),
       gridShift: tileField('uGridShift'),
@@ -74,7 +77,10 @@ final class GeometryBundle {
     );
     // The pass with looks reads every member.
     final slot = pipelines[AtlasLooks.all.index].shapesUniforms;
-    int member(String name) => slot.getMemberOffsetInBytes(name) ?? 0;
+    int member(String name) =>
+        slot.getMemberOffsetInBytes(name) ??
+        (throw StateError('The tile shaders have no uniform member $name.'));
+
     final offsets = (
       shapeData: member('uShapeData'),
       rseData: member('uRseData'),
@@ -90,9 +96,13 @@ final class GeometryBundle {
             pipelines: pipelines[targets.index],
             onePerTarget: onePerTarget,
             offsets: offsets,
-            uniformSize: slot.sizeInBytes ?? 0,
+            uniformSize:
+                slot.sizeInBytes ??
+                (throw StateError('The tile shaders have no uniform block.')),
             fieldOffsets: fieldOffsets,
-            fieldUniformSize: fieldSlot.sizeInBytes ?? 0,
+            fieldUniformSize:
+                fieldSlot.sizeInBytes ??
+                (throw StateError('The field shader has no uniform block.')),
             lookCount: targets.count,
           ),
       ]),
@@ -111,9 +121,6 @@ final class GeometryBundle {
             'LiquidGlass requires Flutter GPU. Run with Flutter 3.47 or newer '
             'and enable Flutter GPU for the target platform.',
           ));
-      atlasTableFilter = _GpuBackend.oneFilterPerTexture
-          ? ui.FilterQuality.low
-          : ui.FilterQuality.none;
       return GeometryBundle._compile(
         shader,
         oneTargetPerPass: _GpuBackend.oneColorAttachmentPerPass,

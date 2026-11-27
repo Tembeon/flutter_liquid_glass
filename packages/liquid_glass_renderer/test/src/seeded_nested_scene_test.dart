@@ -4,8 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
@@ -46,8 +45,7 @@ void runSeededNestedTests(SubmittedSceneCapture binding) {
         // A read that holds still moves to an image the next frame, which
         // draws a level apart from the read of the scene (NEAR): every frame
         // compared here reads the scene.
-        debugGlassPrices = const PlanPrices(imageGpu: 1000000);
-        addTearDown(() => debugGlassPrices = const PlanPrices());
+        debugGlassPolicy = const PlanPolicy(imagePasses: 10000000);
         final translation = ValueNotifier<Offset>(Offset.zero);
         addTearDown(translation.dispose);
         final opacity = AnimationController(vsync: tester, value: 1);
@@ -55,7 +53,7 @@ void runSeededNestedTests(SubmittedSceneCapture binding) {
 
         await tester.runAsync(
           () => GlassShaderPrograms.precacheShaders([
-            ShaderKeys.fakeGlassSurface,
+            ShaderProgram.fakeGlassSurface.key,
           ]),
         );
 
@@ -139,12 +137,12 @@ void runSeededNestedTests(SubmittedSceneCapture binding) {
           'original moved scene stays stable on the following frame',
         );
         expect(
-          _maxDifference(originalStatic, originalMoved),
+          largestDifference(originalStatic, originalMoved),
           greaterThan(10),
           reason: 'The translation must visibly change the reference scene.',
         );
         expect(
-          _maxDifference(originalStatic, background),
+          largestDifference(originalStatic, background),
           greaterThan(10),
           reason: 'An empty or invisible fixture must not pass.',
         );
@@ -243,10 +241,15 @@ Widget _nestedForeground(bool fake, ValueNotifier<Offset> translation) =>
       fake: fake,
       settings: const LiquidGlassSettings(
         refractionHeight: 18,
-        frost: LiquidGlassFrost.sigma(4),
-        glintStrength: 0,
+        blur: 4,
       ),
-      defaultAppearance: const LiquidGlassAppearance(tint: Color(0x4020A0FF)),
+      defaultAppearance: const LiquidGlassAppearance(
+        tint: Color(0x4020A0FF),
+        colorModel: LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          glintStrength: 0,
+        ),
+      ),
       child: Stack(
         children: [
           Positioned(
@@ -266,6 +269,10 @@ Widget _nestedForeground(bool fake, ValueNotifier<Offset> translation) =>
                       shape: LiquidRoundedRectangle(radius: 16),
                       appearance: LiquidGlassAppearance(
                         tint: Color(0xC0FF6048),
+                        colorModel: LiquidGlassColorModel.direct(
+                          brightness: Brightness.light,
+                          glintStrength: 0,
+                        ),
                       ),
                       child: ColoredBox(
                         color: Color(0xC0FF6048),
@@ -319,15 +326,6 @@ void _expectPixels(
         'max=$maxError at (${worstIndex ~/ 4 % 240},'
         '${worstIndex ~/ 4 ~/ 240}) channel=${worstIndex % 4}.',
   );
-}
-
-int _maxDifference(Uint8List a, Uint8List b) {
-  var result = 0;
-  for (var i = 0; i < a.length; i++) {
-    final difference = (a[i] - b[i]).abs();
-    if (difference > result) result = difference;
-  }
-  return result;
 }
 
 class _Background extends CustomPainter {

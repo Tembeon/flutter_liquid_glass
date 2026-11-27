@@ -103,10 +103,15 @@ class LoupeTabBar extends StatefulWidget {
     refractionHeight: 15,
     refractionAmount: 10,
     refractionFitsShape: false,
-    dispersion: -.3,
-    frost: LiquidGlassFrost.sigma(0),
+    lens: LiquidGlassLens(dispersion: -.3, shrink: 0.14),
+    blur: 0,
+  );
+
+  /// The color of the loupe's lens: plain, with a darker contour than
+  /// glass's own.
+  static const loupeColorModel = LiquidGlassColorModel.direct(
+    brightness: Brightness.light,
     contourStrength: .3,
-    backdropShrink: 0.14,
   );
 
   static const loupeKey = ValueKey('loupe-tab-bar-loupe');
@@ -185,7 +190,7 @@ class _LoupeTabBarState extends State<LoupeTabBar>
     press: _press,
     jelly: _jelly,
     tabCount: widget.tabs.length,
-    backdropShrink: widget.loupeSettings.backdropShrink,
+    backdropShrink: widget.loupeSettings.lens.shrink,
     iconScale: widget.loupeIconScale,
   );
   late final _barTransform = Listenable.merge([_press, _stretch]);
@@ -228,7 +233,7 @@ class _LoupeTabBarState extends State<LoupeTabBar>
     super.didUpdateWidget(oldWidget);
     _selection
       ..tabCount = widget.tabs.length
-      ..backdropShrink = widget.loupeSettings.backdropShrink
+      ..backdropShrink = widget.loupeSettings.lens.shrink
       ..iconScale = widget.loupeIconScale;
     if (widget.selectedIndex != oldWidget.selectedIndex) {
       _selected = widget.selectedIndex;
@@ -616,6 +621,7 @@ class _LoupeTabBarState extends State<LoupeTabBar>
                     fake: widget.fake,
                     defaultAppearance: LiquidGlassAppearance(
                       visibility: visibility,
+                      colorModel: LoupeTabBar.loupeColorModel,
                     ),
                     child: const LiquidGlass(
                       key: LoupeTabBar.loupeKey,

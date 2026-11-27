@@ -12,7 +12,7 @@ import 'package:apple_liquid_glass_example/app.dart';
 import 'package:apple_liquid_glass_example/stand/stand_home.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_test/liquid_glass_test.dart';
 
 const _frame = Duration(milliseconds: 16);
@@ -74,7 +74,7 @@ Future<String> _measure(
   final report = await expectGlassBudget(tester);
   final name = '${iPad ? 'iPad ' : ''}$tab@${scroll.round()}'.padRight(18);
   return '$name reads ${report.reads.length}  '
-      'targets ${report.targetCount}  images ${report.imageReads}  '
+      'passes ${report.passes}  images ${report.imageReads}  '
       'backdrop ${report.backdropReads}';
 }
 

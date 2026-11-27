@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
@@ -7,6 +8,8 @@ import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
+import 'package:liquid_glass_renderer/src/rendering/recording_shaders.dart';
+import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
 /// Draws one fake glass shape that stands alone: its backdrop blurred and
 /// color filtered inside the shape, its surface drawn analytically and its
@@ -19,7 +22,6 @@ class RenderFakeGlass extends RenderProxyBox
     required this._shape,
     required this._settings,
     required this._shownAppearance,
-    required this._surfaceShader,
   });
 
   double _devicePixelRatio;
@@ -82,18 +84,16 @@ class RenderFakeGlass extends RenderProxyBox
   Size? _wornAt;
   WornAppearance? _wornByNone;
 
-  ui.FragmentShader? _surfaceShader;
+  late final _surfaceShaders = RecordingShaders(
+    ShaderProgram.fakeGlassSurface,
+    onLoaded: () {
+      if (attached) markNeedsPaint();
+    },
+  );
 
-  /// The surface shader, or null before it has loaded; without it the surface
-  /// is a plain tint.
-  ui.FragmentShader? get surfaceShader => _surfaceShader;
-  set surfaceShader(ui.FragmentShader? value) {
-    if (identical(_surfaceShader, value)) return;
-    _surfaceShader = value;
-    markNeedsPaint();
-  }
-
-  final _surfaceShaders = FakeGlassSurfaceShaders();
+  /// The surface shader the glass drew with, once it drew with one.
+  @visibleForTesting
+  ui.FragmentShader? get debugSurfaceShader => _surfaceShaders.debugFirst;
 
   @override
   bool get alwaysNeedsCompositing => fakeGlassReadsBackdrop(
@@ -110,7 +110,7 @@ class RenderFakeGlass extends RenderProxyBox
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    if (_surfaceShader case final shader?) _surfaceShaders.begin(shader);
+    _surfaceShaders.begin();
     final parts = fakeGlassBackdropFilterParts(
       _look,
       _worn,
@@ -180,13 +180,13 @@ class RenderFakeGlass extends RenderProxyBox
   }
 
   bool get _paintsContourRing =>
-      _surfaceShader != null && _look.contourWidth > 0;
+      _surfaceShaders.ready() && fakeGlassDrawsOuterBand(_look, _worn);
 
   void _paintContourRing(Canvas canvas, Offset offset) {
     canvas
       ..save()
       ..translate(offset.dx, offset.dy);
-    paintFakeGlassContourRing(
+    paintFakeGlassOuterBand(
       canvas,
       shader: _surfaceShaders.next(),
       size: size,
@@ -199,7 +199,7 @@ class RenderFakeGlass extends RenderProxyBox
   }
 
   void _paintRecordedSurface(Canvas canvas, Offset offset) {
-    if (_surfaceShader != null) {
+    if (_surfaceShaders.ready()) {
       _paintShaderSurface(canvas, offset);
       return;
     }
@@ -218,7 +218,7 @@ class RenderFakeGlass extends RenderProxyBox
       ..save()
       ..translate(offset.dx, offset.dy)
       ..clipPath(shape.getOuterPath(Offset.zero & size));
-    paintFakeGlassSurfaceWithGlint(
+    paintFakeGlassSurfaceWithLight(
       canvas,
       shaders: _surfaceShaders,
       size: size,

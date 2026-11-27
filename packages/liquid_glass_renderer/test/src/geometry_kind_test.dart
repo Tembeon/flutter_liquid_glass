@@ -1,12 +1,15 @@
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: glass draws
 // over its copy only where shader filters are supported.
+@Tags(['composer'])
+library;
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/shading.dart';
 
 import 'shared.dart';
@@ -18,9 +21,7 @@ Widget _scene({required double left, required int shapes}) => Directionality(
       const ColoredBox(color: Color(0xFF204060), child: SizedBox.expand()),
       Positioned.fill(
         child: LiquidGlassLayer(
-          settings: const LiquidGlassSettings.ios27Regular(
-            brightness: Brightness.light,
-          ),
+          settings: const LiquidGlassSettings.ios27Regular(),
           child: Stack(
             children: [
               for (var i = 0; i < shapes; i++)
@@ -45,10 +46,6 @@ Widget _scene({required double left, required int shapes}) => Directionality(
 void main() {
   setUp(() {
     glassReadsCopies = true;
-  });
-
-  tearDown(() {
-    glassReadsCopies = false;
   });
 
   for (final (shapes, kind) in [(1, ComputedGeometry), (2, AtlasGeometry)]) {

@@ -1,14 +1,18 @@
+@Tags(['composer'])
+library;
+
 import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_form.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../plan_watch.dart';
 import '../shared.dart';
 import 'generated_layers.dart';
 
@@ -92,9 +96,7 @@ void main() {
       const glass = KeyedSubtree(
         key: glassKey,
         child: LiquidGlassLayer(
-          settings: LiquidGlassSettings.ios27Regular(
-            brightness: Brightness.light,
-          ),
+          settings: LiquidGlassSettings.ios27Regular(),
           child: LiquidGlass(
             shape: LiquidRoundedSuperellipse(radius: 28),
             child: SizedBox.expand(),
@@ -121,8 +123,6 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       glassReadsCopies = true;
-      addTearDown(() => glassReadsCopies = false);
-
       await tester.pumpWidget(places(glassFirst: true));
       for (var i = 0; i < 60; i++) {
         await tester.pump(const Duration(milliseconds: 16));
@@ -140,10 +140,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     glassReadsCopies = true;
-    addTearDown(() => glassReadsCopies = false);
-    const settings = LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.light,
-    );
+    const settings = LiquidGlassSettings.ios27Regular();
 
     Widget glassAt(double left) => Positioned(
       key: ValueKey(left),
@@ -176,7 +173,13 @@ void main() {
               width: 200,
               height: 90,
               child: LiquidGlassLayer(
-                settings: settings.copyWith(glintStrength: 1),
+                settings: settings.copyWith(),
+                defaultAppearance: const LiquidGlassAppearance(
+                  colorModel: LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
+                    glintStrength: 1,
+                  ),
+                ),
                 child: const LiquidGlass(
                   shape: LiquidRoundedSuperellipse(radius: 28),
                   child: SizedBox.expand(),
@@ -197,7 +200,7 @@ void main() {
     await tester.pumpWidget(scene(follower: true));
     final before = watch.last!;
     expect(before.reads.first.members, hasLength(2));
-    expect(before.reads.last.holds, hasLength(1));
+    expect(before.reads.last.nested, hasLength(1));
     await tester.pumpWidget(scene(follower: false));
     expect(watch.last!.reads.last.changed, isTrue);
   }, skip: skipProperGlassTests);
@@ -208,7 +211,6 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     glassReadsCopies = true;
-    addTearDown(() => glassReadsCopies = false);
     final width = ValueNotifier<double>(100);
     addTearDown(width.dispose);
 
@@ -223,9 +225,7 @@ void main() {
                 child: ColoredBox(color: Color(0xFF204060)),
               ),
               LiquidGlassLayer(
-                settings: const LiquidGlassSettings.ios27Regular(
-                  brightness: Brightness.light,
-                ),
+                settings: const LiquidGlassSettings.ios27Regular(),
                 child: RepaintBoundary(
                   child: Align(
                     alignment: Alignment.topLeft,
@@ -329,9 +329,7 @@ void main() {
       double alpha = 1,
       bool lower = true,
     }) {
-      const settings = LiquidGlassSettings.ios27Regular(
-        brightness: Brightness.light,
-      );
+      const settings = LiquidGlassSettings.ios27Regular();
       return Directionality(
         textDirection: TextDirection.ltr,
         child: MediaQuery(
@@ -350,7 +348,13 @@ void main() {
                   child: Opacity(
                     opacity: alpha,
                     child: LiquidGlassLayer(
-                      settings: settings.copyWith(glintStrength: glint),
+                      settings: settings.copyWith(),
+                      defaultAppearance: LiquidGlassAppearance(
+                        colorModel: LiquidGlassColorModel.direct(
+                          brightness: Brightness.light,
+                          glintStrength: glint,
+                        ),
+                      ),
                       child: const LiquidGlass(
                         shape: LiquidRoundedSuperellipse(radius: 28),
                         child: SizedBox.expand(),
@@ -397,8 +401,6 @@ void main() {
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
         glassReadsCopies = true;
-        addTearDown(() => glassReadsCopies = false);
-
         await tester.pumpWidget(scene());
         for (var i = 0; i < 60; i++) {
           await tester.pump(const Duration(milliseconds: 16));

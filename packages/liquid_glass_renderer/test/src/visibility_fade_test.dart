@@ -42,7 +42,10 @@ void runVisibilityFadeTests(TestWidgetsFlutterBinding testBinding) {
   const appearances = {
     'direct': LiquidGlassAppearance(
       tint: Color(0x604080FF),
-      colorModel: LiquidGlassColorModel.direct(saturation: 1.5),
+      colorModel: LiquidGlassColorModel.direct(
+        brightness: Brightness.light,
+        saturation: 1.5,
+      ),
     ),
     'ios27 light': LiquidGlassAppearance.ios27Regular(
       brightness: Brightness.light,
@@ -60,8 +63,8 @@ void runVisibilityFadeTests(TestWidgetsFlutterBinding testBinding) {
           'visibility fades $name to the backdrop '
           '(fake=$fake, frost=$frost)',
           (tester) async {
-            // Until their programs load, copies frost and haze with
-            // stand-ins; the frames compared here have to draw alike.
+            // Until their programs load, copies blur without levels
+            // or fill; the frames compared here have to draw alike.
             await tester.runAsync(precacheLiquidGlass);
             tester.view
               ..physicalSize = Size(_width.toDouble(), _height.toDouble())
@@ -82,7 +85,7 @@ void runVisibilityFadeTests(TestWidgetsFlutterBinding testBinding) {
                       child: LiquidGlassLayer(
                         fake: fake,
                         settings: LiquidGlassSettings(
-                          frost: LiquidGlassFrost.sigma(frost),
+                          blur: frost,
                         ),
                         child: ValueListenableBuilder<double>(
                           valueListenable: visibility,

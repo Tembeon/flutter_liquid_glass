@@ -2,8 +2,8 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 import 'shared.dart';
 
@@ -12,9 +12,7 @@ void main() {
   // backdrop; glass that reads a copy draws it through the read's filter.
   group('glass reading its backdrop', () {
     setUp(() {
-      final readsCopies = glassReadsCopies;
       glassReadsCopies = false;
-      addTearDown(() => glassReadsCopies = readsCopies);
     });
 
     RenderLiquidGlassLayer findLayer(WidgetTester tester) {
@@ -176,7 +174,7 @@ void main() {
         await tester.pumpWidget(
           glass(
             settings: const LiquidGlassSettings(
-              frost: LiquidGlassFrost.sigma(8),
+              blur: 8,
             ),
           ),
         );
@@ -191,7 +189,7 @@ void main() {
     );
 
     testWidgets(
-      'rebuilds the filter only when settings change the shader uniforms',
+      'rebuilds the filter only when its settings or rim change its uniforms',
       (tester) async {
         await tester.pumpWidget(glass());
         await tester.pumpAndSettle();
@@ -205,7 +203,7 @@ void main() {
         await tester.pumpWidget(
           glass(
             settings: const LiquidGlassSettings(
-              frost: LiquidGlassFrost.sigma(8),
+              blur: 8,
             ),
           ),
         );
@@ -217,9 +215,12 @@ void main() {
 
         await tester.pumpWidget(
           glass(
-            settings: const LiquidGlassSettings(
-              frost: LiquidGlassFrost.sigma(8),
-              glintStrength: 0.3,
+            settings: const LiquidGlassSettings(blur: 8),
+            appearance: const LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+                glintStrength: 0.3,
+              ),
             ),
           ),
         );
@@ -283,7 +284,14 @@ void main() {
             renderObject.gpuGeometryRenderer.debugRenderCount;
 
         await tester.pumpWidget(
-          glass(appearance: const LiquidGlassAppearance(visibility: 0)),
+          glass(
+            appearance: const LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+              visibility: 0,
+            ),
+          ),
         );
         await tester.pumpAndSettle();
 

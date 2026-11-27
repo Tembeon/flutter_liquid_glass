@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:meta/meta.dart';
 
 /// A layer draws this many glass shapes in one cluster, the shapes whose
@@ -42,6 +41,22 @@ enum RawShapeType {
 /// `LiquidGlassField.opticalCornerScale`.
 @internal
 const double opticalCornerRadiusScale = 1.5;
+
+/// The most pairs of a copy's pixels a frost over every pixel of it reads
+/// along an axis: the reads of `backdrop_frost_axis.frag`.
+@internal
+const int latticeMostPairs = 8;
+
+/// The pairs of a copy's pixels the square lattice reads along each axis:
+/// the reads of `backdrop_frost_square.frag`.
+@internal
+const int latticeSquarePairs = 3;
+
+/// How far a smooth union lowers the distance below its nearest member, at
+/// most, per unit of its blend radius: the fold `gpu/sdf.glsl` draws, which
+/// the tiler, the atlas pages and a group's bounds reach past by.
+@internal
+const double smoothUnionDepth = 0.25;
 
 /// The edge of a tile of a geometry atlas, in buffer pixels.
 @internal
@@ -146,14 +161,59 @@ abstract final class GlassGlint {
   static const double directVibrancy = 2.85;
 }
 
+/// The rim the direct color model draws, a fit to iOS 27 captures (the iOS 27
+/// recipes light a rim of their own): the glint inside the silhouette, the
+/// dark contour outside it and the inner bevel shadow, in logical pixels.
+@internal
+abstract final class GlassRim {
+  /// Width of the glint line inward from the silhouette, in logical pixels.
+  static const double glintWidth = 1.2;
+
+  /// Angular spread of the glint: `0.5`, measured on iOS 27, fades it
+  /// linearly with the normal's component perpendicular to the light axis.
+  static const double glintWrap = 0.5;
+
+  /// Energy of the glint opposite the light-facing rim, relative to it.
+  static const double glintOppositeStrength = 1;
+
+  /// Width of the dark contour outside the silhouette, in logical pixels.
+  static const double contourWidth = 0.75;
+
+  /// Distance over which the inner bevel shadow fades inward, in logical
+  /// pixels.
+  static const double bevelShadowDepth = 16;
+
+  /// Displacement of the inner bevel shadow along the light, in logical
+  /// pixels.
+  static const double bevelShadowOffset = 6;
+
+  /// How strongly the inner bevel shadow follows the light direction.
+  static const double bevelShadowDirectionality = 0.5;
+
+  /// The least strength of an inner bevel shadow that is drawn.
+  static const double leastBevelShadowStrength = 0.001;
+}
+
 /// How far the final shader shifts the backdrop at a glass's edge, which the
-/// reach of the copy it reads follows.
+/// reach of the copy it reads follows: the settings' refraction, capped by
+/// the shape's size. The caps are in half the shape's shorter side.
 @internal
 abstract final class GlassShift {
-  /// How far clear glass may shift the backdrop at its edge, in half its
-  /// short side; glass whose refraction fits its shape shifts it at most that
-  /// far.
-  static const double clearRatio = 1.3;
+  /// How deep the bevel of glass whose refraction fits its shape reaches at
+  /// most, as iOS 27 regular glass's: a quarter of the shorter side.
+  static const double fittedBevel = 0.5;
+
+  /// How far glass whose refraction fits its shape shifts the backdrop at
+  /// most: to the shape's center line.
+  static const double fittedShift = 1;
+
+  /// How deep the bevel of clear glass reaches at most: 0.36 of the shorter
+  /// side.
+  static const double clearBevel = 0.72;
+
+  /// How far clear glass shifts the backdrop at most: 0.65 of the shorter
+  /// side, past the center line of a small shape.
+  static const double clearShift = 1.3;
 
   /// The fraction of the dispersion the outer colors move apart by.
   static const double dispersionSpread = 0.5;
@@ -199,16 +259,11 @@ const List<(double, double)> frostSixteenTaps = [
   (-0.30413, -2.55934),
 ];
 
-/// How many taps `frostTaps` (frost.glsl) reads along its spiral.
-@internal
-const int frostSpiralTaps = 12;
-
 /// How many sigmas out the farthest tap of any frost in frost.glsl lies.
 @internal
 final double frostTapReach = [
   for (final (x, y) in [...frostEightTaps, ...frostSixteenTaps])
     sqrt(x * x + y * y),
-  sqrt(-2 * log(1 - (frostSpiralTaps - 0.5) / frostSpiralTaps)),
 ].reduce(max);
 
 /// How deep inside and how far outside its edge fake glass reads the
@@ -222,16 +277,82 @@ const double fakeFieldInside = 24;
 @internal
 const double fakeFieldOutside = 8;
 
-/// The reads along a side of a cell that backdrop_haze_strip.frag has room
-/// for.
+/// How strong each light of iOS 27's rim highlight is, its key and fill
+/// amounts, the same on every glass: the line lights in proportion to its
+/// mask (a strength of 1 would light all of it), and the diffuse glow,
+/// `RimHighlightRecipe.diffuseAmount` of this, by the glow's own law.
 @internal
-const int hazeMostReads = 32;
+const double ios27RimLightAmount = 0.5;
+
+/// The pairs of pixels along each side of a cell that copy_levels.frag has
+/// room to average.
+@internal
+const int levelMostPairs = 32;
+
+/// The coarsest blur level a copy carries: its cells average level 2 by
+/// [levelMostPairs] / 2 pairs along each side.
+@internal
+const int levelMostDeep = 6;
+
+/// The variance, in a copy's pixels squared, a bilinear read of a copy adds
+/// to what it reads: the tent of one of its pixels.
+@internal
+const double bilinearTapVariance = 1 / 6;
+
+/// The variance, in a copy's pixels squared, a copy pixel holds where it
+/// averages more than one device pixel: a box one pixel wide.
+@internal
+const double copyPixelBoxVariance = 1 / 12;
+
+/// The blur level of a copy's strip that the coarser levels and the fill
+/// level average (copy_levels.frag's second pass); the first pass averages
+/// the copy into the levels up to it.
+@internal
+const int coarseSourceLevel = 2;
+
+/// The texels of the ring around each level of a copy's strip, which repeat
+/// the level's edge so a bilinear read anywhere over the copy needs no clamp.
+@internal
+const int levelRing = 1;
+
+/// A level's variance past the copy pixel's box, in units of this many to a
+/// copy pixel squared: blur level k up to [coarseSourceLevel] holds 4^k of
+/// them, a tent over two of its cells and a bilinear read of them.
+@internal
+const double levelSpanScale = 1 / (2 * bilinearTapVariance);
+
+/// The variance of [coarseSourceLevel]'s own tent, in a copy's pixels
+/// squared, which every level averaging it carries too.
+@internal
+const double levelSourceTent =
+    (1 << 2 * coarseSourceLevel) * bilinearTapVariance;
+
+/// [levelSourceTent] in [levelSpanScale]'s units.
+@internal
+const double levelSourceSpan = levelSourceTent * levelSpanScale;
+
+/// The span ([levelSpanScale]) of the first level past [coarseSourceLevel]:
+/// a span from it on reads that level or a coarser one.
+@internal
+const double levelSpanKnee =
+    (1 << 2 * (coarseSourceLevel + 1)) + levelSourceSpan;
+
+/// The ease a frost dissolves by from where it is gone (0) to where it is
+/// whole (1), a smootherstep so neither end shows as a line: the
+/// coefficients of t^3, t^4 and t^5.
+@internal
+const frostEase = (10.0, -15.0, 6.0);
 
 /// Rec.709's luminance weights, the material's luminance basis: a
 /// color-card fit on the host's Metal shows less blue and cyan transfer error
 /// with them than with Rec.601's.
 @internal
 const lumaWeights = (0.2126, 0.7152, 0.0722);
+
+/// How much an iOS 27 face lifts the chroma of what it keeps of a colour
+/// as it rolls the colour's luma off: `1 + faceChromaLift * (1 - kept)`.
+@internal
+const double faceChromaLift = 0.3;
 
 /// The mirror that turns an edge's outward normal into the way glass parts
 /// colors along, as the rows (x, y) and (y, z): the reflection across the
@@ -249,16 +370,6 @@ const partingSideWeights = (1 / 6, 1 / 3, 1 / 2);
 /// thirds of the parting's reach each way: each weighted toward the point.
 @internal
 const partingMiddleWeights = (1 / 3, 2 / 9, 1 / 9);
-
-/// How much more of the backdrop's chroma a lifted face keeps than its cap
-/// on luminance alone keeps ([chromaKeep]).
-@internal
-const double chromaKeepRise = 0.3;
-
-/// The fraction of the backdrop's chroma a face keeps where its cap on
-/// luminance keeps [keep]: iOS 27 keeps more of it the more the cap takes.
-@internal
-double chromaKeep(double keep) => keep * (1 + chromaKeepRise * (1 - keep));
 
 /// A lane of the floats a pubspec shader reads, in an enum whose order is
 /// the order Dart writes them in. The generated file of the enum names each
@@ -320,30 +431,59 @@ enum FakeSurfaceLane implements UniformLane {
   contourStrength,
   contourWidth,
   contourDirectionality,
-  bevelStrength,
+  bevelShadowStrength,
 
   /// The logical size of one device pixel.
   pixelSize,
 
-  /// 1 draws only the border ring outside the shape's clip.
-  exteriorOnly,
-
-  /// The luminance of the neutral glint target.
-  glintLuminance,
+  /// 1 draws only the band outside the shape (FakeSurfacePass.outerBand).
+  outerBandOnly,
 
   /// The premultiplied emission of the face the backdrop filter produced.
   faceEmission(3),
 
-  /// The face's fraction of the glint target, as the color model's
-  /// glintFaceGain.
-  glintFaceGain,
-  glintVibrancy,
-
-  /// 1 draws only the additive glint pass.
-  glintOnly,
+  /// 1 draws only the light on the rim, added over the body
+  /// (FakeSurfacePass.light).
+  lightOnly,
 
   /// A pair's bottom corner radius, or -1 for one radius.
-  bottomRadius;
+  bottomRadius,
+
+  /// The opacity of an iOS 27 recipe's rim highlight, which the light pass
+  /// draws where direct glass draws its glint; 0 for other glass.
+  highlightOpacity,
+  highlightWidth,
+  highlightDiffuseWidth,
+
+  /// The cosines of the half angles the highlight's line and its diffuse
+  /// glow light.
+  highlightSpread(2),
+  highlightDiffuseBias,
+  highlightCurvature,
+
+  /// The light the highlight adds where it is full.
+  highlightLift,
+
+  /// The opacity of an iOS 27 recipe's ring shadow, which takes the bevel
+  /// shadow's place; 0 for other glass.
+  ringOpacity,
+  ringOffset,
+  ringStroke,
+  ringInverseRadius,
+
+  /// How dark an iOS 27 recipe's dark specular makes its band where it is
+  /// full, which takes the contour's place; 0 for other glass.
+  specularStrength,
+  specularWidth,
+
+  /// The cosine of the half angle the dark specular darkens.
+  specularSpread,
+
+  /// The bias the dark specular's mask takes, from its amount.
+  specularBias,
+
+  /// How far inside the edge an iOS 27 recipe's dark specular starts.
+  specularInset;
 
   const FakeSurfaceLane([this.width = 1]);
 
@@ -366,7 +506,7 @@ enum BentContentLane implements UniformLane {
   /// One over the picture's size.
   pictureScale(2),
 
-  /// The amount and height of the first bend, then of the second.
+  /// The amount and depth of the first bend, then of the second.
   bends(4),
 
   /// How far the colors part and how deep from the rim the parting fades.
@@ -392,9 +532,10 @@ enum FaceLane implements GlobalLane {
   /// The tint, at 8 bits a channel.
   tint(4),
 
-  /// How far the bevel shifts what it reads, in device pixels of a
-  /// fragment.
-  displacementScale,
+  /// How far the bevel shifts what it reads at most, in device pixels of the
+  /// matte, as every length of the geometry: the drawn refraction amount.
+  /// The shader turns the shift into the fragments of the draw.
+  refractionAmount,
   dispersion,
 
   glintStrength,
@@ -403,18 +544,18 @@ enum FaceLane implements GlobalLane {
   backdropScale,
   saturation,
 
-  /// The black border's strength.
-  contourAlpha.inPlace(),
+  /// The direct model's contour's strength.
+  contourStrength.inPlace(),
 
-  /// How deep inside the edge the rim lighting and border reach, in device
+  /// How deep inside the edge the rim lighting and contour reach, in device
   /// pixels (`rimReach`).
   rimReach,
 
   /// The glint line's width, in device pixels.
   glintWidth,
 
-  /// The border's width, in device pixels.
-  edgeWidth,
+  /// The contour's width, in device pixels.
+  contourWidth,
   contourDirectionality,
   vibrancy,
   bevelShadowStrength,
@@ -425,7 +566,7 @@ enum FaceLane implements GlobalLane {
   /// How far the bevel shadow lies along the light, in device pixels.
   bevelShadowOffset,
 
-  /// Which slot of uColorModelParams the glass's color model fills.
+  /// Which slot of uRecipes the glass's recipe fills, 0 for the direct model.
   colorModelCode.inPlace(),
 
   /// How much of the glass is drawn, from 0 to 1.
@@ -439,7 +580,11 @@ enum FaceLane implements GlobalLane {
 
   /// How deep the final shader reads the geometry, in device pixels
   /// (`readDepth`).
-  readDepth;
+  readDepth,
+
+  /// How far outside the edge the glass's recipes draw, their dark specular
+  /// bands, in device pixels (`recipeEdges`' outward reach).
+  outsideReach;
 
   const FaceLane([this.width = 1]) : global = width == 1;
 
@@ -526,19 +671,24 @@ enum MappingLane implements UniformLane {
   final int width;
 }
 
-/// How many color models one layer's glass shades besides the direct
-/// model, each in a slot of uColorModelParams; more fold onto the first.
+/// How many iOS 27 recipes one layer's glass shades besides the direct
+/// model, each in a slot of uRecipes; more fold onto the first.
 @internal
 const int colorModelSlotCount = 3;
 
-/// The floats of one slot of the final shader's uColorModelParams: an
-/// adaptive color model with its curves over the slider evaluated
-/// (`GlassColorParameters`).
+/// The floats of one slot of the final shader's uRecipes: a `GlassRecipe`
+/// as the shader takes it, its widths in device pixels.
 @internal
-enum ColorModelLane implements UniformLane {
-  /// The untinted face's emission, premultiplied.
-  emission(3),
-  transmittance,
+enum RecipeLane implements UniformLane {
+  /// The face's black, white and saturation.
+  face(3),
+
+  /// How far the face rolls off toward its brightest luma: one less that
+  /// luma, 0 rolling nothing off.
+  faceRollOff,
+
+  /// The colour over the face, premultiplied.
+  faceFill(4),
 
   /// The bleed's black, white and saturation.
   bleed(3),
@@ -546,20 +696,49 @@ enum ColorModelLane implements UniformLane {
   /// The bleed's opacity, negative where it takes the bright parts.
   bleedOpacity,
 
-  /// The glint target: luminance, face gain, vibrancy.
-  glint(3),
+  /// What a tint channel becomes where the face is black and where it is
+  /// white: the scale and bias of each over the tint's channel.
+  tintRamp(4),
 
-  /// How much stronger the border is for the opacity the slider adds.
-  contourBoost,
+  /// The rim highlight's brightening: black, white and saturation.
+  brighten(3),
+  highlightOpacity,
+  highlightWidth,
+  highlightDiffuseWidth,
+  highlightCurvature,
 
-  /// The tones a tint's black and white channels take over the face's
-  /// luminance: the black's base and amplitude, then the white's.
-  tones(4),
+  /// Whether a tint follows the face's luma (1) or each channel (0).
+  tintLumaWeight,
 
-  /// The untinted face's luminance lift and chroma gain.
-  faceTransfer(2);
+  /// The cosines of the half angles the highlight's line and its diffuse
+  /// glow light.
+  highlightSpread(2),
 
-  const ColorModelLane([this.width = 1]);
+  /// The bias the diffuse glow's mask takes, from its amount.
+  highlightDiffuseBias,
+
+  /// The least a tint channel becomes where the face is black.
+  tintFloor,
+
+  /// The bias the dark specular's mask takes, from its amount.
+  specularBias,
+  specularWidth,
+  specularColorBias,
+
+  /// The cosine of the half angle the dark specular darkens.
+  specularSpread,
+  ringOpacity,
+  ringOffset,
+  ringStroke,
+
+  /// One over the ring shadow's blur radius.
+  ringInverseRadius,
+
+  /// How far inside the edge the dark specular's band starts: 0 for a band
+  /// wholly outside the glass, a lifted lens's starts inside it.
+  specularInset;
+
+  const RecipeLane([this.width = 1]);
 
   @override
   final int width;
@@ -633,13 +812,68 @@ enum EffectsLane implements UniformLane {
   /// screen, so no glass reads its own texel; at 1 or more, the copy fills
   /// the top-left 1 / reduced of its texture along each side (a layer whose
   /// copy is drawn in its corner).
-  backdropReduced,
-
-  /// The Gaussian sigma, in device pixels, the shader frosts an unblurred
-  /// copy by; zero reads it as it is.
-  backdropFrost;
+  backdropReduced;
 
   const EffectsLane([this.width = 1]);
+
+  @override
+  final int width;
+}
+
+/// The floats of the final shader's uCopy: the levels a copy carries beside
+/// it (copy_levels.glsl), and how the glass blurs it by depth and mixes its
+/// fill. All zero where the glass reads no copy.
+@internal
+enum CopyLane implements UniformLane {
+  /// The texels of the texture the copy lies in to a pixel of the final
+  /// shader's uSize: 1 where the shader filters the layer the copy lies in,
+  /// whose texture Impeller may round a row short of the one laid out under
+  /// a transform off whole pixels, and one over the share where it reads an
+  /// image.
+  levelTexels,
+
+  /// The copy's top left on the screen's grid of copy pixels.
+  levelGrid(2),
+
+  /// Where the copy's top left lies in the texture, in texels.
+  levelCopyAt(2),
+
+  /// The texel row the levels' cells start at.
+  levelRow,
+
+  /// The texel column the finest blur level's cells start at.
+  levelBlurAt,
+
+  /// The copy's width rounded up to whole cells of the coarsest blur level.
+  levelWidth,
+
+  /// Device pixels a copy pixel holds along each side.
+  levelShare,
+
+  /// The finest and the coarsest blur level, 0 for none.
+  levelFinest,
+  levelCoarsest,
+
+  /// The blur's sigma, in device pixels, at the ramp's four stops from the
+  /// deepest.
+  blurSigmas(4),
+
+  /// The depths, in the geometry's pixels, of the ramp's stops after the
+  /// deepest, which lies at the middle of each shape.
+  blurDepths(3),
+
+  /// One over the fill level's stride, 0 for no fill.
+  fillInverseStride,
+
+  /// How far a channel moves to the fill where the fill is lighter and where
+  /// it is darker, and how much of the result the fill covers.
+  fillMix(3),
+
+  /// Where the copy's uv lands in the fill level, in texels, over the uv
+  /// scaled by [fillInverseStride].
+  fillOffset(2);
+
+  const CopyLane([this.width = 1]);
 
   @override
   final int width;
@@ -661,8 +895,8 @@ enum BandLane implements UniformLane {
   /// The fragment row where the fade and the frost are gone.
   fadeGone,
 
-  /// The color's brightness.
-  brightness,
+  /// How much lighter the color is drawn.
+  lighten,
 
   /// The fade, premultiplied. It lies over what the glass reads too.
   fade(4),
@@ -808,26 +1042,42 @@ ${[for (final type in RawShapeType.values) '#define ${type._macro} ${_float(type
 ${_rows('SHAPE', ShapeLane.values, ['PRIMITIVE', 'INVERSE_BASIS', 'PLACEMENT'])}
 ${_rows('SQUIRCLE', SquircleLane.values, ['DEGREES_AND_SPANS', 'CIRCLE_CENTERS', 'AXES_AND_RADII'])}
 const float kOpticalCornerRadiusScale = ${_float(opticalCornerRadiusScale)};
+const float kRimLineBias = ${_float(1 / ios27RimLightAmount - 2)};
+const float kSmoothUnionDepth = ${_float(smoothUnionDepth)};
 
 const float kGlintBleed = ${_float(GlassGlint.bleed)};
 const float kGlintBleedReach = ${_float(GlassGlint.bleedReach)};
 const float kGlintPeak = ${_float(GlassGlint.peak)};
 const float kGlintLuminance = ${_float(GlassGlint.directLuminance)};
 const float kGlintVibrancy = ${_float(GlassGlint.directVibrancy)};
-const float kClearShiftRatio = ${_float(GlassShift.clearRatio)};
+const float kFittedBevel = ${_float(GlassShift.fittedBevel)};
+const float kFittedShift = ${_float(GlassShift.fittedShift)};
+const float kClearBevel = ${_float(GlassShift.clearBevel)};
+const float kClearShift = ${_float(GlassShift.clearShift)};
 const float kDispersionSpread = ${_float(GlassShift.dispersionSpread)};
 const float kFrostEightMost = ${_float(frostEightMost)};
-#define FROST_SPIRAL_TAPS $frostSpiralTaps
+#define LATTICE_MOST_PAIRS $latticeMostPairs
+#define LATTICE_SQUARE_PAIRS $latticeSquarePairs
 #define FROST_EIGHT_TAPS(TAP) ${_taps(frostEightTaps)}
 #define FROST_SIXTEEN_TAPS(TAP) ${_taps(frostSixteenTaps)}
 const float kFakeFieldInside = ${_float(fakeFieldInside)};
 const float kFakeFieldOutside = ${_float(fakeFieldOutside)};
-#define HAZE_MOST_READS $hazeMostReads
+#define LEVEL_MOST_PAIRS $levelMostPairs
+#define LEVEL_MOST_DEEP $levelMostDeep
+const float kBilinearTapVariance = ${_float(bilinearTapVariance)};
+const float kCopyPixelBoxVariance = ${_float(copyPixelBoxVariance)};
+const float kCoarseSourceLevel = ${_float(coarseSourceLevel.toDouble())};
+const float kLevelRing = ${_float(levelRing.toDouble())};
+const float kLevelSpanScale = ${_float(levelSpanScale)};
+const float kLevelSourceTent = ${_float(levelSourceTent)};
+const float kLevelSourceSpan = ${_float(levelSourceSpan)};
+const float kLevelSpanKnee = ${_float(levelSpanKnee)};
+const vec3 kFrostEase = ${_vec3(frostEase)};
 const vec3 LUMA_WEIGHTS = ${_vec3(lumaWeights)};
+const float kFaceChromaLift = ${_float(faceChromaLift)};
 const vec3 kPartingMirror = ${_vec3(partingMirror)};
 const vec3 kPartingSide = ${_vec3(partingSideWeights)};
 const vec3 kPartingMiddle = ${_vec3(partingMiddleWeights)};
-const float kChromaKeepRise = ${_float(chromaKeepRise)};
 #define COLOR_MODEL_SLOTS $colorModelSlotCount
 $_colorModelWeights
 const float kLookModelStride = ${_float(lookModelStride)};
@@ -837,7 +1087,8 @@ const float kGlintWrap = ${_float(GlassRim.glintWrap)};
 const float kGlintOppositeStrength = ${_float(GlassRim.glintOppositeStrength)};
 const float kBevelShadowDepth = ${_float(GlassRim.bevelShadowDepth)};
 const float kBevelShadowOffset = ${_float(GlassRim.bevelShadowOffset)};
-const float kBevelShadowDirectionality = ${_float(GlassRim.bevelShadowDirectionality)};''',
+const float kBevelShadowDirectionality = ${_float(GlassRim.bevelShadowDirectionality)};
+const float kLeastBevelShadowStrength = ${_float(GlassRim.leastBevelShadowStrength)};''',
   ),
   'fake_glass_lanes.glsl': _guarded(
     'fake_glass_lanes.glsl',
@@ -854,9 +1105,11 @@ ${_lanes('uFace', FaceLane.values)}
 
 ${_lanes('uMapping', MappingLane.values, highp: true)}
 
-${_slotLanes('uColorModelParams', ColorModelLane.values, slots: colorModelSlotCount, prefix: 'model')}
+${_slotLanes('uRecipes', RecipeLane.values, slots: colorModelSlotCount, prefix: 'recipe')}
 
 ${_lanes('uEffects', EffectsLane.values, highp: true)}
+
+${_lanes('uCopy', CopyLane.values, highp: true)}
 
 #if FROST_BAND
 ${_lanes('uBand', BandLane.values, highp: true, prefix: 'uBand')}

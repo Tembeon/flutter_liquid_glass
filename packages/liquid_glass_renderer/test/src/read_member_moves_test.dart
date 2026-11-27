@@ -1,6 +1,8 @@
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: glass over a
 // copy is drawn by a runtime effect, which only Impeller draws. Without them
 // the drawing test returns early.
+@Tags(['composer'])
+library;
 
 import 'dart:ui' as ui;
 
@@ -10,12 +12,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 import 'shared.dart';
 
@@ -72,7 +73,7 @@ Widget _button(double left, double top) => Positioned(
   width: 80,
   height: 40,
   child: const LiquidGlassLayer(
-    settings: LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+    settings: LiquidGlassSettings.ios27Regular(),
     child: LiquidGlass(
       shape: LiquidRoundedSuperellipse(radius: 20),
       child: SizedBox.expand(),
@@ -148,10 +149,6 @@ int _readLayersOf(WidgetTester tester, _CapturingView view) {
 
 void main() {
   setUp(() => glassReadsCopies = true);
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassPolicy = const PlanPolicy();
-  });
 
   test('a painter role is equal for the same painter at the same place', () {
     final painter = _Painter();

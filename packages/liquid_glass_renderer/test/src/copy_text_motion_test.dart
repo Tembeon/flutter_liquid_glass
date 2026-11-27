@@ -1,9 +1,12 @@
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the copies
 // are drawn as Impeller draws them.
+@Tags(['composer'])
+library;
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
@@ -38,12 +41,9 @@ Widget _scene(double top, double frost) => Directionality(
         Positioned.fill(
           child: RepaintBoundary(
             child: LiquidGlassLayer(
-              settings:
-                  const LiquidGlassSettings.ios27Regular(
-                    brightness: Brightness.light,
-                  ).copyWith(
-                    frost: LiquidGlassFrost.sigma(frost),
-                  ),
+              settings: const LiquidGlassSettings.ios27Regular().copyWith(
+                blur: frost,
+              ),
               child: Stack(
                 children: [
                   Positioned.fromRect(
@@ -82,8 +82,6 @@ Future<List<int>> _underGlass(WidgetTester tester) async {
 
 void main() {
   setUp(() => glassReadsCopies = true);
-  tearDown(() => glassReadsCopies = false);
-
   // A copy at a half or a quarter of the screen's pixels: text set on its
   // pixels would leave every other step, or three in four, unchanged.
   for (final frost in [2.0, 4.5]) {

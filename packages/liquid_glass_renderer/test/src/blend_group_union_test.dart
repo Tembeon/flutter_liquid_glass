@@ -67,7 +67,7 @@ void main() {
   setUpAll(() async {
     if (_expectFallback) return;
     renderer = FlutterGpuGeometryRenderer(
-      await GeometryBundle.load(ShaderKeys.gpuGeometryShaderBundle),
+      await GeometryBundle.load(geometryBundleKey),
     );
   });
 

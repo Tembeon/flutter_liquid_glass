@@ -92,8 +92,8 @@ void main() {
     const settings = LiquidGlassLoupe.defaultSettings;
     expect(settings.refractionHeight, 8);
     expect(settings.refractionAmount, 34.5);
-    expect(settings.dispersion, -0.06);
-    expect(settings.frost, const LiquidGlassFrost.sigma(0));
-    expect(settings.backdropShrink, 0);
+    expect(settings.lens.dispersion, -0.06);
+    expect(settings.blur, 0);
+    expect(settings.lens.shrink, 0);
   });
 }

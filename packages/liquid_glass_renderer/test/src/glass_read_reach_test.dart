@@ -1,11 +1,15 @@
+@Tags(['composer'])
+library;
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
+import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 import 'shared.dart';
 
@@ -13,8 +17,9 @@ const _dpr = 3.0;
 
 Future<SiteAsk> _askOf(
   WidgetTester tester,
-  LiquidGlassSettings settings,
-) async {
+  LiquidGlassSettings settings, {
+  LiquidGlassAppearance? appearance,
+}) async {
   tester.view.devicePixelRatio = _dpr;
   addTearDown(tester.view.resetDevicePixelRatio);
   await tester.pumpWidget(
@@ -22,13 +27,14 @@ Future<SiteAsk> _askOf(
       textDirection: TextDirection.ltr,
       child: LiquidGlassLayer(
         settings: settings,
-        child: const Center(
+        child: Center(
           child: SizedBox(
             width: 160,
             height: 80,
             child: LiquidGlass(
-              shape: LiquidRoundedSuperellipse(radius: 20),
-              child: SizedBox.expand(),
+              shape: const LiquidRoundedSuperellipse(radius: 20),
+              appearance: appearance,
+              child: const SizedBox.expand(),
             ),
           ),
         ),
@@ -52,23 +58,24 @@ double _farther(SiteAsk frosted, SiteAsk clear) =>
 
 void main() {
   setUp(() => glassReadsCopies = true);
-  tearDown(() => glassReadsCopies = false);
-
   testWidgets(
-    'glass whose shader frosts its copy reads as far past clear glass as '
-    'the frost taps reach',
+    'glass that blurs its copy from levels reads as far past clear glass as '
+    'its blur reaches',
     (tester) async {
       final clear = await _askOf(
         tester,
-        const LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
+        const LiquidGlassSettings(blur: 0),
       );
       final frosted = await _askOf(
         tester,
-        const LiquidGlassSettings(frost: LiquidGlassFrost.sigma(3)),
+        const LiquidGlassSettings(blur: 3),
       );
       final need = frosted.look.need;
 
-      expect(need.shaderFrost, greaterThan(0));
+      expect(
+        need.levels?.most,
+        closeTo(3 * ImpellerBlur.deliveredFraction, 1e-9),
+      );
       expect(_farther(frosted, clear), closeTo(need.reachAt(_dpr), 1e-9));
     },
     skip: skipProperGlassTests,
@@ -81,19 +88,19 @@ void main() {
       final clear = await _askOf(
         tester,
         const LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(0),
-          dispersion: 0.3,
+          blur: 0,
+          lens: LiquidGlassLens(dispersion: 0.3),
         ),
       );
       final frosted = await _askOf(
         tester,
         const LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(12),
-          dispersion: 0.3,
+          blur: 12,
+          lens: LiquidGlassLens(dispersion: 0.3),
         ),
       );
 
-      expect(frosted.look.need.shaderFrost, 0);
+      expect(frosted.look.need.levels, isNull);
       expect(
         _farther(frosted, clear),
         closeTo(ImpellerBlur.reach(12, _dpr), 1e-9),
@@ -101,4 +108,52 @@ void main() {
     },
     skip: skipProperGlassTests,
   );
+
+  testWidgets(
+    'glass under Reduce Transparency reads what lies past it only as far as '
+    "iOS's capture margin, where its blur would reach ten times as far",
+    (tester) async {
+      const appearance = LiquidGlassAppearance.ios27Regular(
+        brightness: Brightness.light,
+      );
+      final clear = await _askOf(
+        tester,
+        const LiquidGlassSettings.ios27Regular(
+          reduceTransparency: true,
+          blur: 0,
+        ),
+        appearance: appearance,
+      );
+      final reduced = await _askOf(
+        tester,
+        const LiquidGlassSettings.ios27Regular(reduceTransparency: true),
+        appearance: appearance,
+      );
+      final need = reduced.look.need;
+
+      final levels = need.levels!;
+      expect(levels.margin, 16);
+      expect(need.share, 8);
+      expect(3 * levels.most, greaterThan(10 * 16));
+      expect(
+        _farther(reduced, clear),
+        closeTo(16 + need.share / _dpr, 1e-9),
+      );
+    },
+    skip: skipProperGlassTests,
+  );
+
+  test('a copy whose margin holds less than its blur reaches weighs its '
+      'coarser levels by coverage, and only such a copy', () {
+    LevelStrip strip(double? margin) => LevelStrip(
+      CopyLevels(least: 20, most: 20, margin: margin),
+      devicePixelRatio: 3,
+      share: 4,
+      copy: const Size(100, 60),
+      grid: Offset.zero,
+    );
+    expect(strip(16).covers, isTrue);
+    expect(strip(60).covers, isFalse);
+    expect(strip(null).covers, isFalse);
+  });
 }

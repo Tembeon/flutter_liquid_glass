@@ -9,13 +9,26 @@ import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shadow_recorder.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shape_helpers.dart';
+import 'package:liquid_glass_renderer/src/rendering/opacity_pass_seed.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
 
 part 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object_frame.dart';
+
+/// What glass reads in a frame.
+@internal
+enum SiteReads {
+  /// Nothing: it is hidden, or another glass draws it.
+  nothing,
+
+  /// A copy of what lies under it.
+  copy,
+
+  /// The backdrop itself.
+  backdrop,
+}
 
 /// Shared base for render objects that assemble [RenderLiquidGlassGeometry]
 /// shapes and paint one glass effect over the layer's foreground.
@@ -60,11 +73,11 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @protected
   void glowChanged() => markNeedsPaint();
 
-  /// The registered shapes that are painted when this layer paints (see
+  /// The registered geometries that are painted when this layer paints (see
   /// [isGlassShapePainted]), in paint order.
   @protected
-  List<RenderLiquidGlassGeometry> get paintedShapes => [
-    for (final shape in link.shapes)
+  List<RenderLiquidGlassGeometry> get paintedGeometries => [
+    for (final shape in link.geometries)
       if (isGlassShapePainted(shape, this)) shape,
   ];
 
@@ -125,7 +138,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     if (_defaultAppearance == value) return;
     _defaultAppearance = value;
     _defaultWornByNone = null;
-    for (final geometry in _link.shapes) {
+    for (final geometry in _link.geometries) {
       geometry.defaultAppearanceChanged();
     }
     onAppearanceChanged();
@@ -185,7 +198,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @visibleForTesting
   int debugPaintCount = 0;
 
-  final _compositionProbe = GlassCompositionProbe();
+  final _opacityPassSeed = OpacityPassSeed();
   final _framePoll = FramePollMarker();
   final _effectLayer = LayerHandle<OffsetLayer>();
   final _ancestorClips = RetainedGlassClip();
@@ -234,27 +247,37 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// Decides whether the opacity pass around this glass is seeded, before
   /// the update pass.
   @protected
-  void syncCompositionOpacity() => _compositionProbe.syncOpacity(this);
+  void syncOpacityPass() => _opacityPassSeed.syncOpacity(this);
 
   /// Whether this layer paints inside a fractional-opacity pass that a
   /// backdrop read needs seeded.
   @protected
-  bool get compositionProbeSeeding => _compositionProbe.seeding;
+  bool get insideOpacityPass => _opacityPassSeed.insideOpacityPass;
 
-  /// Leaves the fractional-opacity pass unseeded while this layer reads no
-  /// backdrop.
+  /// What the glass reads this frame, the backdrop until it says otherwise.
+  /// Glass that reads no backdrop leaves a fractional-opacity pass around it
+  /// unseeded: glass over its copy needs no seed, and a seeded pass would
+  /// stand in the copy's way.
   @protected
-  bool get compositionSeedSuppressed => _compositionProbe.suppressed;
+  SiteReads get reads => _reads;
+  SiteReads _reads = SiteReads.backdrop;
   @protected
-  set compositionSeedSuppressed(bool value) =>
-      _compositionProbe.suppressed = value;
+  set reads(SiteReads value) {
+    _reads = value;
+    _opacityPassSeed.suppressed = value != SiteReads.backdrop;
+  }
+
+  /// Whether the last composited frame drew the glass over a copy rather
+  /// than reading the backdrop.
+  @visibleForTesting
+  bool get debugDrewOverCopy => _reads == SiteReads.copy;
 
   // MARK: Painting
 
   @override
   @nonVirtual
   void paint(PaintingContext context, Offset offset) {
-    _compositionProbe.paint(
+    _opacityPassSeed.paint(
       context,
       offset,
       _paintGlass,
@@ -344,7 +367,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   // it only answers.
   Offset? _compareShapes({required bool record}) {
     // A shape going offstage or onstage changes this list, which repaints.
-    final current = paintedShapes;
+    final current = paintedGeometries;
     final committed = _frame.geometries;
     if (_framePoll.polledThisFrame && committed.length == current.length) {
       return Offset.zero;
@@ -453,7 +476,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// [onCompositorTranslated] and [onCompositorTranslationMissed].
   @protected
   void runCompositorPoll() {
-    syncCompositionOpacity();
+    syncOpacityPass();
     syncAncestorClips();
     if (pollCompositorTranslation() case final translation?) {
       setCompositorTranslation(translation);
@@ -591,7 +614,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @mustCallSuper
   void dispose() {
     _shadows.dispose();
-    _compositionProbe.dispose();
+    _opacityPassSeed.dispose();
     _ancestorClips.dispose();
     _idleAncestorClips.dispose();
     clearFrameInputs();

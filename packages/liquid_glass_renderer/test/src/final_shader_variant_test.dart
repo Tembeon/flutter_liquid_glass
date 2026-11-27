@@ -1,13 +1,8 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
@@ -25,9 +20,7 @@ Widget _scene(List<LiquidGlassAppearance?> appearances) => Directionality(
       child: ColoredBox(
         color: _gray,
         child: LiquidGlassLayer(
-          settings: const LiquidGlassSettings.ios27Regular(
-            brightness: Brightness.light,
-          ),
+          settings: const LiquidGlassSettings.ios27Regular(),
           // A paint over a solid color, not a backdrop filter: flutter_tester
           // renders only a process's first backdrop filter reliably.
           backdrop: const LiquidGlassBackdrop.solid(_gray),
@@ -53,16 +46,6 @@ Widget _scene(List<LiquidGlassAppearance?> appearances) => Directionality(
   ),
 );
 
-Future<Uint8List> _capture(WidgetTester tester) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(boundary.toImage))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
-}
-
 RenderLiquidGlassLayer _layer(WidgetTester tester) =>
     tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().toSet().single;
 
@@ -70,7 +53,7 @@ void main() {
   test('every kind but material has a variant per model family', () {
     final names = {for (final v in FinalShaderVariant.all) v.name};
     expect(names, hasLength(FinalShaderVariant.all.length));
-    expect(FinalShaderVariant.all, hasLength(13));
+    expect(FinalShaderVariant.all, hasLength(12));
     final material =
         FinalShaderVariant.all[FinalShaderVariant.indexOf(
           FinalShaderKind.material,
@@ -79,25 +62,10 @@ void main() {
     expect(material.models, FinalShaderModels.all);
   });
 
-  test('a variant that cannot frost has a frosted twin', () {
-    for (final kind in FinalShaderKind.values) {
-      for (final models in FinalShaderModels.values) {
-        final plain =
-            FinalShaderVariant.all[FinalShaderVariant.indexOf(kind, models)];
-        final frosted =
-            FinalShaderVariant.all[FinalShaderVariant.indexOf(
-              kind,
-              models,
-              frost: true,
-            )];
-        expect(plain.frost, isFalse);
-        expect((frosted.kind, frosted.models), (plain.kind, plain.models));
-      }
+  test('every variant blurs its copy but those that draw a band', () {
+    for (final variant in FinalShaderVariant.all) {
+      expect(variant.blurs, !variant.band, reason: variant.name);
     }
-    expect(
-      FinalShaderVariant.all.where((v) => v.frost && !v.band && !v.shape),
-      hasLength(1),
-    );
     expect(
       FinalShaderVariant.all.where((v) => v.band && !v.shape),
       hasLength(1),
@@ -115,24 +83,14 @@ void main() {
     );
     for (final v in atlas) {
       final index = v.band
-          ? FinalShaderVariant.bandIndexOf(
-              v.kind,
-              v.models,
-              frost: v.frost,
-              shape: true,
-            )!
-          : FinalShaderVariant.indexOf(
-              v.kind,
-              v.models,
-              frost: v.frost,
-              shape: true,
-            );
+          ? FinalShaderVariant.bandIndexOf(v.kind, v.models, shape: true)!
+          : FinalShaderVariant.indexOf(v.kind, v.models, shape: true);
       final twin = FinalShaderVariant.all[index];
       expect((twin.shape, twin.models, twin.band), (true, v.models, v.band));
     }
   });
 
-  test('glass that frosts its copy draws a band wherever a variant does', () {
+  test('a band is drawn wherever a variant draws one', () {
     for (final kind in FinalShaderKind.values) {
       for (final models in FinalShaderModels.values) {
         for (final shape in [false, if (kind == FinalShaderKind.single) true]) {
@@ -143,45 +101,27 @@ void main() {
                 v.models == models &&
                 v.shape == shape,
           );
-          for (final frost in [false, true]) {
-            final index = FinalShaderVariant.bandIndexOf(
-              kind,
-              models,
-              frost: frost,
-              shape: shape,
-            );
-            expect(index != null, drawn && frost, reason: '$kind $models');
-            if (index != null) {
-              expect(FinalShaderVariant.all[index].band, isTrue);
-            }
+          final index = FinalShaderVariant.bandIndexOf(
+            kind,
+            models,
+            shape: shape,
+          );
+          expect(index != null, drawn, reason: '$kind $models');
+          if (index != null) {
+            expect(FinalShaderVariant.all[index].band, isTrue);
           }
         }
       }
     }
   });
 
-  test('the build hook compiles each variant: one '
-      'liquid_glass_final_render*.frag per variant', () {
-    final files = {
-      for (final file in Directory('lib/assets/shaders').listSync())
-        if (file.uri.pathSegments.last case final name
-            when name.startsWith('liquid_glass_final_render') &&
-                name.endsWith('.frag'))
-          name.substring(0, name.length - '.frag'.length),
-    };
-    expect(files, {for (final v in FinalShaderVariant.all) v.name});
-  });
-
-  test('each variant file is its source, and the core defines what the '
-      'variants name', () {
-    final core = File(
-      'lib/assets/shaders/liquid_glass_final_render_core.glsl',
-    ).readAsStringSync();
+  test('each variant file is its source, which defines the codes it '
+      'names', () {
     for (final v in FinalShaderVariant.all) {
-      expectGeneratedFile('lib/assets/shaders/${v.name}.frag', v.source);
+      expectGeneratedFile('$shaderSources${v.name}.frag', v.source);
       for (final value in v.defines.values) {
         if (int.tryParse(value) == null) {
-          expect(core, contains('#define $value '), reason: v.name);
+          expect(v.source, contains('#define $value '), reason: v.name);
         }
       }
     }
@@ -190,7 +130,9 @@ void main() {
   final direct =
       const LiquidGlassAppearance.ios27Regular(brightness: Brightness.light)
           .copyWith(
-            colorModel: const LiquidGlassColorModel.direct(),
+            colorModel: const LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
           );
   for (final (name, appearances, models) in [
     ('one iOS 27 model', [null, null], FinalShaderModels.ios27),
@@ -208,7 +150,7 @@ void main() {
       RenderLiquidGlassLayer.debugShaderVariants = false;
       await tester.pumpWidget(_scene(appearances));
       await tester.pump();
-      final general = await _capture(tester);
+      final general = await boundaryPixels(tester, find.byKey(_key));
 
       RenderLiquidGlassLayer.debugShaderVariants = true;
       await tester.pumpWidget(const SizedBox());
@@ -221,34 +163,12 @@ void main() {
       expect(
         identical(
           layer.debugBackdropShader,
-          // The scene's glass is frosted, so it draws with a variant that
-          // can frost a copy.
-          layer.finalShaders[FinalShaderVariant.indexOf(
-            kind,
-            models,
-            frost: true,
-          )],
-        ),
-        isTrue,
-      );
-      final variant = await _capture(tester);
-
-      debugGlassPolicy = const PlanPolicy(shaderFrost: false);
-      addTearDown(() => debugGlassPolicy = const PlanPolicy());
-      expect(
-        identical(
-          layer.debugBackdropShader,
           layer.finalShaders[FinalShaderVariant.indexOf(kind, models)],
         ),
         isTrue,
       );
-
-      var largest = 0;
-      for (var i = 0; i < general.length; i++) {
-        final d = (general[i] - variant[i]).abs();
-        if (d > largest) largest = d;
-      }
-      expect(largest, lessThanOrEqualTo(1));
+      final variant = await boundaryPixels(tester, find.byKey(_key));
+      expect(largestDifference(general, variant), lessThanOrEqualTo(1));
     }, skip: skipProperGlassTests);
   }
 }

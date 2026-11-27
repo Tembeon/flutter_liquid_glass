@@ -5,11 +5,11 @@ import 'package:meta/meta.dart';
 /// transforms to the screen and whether any clip lies above them, kept at
 /// repaint boundaries, where the paths of glass nearby join.
 ///
-/// Holds while the view's composer composes, between paint and the scene,
+/// Holds while the view's glass is planned, between paint and the scene,
 /// when nothing moves a render object.
 @internal
 final class FrameAncestors {
-  /// The memo of the frame the composer composes, if any.
+  /// The memo of the frame whose glass is being planned, if any.
   static FrameAncestors? current;
 
   final _transforms = <RenderObject, (Matrix4, bool)>{};

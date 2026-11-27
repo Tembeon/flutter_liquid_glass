@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
@@ -17,7 +17,13 @@ void main() {
 /// page of its own. Over copies the other two share a read, and one atlas.
 Widget _scene(double t) {
   Widget layer(double width, {bool tinted = false}) => LiquidGlassLayer(
-    settings: const LiquidGlassSettings(contourStrength: 0.3),
+    settings: const LiquidGlassSettings(),
+    defaultAppearance: const LiquidGlassAppearance(
+      colorModel: LiquidGlassColorModel.direct(
+        brightness: Brightness.light,
+        contourStrength: 0.3,
+      ),
+    ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -29,7 +35,13 @@ Widget _scene(double t) {
         LiquidGlass(
           shape: const LiquidOval(),
           appearance: tinted
-              ? const LiquidGlassAppearance(tint: Color(0x552060FF))
+              ? const LiquidGlassAppearance(
+                  tint: Color(0x552060FF),
+                  colorModel: LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
+                    contourStrength: 0.3,
+                  ),
+                )
               : null,
           child: const SizedBox(width: 44, height: 44),
         ),
@@ -71,9 +83,7 @@ void runGeometrySubmitBatchingTests() {
       'the atlases of a frame are drawn page by page while its scene is built '
       '(copies=$copies)',
       (tester) async {
-        final readsCopies = glassReadsCopies;
         glassReadsCopies = copies;
-        addTearDown(() => glassReadsCopies = readsCopies);
         tester.view
           ..physicalSize = const Size(900, 900)
           ..devicePixelRatio = 3;
@@ -112,6 +122,7 @@ void runGeometrySubmitBatchingTests() {
         }
       },
       skip: skipProperGlassTests,
+      tags: copies ? 'composer' : null,
     );
   }
 }

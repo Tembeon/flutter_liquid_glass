@@ -4,8 +4,11 @@
 /// `FakeGlass` gives a cheaper look drawn with backdrop filters.
 /// `LiquidGlassVisibility` fades glass in and out, `precacheLiquidGlass`
 /// loads the shaders before the first frame, `liquidGlassSupport` says
-/// whether the device draws full glass, and `LiquidGlassReportOverlay` shows
-/// what each frame's glass took over the app.
+/// whether the device draws full glass, `LiquidGlassReportOverlay` shows
+/// what each frame's glass took over the app, and
+/// `installLiquidGlassComposer` lets glass share copies of what lies under
+/// it, as the glass widgets do for every view: a widget library whose own
+/// render object hosts a backdrop filter layer of the renderer calls it.
 ///
 /// For app developers who want glass.
 ///
@@ -13,6 +16,7 @@
 /// its frames.
 library;
 
+export 'src/widgets/composer_install.dart' show installLiquidGlassComposer;
 export 'src/widgets/fake_glass.dart' show FakeGlass;
 export 'src/widgets/liquid_glass.dart' show LiquidGlass;
 export 'src/widgets/liquid_glass_blend_group.dart' show LiquidGlassBlendGroup;

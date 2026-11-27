@@ -72,7 +72,7 @@ class _LiquidGroupState extends State<_LiquidGroup> {
       _base,
       frame.lift,
       lens: lens.lens,
-      height: rect == null
+      shortSide: rect == null
           ? null
           : math.min(rect.width * frame.scaleX, rect.height * frame.scaleY),
     );
@@ -97,6 +97,8 @@ class _LiquidGroupState extends State<_LiquidGroup> {
       _clear ? const Glass.clear() : const Glass.regular(),
       _traits.brightness,
       sliderPosition: _traits.glassTintAmount,
+      highContrast: _traits.highContrast,
+      reduceTransparency: _traits.reduceTransparency,
     );
     _base = material.settings;
     _appearance = material.appearance;
@@ -245,7 +247,10 @@ class _LiquidLensState extends State<_LiquidLens> {
       _withdraw();
       _report = details.lensContent;
     }
-    _content.devicePixelRatio = GlassTraits.of(context).viewPixelRatio;
+    final traits = GlassTraits.of(context);
+    _content
+      ..devicePixelRatio = traits.viewPixelRatio
+      ..reduceTransparency = traits.reduceTransparency;
     _writeContent();
     return Stack(
       fit: StackFit.passthrough,

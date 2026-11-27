@@ -166,7 +166,7 @@ sealed class LiquidGlassFrostBand extends LiquidGlassBackdropFilter {
   /// A hard band, a navigation bar's, along the [edge] of the screen
   /// ([AxisDirection.up] or [AxisDirection.down]): what lies under it
   /// blurred by [sigma] logical pixels, saturated by [saturation] and
-  /// brightened by [brightness], all of it faded toward [fade], and a
+  /// lightened by [lighten], all of it faded toward [fade], and a
   /// hairline of [line], one device pixel wide, along its side away from
   /// [edge]. [presence] is how much of the band shows.
   const factory LiquidGlassFrostBand.hard({
@@ -175,7 +175,7 @@ sealed class LiquidGlassFrostBand extends LiquidGlassBackdropFilter {
     required Color fade,
     required Color line,
     required double saturation,
-    required double brightness,
+    required double lighten,
     double presence,
   }) = LiquidGlassHardFrostBand._;
 
@@ -232,7 +232,7 @@ final class LiquidGlassHardFrostBand extends LiquidGlassFrostBand {
     required super.fade,
     required this.line,
     required this.saturation,
-    required this.brightness,
+    required this.lighten,
     super.presence = 1,
   }) : super._();
 
@@ -242,9 +242,9 @@ final class LiquidGlassHardFrostBand extends LiquidGlassFrostBand {
   /// The saturation of what lies under the band.
   final double saturation;
 
-  /// The brightness added to what lies under the band, as a fraction of
-  /// full intensity.
-  final double brightness;
+  /// How much lighter what lies under the band is drawn, added as a
+  /// fraction of full intensity.
+  final double lighten;
 
   @override
   void paintOver(
@@ -274,18 +274,18 @@ final class LiquidGlassHardFrostBand extends LiquidGlassFrostBand {
       other.fade == fade &&
       other.line == line &&
       other.saturation == saturation &&
-      other.brightness == brightness &&
+      other.lighten == lighten &&
       other.presence == presence;
 
   @override
   int get hashCode =>
-      Object.hash(sigma, edge, fade, line, saturation, brightness, presence);
+      Object.hash(sigma, edge, fade, line, saturation, lighten, presence);
 
   @override
   String toString() =>
       'LiquidGlassFrostBand.hard(sigma: $sigma, edge: $edge, '
       'fade: $fade, line: $line, saturation: $saturation, '
-      'brightness: $brightness, presence: $presence)';
+      'lighten: $lighten, presence: $presence)';
 }
 
 /// The soft [LiquidGlassFrostBand], which dissolves into what lies under it
@@ -347,9 +347,9 @@ extension DrawnFrostBand on LiquidGlassFrostBand {
     LiquidGlassSoftFrostBand() => 1,
   };
 
-  /// The brightness added, as a fraction of full intensity.
-  double get drawnBrightness => switch (this) {
-    LiquidGlassHardFrostBand(:final brightness) => brightness,
+  /// The intensity added, as a fraction of full intensity.
+  double get drawnLighten => switch (this) {
+    LiquidGlassHardFrostBand(:final lighten) => lighten,
     LiquidGlassSoftFrostBand() => 0,
   };
 
@@ -363,9 +363,9 @@ extension DrawnFrostBand on LiquidGlassFrostBand {
   /// it; null where it changes nothing.
   List<double>? get colorMatrix {
     final saturation = drawnSaturation;
-    final brightness = drawnBrightness;
-    if (saturation == 1 && brightness == 0 && presence == 1) return null;
-    return saturationMatrix(saturation, bias: brightness, alpha: presence);
+    final lighten = drawnLighten;
+    if (saturation == 1 && lighten == 0 && presence == 1) return null;
+    return saturationMatrix(saturation, bias: lighten, alpha: presence);
   }
 
   /// The rows, in the coordinates of [clip], where the fade and the frost

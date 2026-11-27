@@ -3,19 +3,19 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/plan/band_look.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/atlas_lease.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
-    show transparentPixel;
+import 'package:liquid_glass_renderer/src/rendering/copy_levels.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
+import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
@@ -105,7 +105,9 @@ final class GlassFace {
   const GlassFace._({required this.face, required this.colorModels});
 
   /// The material of [appearance] under [settings], its color model in one
-  /// of the slots [colorModels] fill.
+  /// of the slots [colorModels] fill, its direct model's rim lit by [rim],
+  /// reaching as far as that rim and the [edges] of the recipes it draws
+  /// ([recipeEdges]).
   ///
   /// Colors go in at 8 bits a channel. The shader fades the whole material
   /// with visibility, so the color factors go in at full strength. Frosted
@@ -115,14 +117,16 @@ final class GlassFace {
   factory GlassFace.of({
     required LiquidGlassSettings settings,
     required WornAppearance appearance,
-    required List<GlassColorParameters> colorModels,
+    required List<RecipeLook> colorModels,
     required double devicePixelRatio,
     required bool blurs,
+    DirectRim rim = DirectRim.none,
+    ({double inward, double outward}) edges = (inward: 0, outward: 0),
   }) {
     final dpr = devicePixelRatio;
     final tint = appearance.tint;
     final model = appearance.colorModel;
-    final contour = (settings.contourStrength.clamp(0.0, 1.0) * 255).round();
+    final contour = (rim.contourStrength.clamp(0.0, 1.0) * 255).round();
     return GlassFace._(
       face: laneBlock(FaceLane.values, {
         FaceLane.tint: [
@@ -131,31 +135,43 @@ final class GlassFace {
           _channel(tint.b),
           _channel(tint.a),
         ],
-        FaceLane.displacementScale: [settings.effectiveDisplacementScale * dpr],
-        FaceLane.dispersion: [settings.dispersion],
-        FaceLane.glintStrength: [settings.glintStrength],
-        FaceLane.backdropScale: [1 - settings.effectiveBackdropShrink],
-        FaceLane.saturation: [model.saturation],
-        FaceLane.contourAlpha: [contour / 255],
-        FaceLane.rimReach: [rimReach(settings, devicePixelRatio: dpr)],
+        FaceLane.refractionAmount: [settings.drawnRefractionAmount * dpr],
+        FaceLane.dispersion: [settings.lens.dispersion],
+        FaceLane.glintStrength: [rim.glintStrength],
+        FaceLane.backdropScale: [1 - settings.lens.drawnShrink],
+        FaceLane.saturation: [model.transfer.saturation],
+        FaceLane.contourStrength: [contour / 255],
+        FaceLane.rimReach: [
+          rimReach(rim, devicePixelRatio: dpr, recipeReach: edges.inward),
+        ],
         FaceLane.glintWidth: [GlassRim.glintWidth * dpr],
-        FaceLane.edgeWidth: [settings.contourWidth * dpr],
-        FaceLane.contourDirectionality: [settings.contourDirectionality],
-        FaceLane.vibrancy: [model.vibrancy],
-        FaceLane.bevelShadowStrength: [settings.bevelShadowStrength],
+        FaceLane.contourWidth: [rim.contourWidth * dpr],
+        FaceLane.contourDirectionality: [rim.contourDirectionality],
+        FaceLane.vibrancy: [model.transfer.vibrancy],
+        FaceLane.bevelShadowStrength: [rim.bevelShadowStrength],
         FaceLane.bevelShadowDepth: [GlassRim.bevelShadowDepth * dpr],
         FaceLane.bevelShadowOffset: [GlassRim.bevelShadowOffset * dpr],
         FaceLane.colorModelCode: [colorModelCode(model, colorModels)],
         FaceLane.visibility: [appearance.visibility],
         FaceLane.blurFade: [if (blurs) 1 else 0],
-        FaceLane.transmissionGamma: [model.transmissionGamma],
-        FaceLane.readDepth: [readDepth(settings, devicePixelRatio: dpr)],
+        FaceLane.transmissionGamma: [model.transfer.transmissionGamma],
+        FaceLane.readDepth: [
+          readDepth(
+            settings,
+            rim: rim,
+            devicePixelRatio: dpr,
+            recipeReach: edges.inward,
+          ),
+        ],
+        FaceLane.outsideReach: [edges.outward * dpr],
       }),
       colorModels: List.unmodifiable(<double>[
         for (var i = 0; i < colorModelSlotCount; i++)
           ...i < colorModels.length
-              ? colorModels[i].toShaderParameters(
-                  settings.effectiveSliderPosition,
+              ? recipeLanes(
+                  colorModels[i],
+                  system: settings.drawnSystem,
+                  devicePixelRatio: dpr,
                 )
               : _noModel,
       ]),
@@ -167,13 +183,13 @@ final class GlassFace {
 
   // A slot no shape reads.
   static final _noModel = List<double>.filled(
-    laneBlockFloats(ColorModelLane.values),
+    laneBlockFloats(RecipeLane.values),
     0,
   );
 
-  static final _displacementAt = laneOffset(
+  static final _refractionAmountAt = laneOffset(
     FaceLane.values,
-    FaceLane.displacementScale,
+    FaceLane.refractionAmount,
   );
 
   static final _blurFadeAt = laneOffset(FaceLane.values, FaceLane.blurFade);
@@ -181,19 +197,17 @@ final class GlassFace {
   /// uFace, by [FaceLane].
   final List<double> face;
 
-  /// uColorModelParams: three slots of the color models.
+  /// uRecipes: three slots of iOS 27 recipes.
   final List<double> colorModels;
-
-  /// The bevel's displacement, which reads the backdrop by device pixels.
-  double get displacement => face[_displacementAt];
 
   /// 1 where the frost fades out with visibility.
   double get blurFade => face[_blurFadeAt];
 
-  /// This face over a copy its haze is mixed into. The haze is drawn at full
-  /// strength whatever the glass's visibility, so such glass fades by its
-  /// alpha as frosted glass does, and not to the hazed copy.
-  GlassFace get hazed => blurFade == 1
+  /// This face over a copy it blurs or fills from the copy's levels. The
+  /// blur and the fill are drawn at full strength whatever the glass's
+  /// visibility, so such glass fades by its alpha as frosted glass does, and
+  /// not to the blurred copy.
+  GlassFace get fadedByAlpha => blurFade == 1
       ? this
       : GlassFace._(
           face: List.unmodifiable(<double>[...face]..[_blurFadeAt] = 1),
@@ -208,75 +222,90 @@ final class GlassFace {
           listEquals(other.colorModels, colorModels);
 
   @override
-  int get hashCode => Object.hash(face[0], displacement, blurFade);
+  int get hashCode => Object.hash(face[0], face[_refractionAmountAt], blurFade);
 }
 
-/// How deep inside the edge of glass drawn with [settings] its rim lighting
-/// and contour reach, in device pixels: the glint's bleed, the contour's
-/// half pixel and the bevel shadow's strip, each only where it draws.
+/// How deep inside the edge of glass its [rim] lighting and contour reach,
+/// in device pixels: the glint's bleed, the contour's half pixel and the
+/// bevel shadow's strip, each only where it draws, and the edges of its
+/// recipes, [recipeReach] logical pixels deep.
 @internal
 double rimReach(
-  LiquidGlassSettings settings, {
+  DirectRim rim, {
   required double devicePixelRatio,
+  double recipeReach = 0,
 }) {
   final dpr = devicePixelRatio;
-  var rim = 0.0;
-  if (settings.glintStrength > 0) {
-    rim = max(rim, GlassRim.glintWidth * dpr * GlassGlint.bleedReach);
+  var reach = 0.0;
+  if (rim.glintStrength > 0) {
+    reach = max(reach, GlassRim.glintWidth * dpr * GlassGlint.bleedReach);
   }
-  if (settings.contourStrength > 0 && settings.contourWidth > 0) {
-    rim = max(rim, 0.5);
+  if (rim.contourWidth > 0) {
+    reach = max(reach, 0.5);
   }
-  if (settings.bevelShadowStrength >= 0.001) {
-    rim = max(
-      rim,
+  if (rim.drawsBevelShadow) {
+    reach = max(
+      reach,
       _saturatingSmoothstep(
         (GlassRim.bevelShadowDepth + GlassRim.bevelShadowOffset) * dpr,
       ),
     );
   }
-  return rim;
+  return max(reach, recipeReach * dpr);
 }
 
-/// How deep into glass drawn with [settings] the final shader reads its
-/// geometry, in device pixels: a pixel past the bevel and the rim, deeper
-/// than which only coverage reads the distance.
+/// How deep into glass drawn with [settings] and [rim] the final shader
+/// reads its geometry, in device pixels: a pixel past the bevel and the
+/// rim, deeper than which only coverage reads the distance.
 @internal
 double readDepth(
   LiquidGlassSettings settings, {
+  required DirectRim rim,
   required double devicePixelRatio,
+  double recipeReach = 0,
 }) =>
     max(
-      settings.effectiveRefractionHeight * devicePixelRatio,
-      rimReach(settings, devicePixelRatio: devicePixelRatio),
+      settings.drawnRefractionHeight * devicePixelRatio,
+      rimReach(
+        rim,
+        devicePixelRatio: devicePixelRatio,
+        recipeReach: recipeReach,
+      ),
     ) +
     1;
 
-/// All a change of settings asks of the geometry of glass drawn with them
-/// at a [devicePixelRatio]: how deep into the glass the final shader reads
-/// it ([inward]), how far its contour reaches out ([contourOutset]) and
-/// whether its shapes lean ([leans]).
+/// All a change of settings, rim or recipes asks of the geometry of glass
+/// drawn with them at a [devicePixelRatio]: how deep into the glass the
+/// final shader reads it ([inward]), how far its contour or dark specular
+/// reaches out ([contourOutset]) and whether its shapes lean ([leans]).
 @internal
 @immutable
 final class GeometryNeed {
-  /// The need of glass drawn with [settings] at [devicePixelRatio].
+  /// The need of glass drawn with [settings], [rim] and recipes whose
+  /// [edges] reach as far as [recipeEdges] gives, at [devicePixelRatio].
   factory GeometryNeed.of(
     LiquidGlassSettings settings, {
     required double devicePixelRatio,
+    DirectRim rim = DirectRim.none,
+    ({double inward, double outward}) edges = (inward: 0, outward: 0),
   }) {
     final dpr = devicePixelRatio;
-    final exactInward = readDepth(settings, devicePixelRatio: dpr);
+    final exactInward = readDepth(
+      settings,
+      rim: rim,
+      devicePixelRatio: dpr,
+      recipeReach: edges.inward,
+    );
     var inward = 1.0;
     while (inward < exactInward) {
       inward *= _inwardBucketGrowth;
     }
+    final outset = max(rim.contourWidth, edges.outward);
     return GeometryNeed._(
       devicePixelRatio: dpr,
       inward: inward,
       exactInward: exactInward,
-      contourOutset: settings.contourWidth <= 0
-          ? 0
-          : max(0.5 / dpr, settings.contourWidth + 1 / dpr),
+      contourOutset: outset <= 0 ? 0 : max(0.5 / dpr, outset + 1 / dpr),
       leans: settings.refractionFitsShape,
     );
   }
@@ -433,7 +462,7 @@ final class ComputedGeometry extends GlassGeometry {
 @internal
 typedef GlassEdgeReads = ({
   double pull,
-  double pullHeight,
+  double pullDepth,
   double line,
   double halfMinor,
   double aberration,
@@ -459,7 +488,7 @@ final class GeometryBinding {
   /// The [edge] of glass that neither pulls nor parts colors.
   static const GlassEdgeReads plainEdge = (
     pull: 0,
-    pullHeight: 0,
+    pullDepth: 0,
     line: 0,
     halfMinor: 0,
     aberration: 0,
@@ -564,11 +593,38 @@ final class MatteMapping {
   int get hashCode => Object.hash(toMatte, backdropBounds);
 }
 
-/// What the final shader reads under the glass.
+/// What the final shader reads under the glass, and the uniforms that say
+/// so; each reading answers its own, the backdrop's by default.
 @internal
 @immutable
 sealed class GlassReading {
   const GlassReading();
+
+  static const _clear = <double>[0, 0, 0, 0];
+
+  static final _noCopy = copyLanes(strip: null, blur: GlassBlur.none);
+
+  /// uBackdropOrigin: where a paint's fragment zero lies on the screen;
+  /// zero for a filter, whose fragments start there.
+  Offset get origin => Offset.zero;
+
+  /// Device pixels per fragment.
+  int get targetShare => 1;
+
+  /// How the copy it reads lies in the texture it samples.
+  CopyTexels get texels => const OwnTexels();
+
+  /// uCopy, by CopyLane: no levels where it reads no copy.
+  List<double> get copy => _noCopy;
+
+  /// uSize of a paint; a filter's is the engine's.
+  Size? get size => null;
+
+  /// The image a paint samples; a filter samples its input.
+  ui.Image? get image => null;
+
+  /// The opaque color in place of the backdrop, or none.
+  List<double> get solid => _clear;
 }
 
 /// The backdrop a filter is given: the screen's, or a layer's corner the
@@ -586,28 +642,27 @@ final class CopyReading extends GlassReading {
   CopyReading(GlassSampling sampling)
     : origin = sampling.image == null ? Offset.zero : sampling.origin,
       targetShare = sampling.targetShare,
-      reduced = sampling.reduced,
-      frost = sampling.frost,
+      texels = sampling.texels,
+      copy = sampling.copy,
       size = sampling.size,
       image = sampling.image;
 
-  /// uBackdropOrigin: where a paint's fragment zero lies on the screen;
-  /// zero for a filter, whose fragments start there.
+  @override
   final Offset origin;
 
-  /// Device pixels per fragment.
+  @override
   final int targetShare;
 
-  /// uBackdropReduced.
-  final double reduced;
+  @override
+  final CopyTexels texels;
 
-  /// The frost, in device pixels, the shader's taps add.
-  final double frost;
+  @override
+  final List<double> copy;
 
-  /// uSize of a paint; a filter's is the engine's.
+  @override
   final Size? size;
 
-  /// The image a paint samples; a filter samples its input.
+  @override
   final ui.Image? image;
 
   @override
@@ -616,8 +671,8 @@ final class CopyReading extends GlassReading {
       identical(other.image, image) &&
       other.origin == origin &&
       other.targetShare == targetShare &&
-      other.reduced == reduced &&
-      other.frost == frost &&
+      other.texels == texels &&
+      listEquals(other.copy, copy) &&
       other.size == size;
 
   @override
@@ -625,8 +680,8 @@ final class CopyReading extends GlassReading {
     identityHashCode(image),
     origin,
     targetShare,
-    reduced,
-    frost,
+    texels,
+    Object.hashAll(copy),
     size,
   );
 }
@@ -641,7 +696,11 @@ final class SolidReading extends GlassReading {
   final ui.Color color;
 
   /// uSize: only backdrop reads divide by it, so any nonzero size works.
+  @override
   final Size size;
+
+  @override
+  List<double> get solid => [color.r, color.g, color.b, 1];
 
   @override
   bool operator ==(Object other) =>
@@ -659,15 +718,15 @@ final class BandUniforms {
 
   /// The band [look] in a draw whose fragment zero lies at [origin] on the
   /// screen, one fragment [targetShare] device pixels: [shown] (device pixels
-  /// from [origin]) of the band in it, frosted by [whole] device pixels, of
-  /// which [held] is in what it reads already.
+  /// from [origin]) of the band in it, frosted by [whole] device pixels. The
+  /// copy glass draws a band from holds none of its frost: the plan bakes a
+  /// band's frost into a copy only where no glass draws the band.
   factory BandUniforms.of(
     BandLook look, {
     required Offset origin,
     required int targetShare,
     required Rect shown,
     required double whole,
-    required double held,
   }) {
     final band = look.band;
     final dpr = look.devicePixelRatio;
@@ -689,12 +748,10 @@ final class BandUniforms {
           shown.right / targetShare,
           shown.bottom / targetShare,
         ],
-        BandLane.frost: [
-          sqrt(max(whole * whole - held * held, 0)) / targetShare,
-        ],
+        BandLane.frost: [whole / targetShare],
         BandLane.fadeWhole: [row(dissolve.whole)],
         BandLane.fadeGone: [row(dissolve.gone)],
-        BandLane.brightness: [band.drawnBrightness],
+        BandLane.lighten: [band.drawnLighten],
         BandLane.fade: [fade.r * alpha, fade.g * alpha, fade.b * alpha, alpha],
         BandLane.hairlineRows: [row(lineStart), row(lineEnd)],
         BandLane.hairlineAlpha: [line.a],
@@ -716,13 +773,41 @@ final class BandUniforms {
   int get hashCode => Object.hashAll(floats);
 }
 
-/// Where a final shader variant takes each uniform the glass writes: floats
-/// read from its program by name, samplers in the order they are declared.
+/// The final shader's samplers, in the order the core
+/// (liquid_glass_final_render_core.glsl) declares them, which is the order
+/// `setImageSampler` binds them in: a variant declares those it reads.
 ///
 /// `FragmentShader.getImageSampler` counts samplers in the order the
-/// program's reflection lists them, which is not the order
-/// `setImageSampler` binds them in (Flutter 3.47): in a variant with looks
-/// it can put the backdrop third.
+/// program's reflection lists them, which is not that order (Flutter 3.47):
+/// in a variant with looks it can put the backdrop third.
+@internal
+enum FinalSampler {
+  /// What the glass reads.
+  backdrop('uBackgroundTexture'),
+
+  /// The atlas, filtered.
+  atlas('uAtlas'),
+
+  /// The atlas, texel by texel.
+  table('uAtlasTable'),
+
+  /// The tint beside the atlas.
+  lookTint('uLookTint'),
+
+  /// The response beside the atlas.
+  lookResponse('uLookResponse'),
+
+  /// The color model weights beside the atlas.
+  lookWeights('uLookWeights');
+
+  const FinalSampler(this.uniform);
+
+  /// Its name in the core.
+  final String uniform;
+}
+
+/// Where a final shader variant takes each uniform the glass writes: floats
+/// read from its program by name, samplers in [FinalSampler]'s order.
 @internal
 final class FinalLayout {
   /// The layout of [shader], a shader of [variant].
@@ -731,7 +816,7 @@ final class FinalLayout {
       geometry = uniformAt(shader, 'uGeometry'),
       face = uniformAt(shader, 'uFace'),
       mapping = uniformAt(shader, 'uMapping'),
-      colorModels = uniformAt(shader, 'uColorModelParams'),
+      colorModels = uniformAt(shader, 'uRecipes'),
       atlasPlace = variant.shape ? null : uniformAt(shader, 'uAtlasPlace'),
       shape = variant.shape
           ? (
@@ -741,8 +826,9 @@ final class FinalLayout {
             )
           : null,
       effects = uniformAt(shader, 'uEffects'),
+      copy = uniformAt(shader, 'uCopy'),
       band = variant.band ? uniformAt(shader, 'uBand') : null,
-      looks = variant.kind.looks.count;
+      lookCount = variant.kind.looks.count;
 
   /// The float index of uSize.
   final int size;
@@ -756,7 +842,7 @@ final class FinalLayout {
   /// The float index of uMapping.
   final int mapping;
 
-  /// The float index of uColorModelParams.
+  /// The float index of uRecipes.
   final int colorModels;
 
   /// The float index of uAtlasPlace, in the variants that read an atlas.
@@ -769,24 +855,56 @@ final class FinalLayout {
   /// The float index of uEffects.
   final int effects;
 
+  /// The float index of uCopy.
+  final int copy;
+
   /// uBand, in the band variant.
   final int? band;
 
-  /// uBackgroundTexture's sampler: what the glass reads.
-  final int backdrop = 0;
+  /// How many looks the variant reads beside the atlas.
+  final int lookCount;
 
-  /// uAtlas's sampler: the atlas, filtered. A variant that works
-  /// one shape out has none of the samplers from here on.
-  final int atlas = 1;
-
-  /// uAtlasTable's sampler: the atlas, texel by texel.
-  final int table = 2;
-
-  /// The first look sampler: uLookTint, then uLookResponse and uLookWeights.
-  final int firstLook = 3;
-
-  /// How many looks the variant reads.
-  final int looks;
+  /// Binds [backdrop] to [shader], a shader of this layout's variant, and in
+  /// a variant that reads an atlas, [atlas] and the first [lookCount] of
+  /// [looks].
+  ///
+  /// Bound bilinear: up to Flutter 3.47 a filter's input samples as the
+  /// image here says (see bilinearShaderFilter). The atlas's strips are read
+  /// filtered and the looks as the geometry beside them; the table texel by
+  /// texel, except where a texture has one filter for all its samplers
+  /// (FlutterGpuGeometryRenderer.atlasTableFilter).
+  void bind(
+    ui.FragmentShader shader,
+    ui.Image backdrop, {
+    ui.Image? atlas,
+    List<ui.Image> looks = const [],
+  }) {
+    shader.setImageSampler(
+      FinalSampler.backdrop.index,
+      backdrop,
+      filterQuality: FilterQuality.low,
+    );
+    if (atlasPlace == null) return;
+    assert(atlas != null, 'A variant that reads an atlas is bound one.');
+    shader
+      ..setImageSampler(
+        FinalSampler.atlas.index,
+        atlas!,
+        filterQuality: FilterQuality.low,
+      )
+      ..setImageSampler(
+        FinalSampler.table.index,
+        atlas,
+        filterQuality: FlutterGpuGeometryRenderer.atlasTableFilter,
+      );
+    for (var i = 0; i < min(lookCount, looks.length); i++) {
+      shader.setImageSampler(
+        FinalSampler.lookTint.index + i,
+        looks[i],
+        filterQuality: FilterQuality.low,
+      );
+    }
+  }
 }
 
 /// The glass's final shaders and the code that writes their draws.
@@ -818,8 +936,6 @@ final class GlassShading {
     canvas.drawRect(rect, paint);
   }
 
-  static const _clear = <double>[0, 0, 0, 0];
-
   ui.FragmentShader _write(GlassDraw draw) {
     final shader = shaders[draw.variant];
     final layout = _layouts[draw.variant] ??= FinalLayout(
@@ -836,35 +952,8 @@ final class GlassShading {
     final binding = draw.geometry;
     final toMatte = draw.mapping.toMatte;
     final bounds = draw.mapping.backdropBounds;
-    final (
-      origin,
-      targetShare,
-      reduced,
-      frost,
-      size,
-      image,
-      solid,
-    ) = switch (draw.reading) {
-      BackdropReading() => (Offset.zero, 1, 0.0, 0.0, null, null, _clear),
-      CopyReading(
-        :final origin,
-        :final targetShare,
-        :final reduced,
-        :final frost,
-        :final size,
-        :final image,
-      ) =>
-        (origin, targetShare, reduced, frost, size, image, _clear),
-      SolidReading(:final color, :final size) => (
-        Offset.zero,
-        1,
-        0.0,
-        0.0,
-        size,
-        null,
-        <double>[color.r, color.g, color.b, 1],
-      ),
-    };
+    final reading = draw.reading;
+    final GlassReading(:origin, :targetShare, :size, :image) = reading;
     if (size != null) put(layout.size, [size.width, size.height]);
     putLanes(shader, layout.geometry, GeometryLane.values, {
       GeometryLane.geometryOffset: [binding.origin.dx, binding.origin.dy],
@@ -877,12 +966,6 @@ final class GlassShading {
       GeometryLane.refractionFits: [if (binding.fitsShape) 1 else 0],
     });
     put(layout.face, face.face);
-    if (targetShare != 1) {
-      put(
-        layout.face + GlassFace._displacementAt,
-        [face.displacement / targetShare],
-      );
-    }
     putLanes(shader, layout.mapping, MappingLane.values, {
       MappingLane.filterToMatteBasis: [
         toMatte.$1,
@@ -901,13 +984,12 @@ final class GlassShading {
     });
     put(layout.colorModels, face.colorModels);
     putLanes(shader, layout.effects, EffectsLane.values, {
-      EffectsLane.solidBackdrop: solid,
+      EffectsLane.solidBackdrop: reading.solid,
       ...draw.glow,
-      EffectsLane.backdropReduced: [reduced],
-      EffectsLane.backdropFrost: [frost / targetShare],
+      EffectsLane.backdropReduced: [reading.texels.encoded],
       EffectsLane.backdropPull: [
         binding.edge.pull,
-        binding.edge.pullHeight,
+        binding.edge.pullDepth,
         binding.edge.line,
         binding.edge.halfMinor,
       ],
@@ -916,20 +998,15 @@ final class GlassShading {
         binding.edge.aberrationDepth,
       ],
     });
+    put(layout.copy, reading.copy);
     if (layout.band case final at?) put(at, draw.band!.floats);
-    // Bound bilinear: up to Flutter 3.47 a filter's input samples as the image
-    // here says (see bilinearShaderFilter).
     switch (binding.source) {
       case ComputedGeometry(:final shapeData, :final rseData, :final inner):
         final at = layout.shape!;
         put(at.data, shapeData);
         put(at.rse, rseData);
         put(at.inner, inner);
-        shader.setImageSampler(
-          layout.backdrop,
-          image ?? transparentPixel,
-          filterQuality: FilterQuality.low,
-        );
+        layout.bind(shader, image ?? transparentPixel);
       case AtlasGeometry(
         lease: AtlasLease(image: final atlas, :final place, :final looks),
       ):
@@ -943,32 +1020,7 @@ final class GlassShading {
             place.height.toDouble(),
           ],
         });
-        // The atlas's strips are read filtered and the looks as the
-        // geometry beside them; the table texel by texel, except where a
-        // texture has one filter for all its samplers (atlasTableFilter).
-        shader
-          ..setImageSampler(
-            layout.backdrop,
-            image ?? atlas,
-            filterQuality: FilterQuality.low,
-          )
-          ..setImageSampler(
-            layout.atlas,
-            atlas,
-            filterQuality: FilterQuality.low,
-          )
-          ..setImageSampler(
-            layout.table,
-            atlas,
-            filterQuality: atlasTableFilter,
-          );
-        for (var i = 0; i < min(layout.looks, looks.length); i++) {
-          shader.setImageSampler(
-            layout.firstLook + i,
-            looks[i],
-            filterQuality: FilterQuality.low,
-          );
-        }
+        layout.bind(shader, image ?? atlas, atlas: atlas, looks: looks);
     }
     return shader;
   }

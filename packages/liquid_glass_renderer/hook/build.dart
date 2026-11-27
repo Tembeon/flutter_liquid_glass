@@ -3,34 +3,22 @@ import 'dart:io';
 import 'package:flutter_gpu_shaders/build.dart';
 import 'package:flutter_gpu_shaders/environment.dart';
 import 'package:hooks/hooks.dart';
+import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
-/// The prefixes of the runtime-effect shaders compiled to `.iplr` by this
-/// hook instead of being listed under `flutter.shaders` in the pubspec: every
-/// `liquid_glass_final_render*.frag`, one per final shader variant
-/// (`FinalShaderVariant`), the `backdrop_frost*.frag` and the
-/// `backdrop_haze*.frag`.
-///
-/// `flutter.shaders` are compiled for every backend a target platform
-/// supports, including SkSL. These shaders use sampling that SkSL cannot
-/// express, which makes Impeller-capable builds print a warning and Skia-only
-/// builds (such as `flutter build web`) fail outright. Compiling here bundles
-/// the same `.iplr` output that `FragmentProgram.fromAsset` decodes on
-/// Impeller, while Skia builds never attempt a SkSL compile.
-const _runtimeEffectPrefixes = [
-  'liquid_glass_final_render',
-  'backdrop_frost',
-  'backdrop_haze',
-];
+final _flutterTool = {
+  for (final program in ShaderProgram.values)
+    if (program.compiler == ShaderCompiler.flutterTool) '${program.stem}.frag',
+};
 
 void main(List<String> args) async {
   await build(args, (input, output) async {
     await buildShaderBundleJson(
       buildInput: input,
       buildOutput: output,
-      manifestFileName: 'liquid_glass_renderer.shaderbundle.json',
+      manifestFileName: '$geometryBundleName.shaderbundle.json',
       includeDirectories: [
-        input.packageRoot.resolve('lib/assets/shaders/gpu/'),
-        input.packageRoot.resolve('lib/assets/shaders/'),
+        input.packageRoot.resolve('${shaderSources}gpu/'),
+        input.packageRoot.resolve(shaderSources),
       ],
       glesLanguageVersion: 300,
       assetMode: ShaderBundleAssetMode.dataAssetsIfAvailable,
@@ -39,17 +27,17 @@ void main(List<String> args) async {
   });
 }
 
-/// Compiles each shader named after one of [_runtimeEffectPrefixes] to
-/// `build/shaderbundles/<name>.iplr`, an Impeller runtime-effect library
-/// covering every backend except SkSL.
+/// Compiles each program of [shaderSources] the Flutter tool does not build
+/// to `<name>.iplr` in [shaderBundles], an Impeller runtime-effect library
+/// covering every backend but SkSL ([ShaderCompiler.hook]).
 Future<void> _buildRuntimeEffects(
   BuildInput input,
   BuildOutputBuilder output,
 ) async {
   final packageRoot = input.packageRoot;
-  final shadersDirectory = packageRoot.resolve('lib/assets/shaders/');
+  final shadersDirectory = packageRoot.resolve(shaderSources);
   final outputDirectory = Directory.fromUri(
-    packageRoot.resolve('build/shaderbundles/'),
+    packageRoot.resolve(shaderBundles),
   );
   await outputDirectory.create(recursive: true);
 
@@ -62,12 +50,22 @@ Future<void> _buildRuntimeEffects(
   final names = [
     for (final file in Directory.fromUri(shadersDirectory).listSync())
       if (file.uri.pathSegments.last case final name
-          when _runtimeEffectPrefixes.any(name.startsWith) &&
-              name.endsWith('.frag'))
+          when file is File &&
+              name.endsWith('.frag') &&
+              !_flutterTool.contains(name))
         name.substring(0, name.length - '.frag'.length),
   ]..sort();
   // A shader added or removed changes the listing.
   output.dependencies.add(shadersDirectory);
+  // The program of a source that went would stay among the assets.
+  final built = {for (final name in names) '$name.iplr'};
+  for (final file in outputDirectory.listSync()) {
+    if (file is File &&
+        file.path.endsWith('.iplr') &&
+        !built.contains(file.uri.pathSegments.last)) {
+      file.deleteSync();
+    }
+  }
   // A file the shaders include: impellerc names the ones a shader read only
   // where it writes a depfile, and the bundle's shaders name none. An edit
   // to one compiles everything again.

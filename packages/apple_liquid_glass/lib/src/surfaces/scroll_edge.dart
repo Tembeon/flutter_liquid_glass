@@ -40,7 +40,7 @@ abstract final class ScrollEdgeTuning {
 
   /// The brightness added under the hard band, as a share of full
   /// intensity.
-  static const double hardBrightness = 0.03;
+  static const double hardLighten = 0.03;
 
   /// How far the content fades toward the background: UIKit's replay
   /// alpha, 0.5 in light and 0.6 in dark.
@@ -55,7 +55,8 @@ abstract final class ScrollEdgeTuning {
 
 /// The band of a scroll edge effect as [details] describe it, laid out at
 /// its edge of the scroll view: the bar's extent, and for the soft effect
-/// [ScrollEdgeTuning.softOverhang] past it. [paint] draws the band.
+/// [ScrollEdgeTuning.softOverhang] past it but under Reduce Transparency,
+/// where both effects cover the bar alone. [paint] draws the band.
 class ScrollEdgeBand extends StatelessWidget {
   /// Lays [paint] out where the band of [details] lies.
   const ScrollEdgeBand({required this.details, required this.paint, super.key});
@@ -69,13 +70,15 @@ class ScrollEdgeBand extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top = details.edge == AxisDirection.up;
+    final overhangs =
+        !details.hard && !GlassTraits.of(context).reduceTransparency;
     return IgnorePointer(
       child: Align(
         alignment: top ? Alignment.topCenter : Alignment.bottomCenter,
         child: SizedBox(
-          height: details.hard
-              ? details.extent
-              : details.extent + ScrollEdgeTuning.softOverhang,
+          height: overhangs
+              ? details.extent + ScrollEdgeTuning.softOverhang
+              : details.extent,
           width: double.infinity,
           child: paint,
         ),
@@ -86,7 +89,9 @@ class ScrollEdgeBand extends StatelessWidget {
 
 /// The flat scroll edge effect: the content under the band dissolves
 /// toward the background, and the hard effect draws its hairline, with no
-/// blur. Every renderer draws it unless it draws its own.
+/// blur; under Reduce Transparency the background covers the band whole
+/// over its hairline, as UIKit draws both effects there. Every renderer
+/// draws it unless it draws its own.
 @internal
 class FlatScrollEdge extends StatelessWidget {
   /// Creates the effect [details] describe.
@@ -104,6 +109,7 @@ class FlatScrollEdge extends StatelessWidget {
         details: details,
         brightness: traits.brightness,
         devicePixelRatio: traits.viewPixelRatio,
+        reduceTransparency: traits.reduceTransparency,
       ),
     );
   }
@@ -114,17 +120,20 @@ class _FlatEdgePaint extends LeafRenderObjectWidget {
     required this.details,
     required this.brightness,
     required this.devicePixelRatio,
+    required this.reduceTransparency,
   });
 
   final GlassScrollEdgeDetails details;
   final Brightness brightness;
   final double devicePixelRatio;
+  final bool reduceTransparency;
 
   @override
   RenderScrollEdge createRenderObject(BuildContext context) => RenderScrollEdge(
     details: details,
     brightness: brightness,
     devicePixelRatio: devicePixelRatio,
+    reduceTransparency: reduceTransparency,
     following: followsMotion(context),
   );
 
@@ -133,6 +142,7 @@ class _FlatEdgePaint extends LeafRenderObjectWidget {
     renderObject.details = details;
     renderObject.brightness = brightness;
     renderObject.devicePixelRatio = devicePixelRatio;
+    renderObject.reduceTransparency = reduceTransparency;
     renderObject.following = followsMotion(context);
   }
 }
@@ -149,6 +159,7 @@ class RenderScrollEdge extends RenderBox {
     required this._brightness,
     required this._devicePixelRatio,
     required bool following,
+    this._reduceTransparency = false,
   }) : _follow = MotionFollow.render(following: following) {
     _hear();
   }
@@ -185,6 +196,15 @@ class RenderScrollEdge extends RenderBox {
     markNeedsPaint();
   }
 
+  /// Whether the band is drawn as under Reduce Transparency ([bandAt]).
+  bool get reduceTransparency => _reduceTransparency;
+  bool _reduceTransparency;
+  set reduceTransparency(bool value) {
+    if (value == _reduceTransparency) return;
+    _reduceTransparency = value;
+    markNeedsPaint();
+  }
+
   /// How present the effect is now, 0 to 1.
   double get presence => _details.presence.value.clamp(0.0, 1.0);
 
@@ -195,15 +215,30 @@ class RenderScrollEdge extends RenderBox {
   /// fade for the brightness), the hard band's hairline and where along the
   /// soft band the fade starts to dissolve. The flat effect paints its fade
   /// and hairline; a renderer that blurs the band draws all of it.
+  ///
+  /// Under Reduce Transparency UIKit draws either effect as the hard band
+  /// with no blur, the background whole over it and the hairline at its
+  /// side (iOS 27.2 simulator: white or black to the bar's edge, then one
+  /// pixel at 230 or 25).
   @protected
-  LiquidGlassFrostBand bandAt(double presence) => _details.hard
+  LiquidGlassFrostBand bandAt(double presence) => _reduceTransparency
+      ? LiquidGlassFrostBand.hard(
+          sigma: 0,
+          edge: _details.edge,
+          fade: _details.background,
+          line: ScrollEdgeTuning.hairline(_brightness),
+          saturation: 1,
+          lighten: 0,
+          presence: presence,
+        )
+      : _details.hard
       ? LiquidGlassFrostBand.hard(
           sigma: ScrollEdgeTuning.hardBlurOf(_details.edge, size.height),
           edge: _details.edge,
           fade: _fadeColor,
           line: ScrollEdgeTuning.hairline(_brightness),
           saturation: ScrollEdgeTuning.hardSaturation,
-          brightness: ScrollEdgeTuning.hardBrightness,
+          lighten: ScrollEdgeTuning.hardLighten,
           presence: presence,
         )
       : LiquidGlassFrostBand.soft(

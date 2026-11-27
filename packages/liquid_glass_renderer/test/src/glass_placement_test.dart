@@ -69,7 +69,7 @@ Widget _scene(Widget Function(Widget) place, Widget inner) => Directionality(
 );
 
 bool _holds(LiquidGlassRenderObject layer, RenderLiquidGlass glass) =>
-    layer.link.shapes.any(
+    layer.link.geometries.any(
       (shape) =>
           identical(shape, glass) ||
           shape is RenderLiquidGlassBlendGroup &&
@@ -100,7 +100,7 @@ void main() {
         expect(layers, hasLength(place.nests ? 2 : 1));
         final holder = layers.singleWhere((layer) => _holds(layer, inner));
         expect(identical(holder, layers.first), !place.nests);
-        expect(holder.link.shapes.contains(inner), !place.joins);
+        expect(holder.link.geometries.contains(inner), !place.joins);
       });
     }
   }

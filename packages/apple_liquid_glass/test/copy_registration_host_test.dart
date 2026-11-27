@@ -10,8 +10,7 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 
 const _key = ValueKey('page');
 
@@ -138,7 +137,6 @@ void main() {
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
       glassReadsCopies = true;
-      addTearDown(() => glassReadsCopies = false);
       final (bar, text) = await _centers(tester, dpr, glass: false);
       final (frostedBar, frostedText) = await _centers(
         tester,
@@ -161,16 +159,11 @@ void main() {
     tester.view.devicePixelRatio = dpr;
     addTearDown(tester.view.reset);
     glassReadsCopies = true;
-    addTearDown(() => glassReadsCopies = false);
-    // Glass frosted by one blur reads a coarse copy; under its haze a bar
-    // shows the page sharp, from a copy that moves text by far less.
-    debugGlassHaze = false;
-    addTearDown(() => debugGlassHaze = null);
-    // The copy holds four device pixels a side here; a third of a logical
-    // pixel is a quarter of one of its own.
-    for (final (quarters, shift) in [(0, 0.0), (1, 1.0), (2, 2.0), (3, 3.0)]) {
+    // The copy holds two device pixels a side here; a third of a logical
+    // pixel is half of one of its own.
+    for (final (halves, shift) in [(0, 0.0), (1, 1.0)]) {
       // 752 device pixels is a whole pixel of the copy.
-      final at = (752 + quarters) / dpr;
+      final at = (752 + halves) / dpr;
       final (_, text) = await _centers(tester, dpr, glass: false, textAt: at);
       final (_, frosted) = await _centers(
         tester,
@@ -178,7 +171,7 @@ void main() {
         glass: true,
         textAt: at,
       );
-      expect(frosted - text, closeTo(shift, 0.25), reason: '$quarters');
+      expect(frosted - text, closeTo(shift, 0.25), reason: '$halves');
     }
   }, skip: !ui.ImageFilter.isShaderFilterSupported);
 }

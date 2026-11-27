@@ -90,6 +90,19 @@ scripts:
     run: melos run test-without-goldens:select --no-select
     description: Run all tests in this project without golden tests.
 
+  test-without-composer:
+    # The renderer with no composer installed, where each glass reads its own
+    # backdrop; the composer tag marks the tests of what only the composer does.
+    run: >-
+      flutter test --enable-impeller --enable-flutter-gpu
+      --dart-define=WITHOUT_GLASS_COMPOSER=true --exclude-tags=composer
+    exec:
+      failFast: true
+      concurrency: 1
+    packageFilters:
+      scope: liquid_glass_renderer
+    description: Run the renderer's tests with no composer installed.
+
   update-goldens:select:
     # Exit 79 means the package has no tests matching the golden tag.
     run: >-

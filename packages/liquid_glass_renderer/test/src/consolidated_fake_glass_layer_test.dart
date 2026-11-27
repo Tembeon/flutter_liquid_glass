@@ -6,10 +6,11 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass.dart';
+import 'package:liquid_glass_renderer/src/rendering/opacity_pass_seed.dart';
 import 'package:liquid_glass_renderer/src/widgets/consolidated_fake_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
 import 'package:material_ui/material_ui.dart';
@@ -18,9 +19,12 @@ import 'submitted_scene_binding.dart';
 
 void main() {
   final binding = SubmittedSceneBinding();
-  const settings = LiquidGlassSettings(frost: LiquidGlassFrost.sigma(4));
+  const settings = LiquidGlassSettings(blur: 4);
   const appearance = LiquidGlassAppearance(
-    colorModel: LiquidGlassColorModel.direct(saturation: 1.1),
+    colorModel: LiquidGlassColorModel.direct(
+      brightness: Brightness.light,
+      saturation: 1.1,
+    ),
   );
 
   testWidgets('fake shapes share one parent backdrop filter', (tester) async {
@@ -80,7 +84,11 @@ void main() {
         settings: settings,
         // A shape whose only override is visibility shares the layer's
         // backdrop transfer once it is fully visible again.
-        defaultAppearance: const LiquidGlassAppearance(),
+        defaultAppearance: const LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+        ),
         child: LiquidGlassBlendGroup(
           child: Row(
             children: [
@@ -91,7 +99,12 @@ void main() {
               ValueListenableBuilder<double>(
                 valueListenable: visibility,
                 builder: (_, value, _) => LiquidGlass(
-                  appearance: LiquidGlassAppearance(visibility: value),
+                  appearance: LiquidGlassAppearance(
+                    colorModel: const LiquidGlassColorModel.direct(
+                      brightness: Brightness.light,
+                    ),
+                    visibility: value,
+                  ),
                   shape: const LiquidOval(),
                   child: const SizedBox(width: 80, height: 60),
                 ),
@@ -207,7 +220,7 @@ void main() {
                 child: LiquidGlassLayer(
                   fake: true,
                   settings: LiquidGlassSettings(
-                    frost: LiquidGlassFrost.sigma(0),
+                    blur: 0,
                   ),
                   child: LiquidGlass(
                     shape: LiquidOval(),
@@ -244,10 +257,13 @@ void main() {
         home: LiquidGlassLayer(
           fake: true,
           settings: LiquidGlassSettings(
-            frost: LiquidGlassFrost.sigma(4),
+            blur: 4,
           ),
           defaultAppearance: LiquidGlassAppearance(
-            colorModel: LiquidGlassColorModel.direct(saturation: 0.8),
+            colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+              saturation: 0.8,
+            ),
             tint: Color.fromARGB(96, 220, 240, 255),
           ),
           child: LiquidGlass(
@@ -271,9 +287,12 @@ void main() {
         home: LiquidGlassLayer(
           fake: true,
           settings: LiquidGlassSettings(
-            frost: LiquidGlassFrost.sigma(0),
+            blur: 0,
           ),
           defaultAppearance: LiquidGlassAppearance(
+            colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
             tint: Color.fromARGB(96, 220, 240, 255),
           ),
           child: LiquidGlass(
@@ -298,10 +317,19 @@ void main() {
       const MaterialApp(
         home: LiquidGlassLayer(
           fake: true,
-          settings: LiquidGlassSettings(frost: LiquidGlassFrost.sigma(8)),
-          defaultAppearance: LiquidGlassAppearance(),
+          settings: LiquidGlassSettings(blur: 8),
+          defaultAppearance: LiquidGlassAppearance(
+            colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
+          ),
           child: LiquidGlass(
-            appearance: LiquidGlassAppearance(visibility: 0),
+            appearance: LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+              visibility: 0,
+            ),
             shape: LiquidOval(),
             shadows: [LiquidGlassShadow(blurRadius: 20)],
             child: SizedBox(width: 80, height: 60),
@@ -326,12 +354,19 @@ void main() {
           home: LiquidGlassLayer(
             fake: true,
             settings: settings,
-            defaultAppearance: LiquidGlassAppearance(),
+            defaultAppearance: LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+            ),
             child: Row(
               children: [
                 LiquidGlass(
                   appearance: LiquidGlassAppearance(
-                    colorModel: LiquidGlassColorModel.direct(saturation: 2),
+                    colorModel: LiquidGlassColorModel.direct(
+                      brightness: Brightness.light,
+                      saturation: 2,
+                    ),
                   ),
                   shape: LiquidOval(),
                   child: SizedBox(width: 80, height: 60),
@@ -387,11 +422,18 @@ void main() {
         const MaterialApp(
           home: LiquidGlassLayer(
             fake: true,
-            settings: LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
-            defaultAppearance: LiquidGlassAppearance(),
+            settings: LiquidGlassSettings(blur: 0),
+            defaultAppearance: LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+            ),
             child: LiquidGlass(
               appearance: LiquidGlassAppearance(
-                colorModel: LiquidGlassColorModel.direct(saturation: 2),
+                colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
+                  saturation: 2,
+                ),
               ),
               shape: LiquidOval(),
               child: SizedBox(width: 80, height: 60),
@@ -420,11 +462,18 @@ void main() {
       const MaterialApp(
         home: LiquidGlassLayer(
           fake: true,
-          settings: LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
-          defaultAppearance: LiquidGlassAppearance(),
+          settings: LiquidGlassSettings(blur: 0),
+          defaultAppearance: LiquidGlassAppearance(
+            colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
+          ),
           child: LiquidGlass(
             appearance: LiquidGlassAppearance(
-              colorModel: LiquidGlassColorModel.direct(saturation: 2),
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+                saturation: 2,
+              ),
               visibility: 0.5,
             ),
             shape: LiquidOval(),
@@ -453,11 +502,14 @@ void main() {
       Widget buildLayer() => const LiquidGlassLayer(
         fake: true,
         settings: LiquidGlassSettings(
-          frost: LiquidGlassFrost.sigma(0),
-          contourStrength: 0,
+          blur: 0,
         ),
         defaultAppearance: LiquidGlassAppearance(
-          colorModel: LiquidGlassColorModel.direct(saturation: 0),
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            saturation: 0,
+            contourStrength: 0,
+          ),
         ),
         child: Stack(
           children: [
@@ -472,7 +524,11 @@ void main() {
               alignment: Alignment(0.4, 0),
               child: LiquidGlass(
                 appearance: LiquidGlassAppearance(
-                  colorModel: LiquidGlassColorModel.direct(saturation: 2),
+                  colorModel: LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
+                    saturation: 2,
+                    contourStrength: 0,
+                  ),
                 ),
                 shape: LiquidOval(),
                 child: SizedBox(width: 200, height: 200),
@@ -587,7 +643,7 @@ void main() {
     expect(initialClipPath, isNotNull);
 
     value.value = (
-      settings: settings.copyWith(frost: const LiquidGlassFrost.sigma(8)),
+      settings: settings.copyWith(blur: 8),
       appearance: appearance,
     );
     await tester.pump();
@@ -599,8 +655,10 @@ void main() {
     );
 
     value.value = (
-      settings: settings.copyWith(frost: const LiquidGlassFrost.sigma(0)),
-      appearance: const LiquidGlassAppearance(),
+      settings: settings.copyWith(blur: 0),
+      appearance: const LiquidGlassAppearance(
+        colorModel: LiquidGlassColorModel.direct(brightness: Brightness.light),
+      ),
     );
     await tester.pump();
     expect(layer.debugBackdropFilterLayer, isNull);
@@ -690,15 +748,13 @@ void main() {
     const model = LiquidGlassColorModel.ios27Regular(
       brightness: Brightness.light,
     );
-    final transfer = model
-        .wornAt(double.infinity)
-        .parameters!
-        .faceTransfer(sliderPosition: 0);
+    final recipe = recipeOf(
+      (model.wornAt(double.infinity) as WornRecipe).look,
+      (slider: 0, reduceTransparency: false),
+    );
     final matrix = fakeGlassFaceMatrix(
-      emission: transfer.emission,
-      transmittance: transfer.transmittance,
-      lift: transfer.lift,
-      chromaGain: transfer.chromaGain,
+      face: recipe.face,
+      bleed: recipe.bleed,
     );
     List<double> apply(List<int> rgb) => [
       for (var row = 0; row < 3; row++)
@@ -725,11 +781,9 @@ void main() {
       for (var channel = 0; channel < 3; channel++) {
         expect(
           output[channel],
-          // The matrix replaces the luminance self-screen by its
-          // least-squares line, which is exact at midtones and within
-          // lift / 6 of the curve at black and white (6.6 levels for the
-          // fitted light lift of .216).
-          closeTo(entry.value[channel], 6),
+          // The matrix replaces the face's roll-off by its least-squares
+          // line: within 8 levels of the capture, 5 on greys.
+          closeTo(entry.value[channel], 8),
           reason: '${entry.key} channel $channel',
         );
       }
@@ -758,7 +812,7 @@ void main() {
   ) async {
     final offset = ValueNotifier(Offset.zero);
     final settings = ValueNotifier(
-      const LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
+      const LiquidGlassSettings(blur: 0),
     );
     addTearDown(offset.dispose);
     addTearDown(settings.dispose);
@@ -796,7 +850,7 @@ void main() {
     await tester.pump();
     expect(layer.debugSurfaceShader, same(initialShader));
 
-    settings.value = settings.value.copyWith(glintStrength: 0.75);
+    settings.value = settings.value.copyWith(sliderPosition: 0.75);
     await tester.pump();
     expect(layer.debugSurfaceShader, same(initialShader));
 
@@ -924,6 +978,9 @@ void main() {
             fake: true,
             settings: settings,
             defaultAppearance: const LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
               tint: Color.fromARGB(255, 255, 255, 255),
             ),
             child: LiquidGlassBlendGroup(
@@ -937,7 +994,12 @@ void main() {
                         child: LiquidGlass(
                           key: stationaryKey,
                           appearance: value
-                              ? const LiquidGlassAppearance(visibility: 0)
+                              ? const LiquidGlassAppearance(
+                                  colorModel: LiquidGlassColorModel.direct(
+                                    brightness: Brightness.light,
+                                  ),
+                                  visibility: 0,
+                                )
                               : null,
                           shape: const LiquidOval(),
                           child: const SizedBox(width: 80, height: 60),

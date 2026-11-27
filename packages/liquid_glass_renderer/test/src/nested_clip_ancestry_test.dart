@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -33,8 +33,6 @@ void main() {
             // layer, empty: Flutter 3.50's Impeller draws no glass there at
             // all.
             glassReadsCopies = true;
-            addTearDown(() => glassReadsCopies = false);
-
             Future<Uint8List> render({required bool clipAboveLayer}) async {
               final key = GlobalKey();
               const glass = OverflowBox(
@@ -49,9 +47,12 @@ void main() {
               Widget layer(Widget child) => LiquidGlassLayer(
                 fake: fake,
                 settings: const LiquidGlassSettings(
-                  frost: LiquidGlassFrost.sigma(0),
+                  blur: 0,
                 ),
                 defaultAppearance: const LiquidGlassAppearance(
+                  colorModel: LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
+                  ),
                   tint: Color(0xC00040FF),
                 ),
                 child: child,
@@ -139,6 +140,9 @@ void main() {
             );
           },
           skip: !fake && skipProperGlassTests,
+          tags: !fake && behavior == Clip.antiAliasWithSaveLayer
+              ? 'composer'
+              : null,
         );
       }
     }

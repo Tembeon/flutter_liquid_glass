@@ -24,9 +24,7 @@ Widget _scene(LiquidGlassBackdrop backdrop) => Directionality(
       child: ColoredBox(
         color: _gray,
         child: LiquidGlassLayer(
-          settings: const LiquidGlassSettings.ios27Regular(
-            brightness: Brightness.light,
-          ),
+          settings: const LiquidGlassSettings.ios27Regular(),
           backdrop: backdrop,
           child: Stack(
             children: [
@@ -79,12 +77,7 @@ void main() {
 
     final solid = await _render(tester, const LiquidGlassBackdrop.solid(_gray));
     expect(layer.debugBackdropFilterLayer, isNull);
-    var largest = 0;
-    for (var i = 0; i < reading.length; i++) {
-      final d = (reading[i] - solid[i]).abs();
-      if (d > largest) largest = d;
-    }
-    expect(largest, lessThanOrEqualTo(1));
+    expect(largestDifference(reading, solid), lessThanOrEqualTo(1));
 
     // The glass shades the declared color, not what lies behind it.
     final other = await _render(

@@ -1,14 +1,12 @@
 import 'dart:io' show File, Platform;
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
-import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:material_ui/material_ui.dart';
 
 const expectFlutterGpuFallback = bool.fromEnvironment(
@@ -49,13 +47,58 @@ Future<void> expectMacOSGolden(Object? actual, String path) async {
   await expectLater(actual, matchesGoldenFile(path));
 }
 
+/// The pixels of the repaint boundary [boundary] finds, drawn at
+/// [pixelRatio].
+Future<Uint8List> boundaryPixels(
+  WidgetTester tester,
+  Finder boundary, {
+  double pixelRatio = 1,
+}) async {
+  final render = tester.renderObject<RenderRepaintBoundary>(boundary);
+  final image = (await tester.runAsync(
+    () => render.toImage(pixelRatio: pixelRatio),
+  ))!;
+  final bytes = (await tester.runAsync(image.toByteData))!;
+  image.dispose();
+  return bytes.buffer.asUint8List();
+}
+
+/// The largest channel difference between two frames.
+int largestDifference(List<int> a, List<int> b) {
+  var largest = 0;
+  for (var i = 0; i < a.length; i++) {
+    final d = (a[i] - b[i]).abs();
+    if (d > largest) largest = d;
+  }
+  return largest;
+}
+
+/// The most a channel may differ between unclipped glass that holds no other
+/// glass over a held image of its copy and the same glass over the copy
+/// drawn in the frame: the two routes round apart, by one level in one
+/// channel of one pixel where the copy holds two device pixels a side
+/// (visibility_frame_test on macOS). A clip, a frost or glass held in the
+/// copy parts them further, by the bounds their own tests hold.
+const heldImageDrift = 1;
+
+/// [heldImageDrift] where the glass draws an iOS 27 dark specular: its ring
+/// darkens what each route holds under it, two levels apart over the edge
+/// of a glyph (in_frame_copy_test).
+const heldImageRingDrift = 2;
+
 final testScenarioConstraints = BoxConstraints.tight(const Size(500, 500));
 
-const settingsWithoutLighting = LiquidGlassSettings(
+const settingsWithoutLighting = LiquidGlassSettings(blur: 0);
+
+const unlitDirect = LiquidGlassColorModel.direct(
+  brightness: Brightness.light,
   glintStrength: 0,
   contourStrength: 0,
   bevelShadowStrength: 0,
-  frost: LiquidGlassFrost.sigma(0),
+);
+
+const appearanceWithoutLighting = LiquidGlassAppearance(
+  colorModel: unlitDirect,
 );
 
 Matrix4 stretchedBy(Offset pull, Size size) {
@@ -94,38 +137,5 @@ Widget buildWithGridPaper(Widget child) {
 /// Draws every copy of the current test into an image, as copies asked for
 /// with a filter always are, for tests of how images are shared and held.
 void copyIntoImages() {
-  debugGlassPolicy = const PlanPolicy(maxTargets: 0);
-  addTearDown(() => debugGlassPolicy = const PlanPolicy());
-}
-
-/// What the plans of the current test decided.
-final class PlanWatch {
-  /// Watches every plan from here to the end of the test.
-  PlanWatch() {
-    GlassComposer.debugOnPlan = _note;
-    addTearDown(() => GlassComposer.debugOnPlan = null);
-  }
-
-  final _changes = Map<Object, int>.identity();
-
-  /// The last plan.
-  GlassPlan? last;
-
-  void _note(GlassForm form, GlassPlan plan) {
-    last = plan;
-    for (var i = 0; i < plan.fates.length; i++) {
-      final read = switch (plan.fates[i]) {
-        LeadFate(:final read) || FollowFate(:final read) => read,
-        HiddenFate() => null,
-      };
-      if (read == null || !read.changed) continue;
-      final id = form.sites[i].id;
-      final site = id is TransformTrackingLayer ? id.trackedSite! : id;
-      _changes[site] = (_changes[site] ?? 0) + 1;
-    }
-  }
-
-  /// In how many plans the read of [site], a render object or a filter layer,
-  /// held something new.
-  int changes(Object site) => _changes[site] ?? 0;
+  debugGlassPolicy = const PlanPolicy(maxPasses: 0);
 }

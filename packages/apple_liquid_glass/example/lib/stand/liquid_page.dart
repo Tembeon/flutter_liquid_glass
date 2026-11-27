@@ -424,7 +424,7 @@ final class _Drop extends Motion implements PointerFollower {
           : GlassTouchGlow(
               wash: 0.03 * pressed,
               center: middle + (d.touch.valueAt(t) - d.origin - local) / scale,
-              radius: 0.568 * d.size.shortestSide,
+              sigma: 0.568 * d.size.shortestSide,
               spot: 0.22 * pressed,
             ),
     );

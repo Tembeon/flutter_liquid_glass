@@ -1,12 +1,14 @@
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: glass is
 // drawn as on a device, and fake glass otherwise.
+@Tags(['composer'])
+library;
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_test/liquid_glass_test.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -32,9 +34,7 @@ Widget _button(double left, double top, LiquidGlassSettings settings) =>
 // A list scrolling under chrome: five buttons along the bottom over a list
 // with [rows] rows, each its own colour.
 Widget _screen(ScrollController controller, {int buttons = 5, int rows = 80}) {
-  const settings = LiquidGlassSettings.ios27Regular(
-    brightness: Brightness.light,
-  );
+  const settings = LiquidGlassSettings.ios27Regular();
   return Directionality(
     textDirection: TextDirection.ltr,
     child: MediaQuery(
@@ -65,9 +65,7 @@ const _tiles = 12;
 // button a mark that [top] or [bottom] moves. The lower mark lies over the
 // upper button, so each button has a read of its own.
 Widget _overCard(ValueNotifier<double> top, ValueNotifier<double> bottom) {
-  const settings = LiquidGlassSettings.ios27Regular(
-    brightness: Brightness.light,
-  );
+  const settings = LiquidGlassSettings.ios27Regular();
   Widget mark(ValueNotifier<double> left, double y) => ValueListenableBuilder(
     valueListenable: left,
     builder: (_, left, _) => Positioned(
@@ -134,8 +132,6 @@ int _filledSlots(WidgetTester tester) {
 
 void main() {
   setUp(() => glassReadsCopies = true);
-  tearDown(() => glassReadsCopies = false);
-
   group('a frame nothing changed', () {
     testWidgets('makes no filter, picture or image and replays nothing', (
       tester,
@@ -191,8 +187,7 @@ void main() {
       // An image dear enough that a read waits some frames for it: at its
       // measured price a button with a haze, three passes a frame, is due
       // one in the frame after the first that is listened to, which plans.
-      debugGlassPrices = const PlanPrices(imageGpu: 3);
-      addTearDown(() => debugGlassPrices = const PlanPrices());
+      debugGlassPolicy = const PlanPolicy(imagePasses: 30);
       final controller = ScrollController();
       addTearDown(controller.dispose);
       await tester.pumpWidget(_screen(controller));
@@ -233,6 +228,40 @@ void main() {
       expect(report.planned, isFalse, reason: '$report');
       expect(report.imagesDrawn, 0, reason: '$report');
       expect(_filledSlots(tester), filled);
+    }, skip: skipProperGlassTests);
+
+    // A read that changed in the frame its plan was made in holds still in
+    // a frame the plan stands on: where its glass did not paint, nothing of
+    // it is replayed again.
+    testWidgets('and replays no read that held still', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final top = ValueNotifier<double>(10);
+      final bottom = ValueNotifier<double>(10);
+      addTearDown(top.dispose);
+      addTearDown(bottom.dispose);
+      await tester.pumpWidget(_overCard(top, bottom));
+      for (var i = 0; i < 3; i++) {
+        await expectGlassBudget(tester);
+      }
+      Future<int> replayedOnPaint() async {
+        await expectGlassBudget(tester);
+        find
+            .byType(LiquidGlassLayer)
+            .first
+            .evaluate()
+            .single
+            .renderObject!
+            .markNeedsPaint();
+        final report = await expectGlassBudget(tester);
+        expect(report.planned, isFalse, reason: '$report');
+        return report.layersReplayed;
+      }
+
+      final still = await replayedOnPaint();
+      bottom.value += 10;
+      expect(await replayedOnPaint(), still);
     }, skip: skipProperGlassTests);
 
     testWidgets('but not when the glass went away', (tester) async {
@@ -342,9 +371,7 @@ void main() {
               _button(
                 8,
                 100,
-                const LiquidGlassSettings.ios27Regular(
-                  brightness: Brightness.light,
-                ),
+                const LiquidGlassSettings.ios27Regular(),
               ),
             ],
           ),
@@ -379,9 +406,7 @@ void main() {
       tester.view.physicalSize = const Size(400, 800);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      const settings = LiquidGlassSettings.ios27Regular(
-        brightness: Brightness.light,
-      );
+      const settings = LiquidGlassSettings.ios27Regular();
       await tester.pumpWidget(
         Directionality(
           textDirection: TextDirection.ltr,

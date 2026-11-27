@@ -10,12 +10,12 @@ import 'package:meta/meta.dart';
 /// what it kept without being asked: no other reader can tell. So a kept layer
 /// only goes back into the scenes of the reader that made it.
 @internal
-final class HeldLayers {
+final class RetainedLayers {
   final _kept = Map<Object, _Kept>.identity();
   int _scene = 0;
 
   /// Whether the layer kept of [node] is in the scene being built.
-  bool holds(Object node) => _kept[node]?.scene == _scene;
+  bool retains(Object node) => _kept[node]?.scene == _scene;
 
   /// The layer kept of [node] for the scene being built, if it was made of
   /// the content [node] has had since [content].
@@ -71,10 +71,10 @@ final class _Kept {
 @internal
 final class SceneOut {
   /// Adds to [builder], the coordinates there taken by [matrix] if any.
-  SceneOut(this.builder, this.matrix, this.held, {this.flat = false});
+  SceneOut(this.builder, this.matrix, this.retained, {this.flat = false});
 
   /// What the reader this scene is built for keeps between scenes.
-  final HeldLayers held;
+  final RetainedLayers retained;
 
   /// Whether this is the copy of a read whose glass frosts all it shows
   /// (GlassRead.flat): what that frost hides is not drawn.

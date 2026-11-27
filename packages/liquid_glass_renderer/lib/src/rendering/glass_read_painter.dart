@@ -38,7 +38,7 @@ final class _GlassPainter implements ReadPainter {
             shapes: glass._shapes,
             onScreen: glass._shapesOnScreen(role.originOnScreen),
             drawn: drawn,
-            appearance: glass._uniformAppearance ?? glass.defaultWornByNone,
+            appearance: glass._appearances.face,
           ),
       ],
       first._need,
@@ -59,7 +59,7 @@ final class _GlassPainter implements ReadPainter {
   }
 
   GlassDraw _readDraw(GlassRead read, _Frame frame, PlacedCopy copy) {
-    final sampling = copy.glassSampling(frame.shaderFrost);
+    final sampling = copy.glassSampling(frame.blur);
     final look = _bandOf(read);
     final kind = read.geometryKind;
     assert(
@@ -81,15 +81,15 @@ final class _GlassPainter implements ReadPainter {
       groupTints: groupTints,
     );
     final (globalToMatte, backdropBounds) = _readMapping(read, frame);
-    final holds = sampling.holds;
-    final within = holds == null
+    final covers = sampling.covers;
+    final within = covers == null
         ? null
-        : MatrixUtils.transformRect(globalToMatte, holds);
+        : MatrixUtils.transformRect(globalToMatte, covers);
     final draw = GlassDraw(
       variant: variant,
-      face: read.layout.haze == null
-          ? layer._glassFace
-          : layer._hazedFace ??= layer._glassFace.hazed,
+      face: copy.place.blursOrFills
+          ? layer._fadedFace ??= layer._glassFace.fadedByAlpha
+          : layer._glassFace,
       glow: layer._glowNow,
       geometry: binding,
       mapping: MatteMapping.of(
@@ -109,7 +109,6 @@ final class _GlassPainter implements ReadPainter {
               targetShare: sampling.targetShare,
               shown: copy.place.fragmentsOf(look.shown) ?? Rect.zero,
               whole: copy.place.residual(look.sigma),
-              held: copy.heldFrost,
             )
           : null,
     );
@@ -147,7 +146,7 @@ final class _GlassPainter implements ReadPainter {
     final dpr = layer.devicePixelRatio;
     final logical = _glassIn(read).length == 1 && _bandOf(read) == null
         ? frame.logical
-        : ViewPixels(dpr).bucket(read.quad);
+        : ViewPixels(dpr).bucket(read.drawn);
     return (draw, logical.scaled(dpr));
   }
 
@@ -218,7 +217,7 @@ final class _GlassPainter implements ReadPainter {
     for (final member in read.members) {
       sum += area(member.ask.drawn);
     }
-    if (area(read.quad) <= sum * 1.3) return null;
+    if (area(read.drawn) <= sum * 1.3) return null;
     final dpr = layer.devicePixelRatio;
     final path = ui.Path();
     void add(Rect rect) => path.addRect(rect.scaled(dpr));
@@ -284,7 +283,7 @@ final class _GlassPainter implements ReadPainter {
       builder,
       _shownFilter,
       _shownToCanvas,
-      layer._rig.readLayer.held,
+      layer._rig.readLayer.retained,
       clip: _shownClip,
     );
   }
@@ -294,7 +293,7 @@ final class _GlassPainter implements ReadPainter {
     final toCanvas = _screenToCanvas(frame);
     final under = _shadowsOfOthers(read, frame);
     final dpr = layer.devicePixelRatio;
-    final quad = read.quad;
+    final quad = read.drawn;
     final bounds = MatrixUtils.transformRect(
       toCanvas,
       quad.scaled(dpr),
@@ -350,7 +349,12 @@ final class _GlassPainter implements ReadPainter {
     }
     final filter = _readFilter(read, frame, corner);
     out.settle();
-    corner.addToScene(out.builder, filter, _screenToCanvas(frame), out.held);
+    corner.addToScene(
+      out.builder,
+      filter,
+      _screenToCanvas(frame),
+      out.retained,
+    );
   }
 
   void dispose() {

@@ -60,8 +60,14 @@ void main() {
                       settings: const LiquidGlassSettings(
                         refractionHeight: 8,
                         refractionAmount: 0,
-                        glintStrength: 0,
-                        frost: LiquidGlassFrost.sigma(0),
+                        blur: 0,
+                      ),
+                      appearance: const LiquidGlassAppearance(
+                        colorModel: LiquidGlassColorModel.direct(
+                          brightness: Brightness.light,
+                          glintStrength: 0,
+                          contourStrength: 0.08,
+                        ),
                       ),
                     ),
                   ),

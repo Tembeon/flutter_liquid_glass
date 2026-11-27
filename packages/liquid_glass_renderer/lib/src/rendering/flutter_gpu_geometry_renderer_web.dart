@@ -1,3 +1,5 @@
+import 'dart:ui' show FilterQuality;
+
 import 'package:flutter/foundation.dart';
 
 import 'package:liquid_glass_renderer/painting.dart';
@@ -35,6 +37,9 @@ class FlutterGpuGeometryRenderer {
 
   /// Nothing is ever drawn on the web.
   static void flush() {}
+
+  /// No atlas is bound on the web.
+  static FilterQuality get atlasTableFilter => FilterQuality.none;
 
   /// Does nothing on the web.
   void releaseAtlas() {}

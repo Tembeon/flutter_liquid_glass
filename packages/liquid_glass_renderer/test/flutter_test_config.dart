@@ -7,8 +7,11 @@ import 'package:alchemist/alchemist.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
+import 'package:liquid_glass_renderer/src/widgets/composer_install.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   isLocalTest = true;
@@ -28,9 +31,18 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
       Directory(_captureGoldens),
     );
   }
+  installsGlassComposer = !_withoutComposer;
   await precacheLiquidGlass();
   // A golden is the same whichever tests ran before it.
   setUp(FlutterGpuGeometryRenderer.debugResetPages);
+  // A test turns copies on or sets a policy freely: after it they are what
+  // they were before any test ran.
+  final copies = glassReadsCopies;
+  final policy = debugGlassPolicy;
+  tearDown(() {
+    glassReadsCopies = copies;
+    debugGlassPolicy = policy;
+  });
 
   await AlchemistConfig.runWithConfig(
     config: AlchemistConfig(
@@ -62,6 +74,12 @@ Future<void> _publishSnaptestDocs() async {
 }
 
 const _expectFallback = bool.fromEnvironment('EXPECT_FLUTTER_GPU_FALLBACK');
+
+/// With `--dart-define=WITHOUT_GLASS_COMPOSER=true`, glass is planned with
+/// no composer: each glass reads its own backdrop. Run the rendering tests
+/// so, with `--exclude-tags composer`, to hold that rendering works without
+/// the composer.
+const _withoutComposer = bool.fromEnvironment('WITHOUT_GLASS_COMPOSER');
 
 /// With `--dart-define=GOLDEN_CAPTURE=<dir>`, every golden render is written
 /// under <dir> at its reference's path and nothing is compared: renders of two

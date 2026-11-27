@@ -1,6 +1,8 @@
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 
@@ -9,10 +11,15 @@ sealed class ReadSource {
   const ReadSource();
 }
 
-/// The copy's layers added again inside the read's filter: one target.
+/// The copy's layers added again inside the read's filter: one pass.
 final class SceneRead extends ReadSource {
-  /// Creates the source.
-  const SceneRead();
+  /// Creates the source, which buys its image after [wait] frames held
+  /// still, where it may buy one.
+  const SceneRead({this.wait});
+
+  /// The frames it holds still before it buys its image, or null where it
+  /// may not buy one.
+  final int? wait;
 }
 
 /// An image: none in the frame's scene. A new one costs its own submit.
@@ -26,8 +33,12 @@ final class ImageRead extends ReadSource {
 
 /// A backdrop filter: the frame goes offscreen, and splits once per read.
 final class BackdropRead extends ReadSource {
-  /// Creates the source.
-  const BackdropRead();
+  /// Creates the source, in backdrop [group] where it shares one.
+  const BackdropRead({this.group});
+
+  /// The group of backdrop reads that share one copy of the backdrop, taken
+  /// at the first of them, or null for a read on its own.
+  final int? group;
 }
 
 /// One backdrop and all the glass drawn from it.
@@ -35,9 +46,9 @@ final class GlassRead {
   /// Opens a read at [lead].
   GlassRead(this.lead)
     : footprint = lead.ask.reads,
-      quad = lead.ask.drawn,
-      share = lead.ask.look.need.share,
-      shapes = lead.isBand ? 0 : lead.ask.look.shapes {
+      drawn = lead.ask.drawn,
+      askedShare = lead.ask.look.need.share,
+      shapes = lead.ask.look.shapes {
     members.add(lead);
   }
 
@@ -62,24 +73,26 @@ final class GlassRead {
   Rect footprint;
 
   /// What its filter draws over.
-  Rect quad;
+  Rect drawn;
 
   /// The most device pixels along each side one pixel of its copy can stand
   /// for, for every member.
-  int share;
+  int askedShare;
 
   /// Where the backdrop comes from.
   ReadSource source = const SceneRead();
 
-  /// What the layers under its lead leave it.
+  /// What its read is left: by the layers under its lead, its place on the
+  /// screen, whether glass reads copies and the backdrop glass it sees.
   ReadLimit limit = ReadLimit.none;
 
   /// Earlier reads whose glass lies in [footprint]: each is drawn again inside
-  /// this read, so nesting doubles a read's targets.
-  final List<GlassRead> holds = [];
+  /// this read, so nesting doubles a read's passes.
+  final List<GlassRead> nested = [];
 
-  /// Zero over pictures alone, else one more than the highest read it holds.
-  int level = 0;
+  /// How deep it nests reads: zero over pictures alone, else one more than
+  /// the deepest read it nests.
+  int nesting = 0;
 
   /// Where its copy's pixels lie, for a read that takes a copy (not a
   /// [BackdropRead]).
@@ -91,51 +104,48 @@ final class GlassRead {
   /// What the glass of [glassMembers] is, in paint order.
   List<ShapeCensus> get glass => [
     for (final member in glassMembers)
-      if (member.ask.role is GlassSiteRole) member.ask.look.census,
+      if (member.ask.look.glass case final glass?) glass.census,
   ];
 
-  /// The frost the shader of the glass it leads draws over the copy, in
-  /// logical pixels: 0 under a band.
-  double get leadShaderFrost =>
-      lead.isBand ? 0 : lead.ask.look.need.shaderFrost;
+  /// The least blur the shader of the glass it leads draws over all of the
+  /// copy it shows, in logical pixels: 0 under a band.
+  double get leadShaderBlur => lead.isBand ? 0 : lead.ask.look.need.leastBlur;
 
   /// Whether what it holds differs from the last frame.
   bool changed = false;
 
-  /// Whether every glass drawn from it frosts what it shows by [flatFrost]
-  /// or more, so its copy leaves out what that frost hides: a blur of what
+  /// Whether every glass drawn from it blurs what it shows by [flatBlur]
+  /// or more, so its copy leaves out what that blur hides: a blur of what
   /// lies under it.
-  bool get flat =>
-      members.every((site) => site.ask.look.frostSigma >= flatFrost);
+  bool get flat => members.every((site) => site.ask.look.blurSigma >= flatBlur);
 
-  /// The least frost, a sigma in logical pixels, that hides what a flat copy
-  /// leaves out: a little under the 2.2 of a bar of regular glass. Glass
-  /// turned toward clear shows what lies under it, and reads it whole.
-  static const double flatFrost = 2;
+  /// The least blur, a sigma in logical pixels, that hides what a flat copy
+  /// leaves out: under [minBlurSigma], so all glass that blurs reads a flat
+  /// copy. Clear glass shows what lies under it, and reads it whole.
+  static const double flatBlur = 2;
 
-  /// The passes its copy takes for what it draws of the screen (see
-  /// [PlanScenery.savedUnder]).
-  int inside = 0;
+  /// The passes its copy takes for what lies under it on the screen
+  /// (`PlanScenery.passesUnder`).
+  int passesUnder = 0;
 
-  /// The group of backdrop reads that share one copy of the backdrop, taken at
-  /// the first of them, or null for a read on its own.
-  int? backdropGroup;
+  /// The passes of the frame this read issues: none for an
+  /// image, else [scenePasses].
+  int get passes => source is ImageRead ? 0 : scenePasses;
 
-  /// The targets this read issues, each a pass of the frame: none for an
-  /// image, else [sceneTargets].
-  int get targets => source is ImageRead ? 0 : sceneTargets;
+  /// The passes it issues drawn in the scene: its filter's layer, the layers
+  /// its copy passes through where it lies ([CornerPlace.passes]), what its
+  /// copy draws apart of the screen, and all of that again for each read it
+  /// holds that is no image, where its copy holds some of it.
+  int get scenePasses =>
+      source is BackdropRead ? 1 : _drawnIn(CornerPlace.inFrame(layout));
 
-  /// The targets it issues drawn in the scene: its filter's layer, the layers
-  /// that frost its copy and mix its haze, what its copy draws apart of the
-  /// screen, and all of that again for each read it holds that is no image.
-  int get sceneTargets => source is BackdropRead ? 1 : _drawnIn(1);
-
-  int _drawnIn(int targetShare) {
-    var total =
-        1 + inside + layout.frostLayersIn(targetShare) + layout.hazeLayers;
-    for (final held in holds) {
-      if (held.source is ImageRead) continue;
-      total += held._drawnIn(layout.share);
+  int _drawnIn(CornerPlace place) {
+    var total = 1 + passesUnder + place.passes;
+    for (final inner in nested) {
+      if (inner.source is ImageRead) continue;
+      if (CornerPlace.nestedIn(inner.layout, layout) case final place?) {
+        total += inner._drawnIn(place);
+      }
     }
     return total;
   }
@@ -152,22 +162,27 @@ final class HiddenFate extends SiteFate {
   const HiddenFate();
 }
 
-/// Draws [read]'s filter at its own place.
-final class LeadFate extends SiteFate {
-  /// Creates the fate.
-  const LeadFate(this.read);
+/// A site that draws: in a read it leads or follows.
+sealed class ShownFate extends SiteFate {
+  const ShownFate(this.read, {required this.under});
 
-  /// The read it leads.
+  /// The read it draws in.
   final GlassRead read;
+
+  /// What the layers under the site left its read.
+  final ReadLimit under;
+}
+
+/// Draws [read]'s filter at its own place.
+final class LeadFate extends ShownFate {
+  /// Creates the fate.
+  const LeadFate(super.read, {required super.under});
 }
 
 /// Another site's filter draws this glass.
-final class FollowFate extends SiteFate {
+final class FollowFate extends ShownFate {
   /// Creates the fate.
-  const FollowFate(this.read);
-
-  /// The read it follows.
-  final GlassRead read;
+  const FollowFate(super.read, {required super.under});
 }
 
 /// One frame's plan. Every route the frame takes is a value in here.
@@ -176,7 +191,8 @@ final class GlassPlan {
   GlassPlan(
     this.reads,
     this.fates, {
-    required this.issuedTargets,
+    required this.basis,
+    required this.issuedPasses,
     required this.dueAt,
     required this.notes,
   });
@@ -184,11 +200,14 @@ final class GlassPlan {
   /// The frame's reads in paint order.
   final List<GlassRead> reads;
 
-  /// Parallel to [PlanScenery.sites].
+  /// Parallel to the sites of the frame the plan was compiled for.
   final List<SiteFate> fates;
 
+  /// What the plan was compiled under.
+  final PlanBasis basis;
+
   /// Targets the frame issues, nested replays counted.
-  final int issuedTargets;
+  final int issuedPasses;
 
   /// The first frame a read that holds still can buy its image, if none
   /// changes before it.

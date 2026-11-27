@@ -1,19 +1,18 @@
-@Tags(['macos_pixels'])
+@Tags(['macos_pixels', 'composer'])
 library;
 
 import 'dart:typed_data';
 
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the copies
 // are drawn as Impeller draws them.
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
@@ -33,9 +32,7 @@ Widget _scene({
   Color? tint,
 }) {
   Widget glass(Rect rect, {double frost = 0, Color? tint}) => LiquidGlassLayer(
-    settings: const LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.light,
-    ).copyWith(frost: LiquidGlassFrost.sigma(frost)),
+    settings: const LiquidGlassSettings.ios27Regular().copyWith(blur: frost),
     child: Stack(
       children: [
         Positioned.fromRect(
@@ -122,27 +119,6 @@ class _Clip extends CustomClipper<Rect> {
   bool shouldReclip(_Clip oldClipper) => oldClipper.rect != rect;
 }
 
-Future<Uint8List> _pixels(WidgetTester tester, double pixelRatio) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(
-    () => boundary.toImage(pixelRatio: pixelRatio),
-  ))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
-}
-
-int _difference(Uint8List a, Uint8List b) {
-  var largest = 0;
-  for (var i = 0; i < a.length; i++) {
-    final d = (a[i] - b[i]).abs();
-    if (d > largest) largest = d;
-  }
-  return largest;
-}
-
 // The scene drawn over copies, once what lies under the glass changed.
 Future<Uint8List> _drawn(
   WidgetTester tester, {
@@ -156,7 +132,7 @@ Future<Uint8List> _drawn(
   Color? tint,
 }) async {
   debugGlassPolicy = debugGlassPolicy.copyWith(
-    maxTargets: inFrame ? 64 : 0,
+    maxPasses: inFrame ? 64 : 0,
   );
   await tester.pumpWidget(const SizedBox());
   await tester.pumpWidget(
@@ -188,18 +164,12 @@ Future<Uint8List> _drawn(
   if (inFrame && secondFrost == 0) {
     expect(GlassCopies.debugImagesDrawn, drawn);
   }
-  return _pixels(tester, pixelRatio);
+  return boundaryPixels(tester, find.byKey(_key), pixelRatio: pixelRatio);
 }
 
 void main() {
   setUp(() {
     glassReadsCopies = true;
-    debugGlassHaze = false;
-  });
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassHaze = null;
-    debugGlassPolicy = const PlanPolicy();
   });
 
   for (final pixelRatio in [1.0, 2.0]) {
@@ -224,7 +194,10 @@ void main() {
         pixelRatio: pixelRatio,
         second: false,
       );
-      expect(_difference(image, inFrame), lessThanOrEqualTo(1));
+      expect(
+        largestDifference(image, inFrame),
+        lessThanOrEqualTo(heldImageRingDrift),
+      );
     }, skip: skipProperGlassTests);
 
     // Both copies draw the lower glass as it lies inside the upper glass's
@@ -243,7 +216,7 @@ void main() {
         inFrame: true,
         pixelRatio: pixelRatio,
       );
-      expect(_difference(image, inFrame), lessThanOrEqualTo(3));
+      expect(largestDifference(image, inFrame), lessThanOrEqualTo(3));
     }, skip: skipProperGlassTests);
 
     testWidgets('frosted glass reads its copy from the corner of its layer '
@@ -263,7 +236,9 @@ void main() {
         frost: 6,
         second: false,
       );
-      expect(_difference(image, inFrame), lessThanOrEqualTo(1));
+      // The levels lie on the same cells in the layer and in the image, and
+      // a bilinear read of them rounds apart by up to 2 levels.
+      expect(largestDifference(image, inFrame), lessThanOrEqualTo(2));
     }, skip: skipProperGlassTests);
 
     // The grown layer lands on the copy's pixel grid a pixel off the image's
@@ -286,12 +261,12 @@ void main() {
         second: false,
         clip: clip,
       );
-      expect(_difference(image, inFrame), lessThanOrEqualTo(2));
+      expect(largestDifference(image, inFrame), lessThanOrEqualTo(2));
     }, skip: skipProperGlassTests);
 
     // NEAR: a layer the clip cuts holds nothing past it, so the 30 px of
     // glass left above the clip read their copy mirrored at the clip, up to
-    // 168 levels off what lies under the glass's hidden part.
+    // 171 levels off what lies under the glass's hidden part.
     testWidgets('glass a clip cuts with no room to grow reads its copy '
         'mirrored at the clip (dpr $pixelRatio)', (tester) async {
       sized(tester);
@@ -310,7 +285,7 @@ void main() {
         second: false,
         clip: clip,
       );
-      expect(_difference(image, inFrame), lessThanOrEqualTo(168));
+      expect(largestDifference(image, inFrame), lessThanOrEqualTo(171));
     }, skip: skipProperGlassTests);
   }
 
@@ -342,7 +317,7 @@ void main() {
     );
     // The frost's dither lies on the layer's cell, which a clip shifts from
     // the image's: 14 levels over the test's hard bars.
-    expect(_difference(image, inFrame), lessThanOrEqualTo(14));
+    expect(largestDifference(image, inFrame), lessThanOrEqualTo(14));
   }, skip: skipProperGlassTests);
 
   // The lower glass's copy holds a quarter of the screen's pixels, and the
@@ -354,7 +329,6 @@ void main() {
     tester.view.physicalSize = const Size(260, 360) * 2;
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => debugGlassPolicy = const PlanPolicy());
     GlassPlan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
     addTearDown(() => GlassComposer.debugOnPlan = null);
@@ -369,30 +343,36 @@ void main() {
       );
       final image = await drawn(inFrame: false);
       final inFrame = await drawn(inFrame: true);
-      final holding = plan!.reads.singleWhere((read) => read.holds.isNotEmpty);
+      final holding = plan!.reads.singleWhere((read) => read.nested.isNotEmpty);
       expect(holding.layout.share, share);
       // The image draws the held glass as a picture at the screen's pixels.
       // Each fragment of the glass held in the frame stands for a block of
       // them; under this frost and tint that rounds by a few levels, and
       // left out of the copy it is 73 off.
-      expect(_difference(image, inFrame), lessThanOrEqualTo(3));
+      expect(largestDifference(image, inFrame), lessThanOrEqualTo(3));
     }
   }, skip: skipProperGlassTests);
 
-  // The upper glass frosts its own copy in its shader, and that copy is
+  // The upper glass blurs its own copy from its levels, and that copy is
   // held in the lower glass's coarser one. Drawn at both shares at once, its
-  // pixels would hold 16 device pixels each.
+  // pixels would hold 16 device pixels each. A coarser copy averages the
+  // page into the levels from its own pixels: up to 12 levels over the
+  // test's hard bars. Held at a share of 4 under a frost of 3, the copy
+  // fills its layer to the bottom of the lower glass's copy, which leaves no
+  // room for its levels: Impeller blurs it by one sigma, 24 levels off.
   testWidgets('glass held in a coarse copy is drawn at the coarser grid', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(260, 360) * 2;
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => debugGlassPolicy = const PlanPolicy());
     GlassPlan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
     addTearDown(() => GlassComposer.debugOnPlan = null);
-    for (final frost in [3.0, 6.0]) {
+    for (final (frost, nears) in [
+      (3.0, [(2, 12), (4, 24)]),
+      (6.0, [(2, 8), (4, 6)]),
+    ]) {
       Future<Uint8List> drawn(int share) {
         debugGlassPolicy = PlanPolicy(maxCopyShare: share);
         return _drawn(
@@ -405,18 +385,44 @@ void main() {
       }
 
       final atScreen = await drawn(1);
-      for (final share in [2, 4]) {
+      for (final (share, near) in nears) {
         final shown = await drawn(share);
-        final holding = plan!.reads.singleWhere((r) => r.holds.isNotEmpty);
+        final holding = plan!.reads.singleWhere((r) => r.nested.isNotEmpty);
         expect(holding.layout.share, share);
-        expect(holding.holds.single.layout.share, greaterThan(1));
+        expect(holding.nested.single.layout.share, greaterThan(1));
         expect(
-          _difference(atScreen, shown),
-          lessThanOrEqualTo(9),
+          largestDifference(atScreen, shown),
+          lessThanOrEqualTo(near),
           reason: 'frost $frost, copy share $share',
         );
       }
     }
+  }, skip: skipProperGlassTests);
+
+  // The upper glass asks a refraction of 60, more than its 90 points hold:
+  // its shape caps how far the bevel shifts (half its short side). Held in
+  // the lower glass's copy at a share of 2, it shifts as far as at the
+  // screen's pixels, as far off as glass the cap leaves alone (10 levels at
+  // a refraction of 40); 45 off where the cap was in matte pixels and the
+  // amount in fragments.
+  testWidgets('glass held in a coarser copy shifts as far as the shape lets '
+      'it', (tester) async {
+    tester.view.physicalSize = const Size(260, 360) * 2;
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    GlassPlan? plan;
+    GlassComposer.debugOnPlan = (_, next) => plan = next;
+    addTearDown(() => GlassComposer.debugOnPlan = null);
+    Future<Uint8List> drawn(int share) {
+      debugGlassPolicy = PlanPolicy(maxCopyShare: share);
+      return _drawn(tester, inFrame: true, pixelRatio: 2, secondFrost: 6);
+    }
+
+    final atScreen = await drawn(1);
+    final held = await drawn(2);
+    final holding = plan!.reads.singleWhere((read) => read.nested.isNotEmpty);
+    expect(holding.layout.share, 2);
+    expect(largestDifference(atScreen, held), lessThanOrEqualTo(10));
   }, skip: skipProperGlassTests);
 
   // Impeller weighs the cut on the layer's device pixels. Glass at 203.8
@@ -448,13 +454,17 @@ void main() {
         clip: clip,
         top: 203.8,
       );
-      expect(_difference(image, inFrame), lessThanOrEqualTo(2), reason: '$cut');
+      expect(
+        largestDifference(image, inFrame),
+        lessThanOrEqualTo(2),
+        reason: '$cut',
+      );
     }
   }, skip: skipProperGlassTests);
 
-  // The lower glass's frosted copy is an image at a fraction of the screen's
-  // pixels, and the upper glass is drawn in the frame inside it as a filter,
-  // whose fragments are the image's pixels.
+  // The lower glass's copy, which Impeller blurs, is an image at a fraction
+  // of the screen's pixels, and the upper glass is drawn in the frame inside
+  // it as a filter, whose fragments are the image's pixels.
   for (final pixelRatio in [2.0, 3.0]) {
     testWidgets("an image copy at a fraction of the screen's pixels draws "
         'glass drawn in the frame where it lies (dpr $pixelRatio)', (
@@ -463,6 +473,7 @@ void main() {
       tester.view.physicalSize = const Size(260, 360) * pixelRatio;
       tester.view.devicePixelRatio = pixelRatio;
       addTearDown(tester.view.reset);
+      debugGlassPolicy = const PlanPolicy(shaderBlurs: false);
       final image = await _drawn(
         tester,
         inFrame: false,
@@ -478,7 +489,7 @@ void main() {
       );
       expect(GlassCopies.debugImagesDrawn, greaterThan(images));
       expect(
-        _difference(image, inFrame),
+        largestDifference(image, inFrame),
         lessThanOrEqualTo(15),
         reason:
             'The held bevel is drawn at the copy pixels in the frame and at '
@@ -495,12 +506,16 @@ void main() {
       bool second = true,
     }) async {
       // Pinned to the scene: an image would never pay.
-      debugGlassPrices = const PlanPrices(imageGpu: 1000000);
+      debugGlassPolicy = const PlanPolicy(imagePasses: 10000000);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(_scene(top: top, shift: shift, second: second));
       await tester.pumpWidget(_scene(top: top, shift: shift, second: second));
-      final pixels = await _pixels(tester, 2);
-      debugGlassPrices = const PlanPrices();
+      final pixels = await boundaryPixels(
+        tester,
+        find.byKey(_key),
+        pixelRatio: 2,
+      );
+      debugGlassPolicy = const PlanPolicy();
       await tester.pumpWidget(const SizedBox());
       return pixels;
     }
@@ -536,13 +551,19 @@ void main() {
               'it runs out, while the page holds still',
         );
         expect(
-          _difference(await _pixels(tester, 2), moved),
+          largestDifference(
+            await boundaryPixels(tester, find.byKey(_key), pixelRatio: 2),
+            moved,
+          ),
           lessThanOrEqualTo(2),
         );
 
         await tester.pumpWidget(_scene(top: 206, shift: 0.3, second: second));
         expect(
-          _difference(await _pixels(tester, 2), changed),
+          largestDifference(
+            await boundaryPixels(tester, find.byKey(_key), pixelRatio: 2),
+            changed,
+          ),
           lessThanOrEqualTo(2),
           reason: 'the frame that changes the page shows it',
         );

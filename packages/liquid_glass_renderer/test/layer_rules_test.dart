@@ -9,9 +9,10 @@ const _rules = LayerRules(
     'painting': {},
     'plan': {'painting'},
     'rendering': {'painting', 'plan'},
-    'widgets': {'painting', 'plan', 'rendering'},
+    'composer': {'painting', 'plan', 'rendering'},
+    'widgets': {'painting', 'plan', 'rendering', 'composer'},
   },
-  sourceOnly: {'plan'},
+  sourceOnly: {'plan', 'composer'},
   umbrella: 'liquid_glass_renderer',
   umbrellaLibraries: {'painting', 'widgets'},
   otherLibrariesThroughSource: true,
@@ -51,16 +52,18 @@ const _rules = LayerRules(
           r'OpacitySeedLayer|GlassCopies)\(',
       reason:
           'Glass reads its backdrop, or takes a copy of the screen, only '
-          "through the frame's composer, which plans every read. The "
-          'warm-up draws its own detached layer tree that is never part '
-          "of a frame, the shading's one image is the empty pixel bound "
+          "as the frame's planner decides: the backdrop filter layer reads "
+          'its own backdrop where no composer is installed, and the '
+          'composer plans every read where it is. The warm-up draws its '
+          'own detached layer tree that is never part of a frame, the '
+          "shader filter's one image is the empty pixel bound "
           'where a draw has no image of its own, the consolidated fake '
           'glass layer shares one capture among its own reads, bent '
           'content draws a picture of what lies over a shape, which the '
           'caller paints and which holds nothing of the screen, and a '
           "fake field body's node image holds the field's samples.",
       allowedIn: {
-        'lib/src/plan/',
+        'lib/src/composer/',
         'lib/src/rendering/backdrop_filter_layer.dart',
         'lib/src/rendering/backdrop_rig.dart',
         'lib/src/rendering/bent_content.dart',
@@ -68,15 +71,21 @@ const _rules = LayerRules(
         'lib/src/rendering/copy_frost.dart',
         'lib/src/rendering/copy_read.dart',
         'lib/src/rendering/fake_glass_field_image.dart',
-        'lib/src/rendering/glass_form.dart',
-        'lib/src/rendering/glass_form_open.dart',
-        'lib/src/rendering/glass_composer.dart',
-        'lib/src/rendering/glass_composition_probe.dart',
-        'lib/src/rendering/read.dart',
+        'lib/src/rendering/opacity_pass_seed.dart',
         'lib/src/rendering/scene_out.dart',
+        'lib/src/rendering/shader_filter.dart',
         'lib/src/rendering/shading.dart',
         'lib/src/rendering/warm_up.dart',
       },
+    ),
+    Ban(
+      'input-sampler',
+      r'setImageSampler\(\s*0,\s*transparentPixel',
+      reason:
+          "A filter shader's input is bound in one place "
+          '(inputShaderFilterNow): up to Flutter 3.47 the filter samples its '
+          'input as the image bound there says.',
+      allowedIn: {'lib/src/rendering/shader_filter.dart'},
     ),
     Ban(
       'copy-grid',
@@ -156,6 +165,14 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/rendering/shader_uniforms.dart'},
     ),
     Ban(
+      'warm-up-samplers',
+      r'\.setImageSampler\(',
+      reason:
+          'The warm-up draws through the code that draws frames: a '
+          "program's samplers are bound where its draws are written.",
+      bannedIn: {'lib/src/rendering/warm_up.dart'},
+    ),
+    Ban(
       'geometry-settings',
       r'\bLiquidGlassSettings\b',
       reason:
@@ -185,7 +202,8 @@ const _rules = LayerRules(
     ),
     Ban(
       'shader-constant',
-      r'(?<![\d.])(?:0\.2126|0\.7152|0\.0722|0\.258819|0\.965926)(?!\d)',
+      r'(?<![\d.])(?:0\.2126|0\.7152|0\.0722|0\.258819|0\.965926|'
+          r'1 / 12|1 / 6|8 / 3)(?!\d)',
       reason:
           'A number Dart and the shaders share is written once, in the '
           "table the shaders' constants are generated from.",
@@ -201,7 +219,7 @@ const _rules = LayerRules(
       allowedIn: {
         'lib/src/rendering/copy_frost.dart',
         'lib/src/rendering/copy_read.dart',
-        'lib/src/rendering/read.dart',
+        'lib/src/composer/read.dart',
       },
     ),
     Ban(

@@ -5,47 +5,82 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart
 
 /// Lightweight color and materialization controls for one glass shape.
 ///
-/// Optical geometry and surface lighting belong to the containing
-/// `LiquidGlassLayer`. These values may differ between shapes that share a
-/// layer.
+/// The lens and the blur belong to the settings of the containing
+/// `LiquidGlassLayer`, the lit rim to [colorModel]. These values may differ
+/// between shapes that share a layer, but for how they blur and fill: real
+/// glass does both for all of a layer's shapes as its first shape's
+/// [colorModel] does (see `LiquidGlassSettings`).
 ///
-/// Colors and color transfers are display-referred. The defaults of the
-/// unnamed constructor may be retuned before 1.0; the version-named presets
-/// (`ios27*`) track Apple's appearance on that OS version.
+/// Colors and color transfers are display-referred. The defaults of
+/// [LiquidGlassColorModel.direct] may be retuned before 1.0; the
+/// version-named presets (`ios27*`) track Apple's appearance on that OS
+/// version.
 @immutable
 final class LiquidGlassAppearance {
-  /// Creates a per-shape glass appearance.
-  ///
-  /// The default [colorModel] is [LiquidGlassColorModel.direct], which adds
-  /// no material of its own; [LiquidGlassAppearance.ios27Regular] and
+  /// Creates a per-shape glass appearance of [colorModel]:
+  /// [LiquidGlassColorModel.direct] adds no material of its own;
+  /// [LiquidGlassAppearance.ios27Regular] and
   /// [LiquidGlassAppearance.ios27Clear] are the iOS 27 ones.
   const LiquidGlassAppearance({
+    required this.colorModel,
     this.tint = const Color(0x00000000),
     this.visibility = 1,
-    this.colorModel = const LiquidGlassColorModel.direct(),
   });
 
   /// The iOS 27 regular material (`Glass.regular`, which Apple also uses
-  /// for toolbars and `.glass` buttons) in [brightness]. Its face follows
-  /// the size of the shape that wears it (see [LiquidGlassColorModel]).
+  /// for toolbars and `.glass` buttons) in [brightness], with the face of
+  /// the Increase Contrast setting where [highContrast] says so. Its
+  /// face follows the size of the shape that wears it (see
+  /// [LiquidGlassColorModel.ios27Regular]).
   const LiquidGlassAppearance.ios27Regular({
     required Brightness brightness,
+    bool highContrast = false,
     this.tint = const Color(0x00000000),
     this.visibility = 1,
   }) : colorModel = brightness == Brightness.dark
-           ? const LiquidGlassColorModel.ios27Regular(
-               brightness: Brightness.dark,
-             )
-           : const LiquidGlassColorModel.ios27Regular(
-               brightness: Brightness.light,
-             );
+           ? (highContrast ? _darkContrast : _dark)
+           : (highContrast ? _lightContrast : _light);
 
-  /// The iOS 27 `Glass.clear` appearance, identical in light and dark and
-  /// at every size.
+  /// The iOS 27 `Glass.clear` appearance in [brightness]
+  /// ([LiquidGlassColorModel.ios27Clear]), with the face of the Increase
+  /// Contrast setting where [highContrast] says so.
   const LiquidGlassAppearance.ios27Clear({
+    required Brightness brightness,
+    bool highContrast = false,
     this.tint = const Color(0x00000000),
     this.visibility = 1,
-  }) : colorModel = const LiquidGlassColorModel.ios27Clear();
+  }) : colorModel = brightness == Brightness.dark
+           ? (highContrast ? _clearDarkContrast : _clearDark)
+           : (highContrast ? _clearLightContrast : _clearLight);
+
+  static const _light = LiquidGlassColorModel.ios27Regular(
+    brightness: Brightness.light,
+  );
+  static const _dark = LiquidGlassColorModel.ios27Regular(
+    brightness: Brightness.dark,
+  );
+  static const _lightContrast = LiquidGlassColorModel.ios27Regular(
+    brightness: Brightness.light,
+    highContrast: true,
+  );
+  static const _darkContrast = LiquidGlassColorModel.ios27Regular(
+    brightness: Brightness.dark,
+    highContrast: true,
+  );
+  static const _clearLight = LiquidGlassColorModel.ios27Clear(
+    brightness: Brightness.light,
+  );
+  static const _clearDark = LiquidGlassColorModel.ios27Clear(
+    brightness: Brightness.dark,
+  );
+  static const _clearLightContrast = LiquidGlassColorModel.ios27Clear(
+    brightness: Brightness.light,
+    highContrast: true,
+  );
+  static const _clearDarkContrast = LiquidGlassColorModel.ios27Clear(
+    brightness: Brightness.dark,
+    highContrast: true,
+  );
 
   /// Material tint; alpha controls how strongly it mixes with the backdrop.
   /// Every constructor defaults to no tint.
@@ -62,8 +97,8 @@ final class LiquidGlassAppearance {
   /// The transfer model used to combine [tint] with the backdrop.
   ///
   /// [LiquidGlassColorModel.direct] carries its own saturation, gamma and
-  /// vibrancy; the iOS 27 models derive the accompanying tonal response
-  /// from their fit, for the size of the shape that wears the appearance.
+  /// vibrancy; the iOS 27 models take theirs from their recipe, worn at the
+  /// size of the shape that wears the appearance.
   final LiquidGlassColorModel colorModel;
 
   /// Returns a copy with the supplied appearance controls replaced.
@@ -89,7 +124,9 @@ final class LiquidGlassAppearance {
   int get hashCode => Object.hash(tint, visibility, colorModel);
 
   @override
-  String toString() => 'LiquidGlassAppearance($tint, $visibility, $colorModel)';
+  String toString() =>
+      'LiquidGlassAppearance(tint: $tint, visibility: $visibility, '
+      'colorModel: $colorModel)';
 }
 
 /// [visibility] as glass draws it: within zero to one.

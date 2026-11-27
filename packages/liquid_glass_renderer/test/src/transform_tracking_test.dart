@@ -32,6 +32,7 @@ void main() {
         MaterialApp(
           home: LiquidGlassLayer(
             settings: settingsWithoutLighting,
+            defaultAppearance: appearanceWithoutLighting,
             child: Center(
               child: ValueListenableBuilder<double>(
                 valueListenable: angle,
@@ -95,6 +96,7 @@ void main() {
         MaterialApp(
           home: LiquidGlassLayer(
             settings: settingsWithoutLighting,
+            defaultAppearance: appearanceWithoutLighting,
             child: Stack(
               children: [
                 Positioned(
@@ -167,6 +169,7 @@ void main() {
             height: 300,
             child: LiquidGlassLayer(
               settings: settingsWithoutLighting,
+              defaultAppearance: appearanceWithoutLighting,
               child: ListView(
                 controller: controller,
                 children: const [
@@ -227,6 +230,7 @@ void main() {
           MaterialApp(
             home: LiquidGlassLayer(
               settings: settingsWithoutLighting,
+              defaultAppearance: appearanceWithoutLighting,
               child: Center(
                 child: ValueListenableBuilder<double>(
                   valueListenable: angle,

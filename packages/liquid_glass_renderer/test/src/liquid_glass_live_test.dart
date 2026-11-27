@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
@@ -31,7 +30,7 @@ const _second = LiquidGlassShapeFrame(
 );
 const _glow = LiquidGlassGlow(
   center: Offset(90, 90),
-  radius: 24,
+  sigma: 24,
   gain: 0.6,
   wash: 0.08,
 );
@@ -61,23 +60,11 @@ Widget _layer({
   const backdrop = LiquidGlassBackdrop.solid(_gray);
   return live == null
       ? LiquidGlassLayer(
-          settings: const LiquidGlassSettings.ios27Regular(
-            brightness: Brightness.light,
-          ),
+          settings: const LiquidGlassSettings.ios27Regular(),
           backdrop: backdrop,
           child: child,
         )
       : LiquidGlassLayer.live(frame: live, backdrop: backdrop, child: child);
-}
-
-Future<Uint8List> _capture(WidgetTester tester) async {
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(_key),
-  );
-  final image = (await tester.runAsync(boundary.toImage))!;
-  final bytes = (await tester.runAsync(image.toByteData))!;
-  image.dispose();
-  return bytes.buffer.asUint8List();
 }
 
 void main() {
@@ -104,14 +91,12 @@ void main() {
       ),
     );
     await tester.pump();
-    final fixed = await _capture(tester);
+    final fixed = await boundaryPixels(tester, find.byKey(_key));
 
     final shape = ValueNotifier(_first);
     final layer = ValueNotifier(
       const LiquidGlassLayerFrame(
-        settings: LiquidGlassSettings.ios27Regular(
-          brightness: Brightness.light,
-        ),
+        settings: LiquidGlassSettings.ios27Regular(),
       ),
     );
     addTearDown(shape.dispose);
@@ -135,11 +120,11 @@ void main() {
     };
     shape.value = _second;
     layer.value = const LiquidGlassLayerFrame(
-      settings: LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+      settings: LiquidGlassSettings.ios27Regular(),
     );
     await tester.pump();
     debugOnRebuildDirtyWidget = null;
-    final live = await _capture(tester);
+    final live = await boundaryPixels(tester, find.byKey(_key));
 
     expect(rebuilt, isEmpty);
     var differing = 0;
@@ -153,9 +138,7 @@ void main() {
       'rebuild', (tester) async {
     final layer = ValueNotifier(
       const LiquidGlassLayerFrame(
-        settings: LiquidGlassSettings.ios27Regular(
-          brightness: Brightness.light,
-        ),
+        settings: LiquidGlassSettings.ios27Regular(),
       ),
     );
     final shape = ValueNotifier(_first);
@@ -192,9 +175,7 @@ void main() {
       glow: _glow,
     );
     await tester.pump();
-    const dark = LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.dark,
-    );
+    const dark = LiquidGlassSettings.ios27Regular();
     layer.value = const LiquidGlassLayerFrame(settings: dark);
     await tester.pump();
     debugOnRebuildDirtyWidget = null;
@@ -208,12 +189,8 @@ void main() {
 
   testWidgets('a fake live layer draws settings that arrive during layout '
       'in the same frame', (tester) async {
-    const light = LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.light,
-    );
-    const dark = LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.dark,
-    );
+    const light = LiquidGlassSettings.ios27Regular();
+    const dark = LiquidGlassSettings.ios27Regular();
     final layer = ValueNotifier(const LiquidGlassLayerFrame(settings: light));
     addTearDown(layer.dispose);
     var next = light;
@@ -262,12 +239,8 @@ void main() {
     final kind = fake ? 'fake' : 'real';
     testWidgets('a $kind live layer hands settings that arrive during layout '
         'to every shape in the same frame', (tester) async {
-      const light = LiquidGlassSettings.ios27Regular(
-        brightness: Brightness.light,
-      );
-      const dark = LiquidGlassSettings.ios27Regular(
-        brightness: Brightness.dark,
-      );
+      const light = LiquidGlassSettings.ios27Regular();
+      const dark = LiquidGlassSettings.ios27Regular();
       final layer = ValueNotifier(const LiquidGlassLayerFrame(settings: light));
       addTearDown(layer.dispose);
       var next = light;
@@ -357,9 +330,7 @@ void main() {
         brightness: Brightness.light,
         tint: Color(0x66FF3B30),
       );
-      const settings = LiquidGlassSettings.ios27Regular(
-        brightness: Brightness.light,
-      );
+      const settings = LiquidGlassSettings.ios27Regular();
       final layer = ValueNotifier(
         const LiquidGlassLayerFrame(
           settings: settings,
@@ -470,9 +441,7 @@ void main() {
     const dark = LiquidGlassAppearance.ios27Regular(
       brightness: Brightness.dark,
     );
-    const settings = LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.dark,
-    );
+    const settings = LiquidGlassSettings.ios27Regular();
     final layer = ValueNotifier(
       const LiquidGlassLayerFrame(
         settings: settings,
@@ -540,9 +509,7 @@ void main() {
       ),
       step: 4,
     );
-    const settings = LiquidGlassSettings.ios27Regular(
-      brightness: Brightness.light,
-    );
+    const settings = LiquidGlassSettings.ios27Regular();
     final layer = ValueNotifier(
       LiquidGlassLayerFrame(settings: settings, field: field),
     );
@@ -575,12 +542,15 @@ void main() {
     expect(fake.debugClipPath, same(field.edge));
 
     layer.value = LiquidGlassLayerFrame(
-      settings: settings.copyWith(refractionAmount: 99, dispersion: 1),
+      settings: settings.copyWith(
+        refractionAmount: 99,
+        lens: const LiquidGlassLens(dispersion: 1),
+      ),
       field: field,
     );
     expect(fake.debugNeedsPaint, isFalse);
     layer.value = LiquidGlassLayerFrame(
-      settings: settings.copyWith(frost: const LiquidGlassFrost.sigma(9)),
+      settings: settings.copyWith(blur: 9),
       field: field,
     );
     expect(fake.debugNeedsPaint, isTrue);

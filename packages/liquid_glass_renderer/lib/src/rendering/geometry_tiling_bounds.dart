@@ -74,7 +74,7 @@ final class _ShapeBounds {
       least = 0;
       radius = max(
         radius,
-        shapes.squircleAt(i, SquircleLane.topAxis, lower: true),
+        shapes.pairBottomRadiusAt(i),
       );
       hollow = radius > shorter;
     }

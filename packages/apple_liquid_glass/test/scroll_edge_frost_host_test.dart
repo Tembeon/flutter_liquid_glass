@@ -13,10 +13,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 const _key = ValueKey('page');
 
@@ -123,10 +122,6 @@ void main() {
     MotionClock.debugReset();
     glassReadsCopies = true;
   });
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassPolicy = const PlanPolicy();
-  });
 
   for (final (dpr, hard, near) in [
     (2.625, true, 13),
@@ -139,11 +134,11 @@ void main() {
       tester.view.physicalSize = Size(300 * dpr, 400 * dpr);
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
-      debugGlassPolicy = const PlanPolicy(maxTargets: 0, shaderFrost: false);
+      debugGlassPolicy = const PlanPolicy(maxPasses: 0, shaderBlurs: false);
       final filtered = await _scrolled(tester, dpr, hard: hard);
       final full = _band(tester).debugImageCopy!.image.width;
 
-      debugGlassPolicy = const PlanPolicy(maxTargets: 0);
+      debugGlassPolicy = const PlanPolicy(maxPasses: 0);
       final frosted = await _scrolled(tester, dpr, hard: hard);
       // The copy spans the screen's width, at half size.
       expect(_band(tester).debugImageCopy!.image.width, (full / 2).round());
@@ -175,7 +170,7 @@ void main() {
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
 
-      debugGlassPolicy = const PlanPolicy(maxTargets: 0);
+      debugGlassPolicy = const PlanPolicy(maxPasses: 0);
       final image = await _scrolled(tester, dpr, hard: true);
       expect(_band(tester).debugImageCopy, isNotNull);
 

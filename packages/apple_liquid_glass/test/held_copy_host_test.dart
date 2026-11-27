@@ -14,8 +14,7 @@ import 'package:liquid_glass_renderer/rendering.dart';
 // A read keeps what did not change in the rows it reads between frames, and
 // shows what a fresh mount at the same place shows.
 
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 
 const _viewSize = Size(300, 600);
 const _dpr = 2.0;
@@ -99,12 +98,9 @@ Widget _page(
             top: 10,
             height: 80,
             child: LiquidGlassLayer(
-              settings:
-                  const LiquidGlassSettings.ios27Regular(
-                    brightness: Brightness.light,
-                  ).copyWith(
-                    glintStrength: 0.1 + i / 100,
-                  ),
+              settings: const LiquidGlassSettings.ios27Regular().copyWith(
+                refractionAmount: 60 + i / 100,
+              ),
               child: const LiquidGlass(
                 shape: LiquidRoundedSuperellipse(radius: 20),
                 child: SizedBox.expand(),
@@ -169,11 +165,7 @@ void main() {
     glassReadsCopies = true;
     // Every read stays in the scene while the test counts what it adds: the
     // rows under each are layers drawn apart, six targets a read.
-    debugGlassPolicy = const PlanPolicy(maxTargets: 64);
-  });
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassPolicy = const PlanPolicy();
+    debugGlassPolicy = const PlanPolicy(maxPasses: 64);
   });
 
   testWidgets('a scrolled read adds fewer layers once they hold', (

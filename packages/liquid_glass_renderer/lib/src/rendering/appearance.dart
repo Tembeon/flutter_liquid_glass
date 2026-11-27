@@ -1,7 +1,6 @@
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
-import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
@@ -41,11 +40,12 @@ final class WornAppearance {
   @override
   int get hashCode => Object.hash(tint, visibility, colorModel);
 
-  /// Untinted glass of the plain direct model at full visibility.
-  static const plain = WornAppearance(
+  /// Untinted glass of the direct model that lights no rim, at full
+  /// visibility.
+  static const unlit = WornAppearance(
     tint: Color(0x00000000),
     visibility: 1,
-    colorModel: WornColorModel.direct(),
+    colorModel: WornColorModel.direct(brightness: Brightness.light),
   );
 
   @override
@@ -88,86 +88,225 @@ LiquidGlassAppearance fadedAppearance(
   double visibility,
 ) => appearance.copyWith(visibility: appearance.visibility * visibility);
 
-/// How the appearances of a layer's shapes differ: not at all (`uniform` is
-/// the one), by tint alone (`tintOnly`, `uniform` the first), or otherwise
-/// (`mixed` without `uniform`).
+/// The appearances of a layer's shapes, by how they differ: not at all, by
+/// tint alone, or otherwise; one kind of the final shader's look each.
 @internal
-typedef AppearanceKind = ({
-  bool mixed,
-  bool tintOnly,
-  WornAppearance? uniform,
-});
+@immutable
+sealed class ShapeAppearances {
+  const ShapeAppearances(this.all);
 
-/// How [appearances] differ; [fallback] stands for none.
-@internal
-AppearanceKind classifyAppearances(
-  List<WornAppearance> appearances,
-  WornAppearance fallback,
-) {
-  final first = appearances.isEmpty ? fallback : appearances.first;
-  final mixed = appearances.any((appearance) => appearance != first);
-  final tintOnly =
-      mixed &&
-      appearances.every(
-        (appearance) =>
-            appearance.visibility == first.visibility &&
-            appearance.colorModel == first.colorModel,
-      );
-  return (
-    mixed: mixed,
-    tintOnly: tintOnly,
-    uniform: tintOnly || !mixed ? first : null,
-  );
-}
-
-/// The adaptive color models of [appearances], then of [fallback], in
-/// shader slot order.
-@internal
-List<GlassColorParameters> colorModelSlots(
-  List<WornAppearance> appearances,
-  WornAppearance fallback,
-) {
-  final slots = <GlassColorParameters>[];
-  void add(WornAppearance appearance) {
-    final parameters = appearance.colorModel.parameters;
-    if (parameters != null &&
-        !slots.contains(parameters) &&
-        slots.length < colorModelSlotCount) {
-      slots.add(parameters);
+  /// How [appearances] differ; [fallback] stands for none.
+  factory ShapeAppearances.of(
+    List<WornAppearance> appearances,
+    WornAppearance fallback,
+  ) {
+    final all = List<WornAppearance>.unmodifiable(appearances);
+    final first = all.isEmpty ? fallback : all.first;
+    if (all.every((appearance) => appearance == first)) {
+      return OneAppearance(first, all);
     }
+    final tinted = all.every(
+      (appearance) =>
+          appearance.visibility == first.visibility &&
+          appearance.colorModel == first.colorModel,
+    );
+    return tinted ? TintedAppearances(all) : MixedAppearances(all, fallback);
   }
 
-  appearances.forEach(add);
-  add(fallback);
+  /// The shapes' appearances, in paint order.
+  final List<WornAppearance> all;
+
+  /// The kind of look the final shader draws them with.
+  FinalShaderKind get kind;
+
+  /// The appearances the glass shades: the one, or each shape's.
+  List<WornAppearance> get shaded => all;
+
+  /// The appearance the glass's face is made from: the one, the first of
+  /// appearances that differ by tint alone, or the layer's own where they
+  /// differ otherwise.
+  WornAppearance get face;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ShapeAppearances &&
+      other.runtimeType == runtimeType &&
+      other.face == face &&
+      listEquals(other.all, all);
+
+  @override
+  int get hashCode => Object.hash(runtimeType, face, Object.hashAll(all));
+}
+
+/// Appearances that are all one.
+@internal
+final class OneAppearance extends ShapeAppearances {
+  /// The appearances [all], each [face], or none.
+  const OneAppearance(this.face, super.all);
+
+  @override
+  final WornAppearance face;
+
+  @override
+  FinalShaderKind get kind => FinalShaderKind.single;
+
+  @override
+  List<WornAppearance> get shaded => [face];
+}
+
+/// Appearances that differ by tint alone.
+@internal
+final class TintedAppearances extends ShapeAppearances {
+  /// The appearances [all].
+  const TintedAppearances(super.all);
+
+  @override
+  WornAppearance get face => all.first;
+
+  @override
+  FinalShaderKind get kind => FinalShaderKind.tint;
+}
+
+/// Appearances that differ by more than their tint.
+@internal
+final class MixedAppearances extends ShapeAppearances {
+  /// The appearances [all], beside the layer's own [face].
+  const MixedAppearances(super.all, this.face);
+
+  @override
+  final WornAppearance face;
+
+  @override
+  FinalShaderKind get kind => FinalShaderKind.material;
+}
+
+/// The iOS 27 recipes of [appearances], then of [fallback] where a slot is
+/// left, in shader slot order.
+///
+/// Where the appearances wear more than the slots
+/// ([overflowsColorModelSlots]), each kind of glass (a look but for its
+/// size) takes a slot first, in their order, and sizes fill the slots left:
+/// the looks without a slot draw with the slot nearest them
+/// (colorModelCode).
+@internal
+List<RecipeLook> colorModelSlots(
+  List<WornAppearance> appearances,
+  WornAppearance fallback,
+) {
+  final recipes = _distinctRecipes(appearances);
+  final slots = recipes.length <= colorModelSlotCount
+      ? recipes
+      : <RecipeLook>[];
+  if (recipes.length > colorModelSlotCount) {
+    for (final look in recipes) {
+      if (slots.length < colorModelSlotCount &&
+          !slots.any((slot) => _sameKind(slot, look))) {
+        slots.add(look);
+      }
+    }
+    for (final look in recipes) {
+      if (slots.length < colorModelSlotCount && !slots.contains(look)) {
+        slots.add(look);
+      }
+    }
+  }
+  if (fallback.colorModel case WornRecipe(:final look)
+      when slots.length < colorModelSlotCount && !slots.contains(look)) {
+    slots.add(look);
+  }
   return List.unmodifiable(slots);
 }
 
-/// The shader's model code for [model]: 0 direct, else its slot, from 1.
+/// Whether [appearances] wear more iOS 27 recipes than the final shader has
+/// slots for ([colorModelSlots]).
 @internal
-double colorModelCode(
-  WornColorModel model,
-  List<GlassColorParameters> slots,
-) {
-  final parameters = model.parameters;
-  if (parameters == null) return 0;
-  // The slots hold the appearances' own parameter objects, so a model
-  // finds its slot by identity before a field-by-field comparison.
-  var index = slots.indexWhere((slot) => identical(slot, parameters));
-  if (index < 0) index = slots.indexOf(parameters);
-  return (index.clamp(0, colorModelSlotCount - 1) + 1).toDouble();
-}
+bool overflowsColorModelSlots(List<WornAppearance> appearances) =>
+    _distinctRecipes(appearances).length > colorModelSlotCount;
 
-/// The color models [shaded] needs: the direct model alone, one iOS 27
-/// model in the first slot, or any.
-@internal
-FinalShaderModels colorModelFamily(List<WornAppearance> shaded) {
-  final first = shaded.first.colorModel.parameters;
-  for (final appearance in shaded) {
-    if (appearance.colorModel.parameters != first) {
-      return FinalShaderModels.all;
+List<RecipeLook> _distinctRecipes(List<WornAppearance> appearances) => [
+  ...{
+    for (final appearance in appearances)
+      if (appearance.colorModel case WornRecipe(:final look)) look,
+  },
+];
+
+bool _sameKind(RecipeLook a, RecipeLook b) =>
+    a.variant == b.variant &&
+    a.brightness == b.brightness &&
+    a.greyTint == b.greyTint &&
+    a.highContrast == b.highContrast &&
+    a.lift == b.lift;
+
+// The slot of [slots] that [look] draws with: its own, or the one whose
+// recipe lies nearest it, compared from what shows most: brightness,
+// regular or clear, the lens's lift, contrast and a grey tint, then size.
+int _slotOf(RecipeLook look, List<RecipeLook> slots) {
+  final own = slots.indexOf(look);
+  if (own >= 0 || slots.isEmpty) return own < 0 ? 0 : own;
+  List<num> distance(RecipeLook slot) => [
+    if (slot.brightness == look.brightness) 0 else 1,
+    if (slot.variant == look.variant) 0 else 1,
+    if (slot.lift == look.lift) 0 else 1,
+    (slot.highContrast == look.highContrast ? 0 : 1) +
+        (slot.greyTint == look.greyTint ? 0 : 1),
+    (slot.shortSide - look.shortSide).abs(),
+  ];
+  bool nearer(List<num> a, List<num> b) {
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return a[i] < b[i];
+    }
+    return false;
+  }
+
+  var nearest = 0;
+  var nearestDistance = distance(slots.first);
+  for (var i = 1; i < slots.length; i++) {
+    final next = distance(slots[i]);
+    if (nearer(next, nearestDistance)) {
+      nearest = i;
+      nearestDistance = next;
     }
   }
-  return first == null ? FinalShaderModels.direct : FinalShaderModels.ios27;
+  return nearest;
+}
+
+/// The recipes glass of [appearances] draws, or [fallback]'s where there
+/// are none.
+@internal
+List<RecipeLook> drawnRecipes(
+  List<WornAppearance> appearances,
+  WornAppearance fallback,
+) => [
+  for (final appearance in appearances.isEmpty ? [fallback] : appearances)
+    if (appearance.colorModel case WornRecipe(:final look)) look,
+];
+
+/// The shader's model code for [model]: 0 direct, else its slot, from 1: a
+/// recipe without a slot of its own takes the slot nearest it.
+@internal
+double colorModelCode(WornColorModel model, List<RecipeLook> slots) =>
+    switch (model) {
+      WornDirect() => 0,
+      WornRecipe(:final look) => (_slotOf(look, slots) + 1).toDouble(),
+    };
+
+/// The color models [shaded] needs: the direct model alone, one iOS 27
+/// recipe in the first slot, or any.
+@internal
+FinalShaderModels colorModelFamily(List<WornAppearance> shaded) {
+  final first = shaded.first.colorModel;
+  bool sameAsFirst(WornAppearance appearance) =>
+      switch ((appearance.colorModel, first)) {
+        (WornDirect(), WornDirect()) => true,
+        (WornRecipe(:final look), WornRecipe(look: final firstLook)) =>
+          look == firstLook,
+        _ => false,
+      };
+  if (!shaded.every(sameAsFirst)) return FinalShaderModels.all;
+  return switch (first) {
+    WornDirect() => FinalShaderModels.direct,
+    WornRecipe() => FinalShaderModels.ios27,
+  };
 }
 
 /// The looks of a buffer's shapes, one appearance a shape, their color
@@ -176,7 +315,7 @@ FinalShaderModels colorModelFamily(List<WornAppearance> shaded) {
 @internal
 ShapeLooks shapeLooks(
   List<WornAppearance> appearances, {
-  required List<GlassColorParameters> colorModels,
+  required List<RecipeLook> colorModels,
   required bool tintOnly,
 }) {
   return ShapeLooks([
@@ -188,9 +327,11 @@ ShapeLooks shapeLooks(
           appearance.tint.b,
           appearance.tint.a,
         ],
-        LookLane.saturation: [appearance.colorModel.saturation],
-        LookLane.transmissionGamma: [appearance.colorModel.transmissionGamma],
-        LookLane.vibrancy: [appearance.colorModel.vibrancy],
+        LookLane.saturation: [appearance.colorModel.transfer.saturation],
+        LookLane.transmissionGamma: [
+          appearance.colorModel.transfer.transmissionGamma,
+        ],
+        LookLane.vibrancy: [appearance.colorModel.transfer.vibrancy],
         LookLane.visibilityAndModel: [
           lookVisibilityAndModel(
             appearance.visibility,

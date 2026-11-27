@@ -13,10 +13,7 @@ const _glass = Rect.fromLTWH(40, 40, 120, 70);
 const _clear = LiquidGlassSettings(
   refractionHeight: 0,
   refractionAmount: 0,
-  frost: LiquidGlassFrost.sigma(0),
-  glintStrength: 0,
-  contourStrength: 0,
-  bevelShadowStrength: 0,
+  blur: 0,
 );
 
 Widget _scene(LiquidGlassSettings settings, List<Rect> white) => Directionality(
@@ -34,12 +31,17 @@ Widget _scene(LiquidGlassSettings settings, List<Rect> white) => Directionality(
         Positioned.fill(
           child: LiquidGlassLayer(
             settings: settings,
+            defaultAppearance: appearanceWithoutLighting,
             child: Stack(
               children: [
                 Positioned.fromRect(
                   rect: _glass,
                   child: const LiquidGlass(
-                    appearance: LiquidGlassAppearance(),
+                    appearance: LiquidGlassAppearance(
+                      colorModel: LiquidGlassColorModel.direct(
+                        brightness: Brightness.light,
+                      ),
+                    ),
                     shape: LiquidRoundedRectangle(radius: 35),
                     child: SizedBox.expand(),
                   ),
@@ -100,7 +102,7 @@ void main() {
 
     final pulled = await _pixels(
       tester,
-      _clear.copyWith(backdropPull: 9, backdropPullDepth: 36),
+      _clear.copyWith(lens: const LiquidGlassLens(pull: 9, pullDepth: 36)),
       white,
     );
     // 2.5 px deep the glass reads 5.7 px farther out: the stripe.
@@ -122,7 +124,9 @@ void main() {
 
     final parted = await _pixels(
       tester,
-      _clear.copyWith(aberration: 3, aberrationDepth: 30),
+      _clear.copyWith(
+        lens: const LiquidGlassLens(aberration: 3, aberrationDepth: 30),
+      ),
       white,
     );
     // 6.5 px under the top edge red reads up to 2.9 px to the left and
@@ -148,7 +152,9 @@ void main() {
     const white = [Rect.fromLTWH(0, 74, 200, 2)];
     final parted = await _pixels(
       tester,
-      _clear.copyWith(aberration: 3, aberrationDepth: 30),
+      _clear.copyWith(
+        lens: const LiquidGlassLens(aberration: 3, aberrationDepth: 30),
+      ),
       white,
     );
     // 6.5 px inside the left end red reads up to 2.9 px above.
@@ -169,7 +175,9 @@ void main() {
     const white = [Rect.fromLTWH(0, 0, 200, 150)];
     final parted = await _pixels(
       tester,
-      _clear.copyWith(aberration: 3, aberrationDepth: 30),
+      _clear.copyWith(
+        lens: const LiquidGlassLens(aberration: 3, aberrationDepth: 30),
+      ),
       white,
     );
     // About 3 px inside the four arcs, and 1.5 px inside the top and the

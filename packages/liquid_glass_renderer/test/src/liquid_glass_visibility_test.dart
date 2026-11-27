@@ -14,7 +14,12 @@ void main() {
             visibility: 0.4,
             child: LiquidGlassLayer(
               fake: true,
-              defaultAppearance: LiquidGlassAppearance(visibility: 0.5),
+              defaultAppearance: LiquidGlassAppearance(
+                colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
+                ),
+                visibility: 0.5,
+              ),
               child: LiquidGlass(
                 shape: LiquidOval(),
                 child: SizedBox.square(dimension: 80),

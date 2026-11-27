@@ -7,8 +7,12 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe_groups.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
+import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
@@ -16,14 +20,14 @@ import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/band_look.dart';
 import 'package:liquid_glass_renderer/src/plan/impeller.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/rendering/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_levels.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/debug.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
@@ -34,10 +38,10 @@ import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_frames.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/group_atlas.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 import 'package:liquid_glass_renderer/src/rendering/shading.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
@@ -76,28 +80,32 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   static bool debugShaderVariants = true;
 
-  bool _debugWarnedShapeLimit = false;
+  final Set<String> _debugWarnings = {};
 
-  void _debugWarnShapeLimitExceeded() {
-    if (!kDebugMode || _debugWarnedShapeLimit) return;
-    _debugWarnedShapeLimit = true;
-    const message =
-        'a LiquidGlassLayer has more than '
-        '$geometryMaxShapesPerDraw glass shapes that '
-        'blend, lie within reach of each other, or carry their own '
-        'appearances; the extra shapes are not drawn. Split the glass across '
-        'several layers.';
+  void _debugWarn(String message) {
+    if (!kDebugMode || !_debugWarnings.add(message)) return;
     debugPrint('liquid_glass_renderer: $message');
   }
 
-  FinalShaderKind _kind({bool groupTints = false}) => switch ((
-    _usesShapeAppearances || groupTints,
-    _usesTintOnlyAppearance || groupTints,
-  )) {
-    (false, _) => FinalShaderKind.single,
-    (true, true) => FinalShaderKind.tint,
-    (true, false) => FinalShaderKind.material,
-  };
+  void _debugWarnShapeLimitExceeded() => _debugWarn(
+    'a LiquidGlassLayer has more than '
+    '$geometryMaxShapesPerDraw glass shapes that '
+    'blend, lie within reach of each other, or carry their own '
+    'appearances; the extra shapes are not drawn. Split the glass across '
+    'several layers.',
+  );
+
+  void _debugWarnLookLimitExceeded() => _debugWarn(
+    'a LiquidGlassLayer draws glass in more than $colorModelSlotCount '
+    'iOS 27 looks; the glass past them draws with the look nearest its '
+    "own. A look is the glass's kind and its size, which changes the look "
+    'between ${recipeSizes.control.round()} and '
+    '${recipeSizes.panel.round()} points. Split the glass across several '
+    'layers.',
+  );
+
+  FinalShaderKind _kind({bool groupTints = false}) =>
+      groupTints ? FinalShaderKind.tint : _appearances.kind;
 
   int _variant(
     GlassGeometry geometry, {
@@ -111,7 +119,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       final index = FinalShaderVariant.bandIndexOf(
         kind,
         models,
-        frost: _frostsCopies,
         shape: shape,
         aberrates: _aberrates,
       );
@@ -121,49 +128,153 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return FinalShaderVariant.indexOf(
       kind,
       models,
-      frost: _frostsCopies,
       shape: shape,
       aberrates: _aberrates,
     );
   }
 
-  bool get _aberrates => settings.effectiveAberration != 0;
+  bool get _aberrates => settings.lens.drawnAberration != 0;
 
   /// The shader the backdrop filter draws with.
   @visibleForTesting
   FragmentShader get debugBackdropShader =>
       finalShaders[debugBackdropDraw.variant];
 
-  // Whether the shader may frost the copy it draws over, which picks a
-  // variant that can. Settings pick it, as they pick the color models.
-  bool get _frostsCopies =>
-      glassPolicy.shaderFrost && _drawn.frosts && settings.dispersion == 0;
+  // Whether the shader blurs the copy it draws over from the levels beside
+  // it. Where a policy turns it off, or the glass parts colors by
+  // dispersion, which reads three points of the copy, Impeller blurs the
+  // copy instead.
+  bool get _blursCopies =>
+      glassPolicy.shaderBlurs && settings.lens.dispersion == 0;
 
-  // What the fitted frost and haze of the settings come to, worked out once
-  // per settings.
-  ({LiquidGlassSettings of, bool frosts, LiquidGlassFixedHaze? haze})
-  get _drawn {
-    final held = _heldDrawn;
-    if (held != null && identical(held.of, settings)) return held;
-    return _heldDrawn = (
-      of: settings,
-      frosts: settings.frostBase > 0,
-      haze: settings.drawnHaze,
+  // Whether the glass blurs what it shows anywhere.
+  bool get _blurs => settings.blurBaseOf(_blurModel) > 0;
+
+  // The color model whose blur the glass takes: its own, or its first
+  // shape's.
+  WornColorModel get _blurModel => _appearances.shaded.first.colorModel;
+
+  // The rim the glass's direct models light: the first one's among its
+  // shapes, which the face holds for all of them.
+  DirectRim get _rim {
+    for (final appearance in _appearances.shaded) {
+      if (appearance.colorModel case WornDirect(:final rim)) return rim;
+    }
+    return DirectRim.none;
+  }
+
+  // What the glass blurs a copy it reads by and mixes into it, in iOS's
+  // units of blur: its recipe's (BlurRecipe, BlurFillRecipe), worn at the
+  // size of its smallest shape as its fitted blur is. A blur the settings give
+  // blurs all over as Impeller's blur asked for it does and mixes nothing
+  // in.
+  ({BlurRecipe blur, BlurFillRecipe fill}) get _blurRecipes {
+    final look = _blurLook;
+    final system = settings.drawnSystem;
+    final key = (settings, look, system);
+    final held = _heldBlurRecipes;
+    if (held != null && held.key == key) return held.recipes;
+    final recipes = switch (settings.blur) {
+      final sigma? => (
+        blur: BlurRecipe(
+          radius:
+              max(sigma, 0) * ImpellerBlur.deliveredFraction / ios27BlurUnit,
+          stops: _flatBlur,
+        ),
+        fill: BlurFillRecipe.none,
+      ),
+      null => () {
+        final recipe = recipeOf(look, system);
+        return (blur: recipe.blur, fill: recipe.blurFill);
+      }(),
+    };
+    _heldBlurRecipes = (key: key, recipes: recipes);
+    return recipes;
+  }
+
+  ({Object key, ({BlurRecipe blur, BlurFillRecipe fill}) recipes})?
+  _heldBlurRecipes;
+
+  static const _flatBlur = [
+    (depth: 0.0, strength: 1.0),
+    (depth: 0.0, strength: 1.0),
+    (depth: 0.0, strength: 1.0),
+    (depth: 0.0, strength: 1.0),
+  ];
+
+  // The look whose recipe the glass blurs by: its own at rest (a lifted
+  // lens blurs as its resting glass), at the size of its smallest shape; for
+  // the direct model, which has none, regular glass of its scheme.
+  RecipeLook get _blurLook {
+    final model = _blurModel;
+    final (:variant, :brightness) = model.blurredAs;
+    final recipe = switch (model) {
+      WornRecipe(:final look) => look,
+      WornDirect() => null,
+    };
+    return (
+      variant: variant,
+      brightness: brightness,
+      shortSide: _shapeShortSide,
+      greyTint: recipe?.greyTint ?? false,
+      highContrast: recipe?.highContrast ?? false,
+      lift: GlassLift.resting,
     );
   }
 
-  ({LiquidGlassSettings of, bool frosts, LiquidGlassFixedHaze? haze})?
-  _heldDrawn;
+  // What the glass blurs a copy by at [scale] times its logical pixels, on
+  // a screen of [dpr]: the levels its read lays out, or null for none, and
+  // what its shader blurs by from them.
+  //
+  // NEAR: the levels span the ramp's inner two stops, so the outer point of
+  // the rim blurs no further than they reach, and not at all where the glass
+  // blurs nothing inside: a level pass for each control would buy a 1 pt
+  // band.
+  ({CopyLevels? levels, GlassBlur blur}) _copyBlurAt(double dpr, double scale) {
+    final key = (_blurRecipes, dpr, scale);
+    final held = _heldCopyBlur;
+    if (held != null && held.key == key) return held.blur;
+    final (:blur, :fill) = _blurRecipes;
+    double sigma(double strength) =>
+        blur.radius * strength * ios27BlurUnit * scale;
+    final stops = blur.stops;
+    final deep = sigma(stops[0].strength);
+    final rim = sigma(stops[1].strength);
+    final fills =
+        fill.radius > 0 &&
+        (fill.lighten > 0 || fill.darken > 0 || fill.cover > 0);
+    final levels = CopyLevels(
+      least: min(deep, rim),
+      most: max(deep, rim),
+      fill: fills ? fill.radius * ios27BlurUnit * scale : 0,
+      margin: switch (blur.margin) {
+        final margin? => margin * scale,
+        null => null,
+      },
+    );
+    final drawn = (
+      levels: levels.blurs || levels.fills ? levels : null,
+      blur: GlassBlur(
+        sigmas: [for (final stop in stops) sigma(stop.strength) * dpr],
+        depths: [for (final stop in stops.skip(1)) stop.depth * dpr],
+        fillMix: [
+          clampDouble(fill.lighten, 0, 1),
+          clampDouble(fill.darken, 0, 1),
+          clampDouble(fill.cover, 0, 1),
+        ],
+      ),
+    );
+    _heldCopyBlur = (key: key, blur: drawn);
+    return drawn;
+  }
+
+  ({Object key, ({CopyLevels? levels, GlassBlur blur}) blur})? _heldCopyBlur;
 
   /// The color models the layer shades: the direct model alone, one iOS
   /// 27 model in the first slot, or any.
   FinalShaderModels get _colorModelFamily {
     if (!debugShaderVariants) return FinalShaderModels.all;
-    return colorModelFamily(
-      _usesShapeAppearances
-          ? _shapeAppearances
-          : [_uniformAppearance ?? defaultWornByNone],
-    );
+    return colorModelFamily(_appearances.shaded);
   }
 
   final FlutterGpuGeometryRenderer _gpuGeometryRenderer;
@@ -174,20 +285,20 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // MARK: Shader inputs
 
-  WornAppearance? _uniformAppearance;
-  List<WornAppearance> _shapeAppearances = const [];
-  bool _usesShapeAppearances = false;
-  bool _usesTintOnlyAppearance = false;
+  late ShapeAppearances _appearances = ShapeAppearances.of(
+    const [],
+    defaultWornByNone,
+  );
 
   /// Whether the shapes' appearances differ, so the atlas carries their
   /// looks.
   @visibleForTesting
-  bool get debugUsesShapeAppearances => _usesShapeAppearances;
+  bool get debugUsesShapeAppearances => _appearances is! OneAppearance;
 
   /// Whether only the shapes' tints differ, so the atlas carries the tint
   /// alone.
   @visibleForTesting
-  bool get debugUsesTintOnlyAppearance => _usesTintOnlyAppearance;
+  bool get debugUsesTintOnlyAppearance => _appearances is TintedAppearances;
 
   /// The looks beside the atlas, where the shapes' appearances differ.
   @visibleForTesting
@@ -199,24 +310,26 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // The material and glow the glass draws with, made again after their
   // inputs change.
   GlassFace? _face;
-  GlassFace? _hazedFace;
+  GlassFace? _fadedFace;
   GlowUniforms? _glowUniforms;
 
   void _shadingChanged() {
     _face = null;
-    _hazedFace = null;
+    _fadedFace = null;
   }
 
   GlassFace get _glassFace {
     if (_face case final face?) return face;
-    final appearance = _uniformAppearance ?? defaultWornByNone;
-    final slots = colorModelSlots(_shapeAppearances, defaultWornByNone);
+    final appearance = _appearances.face;
+    final slots = colorModelSlots(_appearances.all, defaultWornByNone);
     return _face = GlassFace.of(
       settings: settings,
       appearance: appearance,
       colorModels: slots,
       devicePixelRatio: devicePixelRatio,
-      blurs: _drawn.frosts,
+      blurs: _blurs,
+      rim: _rim,
+      edges: _recipeEdges,
     );
   }
 
@@ -242,67 +355,35 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   static void _keepsRetainedEffect(PaintingContext _, Offset _) {}
 
-  double _shapeShortSide = frostFitShortSides.largest;
+  double _shapeShortSide = blurFitShortSides.largest;
 
-  double _frostSigmaForCurrentShapes() {
-    final inputs = (settings, devicePixelRatio, _shapeShortSide);
-    if (inputs == _frostInputs) return _frostSigma;
-    _frostInputs = inputs;
-    return _frostSigma = settings.frostSigmaAt(
+  double _blurSigmaForCurrentShapes() {
+    final model = _blurModel;
+    final inputs = (settings, devicePixelRatio, _shapeShortSide, model);
+    if (inputs == _heldBlurInputs) return _heldBlurSigma;
+    _heldBlurInputs = inputs;
+    return _heldBlurSigma = settings.blurSigmaAt(
+      model,
       devicePixelRatio,
       shapeShortSide: _shapeShortSide,
     );
   }
 
-  (LiquidGlassSettings, double, double)? _frostInputs;
-  double _frostSigma = 0;
+  (LiquidGlassSettings, double, double, WornColorModel)? _heldBlurInputs;
+  double _heldBlurSigma = 0;
 
-  double _hazedFrostSigmaAt(double dpr) {
-    final inputs = (settings, dpr, _shapeShortSide);
-    if (inputs == _hazedFrostInputs) return _hazedFrostSigma;
-    _hazedFrostInputs = inputs;
-    return _hazedFrostSigma = settings.hazedFrostSigmaAt(
-      dpr,
-      shapeShortSide: _shapeShortSide,
-    );
-  }
-
-  (LiquidGlassSettings, double, double)? _hazedFrostInputs;
-  double _hazedFrostSigma = 0;
-
-  // iOS captures what lies under glass at half the screen's pixels, which a
-  // screen of 2.5 device pixels per point or more shows that soft. Against
-  // native glass 63 points high over hard cells, glass with a fitted frost
-  // lies 2.0 levels off so and 3.4 at the screen's pixels (dark glass 1.1
-  // and 4.0).
-  static const int _coarseCopyShare = 2;
-  static const double _coarseCopyMinRatio = 2.5;
-
-  CopyNeed? _hazedNeed(double stretch, double dpr) {
-    if (debugGlassHaze == false) return null;
-    final haze = _drawn.haze;
-    // Until the haze's programs load the one blur stands in for it.
-    if (haze != null && !CopyHaze.ready) return null;
-    final frost = _hazedFrostSigmaAt(dpr);
-    final coarse = settings.frostIsFitted && dpr >= _coarseCopyMinRatio;
-    if (frost <= 0) {
-      return haze == null && !coarse
-          ? null
-          : CopyNeed(share: coarse ? _coarseCopyShare : 1, haze: haze);
-    }
-    if (!_frostsCopies) return null;
-    final need = CopyNeed.glassFrost(
-      frost * stretch,
+  // The need of glass that blurs a copy from [levels] on a screen of [dpr],
+  // or null where Impeller blurs it instead, or until the levels' program
+  // loads.
+  CopyNeed? _levelledNeed(CopyLevels? levels, double dpr) {
+    if (levels == null || !_blursCopies || !CopyLevelPasses.ready) return null;
+    return CopyNeed.levelled(
+      levels,
       devicePixelRatio: dpr,
-      haze: haze,
+      maxShare: glassPolicy.maxCopyShare,
+      fittedBlur: settings.blur == null,
+      captureShare: _blurRecipes.blur.captureShare,
     );
-    return need != null && coarse && need.share < _coarseCopyShare
-        ? CopyNeed(
-            share: _coarseCopyShare,
-            shaderFrost: need.shaderFrost,
-            haze: haze,
-          )
-        : need;
   }
 
   /// The color of a [LiquidGlassBackdrop.solid], or null to read the
@@ -317,10 +398,23 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   bool get _drawsOverSolid => (_solidBackdrop?.a ?? 0) == 1;
 
-  /// Whether the last composited frame drew the glass over the underlay's
-  /// copy rather than reading the backdrop.
-  @visibleForTesting
-  bool debugDrewOverCopy = false;
+  /// The backdrop of the nearest [BackdropGroup]: glass that reads its
+  /// backdrop with no frame's plan to group the read, as where glass reads
+  /// no copies, shares it with every other read of the group.
+  ///
+  /// A group captures its backdrop once, at its first read, so glass of the
+  /// group does not show what is painted after that read, other glass of the
+  /// group included.
+  BackdropKey? get backdropGroup => _backdropGroup;
+  BackdropKey? _backdropGroup;
+  set backdropGroup(BackdropKey? value) {
+    if (_backdropGroup == value) return;
+    _backdropGroup = value;
+    if (!_readsCopies) markNeedsPaint();
+  }
+
+  // Whether its view's planner reads copies (GlassFrames.readsCopies).
+  bool get _readsCopies => attached && GlassFrames.readsCopies(owner!);
 
   ImageCopy? _debugImageCopy;
 
@@ -353,21 +447,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void onFieldChanged() => needsGeometryUpdate = true;
 
   void _setShapeAppearances(List<WornAppearance> appearances) {
-    final (:mixed, :tintOnly, :uniform) = classifyAppearances(
-      appearances,
-      defaultWornByNone,
-    );
-    if (_usesShapeAppearances == mixed &&
-        _usesTintOnlyAppearance == tintOnly &&
-        _uniformAppearance == uniform &&
-        listEquals(_shapeAppearances, appearances)) {
-      return;
+    final next = ShapeAppearances.of(appearances, defaultWornByNone);
+    if (next == _appearances) return;
+    _appearances = next;
+    if (kDebugMode && overflowsColorModelSlots(next.all)) {
+      _debugWarnLookLimitExceeded();
     }
-    _usesShapeAppearances = mixed;
-    _usesTintOnlyAppearance = tintOnly;
-    _uniformAppearance = uniform;
-    _shapeAppearances = List.unmodifiable(appearances);
-    _shadingChanged();
+    _materialChanged();
   }
 
   // MARK: Retained frame hooks
@@ -392,26 +478,37 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   bool get _readsBackdrop => switch (_fate) {
     LeadFate(read: GlassRead(source: BackdropRead())) => true,
-    _ => !glassReadsCopies,
+    _ => !_readsCopies,
   };
 
   @override
   bool get encodesGeometry => true;
 
   @override
-  void onSettingsChanged(LiquidGlassSettings old) {
+  void onSettingsChanged(LiquidGlassSettings old) => _materialChanged();
+
+  @override
+  void onAppearanceChanged() => _materialChanged();
+
+  void _materialChanged() {
     _shadingChanged();
     if (_encodedNeed case final encoded? when !encoded.covers(_need)) {
       needsGeometryUpdate = true;
     }
   }
 
-  GeometryNeed get _need =>
-      GeometryNeed.of(settings, devicePixelRatio: devicePixelRatio);
-  GeometryNeed? _encodedNeed;
+  GeometryNeed get _need => GeometryNeed.of(
+    settings,
+    devicePixelRatio: devicePixelRatio,
+    rim: _rim,
+    edges: _recipeEdges,
+  );
 
-  @override
-  void onAppearanceChanged() => _shadingChanged();
+  ({double inward, double outward}) get _recipeEdges => recipeEdges(
+    drawnRecipes(_appearances.all, defaultWornByNone),
+    settings.drawnSystem,
+  );
+  GeometryNeed? _encodedNeed;
 
   @override
   void onDevicePixelRatioChanged() {
@@ -589,20 +686,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   Rect _prepareGeometryAppearance(Rect boundingBox) {
     _shapeShortSide = frameShapes.wornShortSide;
-    final usedShapeAppearances = _usesShapeAppearances;
-    final usedTintOnlyAppearance = _usesTintOnlyAppearance;
-    final appearances = [
+    final before = _appearances;
+    _setShapeAppearances([
       for (final drawn in frameShapes.drawn) drawn.shape.appearance,
-    ];
-    final appearanceValuesChanged = !listEquals(
-      _shapeAppearances,
-      appearances,
-    );
-    _setShapeAppearances(appearances);
-    if (_usesShapeAppearances &&
-        (!usedShapeAppearances ||
-            usedTintOnlyAppearance != _usesTintOnlyAppearance ||
-            appearanceValuesChanged)) {
+    ]);
+    final now = _appearances;
+    if (now is! OneAppearance &&
+        (now.kind != before.kind || !listEquals(now.all, before.all))) {
       // The atlas pass writes the looks beside the geometry.
       needsGeometryUpdate = true;
     }
@@ -618,7 +708,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return _bindingOf(
       switch (_geometry) {
         null => AtlasGeometry.none,
-        AtlasGeometry(:final lease) when !_usesShapeAppearances =>
+        AtlasGeometry(:final lease) when _appearances is OneAppearance =>
           AtlasGeometry(lease.withoutLooks),
         final geometry => geometry,
       },
@@ -629,27 +719,27 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   GeometryBinding _bindingOf(GlassGeometry geometry, {required Rect bounds}) {
     final dpr = devicePixelRatio;
     final alongX = _materialSize.width >= _materialSize.height;
-    final pull = settings.effectiveBackdropPull;
-    final aberration = settings.effectiveAberration;
+    final pull = settings.lens.drawnPull;
+    final aberration = settings.lens.drawnAberration;
     final line =
         (_materialSize.longestSide - _materialSize.shortestSide) / 2 * dpr;
     return GeometryBinding(
       source: geometry,
       origin: bounds.topLeft * dpr,
       size: bounds.size * dpr,
-      refractionHeight: settings.effectiveRefractionHeight * dpr,
+      refractionHeight: settings.drawnRefractionHeight * dpr,
       fitsShape: settings.refractionFitsShape,
       materialCenter: _materialCenterInMatte * dpr,
       edge: pull == 0 && aberration == 0
           ? GeometryBinding.plainEdge
           : (
               pull: pull * dpr,
-              pullHeight: settings.backdropPullDepth * dpr,
+              pullDepth: settings.lens.pullDepth * dpr,
               // A square's line is a point, and either sign keeps it one.
               line: alongX ? line : -line,
               halfMinor: _materialSize.shortestSide / 2 * dpr,
               aberration: aberration * dpr,
-              aberrationDepth: settings.aberrationDepth * dpr,
+              aberrationDepth: settings.lens.aberrationDepth * dpr,
             ),
     );
   }
@@ -660,7 +750,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// in.
   Matrix4 get shaderCoordinateTransform => filterPassTransform(
     this,
-    seeding: compositionProbeSeeding,
+    insideOpacityPass: insideOpacityPass,
     devicePixelRatio: devicePixelRatio,
     translation: compositorTranslation,
   );
@@ -683,7 +773,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // the filter's coverage, which every clip around the filter narrows: the
     // retained clips between this layer and its shapes, and the clips above
     // this layer up to its pass. The texture is transparent outside it.
-    if (!_drawn.frosts) return clip;
+    if (!_blurs) return clip;
     var captured = clip.shift(translation);
     final ancestorClips = [
       retainedClipBounds,
@@ -767,22 +857,26 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   void _bindFilter() {
     _placeAtlas();
-    _rig.bindFilter(_backdropFilterNow());
+    _rig.bindFilter(
+      _backdropFilterNow(),
+      direct: !_readsCopies,
+      group: _backdropGroup,
+    );
   }
 
   ImageFilter _backdropFilterNow() {
     final draw = _backdropDraw;
-    final sigma = _frostSigmaForCurrentShapes();
+    final sigma = _blurSigmaForCurrentShapes();
     if (_backdropFilter case (final held, final heldSigma, final filter)
         when heldSigma == sigma && held == draw) {
       return filter;
     }
-    final filter = _frosted(_shading.filter(draw), sigma);
+    final filter = _blurred(_shading.filter(draw), sigma);
     _backdropFilter = (draw, sigma, filter);
     return filter;
   }
 
-  static ImageFilter _frosted(ImageFilter shader, double sigma) => sigma > 0
+  static ImageFilter _blurred(ImageFilter shader, double sigma) => sigma > 0
       ? ImageFilter.compose(
           inner: ImageFilter.blur(
             tileMode: glassBlurTileMode,
@@ -825,7 +919,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       return;
     }
     final filterBounds = _syncMaterialFilter(materialBounds, offset);
-    final copies = glassReadsCopies && !drawableEmpty;
+    final copies = _readsCopies && !drawableEmpty;
     if (!copies) _placeShadows(under: false);
 
     void paintBackdrop(PaintingContext context, Offset offset) {
@@ -902,7 +996,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void onTransformChanged() {
     _mappingMoved = true;
     // Retained geometry follows the move in onPreparing.
-    if (repaintsOnMove) GlassComposer.repaint(this);
+    if (repaintsOnMove) GlassFrames.repaint(this);
   }
 
   // Glass with nothing to reuse repaints.
@@ -925,9 +1019,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // This frame's place on the screen, for the glass's own draws: the glass's
   // transform to the screen, the logical rect the shader draws and the sigma
-  // of the blur, in the screen's logical pixels, the shader frosts the copy
-  // for, 0 where the copy is blurred or the glass unfrosted. Only this glass
-  // reads it: the others of a read hear of it through its ask.
+  // of the blur, in the screen's logical pixels, the shader blurs the copy
+  // by, 0 where Impeller blurs the copy or the glass does not blur. Only
+  // this glass reads it: the others of a read hear of it through its ask.
   _Frame? _frame;
 
   late final _GlassPainter _painter = _GlassPainter(this);
@@ -970,12 +1064,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       return (SiteAsk.none, null);
     }
     final hasGeometry = _shapes.count != 0 && _geometry != null;
-    var noJoin = field != null || _usesShapeAppearances
+    var noJoin = field != null || _appearances is! OneAppearance
         ? NoJoin.field
         : _glows
         ? NoJoin.glow
-        : settings.effectiveBackdropShrink != 0 ||
-              settings.effectiveBackdropPull != 0 ||
+        : settings.lens.drawnShrink != 0 ||
+              settings.lens.drawnPull != 0 ||
               _aberrates
         ? NoJoin.ownCenter
         : glassShadowsFade
@@ -986,7 +1080,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final dpr = view.devicePixelRatio;
     final screen = filterPassTransform(
       this,
-      seeding: false,
+      insideOpacityPass: false,
       devicePixelRatio: dpr,
       translation: compositorTranslation,
     );
@@ -994,14 +1088,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // screen, along each axis on its own, as Impeller scales the backdrop
     // filter's blur. Impeller blurs a scaled canvas with other taps than the
     // same blur unscaled: NEAR, at most 5 channel levels apart in the host
-    // test of glass scaled 1.2 under 8 px of frost, and only while the glass
+    // test of glass scaled 1.2 under a blur of 8 px, and only while the glass
     // is scaled.
     final storage = screen.storage;
     final stretch = max(storage[0].abs(), storage[5].abs());
     // What the shader paints: the material, not the rect it is drawn in.
     final drawn = MatrixUtils.transformRect(screen, bounds);
     final shifted = drawn.inflate((_shiftReach(bounds) + 1) * stretch);
-    final frostSigma = _frostSigmaForCurrentShapes();
+    final blurSigma = _blurSigmaForCurrentShapes();
     double backdropBlurReach(double sigma) =>
         sigma > 0 ? ImpellerBlur.reach(sigma, dpr, stretch: stretch) : 0;
     final paints = _paints;
@@ -1009,11 +1103,16 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (place is Turned) {
       final answer = SiteAsk(
         drawn: drawn,
-        reads: shifted.inflate(backdropBlurReach(frostSigma)),
+        reads: shifted.inflate(backdropBlurReach(blurSigma)),
+        look: FilterLook(
+          key: null,
+          need: const PlainNeed(),
+          glass: GlassLook(census: _census),
+        ),
         role: _roleAt(screen),
         noJoin: noJoin,
         groupsBackdrop: hasGeometry,
-        place: place,
+        backdropOnly: true,
         paints: paints,
       );
       return (answer, null);
@@ -1024,36 +1123,24 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       screen,
       view.bucket(bounds),
     );
-    // The shader frosts round and a haze is mixed in round, so glass
-    // stretched past 5 % keeps the copy's blur, which follows each axis.
-    final round = (scaleX / scaleY - 1).abs() <= 0.05;
-    final hazed = round ? _hazedNeed(sqrt(scaleX * scaleY), dpr) : null;
-    final sigma = hazed == null ? frostSigma : 0.0;
-    final frostX = sigma * scaleX;
-    final frostY = sigma * scaleY;
-    // Frost the final shader can draw is drawn there, over an unblurred
-    // copy: the copy's blur passes become its taps.
-    final frosted =
-        hazed ??
-        (sigma > 0 && _frostsCopies && round
-            ? CopyNeed.glassFrost(
-                sigma * sqrt(scaleX * scaleY),
-                devicePixelRatio: dpr,
-              )
-            : null);
+    // The shader blurs round, by the mean of the glass's two scales.
+    final (:levels, :blur) = _copyBlurAt(dpr, sqrt(scaleX * scaleY));
+    final levelled = _levelledNeed(levels, dpr);
+    final sigma = levelled == null ? blurSigma : 0.0;
+    final blurX = sigma * scaleX;
+    final blurY = sigma * scaleY;
     final need =
-        frosted ??
+        levelled ??
         CopyNeed.blurred(
-          min(frostX, frostY),
+          min(blurX, blurY),
           devicePixelRatio: dpr,
           maxShare: glassPolicy.maxCopyShare,
         );
-    final frost = need.shaderFrost;
-    final appearance = _uniformAppearance ?? defaultWornByNone;
+    final appearance = _appearances.face;
     final answer = SiteAsk(
       drawn: drawn,
       reads: shifted.inflate(
-        frosted == null ? backdropBlurReach(sigma) : need.reachAt(dpr),
+        levelled == null ? backdropBlurReach(sigma) : need.reachAt(dpr),
       ),
       clip: switch (retainedClipBounds) {
         final clip? => MatrixUtils.transformRect(
@@ -1068,37 +1155,35 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           appearance.colorModel,
           appearance.visibility,
           dpr,
-          need.shaderFrost,
+          need.levels,
           need.share,
           _colorModelFamily,
         ),
         need: need,
-        // A haze is mixed into all of its copy, which a scroll edge drawn
-        // beside the glass would read too.
-        drawsBand:
-            need.haze == null &&
-            frost > 0 &&
-            FinalShaderVariant.bandIndexOf(
-                  _kind(),
-                  _colorModelFamily,
-                  frost: _frostsCopies,
-                  aberrates: _aberrates,
-                ) !=
-                null,
-        tint: appearance.tint,
-        census: _census,
-        imageRead: sigma > 0 && frosted == null
-            ? ImageReadFilter(blur: (frostX, frostY))
-            : null,
-        anyGrid: true,
+        imageRead: sigma > 0 ? BlurredImage(blurX, blurY) : null,
+        glass: GlassLook(
+          drawsBand: switch (FinalShaderVariant.bandIndexOf(
+            _kind(),
+            _colorModelFamily,
+            aberrates: _aberrates,
+          )) {
+            final band? =>
+              sigma == 0 &&
+                  (FinalShaderVariant.all[band].blurs ||
+                      !(levels?.blurs ?? false)),
+            null => false,
+          },
+          tint: appearance.tint,
+          census: _census,
+          anyGrid: true,
+        ),
       ),
       role: _roleAt(screen),
       noJoin: noJoin,
       groupsBackdrop: hasGeometry,
-      place: place,
       paints: paints,
     );
-    return (answer, (screen: screen, logical: logical, shaderFrost: frost));
+    return (answer, (screen: screen, logical: logical, blur: blur));
   }
 
   SiteFate _fate = const HiddenFate();
@@ -1115,14 +1200,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       (origin + _encodedShift) * devicePixelRatio;
 
   // What the glass is, as its geometry was last encoded.
-  ShapeCensus get _census => _geometry == null
-      ? ShapeCensus.none
-      : ShapeCensus(
-          shapes: _shapes.count,
-          field: _drift.tiling?.field != null,
-          looks: _drift.tiling?.looks != null,
-          leans: _shapes.leans,
-        );
+  ShapeCensus get _census =>
+      _geometry == null ? ShapeCensus.none : _encodedCensus;
+  ShapeCensus _encodedCensus = ShapeCensus.none;
 
   ui.Picture? _shadowUnderRead() {
     _placeShadows(under: true);
@@ -1148,22 +1228,17 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     switch (fate) {
       case HiddenFate():
-        compositionSeedSuppressed = true;
-        debugDrewOverCopy = false;
+        reads = SiteReads.nothing;
         _rig.hide();
         _placeShadows(under: false);
       case LeadFate(:final read) when read.source is! BackdropRead:
-        // Glass over its copy reads no backdrop: an opacity pass around it
-        // needs no seed.
-        compositionSeedSuppressed = true;
-        debugDrewOverCopy = true;
+        reads = SiteReads.copy;
         _painter.beginRead(read);
         _placeShadows(under: !glassShadowsFade);
       case LeadFate():
         break;
       case FollowFate(:final read):
-        compositionSeedSuppressed = true;
-        debugDrewOverCopy = true;
+        reads = SiteReads.copy;
         // The glass over a band draws it, in the band's place.
         if (read.bandPainter?.ask.role
             case PainterRole(painter: _GlassPainter(:final layer))
@@ -1206,8 +1281,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   void _showBackdrop(BackdropKey? group) {
-    compositionSeedSuppressed = false;
-    debugDrewOverCopy = false;
+    reads = SiteReads.backdrop;
     _placeShadows(under: false);
     if (_bindsBackdropFilter) _bindFilter();
     _rig.showBackdrop(group);
@@ -1247,8 +1321,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             translation,
             _filterMaterialBounds,
             _filterPaintOffset,
-            compositionProbeSeeding,
-            _frostSigmaForCurrentShapes(),
+            insideOpacityPass,
+            _blurSigmaForCurrentShapes(),
             devicePixelRatio,
             retainedClipBounds,
             localPaintClipAbove(this),
@@ -1273,11 +1347,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final remapped = _remap();
     if (remapped && _rebindsBackdropFilter) _bindFilter();
     if (_refreshRetainedGeometry()) return;
-    // A frame late: the composer asked [paintsLate] before paint, and
+    // A frame late: the view's GlassFrames asked [paintsLate] before paint, and
     // marked this glass when it would come here. What it could not see
     // reaches here: a shape under a follower whose leader moved this frame,
     // as the leader's offset exists only after paint.
-    GlassComposer.repaint(this);
+    GlassFrames.repaint(this);
   }
 
   // The poll after paint would miss and the refresh could not take it: a
@@ -1327,26 +1401,25 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   double get materialOutset => _need.contourOutset;
 
   double _shiftReach(Rect material) {
-    // The final shader's edge shift (displacementMagnitude): no wider
-    // than half a shape's shorter side when refraction fits the shape, and
-    // than its clear share of it otherwise.
-    final amount = settings.effectiveDisplacementScale;
+    final amount = settings.drawnRefractionAmount;
     final halfMinor = min(material.width, material.height) / 2;
     final shift = min(
       amount,
-      settings.refractionFitsShape
-          ? halfMinor
-          : GlassShift.clearRatio * halfMinor,
+      (settings.refractionFitsShape
+              ? GlassShift.fittedShift
+              : GlassShift.clearShift) *
+          halfMinor,
     );
     final displacement =
-        shift * (1 + settings.dispersion.abs() * GlassShift.dispersionSpread);
-    final backdropScale = 1 - settings.effectiveBackdropShrink;
+        shift *
+        (1 + settings.lens.dispersion.abs() * GlassShift.dispersionSpread);
+    final backdropScale = 1 - settings.lens.drawnShrink;
     final revealed =
         (1 / backdropScale - 1) * max(material.width, material.height) / 2;
     return displacement +
         revealed +
-        settings.effectiveBackdropPull +
-        settings.effectiveAberration;
+        settings.lens.drawnPull +
+        settings.lens.drawnAberration;
   }
 
   ({GlassGeometry geometry, Rect bufferBounds}) _buildGeometry(
@@ -1376,21 +1449,22 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       throw StateError('No invertible liquid-glass shapes to render.');
     }
     // A field takes its looks from one draw of shapes.
-    if (_usesShapeAppearances &&
+    if (_appearances is! OneAppearance &&
         field != null &&
         shapes.count > geometryMaxShapesPerDraw) {
       _debugWarnShapeLimitExceeded();
       shapes = shapes.take(geometryMaxShapesPerDraw);
     }
     _shapes = shapes;
-    final looks = _usesShapeAppearances
-        ? shapeLooks(
-            shapes.appearances,
-            colorModels: colorModelSlots(_shapeAppearances, defaultWornByNone),
-            tintOnly: _usesTintOnlyAppearance,
-          )
-        : null;
-    final census = ShapeCensus(
+    final looks = switch (_appearances) {
+      OneAppearance() => null,
+      final differing => shapeLooks(
+        shapes.appearances,
+        colorModels: colorModelSlots(differing.all, defaultWornByNone),
+        tintOnly: differing is TintedAppearances,
+      ),
+    };
+    final census = _encodedCensus = ShapeCensus(
       shapes: shapes.count,
       field: field != null,
       looks: looks != null,
@@ -1467,4 +1541,4 @@ extension RenderLiquidGlassLayerDebug on RenderLiquidGlassLayer {
   Tiling? get debugTiling => _drift.tiling;
 }
 
-typedef _Frame = ({Matrix4 screen, Rect logical, double shaderFrost});
+typedef _Frame = ({Matrix4 screen, Rect logical, GlassBlur blur});

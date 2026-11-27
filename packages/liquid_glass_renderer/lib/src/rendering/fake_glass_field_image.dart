@@ -99,27 +99,23 @@ ui.Image _drawNodes(LiquidGlassField field) {
   return image;
 }
 
+// Each node's distance, and the direction of the field's own gradient,
+// which an owner turns near a corner as real glass reads it.
 Int32List _nodeColors(Float32List samples, int cols, int rows) {
-  double distance(int i, int j) => samples[(j * cols + i) * 4];
   int channel(double value) => (value.clamp(0.0, 1.0) * 255).round();
   const span = fakeFieldInside + fakeFieldOutside;
   final colors = Int32List(cols * rows);
-  for (var j = 0; j < rows; j++) {
-    final up = math.max(j - 1, 0);
-    final down = math.min(j + 1, rows - 1);
-    for (var i = 0; i < cols; i++) {
-      final left = math.max(i - 1, 0);
-      final right = math.min(i + 1, cols - 1);
-      final dx = (distance(right, j) - distance(left, j)) / (right - left);
-      final dy = (distance(i, down) - distance(i, up)) / (down - up);
-      final length = math.sqrt(dx * dx + dy * dy);
-      final (nx, ny) = length > 1e-9 ? (dx / length, dy / length) : (0.0, 0.0);
-      colors[j * cols + i] =
-          0xFF000000 |
-          channel((distance(i, j) + fakeFieldInside) / span) << 16 |
-          channel(nx * 0.5 + 0.5) << 8 |
-          channel(ny * 0.5 + 0.5);
-    }
+  for (var node = 0; node < cols * rows; node++) {
+    final at = node * 4;
+    final gx = samples[at + 1];
+    final gy = samples[at + 2];
+    final length = math.sqrt(gx * gx + gy * gy);
+    final (nx, ny) = length > 1e-9 ? (gx / length, gy / length) : (0.0, 0.0);
+    colors[node] =
+        0xFF000000 |
+        channel((samples[at] + fakeFieldInside) / span) << 16 |
+        channel(nx * 0.5 + 0.5) << 8 |
+        channel(ny * 0.5 + 0.5);
   }
   return colors;
 }

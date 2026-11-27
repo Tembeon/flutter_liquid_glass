@@ -77,9 +77,7 @@ class LiquidGlassBottomBar extends StatefulWidget {
 class _LiquidGlassBottomBarState extends State<LiquidGlassBottomBar> {
   @override
   Widget build(BuildContext context) {
-    final glassSettings = LiquidGlassSettings.ios27Regular(
-      brightness: MediaQuery.platformBrightnessOf(context),
-    );
+    const glassSettings = LiquidGlassSettings.ios27Regular();
     final content = LiquidGlassBlendGroup(
       blend: 10,
       child: Padding(
@@ -570,15 +568,17 @@ class _TabIndicatorState extends State<_TabIndicator>
                         // even when the ambient layer uses the fitted iOS tint.
                         defaultAppearance: LiquidGlassAppearance(
                           visibility: thickness,
+                          colorModel: const LiquidGlassColorModel.direct(
+                            brightness: Brightness.light,
+                            contourStrength: .1,
+                          ),
                         ),
                         fake: widget.fake,
                         settings: const LiquidGlassSettings(
                           refractionHeight: 24,
                           refractionAmount: 40,
-                          backdropShrink: .08,
-                          dispersion: .1,
-                          frost: LiquidGlassFrost.sigma(0),
-                          contourStrength: .1,
+                          lens: LiquidGlassLens(shrink: .08, dispersion: .1),
+                          blur: 0,
                         ),
                         child: const LiquidGlass(
                           key: ValueKey('bottom-bar-drag-glass'),
