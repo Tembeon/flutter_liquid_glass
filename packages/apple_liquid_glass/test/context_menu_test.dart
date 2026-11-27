@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -66,6 +67,27 @@ Future<void> _frames(WidgetTester tester, int count) async {
 }
 
 void main() {
+  testWidgets("screen readers find the menu's items on the held widget as "
+      'custom actions that run them without opening the menu', (
+    tester,
+  ) async {
+    _phone(tester);
+    final semantics = tester.ensureSemantics();
+    final log = <String>[];
+    await tester.pumpWidget(_app(log: log));
+    final node = tester.getSemantics(find.byKey(_held));
+    final ids = node.getSemanticsData().customSemanticsActionIds ?? [];
+    final labels = [
+      for (final id in ids) CustomSemanticsAction.getAction(id)!.label,
+    ];
+    expect(labels, ['Copy', 'Share', 'Delete']);
+    node.owner!.performAction(node.id, SemanticsAction.customAction, ids[1]);
+    await tester.pump();
+    expect(log, ['Share']);
+    expect(find.text('Copy'), findsNothing);
+    semantics.dispose();
+  });
+
   setUp(MotionClock.debugReset);
 
   testWidgets('a hold grows the view, then opens the menu beside its lifted '

@@ -31,6 +31,11 @@ part of 'menu_anchor.dart';
 /// the keyboard focus: on [child], a Tab stop of its own, or on a control
 /// inside it (a row under the menu), which is then the one stop and keeps
 /// its own Space and Enter, ring and hover.
+///
+/// Screen readers find the menu's items on [child] as custom actions, as
+/// UIKit's `accessibilityCustomActions` give them: each enabled, shown
+/// [GlassMenuItem] with an action, through sections, runs it without
+/// opening the menu; a submenu's items stay in the menu.
 class GlassContextMenu extends StatefulWidget {
   /// Creates a context menu of [menuChildren] for [child].
   const GlassContextMenu({
@@ -153,6 +158,23 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
 
   @override
   List<GlassMenuEntry> get _entries => widget.menuChildren;
+
+  static Map<CustomSemanticsAction, VoidCallback> _customActions(
+    List<GlassMenuEntry> entries,
+  ) => {
+    for (final entry in entries)
+      ...switch (entry) {
+        GlassMenuItem(
+          :final title,
+          :final onPressed?,
+          enabled: true,
+          hidden: false,
+        ) =>
+          {CustomSemanticsAction(label: title): onPressed},
+        GlassMenuSection(:final children) => _customActions(children),
+        _ => const <CustomSemanticsAction, VoidCallback>{},
+      },
+  };
 
   @override
   GlassMenuOrder get _order => widget.order == GlassMenuOrder.automatic
@@ -406,6 +428,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
         focusNode: _claimFocus,
         semantics: SemanticsProperties(
           onLongPress: enabled ? _openFromCode : null,
+          customSemanticsActions: enabled ? _customActions(_entries) : null,
         ),
         child: MotionSourceBox(
           source: _compactAt == null ? _source : _unheld,
