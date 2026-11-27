@@ -1705,6 +1705,29 @@ final class GlassPress extends Motion implements PointerFollower
   GlassTouchGlow? get touchGlow
   ({double driftX, double driftY, double scaleX, double scaleY}) get values
   overrides: cancel, down, hover, move, up
+class GlassProgressView extends StatefulWidget
+  const GlassProgressView({
+    required double value,
+    GlassProgressViewStyle style = ...,
+    bool animated = ...,
+    Color? progressColor,
+    Color? trackColor,
+    String? semanticLabel,
+    Key? key,
+  })
+  final bool animated
+  final Color? progressColor
+  final String? semanticLabel
+  final GlassProgressViewStyle style
+  static const GlassDynamicColor track
+  final Color? trackColor
+  final double value
+  overrides: createState
+enum GlassProgressViewStyle
+  standard,
+  bar,
+  final double height
+  final double minimumFill
 class GlassProminentButtonStyle extends GlassButtonStyle
   factory GlassProminentButtonStyle.from(GlassButtonStyle style)
   const GlassProminentButtonStyle({
@@ -3889,6 +3912,12 @@ class PopoverShape
   static const double fieldStep
   late final GlassOutline outline
   Path get path
+final class ProgressMotion
+  ProgressMotion({required double progress, required MotionClock clock})
+  static const double fadeDuration
+  final MotionValue<double> fraction
+  final MotionValue<double> opacity
+  void set(double progress, {required bool animated})
 class RawGlassButton extends StatefulWidget
   const RawGlassButton({
     required void Function()? onPressed,
@@ -5362,6 +5391,7 @@ enum PopoverArrowDirection (see package:apple_liquid_glass/apple_liquid_glass.da
 class PopoverMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverShape (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class ProgressMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ScrollAway (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchBarGeometry (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -5539,6 +5569,8 @@ class GlassPageRoute (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPlainButtonStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPopoverStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassProgressView (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassProgressViewStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassProminentButtonStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassScrollEdgeEffect (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassScrollEdgeEffects (see package:apple_liquid_glass/apple_liquid_glass.dart)

@@ -77,6 +77,7 @@ export 'src/motions/part_presence.dart' show PartPresence;
 export 'src/motions/popover_motion.dart'
     show PopoverArrowDirection, PopoverMotion, PopoverPlacement, placePopover;
 export 'src/motions/popover_shape.dart' show PopoverShape;
+export 'src/motions/progress_motion.dart' show ProgressMotion;
 export 'src/motions/search_motion.dart'
     show
         SearchBarGeometry,

@@ -1177,6 +1177,9 @@ const Map<String, String> nonInteractive = {
   'GlassPlatformScope':
       'reads what the operating system decides about the window for its '
       'subtree',
+  'GlassProgressView':
+      'a bar that shows how far a task has come; progress_view_test holds '
+      'its sizes, its motion and its reading',
   'GlassRendererScope': 'provides the renderer to its subtree',
   'GlassScope': 'the root widget: theme and renderer',
   'GlassSliverListSection': 'the sliver form of GlassListSection',

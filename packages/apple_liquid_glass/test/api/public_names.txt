@@ -152,6 +152,8 @@ GlassPlainButtonStyle
 GlassPlatformScope
 GlassPopoverStyle
 GlassPress
+GlassProgressView
+GlassProgressViewStyle
 GlassProminentButtonStyle
 GlassReadReport
 GlassReadSource
@@ -413,6 +415,7 @@ Presented
 PresentedProgress
 PressInteraction
 PressReach
+ProgressMotion
 Projection
 ProjectionChoice
 ProjectionDirection
