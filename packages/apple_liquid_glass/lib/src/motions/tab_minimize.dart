@@ -409,6 +409,33 @@ final class TabBarMinimizeMotion extends Motion {
   // spring and a finger lifts nothing.
   bool get _reduced => traits.reduceMotion;
 
+  /// How much the bottom accessory shows, 0 to 1: it materializes, its
+  /// glass and its content, over 0.3 s, easing in and out, when the app
+  /// sets one, and dematerializes so when the app takes it away, as
+  /// UIKit's `setBottomAccessory(_:animated:)` runs (its CA animations,
+  /// iOS 27.2 simulator).
+  double get accessoryShown => _accessoryShown.valueAt(now).clamp(0.0, 1.0);
+  late final _accessoryShown = own(
+    MotionValue<double>(1, restDistance: () => MotionRest.opacity),
+  );
+  static const _accessoryFade = TimingCurve(0.3);
+
+  /// Whether a bottom accessory the app took away has gone.
+  bool get accessoryGone =>
+      _accessoryShown.target == 0 && _accessoryShown.restsAt(now);
+
+  /// The app sets a bottom accessory, or takes it away, at time [t]: over
+  /// 0.3 s when [animated].
+  void showAccessory(double t, {required bool shown, required bool animated}) {
+    advance(t);
+    final target = shown ? 1.0 : 0.0;
+    if (!animated) return _accessoryShown.snap(t, target);
+    if (shown && _accessoryShown.target == 0 && accessoryGone) {
+      _accessoryShown.snap(t, 0);
+    }
+    _accessoryShown.animate(t, target, animation: _accessoryFade);
+  }
+
   /// Whether the bottom accessory takes its new place at once as the bar
   /// minimizes or expands, as UIKit's does under Prefer Cross-Fade
   /// Transitions (read from UIKit's code). The bar morphs on the Reduce

@@ -264,6 +264,37 @@ void main() {
     expect(badgeFromGlyph().dy, closeTo(2 - (24 - 12), 0.01));
   });
 
+  testWidgets('an accessory set or taken away materializes over 0.3 s, '
+      "easing in and out, as UIKit's setBottomAccessory(animated:) does", (
+    tester,
+  ) async {
+    await _phone(tester);
+    const behavior = GlassTabBarMinimizeBehavior.onScrollDown;
+    await tester.pumpWidget(_app(behavior: behavior));
+    await tester.pump();
+    double shown() => tester
+        .widgetList<GlassSurface>(find.byType(GlassSurface))
+        .map((surface) => surface.frame?.value)
+        .whereType<GlassFrame>()
+        .where((frame) => (frame.rect?.height ?? 0) == 48)
+        .single
+        .opacity;
+    await tester.pumpWidget(
+      _app(behavior: behavior, accessory: const Text('Now playing')),
+    );
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(shown(), closeTo(0.5, 0.06));
+    await _settle(tester);
+    expect(shown(), 1);
+
+    await tester.pumpWidget(_app(behavior: behavior));
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(find.text('Now playing'), findsOneWidget);
+    expect(shown(), closeTo(0.5, 0.06));
+    await _settle(tester);
+    expect(find.text('Now playing'), findsNothing);
+  });
+
   testWidgets('a user scroll shrinks the bar into a circle 28 points from '
       'the screen corner; a tap on it expands the bar', (tester) async {
     await _phone(tester);

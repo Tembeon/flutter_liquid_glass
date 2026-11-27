@@ -14,6 +14,8 @@ final class _MinimizeFrames implements GlassSelectorCollapse {
   late final press = motion.select((m) => m.press);
   late final accessoryX = motion.select((m) => m.accessoryX);
   late final accessoryY = motion.select((m) => m.accessoryY);
+  late final accessoryShown = motion.select((m) => m.accessoryShown);
+  late final accessoryGone = motion.select((m) => m.accessoryGone);
   late final minimized = motion.select((m) => m.minimized);
 
   /// Whether the group runs right to left, which puts the circle at its
@@ -111,15 +113,32 @@ class _MinimizingBarState extends State<_MinimizingBar> {
   MotionSelection<Object?>? _scrolling;
   MotionScrollPhase _phase = MotionScrollPhase.idle;
 
+  // The accessory the app took away, kept while it dematerializes.
+  Widget? _leaving;
+
   @override
   void initState() {
     super.initState();
     widget.search?.addListener(_searched);
   }
 
+  bool _hearsAccessory = false;
+
+  void _accessoryGone() {
+    if (!_body.accessoryGone.value || _leaving == null || !mounted) return;
+    setState(() => _leaving = null);
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (!_hearsAccessory) {
+      _hearsAccessory = true;
+      _body.accessoryGone.addListener(_accessoryGone);
+      if (widget.accessory == null) {
+        _body.motion.showAccessory(_now, shown: false, animated: false);
+      }
+    }
     _body.motion.crossFades = GlassTraits.of(context).prefersCrossFade;
     final active = GlassChrome.maybeOf(context)?.active;
     if (identical(active, _active)) return;
@@ -132,6 +151,12 @@ class _MinimizingBarState extends State<_MinimizingBar> {
   @override
   void didUpdateWidget(_MinimizingBar oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final had = oldWidget.accessory;
+    final has = widget.accessory;
+    if ((had == null) != (has == null)) {
+      _leaving = has == null ? had : null;
+      _body.motion.showAccessory(_now, shown: has != null, animated: true);
+    }
     if (oldWidget.behavior != widget.behavior) {
       _body.motion.setBehavior(_now, widget.behavior);
     }
@@ -143,6 +168,7 @@ class _MinimizingBarState extends State<_MinimizingBar> {
 
   @override
   void dispose() {
+    _body.accessoryGone.removeListener(_accessoryGone);
     widget.search?.removeListener(_searched);
     _active?.removeListener(_follow);
     _scrolling?.removeRenderListener(_scrolled);
@@ -224,7 +250,7 @@ class _MinimizingBarState extends State<_MinimizingBar> {
 
   @override
   Widget build(BuildContext context) {
-    final accessory = widget.accessory;
+    final accessory = widget.accessory ?? _leaving;
     final metrics = widget.metrics;
     final rtl = context.isRightToLeft;
     _body

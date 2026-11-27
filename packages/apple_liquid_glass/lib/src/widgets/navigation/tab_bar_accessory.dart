@@ -112,8 +112,14 @@ class _AccessoryState extends State<_Accessory> {
         lerp(expanded.right, inline.right, x),
         lerp(expanded.bottom, inline.bottom, y),
       );
-      if (searching == null || search == null) return GlassFrame(rect: rect);
-      return GlassFrame(rect: Rect.lerp(rect, searching, search.morph.value));
+      final shown = body.accessoryShown.value;
+      if (searching == null || search == null) {
+        return GlassFrame(rect: rect, opacity: shown);
+      }
+      return GlassFrame(
+        rect: Rect.lerp(rect, searching, search.morph.value),
+        opacity: shown,
+      );
     });
   }
 
@@ -162,6 +168,7 @@ class _AccessoryState extends State<_Accessory> {
               delegate: _AccessoryLayout(_heading),
               child: MotionTransition(
                 offset: _carried,
+                opacity: widget.body.accessoryShown,
                 child: _AccessoryScope(
                   notifier: _placement,
                   child: Padding(

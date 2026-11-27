@@ -405,6 +405,11 @@ class GlassTabBar extends StatelessWidget {
 
   /// The content of the glass accessory above the bar (UIKit
   /// `bottomAccessory`, SwiftUI `tabViewBottomAccessory`), or null.
+  ///
+  /// Set or taken away on a bar that minimizes or has a search tab, the
+  /// accessory's glass and content materialize, or dematerialize, over
+  /// 0.3 s, easing in and out, as UIKit's `setBottomAccessory(_:animated:)`
+  /// runs (iOS 27.2 simulator); on any other bar it comes and goes at once.
   final Widget? bottomAccessory;
 
   /// The search of the bar's search tab, or null for a bar without one.
