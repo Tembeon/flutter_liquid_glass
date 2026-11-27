@@ -826,8 +826,10 @@ class PageControlPage extends StatefulWidget {
 
 class _PageControlPageState extends State<PageControlPage> {
   final _pages = PageController();
+  final _stories = PageController();
   var _count = 6.0;
   var _page = 0;
+  var _story = 0;
   var _background = GlassPageControlBackground.prominent;
   var _hidesSingle = true;
   var _scrubs = true;
@@ -835,6 +837,7 @@ class _PageControlPageState extends State<PageControlPage> {
   @override
   void dispose() {
     _pages.dispose();
+    _stories.dispose();
     super.dispose();
   }
 
@@ -916,6 +919,48 @@ class _PageControlPageState extends State<PageControlPage> {
                         hidesForSinglePage: _hidesSingle,
                         allowsContinuousInteraction: _scrubs,
                         onChanged: (page) => _pages.animateToPage(
+                          page,
+                          duration: const Duration(milliseconds: 450),
+                          curve: Curves.easeOutCubic,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Idea(
+          'Down the side',
+          'With direction down the dots stand on end beside a pager that '
+              'turns up and down.',
+          child: ClipRSuperellipse(
+            borderRadius: BorderRadius.circular(28),
+            child: SizedBox(
+              height: 220,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  PageView(
+                    controller: _stories,
+                    scrollDirection: Axis.vertical,
+                    onPageChanged: (page) => setState(() => _story = page),
+                    children: [
+                      for (final wallpaper in Wallpaper.values.take(4))
+                        Image(image: wallpaper.image, fit: BoxFit.cover),
+                    ],
+                  ),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 12),
+                      child: GlassPageControl(
+                        count: 4,
+                        page: _story,
+                        direction: AxisDirection.down,
+                        backgroundStyle: _background,
+                        onChanged: (page) => _stories.animateToPage(
                           page,
                           duration: const Duration(milliseconds: 450),
                           curve: Curves.easeOutCubic,

@@ -69,15 +69,26 @@ final class GlassPageControlPose {
     required this.fills,
     required this.platter,
     required this.page,
+    this.direction = AxisDirection.right,
   });
 
   factory GlassPageControlPose._of(
     PageControlMotion motion, {
     required GlassPageControlBackground background,
-    required bool rtl,
+    required AxisDirection direction,
   }) {
+    final rects = motion.indicatorRects(
+      rtl: axisDirectionIsReversed(direction),
+    );
+    final vertical = axisDirectionToAxis(direction) == Axis.vertical;
     return GlassPageControlPose(
-      indicators: motion.indicatorRects(rtl: rtl),
+      direction: direction,
+      indicators: vertical
+          ? [
+              for (final r in rects)
+                Rect.fromLTWH(r.top, r.left, r.height, r.width),
+            ]
+          : rects,
       fills: [for (var i = 0; i < motion.count; i++) motion.fillOpacity(i)],
       platter: switch (background) {
         GlassPageControlBackground.prominent => 1,
@@ -88,8 +99,8 @@ final class GlassPageControlPose {
     );
   }
 
-  /// Each page's indicator box, a dot tall and as wide as the indicator, in
-  /// which a look draws a capsule; mirrored in a right-to-left context.
+  /// Each page's indicator box, a dot across and as long as the indicator
+  /// along [direction], in which a look draws a capsule.
   final List<Rect> indicators;
 
   /// How far each indicator's fill shows, 0 to 1: 1 on the current page,
@@ -103,11 +114,18 @@ final class GlassPageControlPose {
   /// The page the indicators show as current.
   final int page;
 
+  /// The way the pages run from the first: [AxisDirection.right] across
+  /// the control, [AxisDirection.left] in right-to-left, and
+  /// [AxisDirection.down] or [AxisDirection.up] on a vertical control. A
+  /// progress fills an indicator this way.
+  final AxisDirection direction;
+
   @override
   bool operator ==(Object other) =>
       other is GlassPageControlPose &&
       other.platter == platter &&
       other.page == page &&
+      other.direction == direction &&
       listEquals(other.indicators, indicators) &&
       listEquals(other.fills, fills);
 
@@ -115,6 +133,7 @@ final class GlassPageControlPose {
   int get hashCode => Object.hash(
     platter,
     page,
+    direction,
     Object.hashAll(indicators),
     Object.hashAll(fills),
   );
@@ -143,7 +162,11 @@ final class GlassPageControlPose {
 /// and the accessibility increase and decrease step through the pages or
 /// go to the first and last; it has no larger step, so Page Up and Page
 /// Down do nothing, and neither do Space and Enter, as on Flutter's
-/// `Slider`. In a right-to-left context the pages run from the right.
+/// `Slider`. In a right-to-left context the pages run from the right;
+/// [direction] runs them another way, down or up a vertical control as
+/// UIKit's `direction` does, where the arrow keys still step as on a
+/// horizontal control (up, and right or left with the reading direction,
+/// for the next page).
 class RawGlassPageControl extends StatefulWidget {
   /// Creates a page control of [count] pages showing [page].
   const RawGlassPageControl({
@@ -153,6 +176,7 @@ class RawGlassPageControl extends StatefulWidget {
     required this.builder,
     this.progress,
     this.backgroundStyle = GlassPageControlBackground.automatic,
+    this.direction,
     this.allowsContinuousInteraction = true,
     this.semanticLabel,
     this.semanticValueFormatter,
@@ -181,6 +205,13 @@ class RawGlassPageControl extends StatefulWidget {
 
   /// When the platter shows.
   final GlassPageControlBackground backgroundStyle;
+
+  /// The way the pages run from the first, or null for the reading
+  /// direction: [AxisDirection.down] and [AxisDirection.up] stand the
+  /// control on end, 25.67 points wide (page control passport), and
+  /// [AxisDirection.right] and [AxisDirection.left] run it across whatever
+  /// the reading direction.
+  final AxisDirection? direction;
 
   /// Whether a finger that moves scrubs through the pages; without, a
   /// touch only taps, a page back or forward at its release.
@@ -213,7 +244,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
         ControlStates<RawGlassPageControl>,
         ControlledValue<RawGlassPageControl> {
   late PageControlMotion _motion = _create();
-  bool _rtl = false;
+  AxisDirection _direction = AxisDirection.right;
   late MotionSelection<GlassPageControlPose> _pose = _poseOf();
   late MotionSelection<bool> _touched = _touchedOf();
   late final _PageControlInput _input = _PageControlInput(this);
@@ -240,11 +271,24 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
 
   MotionSelection<GlassPageControlPose> _poseOf() {
     final background = widget.backgroundStyle;
-    final rtl = _rtl;
+    final direction = _direction;
     return _motion.select(
-      (m) => GlassPageControlPose._of(m, background: background, rtl: rtl),
+      (m) => GlassPageControlPose._of(
+        m,
+        background: background,
+        direction: direction,
+      ),
     );
   }
+
+  bool get _vertical => axisDirectionToAxis(_direction) == Axis.vertical;
+
+  // The direction the pages run in this context.
+  AxisDirection _directionIn(BuildContext context) =>
+      widget.direction ??
+      (Directionality.maybeOf(context) == TextDirection.rtl
+          ? AxisDirection.left
+          : AxisDirection.right);
 
   @override
   WidgetStatesController? get statesController => widget.statesController;
@@ -278,6 +322,13 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
       _motion.platterless = _platterless;
       _pose = _poseOf();
     }
+    _follow(_directionIn(context));
+  }
+
+  void _follow(AxisDirection direction) {
+    if (direction == _direction) return;
+    _direction = direction;
+    _pose = _poseOf();
   }
 
   void _deliver(PageControlEvent event) {
@@ -305,15 +356,12 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
     if (next != _page) widget.onChanged?.call(next);
   }
 
-  Size get _size => _motion.size;
+  Size get _size => _vertical ? _motion.size.flipped : _motion.size;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
-    if (rtl == _rtl) return;
-    _rtl = rtl;
-    _pose = _poseOf();
+    _follow(_directionIn(context));
   }
 
   @override
@@ -367,7 +415,6 @@ final class _PageControlInput extends Interaction {
 
   final _RawGlassPageControlState state;
   bool _touching = false;
-  bool _rtl = false;
   final List<InteractionEvent> _felt = [];
 
   @override
@@ -380,9 +427,10 @@ final class _PageControlInput extends Interaction {
     ScrubChangeEvent(time: state._motion.now),
   );
 
-  double _x(Offset position) {
-    return state._motion.contentX(position.dx, rtl: _rtl);
-  }
+  double _x(Offset position) => state._motion.contentX(
+    state._vertical ? position.dy : position.dx,
+    rtl: axisDirectionIsReversed(state._direction),
+  );
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -404,7 +452,6 @@ final class _PageControlInput extends Interaction {
         state._command(command);
       case PointerDownInput() when accepts(input):
         _touching = true;
-        _rtl = input.textDirection == TextDirection.rtl;
         motion.pointerDown(input.time, _x(input.position));
         return const InteractionUpdate(verdict: .claimed);
       case PointerMoveInput() when state.widget.allowsContinuousInteraction:
@@ -414,7 +461,7 @@ final class _PageControlInput extends Interaction {
         motion.pointerUp(
           input.time,
           _x(input.position),
-          width: state._size.width,
+          width: state._motion.size.width,
         );
         return const InteractionUpdate(verdict: .recognized);
       case PointerCancelInput():

@@ -1699,6 +1699,7 @@ class GlassPageControl extends StatelessWidget
     required void Function(int)? onChanged,
     double? progress,
     GlassPageControlBackground backgroundStyle = ...,
+    AxisDirection? direction,
     bool hidesForSinglePage = ...,
     bool allowsContinuousInteraction = ...,
     GlassPageControlStyle? style,
@@ -1713,6 +1714,7 @@ class GlassPageControl extends StatelessWidget
   final bool autofocus
   final GlassPageControlBackground backgroundStyle
   final int count
+  final AxisDirection? direction
   final FocusNode? focusNode
   final bool hidesForSinglePage
   final void Function(int)? onChanged
@@ -1752,7 +1754,9 @@ final class GlassPageControlPose
     required List<double> fills,
     required double platter,
     required int page,
+    AxisDirection direction = ...,
   })
+  final AxisDirection direction
   final List<double> fills
   final List<Rect> indicators
   final int page
@@ -4263,6 +4267,7 @@ class RawGlassPageControl extends StatefulWidget
     required Widget Function(BuildContext, GlassPageControlDetails) builder,
     double? progress,
     GlassPageControlBackground backgroundStyle = ...,
+    AxisDirection? direction,
     bool allowsContinuousInteraction = ...,
     String? semanticLabel,
     String Function(int, int)? semanticValueFormatter,
@@ -4276,6 +4281,7 @@ class RawGlassPageControl extends StatefulWidget
   final GlassPageControlBackground backgroundStyle
   final Widget Function(BuildContext, GlassPageControlDetails) builder
   final int count
+  final AxisDirection? direction
   final FocusNode? focusNode
   final void Function(int)? onChanged
   final int page

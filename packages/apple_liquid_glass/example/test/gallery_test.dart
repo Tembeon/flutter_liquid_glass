@@ -394,6 +394,19 @@ void galleryTests({bool onDevice = false}) {
     await leave(find.byType(ComponentPage));
     await _back(tester);
 
+    await _open(tester, 'Page control');
+    final side = find.byWidgetPredicate(
+      (widget) =>
+          widget is GlassPageControl && widget.direction == AxisDirection.down,
+    );
+    await _bring(tester, side, page);
+    final dots = tester.getRect(side);
+    expect(dots.height, greaterThan(dots.width));
+    await tester.tapAt(dots.bottomCenter - const Offset(0, 6));
+    await _frames(tester, 60);
+    expect(tester.widget<GlassPageControl>(side).page, 1);
+    await _back(tester);
+
     await _open(tester, 'List');
     await choose('Plain');
     await _bring(tester, find.text('Monstera'), page);

@@ -233,6 +233,70 @@ void main() {
     expect(picks, [3]);
   });
 
+  testWidgets('down or up a vertical control the pages run from the top or '
+      'the bottom, 25.67 wide, and a tap steps toward its half', (
+    tester,
+  ) async {
+    for (final (direction, first) in const [
+      (AxisDirection.down, true),
+      (AxisDirection.up, false),
+    ]) {
+      final picks = <int>[];
+      GlassPageControlPose? pose;
+      await tester.pumpWidget(
+        _app(
+          GlassPageControl(
+            count: 5,
+            page: 2,
+            direction: direction,
+            progress: 0.5,
+            onChanged: picks.add,
+            style: GlassPageControlStyle(
+              builder: (context, details) {
+                pose = details.pose.value;
+                return const SizedBox.expand();
+              },
+            ),
+          ),
+        ),
+      );
+      final box = tester.getRect(find.byType(GlassPageControl));
+      final across = GlassPageControl.sizeFor(5);
+      expect(box.width, moreOrLessEquals(across.height, epsilon: 0.01));
+      expect(pose!.direction, direction);
+      final rects = pose!.indicators;
+      expect(
+        rects.every((r) => r.width <= r.height + 1e-9),
+        isTrue,
+      );
+      expect(rects.first.center.dy < rects.last.center.dy, first);
+      expect(rects.first.center.dx, moreOrLessEquals(box.width / 2));
+      await tester.tapAt(box.bottomCenter - const Offset(0, 6));
+      await tester.pump();
+      expect(picks, [if (first) 3 else 1]);
+    }
+  });
+
+  testWidgets('a direction across runs the pages that way whatever the '
+      'reading direction', (tester) async {
+    final picks = <int>[];
+    await tester.pumpWidget(
+      _app(
+        GlassPageControl(
+          count: 5,
+          page: 2,
+          direction: AxisDirection.right,
+          onChanged: picks.add,
+        ),
+        direction: TextDirection.rtl,
+      ),
+    );
+    final box = tester.getRect(find.byType(GlassPageControl));
+    await tester.tapAt(box.centerLeft + const Offset(6, 0));
+    await tester.pump();
+    expect(picks, [1]);
+  });
+
   testWidgets('a control whose page does not follow returns to it; disabled '
       'it ignores taps', (tester) async {
     final picks = <int>[];
