@@ -31,6 +31,7 @@ DismissTrigger
 DragInteraction
 DragInteractionDetails
 DwellInteraction
+EditMenuMotion
 FakeGlassRenderer
 FlatGlassRenderer
 FlexLaw
@@ -92,6 +93,7 @@ GlassDatePickerTitleBuilder
 GlassDefaultTextStyle
 GlassDirection
 GlassDynamicColor
+GlassEditMenu
 GlassEnvironment
 GlassEnvironmentOverride
 GlassFloatingTabBar

@@ -131,6 +131,9 @@ mixin GlassEditable<T extends StatefulWidget> on State<T>
       TargetPlatform.linux ||
       TargetPlatform.windows => false,
     };
+    // The handles and the menu stand in an overlay: a field without one
+    // shows neither.
+    final overlay = Overlay.maybeOf(context) != null;
     final editable = EditableText(
       key: _editableKey,
       controller: controller,
@@ -156,19 +159,19 @@ mixin GlassEditable<T extends StatefulWidget> on State<T>
       autofillHints: autofillHints,
       inputFormatters: inputFormatters,
       rendererIgnoresPointer: true,
-      contextMenuBuilder:
-          contextMenuBuilder ??
-          (SystemContextMenu.isSupported(context)
-              ? (context, state) =>
-                    SystemContextMenu.editableText(editableTextState: state)
-              : null),
+      contextMenuBuilder: !overlay
+          ? null
+          : contextMenuBuilder ??
+                (SystemContextMenu.isSupported(context)
+                    ? (context, state) => SystemContextMenu.editableText(
+                        editableTextState: state,
+                      )
+                    : null),
       onChanged: onChanged,
       onEditingComplete: onEditingComplete,
       onSubmitted: onSubmitted,
       onTapOutside: onTapOutside,
-      // Handles stand in an overlay: a field without one shows none.
-      selectionControls:
-          touch && this.editable && Overlay.maybeOf(context) != null
+      selectionControls: touch && this.editable && overlay
           ? _LollipopControls(handleColor ?? cursorColor)
           : null,
       showSelectionHandles: _handles,

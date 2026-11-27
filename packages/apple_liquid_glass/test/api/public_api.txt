@@ -1779,10 +1779,12 @@ class GlassSearchField extends StatelessWidget
     String? semanticLabel,
     String? clearSemanticLabel,
     WidgetStatesController? statesController,
+    Widget Function(BuildContext, EditableTextState)? contextMenuBuilder = ...,
     Key? key,
   })
   final bool autofocus
   final String? clearSemanticLabel
+  final Widget Function(BuildContext, EditableTextState)? contextMenuBuilder
   final TextEditingController? controller
   static const GlassDynamicColor disabledFill
   final bool enabled
@@ -3992,10 +3994,12 @@ class RawGlassSearchField extends StatefulWidget
     bool autofocus = ...,
     String? semanticLabel,
     WidgetStatesController? statesController,
+    Widget Function(BuildContext, EditableTextState)? contextMenuBuilder,
     Key? key,
   })
   final bool autofocus
   final Widget Function(BuildContext, GlassSearchFieldDetails) builder
+  final Widget Function(BuildContext, EditableTextState)? contextMenuBuilder
   final TextEditingController? controller
   final bool enabled
   final FocusNode? focusNode

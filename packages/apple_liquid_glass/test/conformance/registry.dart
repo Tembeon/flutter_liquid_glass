@@ -490,6 +490,17 @@ final List<Entry> registry = [
   Entry(
     'GlassSearchField',
     covers: const ['GlassSearchField'],
+    exempt: const {
+      'motion-clock': Exemption(
+        'after the finger lifts it asks the binding for frames its clock '
+        'does not run',
+        because:
+            "Flutter's selection overlay fades the edit menu in on a "
+            '150 ms ticker of its own (_SelectionToolbarWrapper) around '
+            'what contextMenuBuilder builds; GlassEditMenu itself opens on '
+            'the motion clock',
+      ),
+    },
     kind: Kind.textInput,
     build: (probe, {required enabled}) => SizedBox(
       width: 340,

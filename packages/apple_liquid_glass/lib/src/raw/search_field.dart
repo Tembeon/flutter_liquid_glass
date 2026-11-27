@@ -89,6 +89,7 @@ class RawGlassSearchField extends StatefulWidget {
     this.autofocus = false,
     this.semanticLabel,
     this.statesController,
+    this.contextMenuBuilder,
     super.key,
   });
 
@@ -121,6 +122,10 @@ class RawGlassSearchField extends StatefulWidget {
   /// while its text has the focus, pressed, hovered and disabled. The field
   /// is its only writer: what else writes to it is written over.
   final WidgetStatesController? statesController;
+
+  /// Builds the edit menu of the field's selection, or null for UIKit's
+  /// own on iOS where Flutter can show it and none elsewhere.
+  final EditableTextContextMenuBuilder? contextMenuBuilder;
 
   /// The height of the field when its host sets none, in points (search
   /// passport).
@@ -274,6 +279,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
         autofocus: widget.autofocus,
         onChanged: widget.onChanged,
         onSubmitted: widget.onSubmitted,
+        contextMenuBuilder: widget.contextMenuBuilder,
       );
 
   @override
