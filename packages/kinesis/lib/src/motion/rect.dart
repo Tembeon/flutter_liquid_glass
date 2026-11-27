@@ -129,6 +129,21 @@ final class MotionRect extends MotionPart {
     changed();
   }
 
+  /// Sends the rect toward [to] from its state at [t] on [animation], every
+  /// axis alike, at `t + delay`: a [TimingCurve] moves it as a UIView
+  /// animation of a duration moves a layer's frame.
+  void animate(
+    double t,
+    Rect to, {
+    required MotionAnimation animation,
+    double delay = 0,
+  }) {
+    _center.animate(t, to.center, animation: animation, delay: delay);
+    _width.animate(t, to.width, animation: animation, delay: delay);
+    _height.animate(t, to.height, animation: animation, delay: delay);
+    changed();
+  }
+
   void _shift(Rect from, Rect to) {
     _center.shift(from.center, to.center);
     _width.shift(from.width, to.width);

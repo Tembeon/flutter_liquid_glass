@@ -683,6 +683,7 @@ final class LayoutPlan
   const LayoutPlan({
     Spring? spring,
     RectSprings? springs,
+    TimingCurve? curve,
     double delay = ...,
     Rect? origin,
     Rect? destination,
@@ -690,6 +691,7 @@ final class LayoutPlan
     double restDistance = ...,
   })
   final MotionPose absent
+  final TimingCurve? curve
   final double delay
   final Rect? destination
   final Rect? origin
@@ -1006,6 +1008,12 @@ final class MotionRect extends MotionPart
     Rect value, {
     required RectSprings springs,
     double Function()? restDistance,
+  })
+  void animate(
+    double t,
+    Rect to, {
+    required MotionAnimation animation,
+    double delay = ...,
   })
   double reach(double t)
   void retarget(

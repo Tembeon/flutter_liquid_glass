@@ -169,6 +169,28 @@ void main() {
     expect(rect.width, lessThan(80));
   });
 
+  test('a timing curve moves the rect and the presence in place of the '
+      'springs, as a UIView animation of a duration moves layers', () {
+    const curve = TimingCurve(0.25);
+    final motion = _laidOut(
+      {'a': _a, 'b': _b},
+      planner: _Planner(
+        (_, _) => const LayoutPlan(
+          spring: _spring,
+          curve: curve,
+          absent: MotionPose(opacity: 0),
+        ),
+      ),
+    );
+    motion.layout(0, {'a': _far, 'c': _farther}, spring: _spring);
+    expect(_at(motion, 0.125, 'a').left, closeTo(50, 0.5));
+    expect(motion.itemAt('c').pose.opacity, closeTo(0.5, 0.01));
+    expect(motion.itemAt('b').pose.opacity, closeTo(0.5, 0.01));
+    expect(_at(motion, 0.25, 'a'), _far);
+    motion.advance(0.26);
+    expect(motion.contains('b'), isFalse);
+  });
+
   test('a delay keeps the item on its course before it moves', () {
     final motion = _laidOut(
       {'a': _a},
