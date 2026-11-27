@@ -196,8 +196,11 @@ double snapSlider(double slider) =>
     (clampDouble(slider, 0, 1) * 20).roundToDouble() / 20;
 
 // How far past the glass iOS captures what lies under it, in points: 16 for
-// regular glass, and for clear glass past the slider's middle tick.
+// regular glass, and for clear glass past the slider's middle tick; regular
+// glass past 64 points captures as far as its bleed blurs,
+// [_bleedReach] of its shorter side, where that is farther.
 const double _captureMargin = 16;
+const double _bleedReach = 0.35;
 
 // The capture margin of clear glass up to the slider's middle tick.
 const double _clearMargin = 8 / 15;
@@ -249,12 +252,15 @@ final class _Law {
       margin: margin,
       captureShare: captureShare,
     );
+    final clearMargin = slider > sliderMiddleTick
+        ? _captureMargin
+        : _clearMargin;
     if (reduceTransparency && !lifted) {
       if (clear) {
         return ramp(
           50,
           [1, 1, 1, 1],
-          margin: slider > sliderMiddleTick ? _captureMargin : _clearMargin,
+          margin: clearMargin,
           captureShare: _clearCaptureShare,
         );
       }
@@ -273,9 +279,19 @@ final class _Law {
     }
     if (clear) {
       final on = slider > 0 ? 1.0 : 0.0;
-      return ramp(1.5 * split.upTo, [on, 0.5 * on, 0.5 * on, on]);
+      return ramp(
+        1.5 * split.upTo,
+        [on, 0.5 * on, 0.5 * on, on],
+        margin: clearMargin,
+      );
     }
-    return ramp(5, [0.8 * grown, 0.4 * grown, 0.5, 1]);
+    return ramp(
+      5,
+      [0.8 * grown, 0.4 * grown, 0.5, 1],
+      margin: shortSide > ios27SizeRamp.control
+          ? math.max(_captureMargin, _bleedReach * shortSide)
+          : _captureMargin,
+    );
   }
 
   BlurFillRecipe blurFill() {

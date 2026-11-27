@@ -36,10 +36,8 @@ final class BlurRecipe {
 
   /// How far past the glass, in logical pixels, the blur reads what lies
   /// under it: iOS's capture margin, past which iOS's blur reads the
-  /// capture's edge. Null where the blur reads as far as it reaches:
-  /// outside Reduce Transparency, where the renderer does not follow iOS's
-  /// margin yet (16 points, and 0.53 on clear glass below the slider's
-  /// middle tick).
+  /// capture's edge. Null where the blur reads as far as it reaches, as a
+  /// blur the settings give does.
   final double? margin;
 
   /// How many of the screen's pixels along each side iOS averages into one

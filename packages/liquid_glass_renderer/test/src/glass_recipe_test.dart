@@ -222,8 +222,7 @@ void main() {
     });
 
     test("reads iOS's capture margin past the glass: 16 points, and 8/15 on "
-        'clear glass up to the middle tick; glass outside it reads as far as '
-        'its blur reaches', () {
+        'clear glass up to the middle tick', () {
       expect(_of(reduceTransparency: true).blur.margin, 16);
       expect(_of(shortSide: 44, reduceTransparency: true).blur.margin, 16);
       for (final (slider, margin) in [
@@ -241,8 +240,30 @@ void main() {
           reason: 'slider $slider',
         );
       }
-      expect(_of().blur.margin, isNull);
-      expect(_of(variant: GlassVariant.clear, slider: 1).blur.margin, isNull);
+    });
+
+    test("every recipe reads iOS's capture margin past the glass: 16 points, "
+        'or as far as the bleed blurs past 64 points (0.35 of the shorter '
+        'side), and on clear glass 8/15 up to the middle tick', () {
+      for (final (side, margin) in [
+        (44.0, 16.0),
+        (64.0, 16.0),
+        (100.0, 35.0),
+        (150.0, 52.5),
+      ]) {
+        expect(
+          _of(shortSide: side).blur.margin,
+          closeTo(margin, 1e-9),
+          reason: 'side $side',
+        );
+      }
+      for (final (slider, margin) in [(0.25, 8 / 15), (0.75, 16.0)]) {
+        expect(
+          _of(variant: GlassVariant.clear, slider: slider).blur.margin,
+          margin,
+          reason: 'slider $slider',
+        );
+      }
     });
 
     test("captures at iOS's scale: 1/8 on regular glass, 1/2 on clear glass; "
