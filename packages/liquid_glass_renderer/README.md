@@ -350,8 +350,9 @@ it, so `settings.copyWith(sliderPosition: 1)` is the tinted glass:
   also grows with the glass's short side. Direct glass blurs as regular glass
   of its brightness, so its blur follows the slider too.
 
-The edges don't change: neither the rim highlight, the glint nor the dark
-contour. Neither do clear glass's face and the direct model's. A `blur` you
+The edges don't change: neither the rim highlight nor the dark edge (the iOS
+27 models' dark specular, the direct model's glint and contour). Neither do
+clear glass's face and the direct model's. A `blur` you
 give never changes: `blur: 12` is 12 logical pixels at every position and
 size, with no fill.
 

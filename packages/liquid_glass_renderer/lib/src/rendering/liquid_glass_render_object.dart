@@ -247,7 +247,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// Decides whether the opacity pass around this glass is seeded, before
   /// the update pass.
   @protected
-  void syncCompositionOpacity() => _opacityPassSeed.syncOpacity(this);
+  void syncOpacityPass() => _opacityPassSeed.syncOpacity(this);
 
   /// Whether this layer paints inside a fractional-opacity pass that a
   /// backdrop read needs seeded.
@@ -476,7 +476,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// [onCompositorTranslated] and [onCompositorTranslationMissed].
   @protected
   void runCompositorPoll() {
-    syncCompositionOpacity();
+    syncOpacityPass();
     syncAncestorClips();
     if (pollCompositorTranslation() case final translation?) {
       setCompositorTranslation(translation);

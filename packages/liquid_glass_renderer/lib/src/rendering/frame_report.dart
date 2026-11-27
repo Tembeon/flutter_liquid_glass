@@ -73,7 +73,9 @@ final class GlassReadReport {
 ///
 /// Reports exist in debug and profile builds while someone asks for them
 /// ([GlassFrameReports.addListener], [debugPrintGlassFrameReports],
-/// `LiquidGlassReportOverlay`).
+/// `LiquidGlassReportOverlay`). The counts of work done ([filtersBuilt] and
+/// those after it) are the frame's across every view it draws: with two
+/// views, each view's report carries both views' work.
 @immutable
 final class GlassFrameReport {
   const GlassFrameReport._({
@@ -119,9 +121,7 @@ final class GlassFrameReport {
   /// Time spent drawing the plan into layers and images.
   final Duration emitDuration;
 
-  /// Image filters made in the frame. This and the counts below are the
-  /// frame's across every view it draws: with two views, each view's report
-  /// carries both views' work.
+  /// Image filters made in the frame.
   final int filtersBuilt;
 
   /// Pictures recorded for glass in the frame.

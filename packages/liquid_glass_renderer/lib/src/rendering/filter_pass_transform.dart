@@ -20,7 +20,7 @@ Matrix4 filterPassTransform(
 }) {
   final Matrix4 transform;
   if (insideOpacityPass) {
-    final origin = OpacityPassSeed.seededPassOrigin(
+    final origin = OpacityPassSeed.opacityPassOrigin(
       owner,
       devicePixelRatio,
     );

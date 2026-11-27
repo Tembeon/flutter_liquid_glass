@@ -95,7 +95,7 @@ class OpacityPassSeed {
   /// Screen-space origin of the opacity pass [owner] paints into while
   /// [insideOpacityPass]: Impeller bounds that pass by the enclosing clips,
   /// rounded out to device pixels. Zero when nothing clips.
-  static Offset seededPassOrigin(RenderObject owner, double devicePixelRatio) {
+  static Offset opacityPassOrigin(RenderObject owner, double devicePixelRatio) {
     final clip = screenClipAbove(owner);
     if (clip == null) return Offset.zero;
     return ImpellerLayers.passOrigin(clip, devicePixelRatio);
