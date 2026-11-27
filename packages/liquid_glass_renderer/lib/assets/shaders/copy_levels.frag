@@ -52,6 +52,56 @@ highp float tent(highp float t, highp float c, highp float h) {
     return max(1.0 - abs(t + 0.5 - c) / h, 0.0);
 }
 
+// The tent around [middle] reaching [spread], read in [pairs] bilinear pairs
+// from [first], each source pixel weighed by how much of it lies between
+// [copyFrom] and [copyTo] where [cover] says so; alpha -1 where nothing of
+// it does.
+vec4 tentAverage(
+    highp vec2 first,
+    highp vec2 pairs,
+    highp vec2 middle,
+    highp float spread,
+    highp vec2 copyFrom,
+    highp vec2 copyTo,
+    bool cover
+) {
+    highp vec2 invSize = 1.0 / uSize;
+    highp vec4 sum = vec4(0.0);
+    highp float total = 0.0;
+    float column = 0.0;
+    float row = 0.0;
+    // One loop over the pairs, row after row: a loop inside a loop takes
+    // twice the work registers on a Mali-G78, which the fragments that only
+    // pass the copy on would pay for too.
+    for (int n = 0; n < LEVEL_MOST_PAIRS * LEVEL_MOST_PAIRS; n++) {
+        highp vec2 t = first + 2.0 * vec2(column, row);
+        highp vec2 w0 = vec2(
+            tent(t.x, middle.x, spread),
+            tent(t.y, middle.y, spread)
+        );
+        highp vec2 w1 = vec2(
+            tent(t.x + 1.0, middle.x, spread),
+            tent(t.y + 1.0, middle.y, spread)
+        );
+        if (cover) {
+            w0 *= clamp(min(t + 1.0, copyTo) - max(t, copyFrom), 0.0, 1.0);
+            w1 *= clamp(min(t + 2.0, copyTo) - max(t + 1.0, copyFrom), 0.0, 1.0);
+        }
+        highp vec2 weight = w0 + w1;
+        highp vec2 read = t + 0.5 + w1 / max(weight, vec2(1e-6));
+        highp float w = weight.x * weight.y;
+        sum += texture(uCopy, clamp(read, uBounds.xy, uBounds.zw) * invSize) * w;
+        total += w;
+        column += 1.0;
+        if (column >= pairs.x) {
+            row += 1.0;
+            if (row >= pairs.y) break;
+            column = 0.0;
+        }
+    }
+    return total > 1e-6 ? sum / total : vec4(-1.0);
+}
+
 void main() {
     highp vec2 invSize = 1.0 / uSize;
     highp vec2 at = FlutterFragCoord().xy;
@@ -95,43 +145,14 @@ void main() {
     highp vec2 copyFrom = (uGrid - uSource.xy) / uSource.z;
     highp vec2 copyTo = copyFrom + uCopySize / uSource.z;
     highp vec2 pairs = ceil((ceil(middle + spread - 0.5) - first) / 2.0);
-    // Most cells lie whole inside the copy and weigh every pixel in full.
     bool cut = any(lessThan(first, copyFrom)) ||
         any(greaterThan(first + 2.0 * pairs, copyTo));
-    highp vec4 sum = vec4(0.0);
-    highp float total = 0.0;
-    float column = 0.0;
-    float row = 0.0;
-    // One loop over the pairs, row after row: a loop inside a loop takes
-    // twice the work registers on a Mali-G78, which the fragments that only
-    // pass the copy on would pay for too.
-    for (int n = 0; n < LEVEL_MOST_PAIRS * LEVEL_MOST_PAIRS; n++) {
-        highp vec2 t = first + 2.0 * vec2(column, row);
-        highp vec2 w0 = vec2(
-            tent(t.x, middle.x, spread),
-            tent(t.y, middle.y, spread)
-        );
-        highp vec2 w1 = vec2(
-            tent(t.x + 1.0, middle.x, spread),
-            tent(t.y + 1.0, middle.y, spread)
-        );
-        if (cut) {
-            w0 *= clamp(min(t + 1.0, copyTo) - max(t, copyFrom), 0.0, 1.0);
-            w1 *= clamp(min(t + 2.0, copyTo) - max(t + 1.0, copyFrom), 0.0, 1.0);
-        }
-        highp vec2 weight = w0 + w1;
-        highp vec2 read = t + 0.5 + w1 / max(weight, vec2(1e-6));
-        highp float w = weight.x * weight.y;
-        sum += texture(uCopy, clamp(read, uBounds.xy, uBounds.zw) * invSize) * w;
-        total += w;
-        column += 1.0;
-        if (column >= pairs.x) {
-            row += 1.0;
-            if (row >= pairs.y) break;
-            column = 0.0;
-        }
-    }
-    fragColor = total > 1e-6
-        ? sum / total
+    // Most cells lie whole inside the copy and weigh every pixel in full:
+    // they take the loop without the coverage, which costs a third more.
+    highp vec4 average = cut
+        ? tentAverage(first, pairs, middle, spread, copyFrom, copyTo, true)
+        : tentAverage(first, pairs, middle, spread, copyFrom, copyTo, false);
+    fragColor = average.a >= 0.0
+        ? average
         : texture(uCopy, clamp(middle, uBounds.xy, uBounds.zw) * invSize);
 }
