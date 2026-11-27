@@ -269,14 +269,19 @@ void main() {
       );
     });
 
-    testWidgets('takes a swipe within 77.5 degrees of inward and gives up '
-        'a steeper one (a 155 degree window, read from UIKit)', (tester) async {
-      Future<bool> swipe(Offset step) async {
+    testWidgets('gives up a swipe that drifts along the edge before it has '
+        'gone 15 points in: 45.2 points at once, 20 from 0.28 s (read from '
+        "UIKit's code)", (tester) async {
+      Future<bool> swipe(Offset step, {int wait = 0, int moves = 6}) async {
         final now = _deviceTime(tester);
         final rest = _x(tester, 'Next');
         final gesture = await tester.createGesture();
         await gesture.down(const Offset(10, 400), timeStamp: now());
-        for (var i = 0; i < 6; i++) {
+        for (var i = 0; i < wait; i++) {
+          await tester.pump(_frame);
+          await gesture.moveBy(Offset.zero, timeStamp: now());
+        }
+        for (var i = 0; i < moves; i++) {
           await tester.pump(_frame);
           await gesture.moveBy(step, timeStamp: now());
         }
@@ -290,6 +295,8 @@ void main() {
       await pushed(tester, const Size(402, 874), GlassFormFactor.phone);
       expect(await swipe(const Offset(4, 12)), isTrue);
       expect(await swipe(const Offset(3, 16)), isFalse);
+      expect(await swipe(const Offset(2, 1), wait: 20, moves: 12), isTrue);
+      expect(await swipe(const Offset(2, 8), wait: 20, moves: 12), isFalse);
     });
 
     testWidgets('begins where an iPhone 16 Pro began its pop, 15 points in, '

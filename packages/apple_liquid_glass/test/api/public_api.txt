@@ -4266,9 +4266,10 @@ class NavigationPopMotion
   void begin(double t, {double progress = ...})
   static double contentFunnel(double along)
   static const double contentHysteresis
-  static bool edgeAngleAllows(double along, double across)
+  static const double edgeAngleDecay
   static const double edgeAngleWindow
   static const double edgeDefault
+  static double edgeDrift(double elapsed)
   static const double edgeHysteresis
   static const double edgeShare
   static double edgeWidth(double width, {required bool phone})

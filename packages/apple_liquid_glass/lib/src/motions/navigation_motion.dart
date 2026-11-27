@@ -104,16 +104,25 @@ class NavigationPopMotion {
   /// whatever the edge settings UIKit's code reads elsewhere say.
   static const double edgeHysteresis = 15;
 
-  /// The window of directions, in radians, an edge swipe may take as it
-  /// passes [edgeHysteresis]: 155 degrees about the inward direction, so
-  /// one steeper than 77.5 degrees from it gives up (read from UIKit; the
-  /// recorded swipes run straight, so a device has not checked it).
+  /// The window of directions about the inward one, in radians, that sets
+  /// how far an edge swipe may drift along the edge ([edgeDrift]): 155
+  /// degrees (read from UIKit).
   static const double edgeAngleWindow = 2.705260340591211;
 
-  /// Whether an edge swipe that moved [along] the page and [across] it
-  /// stays inside [edgeAngleWindow].
-  static bool edgeAngleAllows(double along, double across) =>
-      along > 0 && math.atan2(across.abs(), along) <= edgeAngleWindow / 2;
+  /// The seconds over which [edgeDrift] narrows (read from UIKit).
+  static const double edgeAngleDecay = 0.5;
+
+  /// How far a finger on the edge may drift along it, [elapsed] seconds
+  /// after it touched, before it has moved [edgeHysteresis] inward: as far
+  /// as a swipe on the side of [edgeAngleWindow] drifts while it moves 10
+  /// points inward (45.2 points), narrowing over [edgeAngleDecay] to 20
+  /// points; a finger that drifts farther first gives the pop up (read
+  /// from UIKit's code; the recorded swipes run straight).
+  static double edgeDrift(double elapsed) => math.max(
+    10 / math.tan(math.pi / 2 - edgeAngleWindow / 2) *
+        (1 - elapsed / edgeAngleDecay),
+    20,
+  );
 
   /// How far a finger away from the edge moves along the page before the
   /// pop begins, or the wrong way before it fails, in points (read from

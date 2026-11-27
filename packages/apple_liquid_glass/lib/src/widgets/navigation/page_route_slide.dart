@@ -115,9 +115,11 @@ BorderRadius _cardRadius(BuildContext context) =>
 /// The interactive pop: a touch on the page that moves along it toward
 /// the trailing side drags the page, and its release pops or returns the
 /// page as UIKit predicts. A touch on the leading edge begins after
-/// [NavigationPopMotion.edgeHysteresis]; one elsewhere, UIKit's content
-/// swipe, after [NavigationPopMotion.contentHysteresis] inside its funnel, so
-/// the page's own drags and scrolls take the touches they claim first.
+/// [NavigationPopMotion.edgeHysteresis] inward unless it first drifts
+/// along the edge past [NavigationPopMotion.edgeDrift]; one elsewhere,
+/// UIKit's content swipe, after [NavigationPopMotion.contentHysteresis]
+/// inside its funnel, so the page's own drags and scrolls take the touches
+/// they claim first.
 final class _SwipePop extends Interaction {
   _SwipePop(this._slide) : super(role: InteractionRole.gesture);
 
@@ -126,6 +128,7 @@ final class _SwipePop extends Interaction {
   bool _touching = false;
   bool _rtl = false;
   Offset _start = Offset.zero;
+  double _downTime = 0;
   bool _fromEdge = false;
   bool _dragging = false;
   late NavigationPopMotion _predictor;
@@ -146,6 +149,7 @@ final class _SwipePop extends Interaction {
         _touching = true;
         _rtl = input.textDirection == TextDirection.rtl;
         _start = input.position;
+        _downTime = input.time;
         final x = (_rtl ? input.mirrored(_width) : input).position.dx;
         _fromEdge =
             x <= NavigationPopMotion.edgeWidth(_width, phone: _slide._phone);
@@ -159,13 +163,14 @@ final class _SwipePop extends Interaction {
         final travel = along - _along(_start);
         if (!_dragging) {
           if (_fromEdge) {
-            if (travel.abs() < NavigationPopMotion.edgeHysteresis) break;
-            if (!NavigationPopMotion.edgeAngleAllows(
-              travel,
-              input.position.dy - _start.dy,
-            )) {
-              _touching = false;
-              return const InteractionUpdate(fails: true);
+            if (travel <= NavigationPopMotion.edgeHysteresis) {
+              final drift = (input.position.dy - _start.dy).abs();
+              if (drift >
+                  NavigationPopMotion.edgeDrift(input.time - _downTime)) {
+                _touching = false;
+                return const InteractionUpdate(fails: true);
+              }
+              break;
             }
           } else {
             final across = (input.position.dy - _start.dy).abs();
