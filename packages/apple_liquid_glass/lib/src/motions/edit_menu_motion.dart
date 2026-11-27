@@ -1,4 +1,5 @@
 import 'package:kinesis/motion.dart';
+import 'package:meta/meta.dart';
 
 /// UIKit's edit menu as it opens (edit menu passport, iOS 27.2 simulator):
 /// the bar grows from [hiddenScale] to full size about its edge that faces
@@ -15,6 +16,7 @@ final class EditMenuMotion {
 
   /// The spring of the opening: omega 26.75, zeta 0.94 fitted (peak 1.005
   /// at 0.35 s).
+  @internal
   static const presentSpring = Spring.response(0.23, dampingRatio: 0.94);
 
   final MotionValue<double> _shown;

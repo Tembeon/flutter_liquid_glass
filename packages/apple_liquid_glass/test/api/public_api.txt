@@ -1,9 +1,16 @@
 # package:apple_liquid_glass/apple_liquid_glass.dart
 final class ActivityMotion extends Motion
   ActivityMotion({MotionClock? clock})
-  int get head
+  static double brightness(int spoke, int image)
+  static const double head
+  int get image
+  static const int images
+  bool get isTurning
   static const int spokes
   void start(double t)
+  void stop()
+  static const double tail
+  static const double turn
 final class AdaptiveGlassRenderer extends GlassRenderer
   const AdaptiveGlassRenderer({
     GlassRenderer capable = ...,
@@ -104,7 +111,7 @@ final class EditMenuMotion
   static const double hiddenScale
   late final MotionSelection<double> opacity
   void present({required bool reduceMotion})
-  static const Spring presentSpring
+  @internal static const Spring presentSpring
   late final MotionSelection<double> scale
 final class FakeGlassRenderer extends LiquidGlassRenderer
   const FakeGlassRenderer()
@@ -136,6 +143,28 @@ final class Glass
   final bool isClear
   final Color? tint
   overrides: ==, hashCode
+class GlassActivityIndicator extends StatefulWidget
+  const GlassActivityIndicator({
+    bool animating = ...,
+    GlassActivityIndicatorSize size = ...,
+    Color? color,
+    bool hidesWhenStopped = ...,
+    String? semanticLabel,
+    Key? key,
+  })
+  final bool animating
+  final Color? color
+  final bool hidesWhenStopped
+  final String? semanticLabel
+  final GlassActivityIndicatorSize size
+  overrides: createState
+enum GlassActivityIndicatorSize
+  medium,
+  large,
+  final double extent
+  final double inner
+  final double outer
+  final double spoke
 class GlassAlertAction
   const GlassAlertAction.cancel({
     required Widget child,
@@ -5457,6 +5486,8 @@ class RenderScrollEdge (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ScrollEdgeBand (see package:apple_liquid_glass/apple_liquid_glass.dart)
 
 # package:apple_liquid_glass/widgets.dart
+class GlassActivityIndicator (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassActivityIndicatorSize (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassAlertAction (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassAlertStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassBackButtonDisplayMode (see package:apple_liquid_glass/apple_liquid_glass.dart)
