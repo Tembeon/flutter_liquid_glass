@@ -202,7 +202,12 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// `UINavigationItem.subtitle`): the title turns 15 points semibold over
   /// the subtitle in 12 points regular secondary label, the two lines
   /// touching and centered as one block where the title alone stands
-  /// (bars passport, 27.2).
+  /// (bars passport, 27.2). It goes with the inline title, so under a
+  /// [largeTitle] it shows once the large title has scrolled away; UIKit's
+  /// `largeSubtitle` under the large title is not built. Where the block
+  /// does not fit centered it stands at the leading side with its lines
+  /// centered on each other, where UIKit aligns them leading (not
+  /// reproduced).
   final Widget? subtitle;
 
   /// The large title under the row, or null for an inline title only.
@@ -299,6 +304,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   GlassNavigationBar withSearchField(Widget field) => GlassNavigationBar(
     leading: leading,
     title: title,
+    subtitle: subtitle,
     largeTitle: largeTitle,
     trailing: trailing,
     automaticallyImplyLeading: automaticallyImplyLeading,
@@ -523,7 +529,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     Color color,
     BuildContext context,
   ) {
-    final subtitle = widget.title == null ? null : widget.subtitle;
+    final subtitle = widget.subtitle;
     Widget line(Widget child, TextStyle style) => DefaultTextStyle(
       style: scale.resolve(style),
       maxLines: 1,

@@ -315,6 +315,21 @@ void main() {
     expect(styleOf('Updated just now').fontSize, 12);
   });
 
+  test('the bar a page stacks a search field under keeps every field', () {
+    const subtitle = Text('Updated just now');
+    final leading = [GlassBarItem(icon: const SizedBox(), onPressed: () {})];
+    final bar = GlassNavigationBar(
+      leading: leading,
+      title: const Text('Inbox'),
+      subtitle: subtitle,
+      leadingSupplementsBackButton: true,
+    ).withSearchField(const SizedBox());
+    expect(bar.subtitle, same(subtitle));
+    expect(bar.leading, same(leading));
+    expect(bar.leadingSupplementsBackButton, isTrue);
+    expect(bar.searchField, isNotNull);
+  });
+
   testWidgets('the inline title sits on the center when it fits, else from '
       'the leading side, level with the capsules', (tester) async {
     await _phone(tester);
