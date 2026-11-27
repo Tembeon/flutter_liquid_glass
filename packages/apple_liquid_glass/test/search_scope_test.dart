@@ -139,4 +139,3 @@ class _CounterState extends State<_Counter> {
   @override
   Widget build(BuildContext context) => const SizedBox();
 }
-
