@@ -745,6 +745,9 @@ A few changes need a hand:
 - Full glass needs Impeller and Flutter GPU; the web renders `FakeGlass`.
 - At most 16 shapes that blend or touch; a field takes its looks from at most
   16 shapes.
+- A layer shades at most three iOS 27 looks exactly, a look being the glass's
+  kind and its size between 64 and 160 points. Glass past them draws with the
+  nearest look, and debug builds say so: give such glass layers of its own.
 - One corner radius per shape, except a superellipse's top and bottom pair
   (`LiquidRoundedSuperellipse.vertical`).
 - A glass widget's child is painted on top of the glass, never refracted by
