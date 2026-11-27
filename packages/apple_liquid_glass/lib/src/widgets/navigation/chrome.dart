@@ -568,7 +568,7 @@ class GlassPageScaffold extends StatefulWidget {
   /// tracks the keyboard live passes false and keeps clear of it itself.
   final bool resizeToAvoidBottomInset;
 
-  /// Whether the floating tab bar over the page slides away while the page
+  /// Whether the floating tab bar over the page fades away while the page
   /// shows, as UIKit's `hidesBottomBarWhenPushed` and
   /// `setTabBarHidden(_:animated:)` hide it; false by default.
   ///
@@ -577,7 +577,8 @@ class GlassPageScaffold extends StatefulWidget {
   /// bar back. The bar draws over the page's own [toolbar], as UIKit's tab
   /// bar draws over a navigation controller's toolbar, so a page that
   /// selects its content and acts on it with a toolbar hides the bar, as
-  /// Photos does. The page keeps the room the bar takes at its bottom.
+  /// Photos does. The page's bottom padding gives the bar's room back as
+  /// the bar fades, as UIKit's safe area does.
   final bool hidesTabBar;
 
   @override
