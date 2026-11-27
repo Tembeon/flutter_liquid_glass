@@ -111,8 +111,8 @@ final class GlassTraits {
 
   /// Reduce Transparency: the liquid renderer draws iOS 27's glass for it
   /// (`LiquidGlassSettings.reduceTransparency`: no refraction, a wide blur,
-  /// a nearly flat face); a lifted lens and the scroll edge stay flat, as
-  /// they are not measured under it.
+  /// a nearly flat face), a lifted lens keeps its glass without its bend,
+  /// and a scroll edge covers its bar with the background over a hairline.
   final bool reduceTransparency;
 
   /// Prefer Cross-Fade Transitions, which iOS offers with Reduce Motion:

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/liquid/lens_content.dart';
+import 'package:apple_liquid_glass/src/liquid/lens_shadows.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -198,6 +199,19 @@ void main() {
       );
       expect(LensContentLaw.parting(70, lift: 0), 0);
       expect(LensContentLaw.partingDepth(70), 14);
+    });
+
+    test("under Reduce Transparency only the content's own bend is left: "
+        "UIKit takes the lift's away", () {
+      expect(
+        LensContentLaw.bends(70, reduceTransparency: true),
+        [LensShadowLaw.contentBend(70, small: false, lift: 1)],
+      );
+      // The content's own bend: 0.2 of the short side over 0.16 of it.
+      expect(
+        LensContentLaw.shownDepth(0, shortSide: 70, reduceTransparency: true),
+        moreOrLessEquals(14, epsilon: 1e-9),
+      );
     });
 
     test('the bends grow with the lift', () {

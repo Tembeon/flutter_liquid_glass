@@ -37,8 +37,8 @@ void main() {
     );
   });
 
-  testWidgets('under Reduce Transparency a lifted lens stays flat: it is '
-      'not measured there', (tester) async {
+  testWidgets('under Reduce Transparency a lifted lens draws its glass, as '
+      'UIKit draws it there', (tester) async {
     await tester.pumpWidget(
       _app(
         GlassSurface.live(
@@ -48,6 +48,11 @@ void main() {
         ),
       ),
     );
-    expect(findShown(LiquidGlass), findsNothing);
+    final glass = findShown(LiquidGlass);
+    expect(glass, findsOneWidget);
+    expect(
+      LiquidGlassLayer.settingsOf(tester.element(glass)).reduceTransparency,
+      isTrue,
+    );
   });
 }

@@ -247,7 +247,10 @@ class _LiquidLensState extends State<_LiquidLens> {
       _withdraw();
       _report = details.lensContent;
     }
-    _content.devicePixelRatio = GlassTraits.of(context).viewPixelRatio;
+    final traits = GlassTraits.of(context);
+    _content
+      ..devicePixelRatio = traits.viewPixelRatio
+      ..reduceTransparency = traits.reduceTransparency;
     _writeContent();
     return Stack(
       fit: StackFit.passthrough,

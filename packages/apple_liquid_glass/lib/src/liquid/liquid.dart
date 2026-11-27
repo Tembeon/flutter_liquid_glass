@@ -57,11 +57,7 @@ base class LiquidGlassRenderer extends GlassRenderer {
       buildHighlights(context, details, _body(context, details));
 
   Widget _body(BuildContext context, GlassSurfaceDetails details) {
-    // A lifted lens under Reduce Transparency is not measured: it stays
-    // flat until it is.
-    if (details.role == GlassRole.track ||
-        details.role == GlassRole.lens &&
-            GlassTraits.of(context).reduceTransparency) {
+    if (details.role == GlassRole.track) {
       return FlatGlassRenderer.flatSurface(context, details);
     }
     if (details.role == GlassRole.lens) {

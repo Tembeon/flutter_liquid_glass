@@ -4203,6 +4203,7 @@ class RenderScrollEdge extends RenderBox
     required Brightness brightness,
     required double devicePixelRatio,
     required bool following,
+    bool reduceTransparency = ...,
   })
   @protected LiquidGlassFrostBand bandAt(double presence)
   Brightness get brightness
@@ -4222,6 +4223,8 @@ class RenderScrollEdge extends RenderBox
   )
   @protected void paintFade(PaintingContext context, Offset offset)
   double get presence
+  bool get reduceTransparency
+  set reduceTransparency(bool value)
   @protected bool updateBand(double presence)
   overrides: alwaysNeedsCompositing, attach, computeDryLayout, detach, dispose, hitTestSelf, isRepaintBoundary, paint, sizedByParent
 class ScrollAway

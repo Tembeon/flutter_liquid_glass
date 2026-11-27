@@ -11,44 +11,50 @@ import 'package:flutter_test/flutter_test.dart';
 const _key = ValueKey('page');
 const _width = 200;
 
-Widget _page(GlassRenderer renderer, ScrollController controller) => MediaQuery(
+Widget _page(
+  GlassRenderer renderer,
+  ScrollController controller, {
+  GlassScrollEdgeEffect edge = GlassScrollEdgeEffect.hard,
+  bool reduceTransparency = false,
+}) => MediaQuery(
   data: const MediaQueryData(size: Size(200, 400)),
   child: Directionality(
     textDirection: TextDirection.ltr,
     child: GlassScope(
       renderer: renderer,
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: SizedBox(
-          width: 200,
-          height: 400,
-          child: RepaintBoundary(
-            key: _key,
-            child: GlassPageScaffold(
-              backgroundColor: const Color(0xFFFFFFFF),
-              navigationBar: const PreferredSize(
-                preferredSize: Size.fromHeight(60),
-                child: SizedBox(height: 60),
-              ),
-              child: GlassContentScroll(
-                edgeEffects: const GlassScrollEdgeEffects(
-                  top: GlassScrollEdgeEffect.hard,
+      child: GlassTraitsOverride(
+        reduceTransparency: reduceTransparency,
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 200,
+            height: 400,
+            child: RepaintBoundary(
+              key: _key,
+              child: GlassPageScaffold(
+                backgroundColor: const Color(0xFFFFFFFF),
+                navigationBar: const PreferredSize(
+                  preferredSize: Size.fromHeight(60),
+                  child: SizedBox(height: 60),
                 ),
-                child: ListView(
-                  controller: controller,
-                  children: [
-                    Container(
-                      height: 1000,
-                      color: const Color(0xFFFF0000),
-                      alignment: Alignment.topLeft,
-                      padding: const EdgeInsets.only(left: 100),
-                      child: const SizedBox(
-                        width: 2,
+                child: GlassContentScroll(
+                  edgeEffects: GlassScrollEdgeEffects(top: edge),
+                  child: ListView(
+                    controller: controller,
+                    children: [
+                      Container(
                         height: 1000,
-                        child: ColoredBox(color: Color(0xFFFFFFFF)),
+                        color: const Color(0xFFFF0000),
+                        alignment: Alignment.topLeft,
+                        padding: const EdgeInsets.only(left: 100),
+                        child: const SizedBox(
+                          width: 2,
+                          height: 1000,
+                          child: ColoredBox(color: Color(0xFFFFFFFF)),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -72,10 +78,22 @@ List<int> _pixel(Uint8List bytes, int x, int y) {
   return bytes.sublist(i, i + 3);
 }
 
-Future<Uint8List> _scrolled(WidgetTester tester, GlassRenderer renderer) async {
+Future<Uint8List> _scrolled(
+  WidgetTester tester,
+  GlassRenderer renderer, {
+  GlassScrollEdgeEffect edge = GlassScrollEdgeEffect.hard,
+  bool reduceTransparency = false,
+}) async {
   final controller = ScrollController();
   addTearDown(controller.dispose);
-  await tester.pumpWidget(_page(renderer, controller));
+  await tester.pumpWidget(
+    _page(
+      renderer,
+      controller,
+      edge: edge,
+      reduceTransparency: reduceTransparency,
+    ),
+  );
   await tester.pump();
   controller.jumpTo(200);
   for (var i = 0; i < 60; i++) {
@@ -105,4 +123,23 @@ void main() {
     expect(band[1], inInclusiveRange(100, 160));
     expect(_pixel(flat, 97, 30), band);
   });
+
+  for (final edge in [GlassScrollEdgeEffect.hard, GlassScrollEdgeEffect.soft]) {
+    testWidgets('under Reduce Transparency the $edge band covers the bar '
+        'with the background whole over its hairline', (tester) async {
+      final reduced = await _scrolled(
+        tester,
+        const LiquidGlassRenderer(),
+        edge: edge,
+        reduceTransparency: true,
+      );
+      expect(_pixel(reduced, 40, 30), [255, 255, 255]);
+      expect(_pixel(reduced, 98, 30), [255, 255, 255]);
+      // The hairline: one device pixel of the three in this row.
+      expect(_pixel(reduced, 40, 59), [249, 249, 249]);
+      expect(_pixel(reduced, 40, 60), [255, 0, 0]);
+      expect(_pixel(reduced, 40, 61), [255, 0, 0]);
+      expect(_pixel(reduced, 40, 90), [255, 0, 0]);
+    });
+  }
 }
