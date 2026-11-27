@@ -486,6 +486,10 @@ final class LevelStrip {
       fillCells: fillStride > 0 ? (width / fillStride).ceil() + 1 : 0,
       copy: copy,
       grid: grid,
+      covers: switch (levels.margin) {
+        final margin? => margin < 3 * levels.most,
+        null => false,
+      },
     );
   }
 
@@ -499,6 +503,7 @@ final class LevelStrip {
     required this.fillCells,
     required this.copy,
     required this.grid,
+    required this.covers,
   });
 
   // The levels a copy at [share] carries for glass blurring it from
@@ -574,6 +579,14 @@ final class LevelStrip {
   /// Where the copy's top left lies on the screen's grid of its pixels.
   final Offset grid;
 
+  /// Whether the coarser levels and the fill level weigh each pixel by how
+  /// much of it lies inside the copy (copy_levels_cover.frag): where the
+  /// copy holds less than the blur reaches ([CopyLevels.margin]), its edge
+  /// cuts cells glass reads, which would step as the glass moves. Elsewhere
+  /// they weigh the edge's pixels again for what lies past it, which costs a
+  /// tab bar drag 2.7 % less GPU time on the Pixel 6a.
+  final bool covers;
+
   /// This strip of a copy whose top left lies at [grid] on the screen's grid.
   LevelStrip withGrid(Offset grid) => grid == this.grid
       ? this
@@ -587,6 +600,7 @@ final class LevelStrip {
           fillCells: fillCells,
           copy: copy,
           grid: grid,
+          covers: covers,
         );
 
   /// The columns the fill level takes, its ring included.
@@ -647,11 +661,21 @@ final class LevelStrip {
       other.width == width &&
       other.height == height &&
       other.copy == copy &&
-      other.grid == grid;
+      other.grid == grid &&
+      other.covers == covers;
 
   @override
-  int get hashCode =>
-      Object.hash(first, last, blurs, fillStride, width, height, copy, grid);
+  int get hashCode => Object.hash(
+    first,
+    last,
+    blurs,
+    fillStride,
+    width,
+    height,
+    copy,
+    grid,
+    covers,
+  );
 }
 
 /// Where the pixels of one read's copy lie: on which grid, at which boxes and

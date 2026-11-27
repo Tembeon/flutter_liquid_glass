@@ -13,7 +13,8 @@
 // Each cell is the tent read in bilinear pairs: two neighbours weighed w0
 // and w1 are one read between them, w1 / (w0 + w1) of the way.
 //
-// With LEVEL_COVER (copy_levels_cover.frag, the second pass) a source pixel
+// With LEVEL_COVER (copy_levels_cover.frag: the second pass of a copy that
+// holds less than its blur reaches, LevelStrip.covers) a source pixel
 // weighs as much as it lies inside the copy, so a cell the copy's edge cuts
 // averages what the copy holds and changes smoothly as the copy moves, and
 // the ring around each level holds the cells beside it, not a repeat of the
@@ -22,7 +23,7 @@
 // its levels only far inside the copy, the second pass weighs the cells it
 // averages by their coverage, and in the first pass, which draws nearly all
 // the levels' pixels, the coverage cost a tab bar drag 4 % more GPU time on
-// the Pixel 6a.
+// the Pixel 6a; in the second pass of every copy, 2.7 %.
 
 precision mediump float;
 

@@ -119,10 +119,11 @@ final _noLevels = <int, List<double>>{};
 /// levels up to [coarseSourceLevel]; the outer one averages that level into
 /// the coarser levels and the fill level.
 ///
-/// NEAR: a cell of the finer levels at the copy's edge weighs the edge's own
-/// pixels again for what lies past it; the coarser levels and the fill level
-/// weigh what the copy holds alone (copy_levels_pass.glsl). A layer that a
-/// clip cuts short of the strip carries no levels (`CornerPlace.levels`).
+/// NEAR: a cell at the copy's edge weighs the edge's own pixels again for
+/// what lies past it, but for the coarser levels and the fill level of a
+/// copy that holds less than its blur reaches ([LevelStrip.covers]). A layer
+/// that a clip cuts short of the strip carries no levels
+/// (`CornerPlace.levels`).
 @internal
 final class CopyLevelPasses extends PinnedPasses {
   const CopyLevelPasses._(super.filters);
@@ -161,13 +162,13 @@ final class CopyLevelPasses extends PinnedPasses {
   static CopyLevelPasses? _of(LevelStrip strip, Offset at) {
     final key = (strip, at);
     if (_cached[key] case final held?) return held;
-    final fineShader = GlassShaderPrograms.sharedShader(
+    final plain = GlassShaderPrograms.sharedShader(
       ShaderProgram.copyLevels.key,
     );
-    final coarseShader = GlassShaderPrograms.sharedShader(
+    final covering = GlassShaderPrograms.sharedShader(
       ShaderProgram.copyLevelsCover.key,
     );
-    if (fineShader == null || coarseShader == null) return null;
+    if (plain == null || covering == null) return null;
     if (_cached.length >= _mostHeld) _cached.clear();
 
     final top = at.dy + strip.top;
@@ -203,7 +204,7 @@ final class CopyLevelPasses extends PinnedPasses {
         bounds.right,
         bounds.bottom,
       ]);
-      if (identical(shader, coarseShader)) {
+      if (identical(shader, covering)) {
         putUniform(shader, 'uCopySize', [
           strip.copy.width,
           strip.copy.height,
@@ -215,7 +216,7 @@ final class CopyLevelPasses extends PinnedPasses {
     }
 
     final fine = pass(
-      fineShader,
+      plain,
       from: strip.first.toDouble(),
       to: coarseSourceLevel.toDouble(),
       fill: false,
@@ -228,7 +229,7 @@ final class CopyLevelPasses extends PinnedPasses {
     const stride = 1 << source;
     final base = at + Offset(strip.columnOf(source).toDouble(), strip.cellsTop);
     final coarse = pass(
-      coarseShader,
+      strip.covers ? covering : plain,
       from: (source + 1).toDouble(),
       to: strip.last.toDouble(),
       fill: strip.fillStride > 0,

@@ -7,6 +7,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
+import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
@@ -141,4 +142,18 @@ void main() {
     },
     skip: skipProperGlassTests,
   );
+
+  test('a copy whose margin holds less than its blur reaches weighs its '
+      'coarser levels by coverage, and only such a copy', () {
+    LevelStrip strip(double? margin) => LevelStrip(
+      CopyLevels(least: 20, most: 20, margin: margin),
+      devicePixelRatio: 3,
+      share: 4,
+      copy: const Size(100, 60),
+      grid: Offset.zero,
+    );
+    expect(strip(16).covers, isTrue);
+    expect(strip(60).covers, isFalse);
+    expect(strip(null).covers, isFalse);
+  });
 }
