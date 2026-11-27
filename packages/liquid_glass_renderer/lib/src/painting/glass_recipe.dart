@@ -83,7 +83,9 @@ final class GlassRecipe {
   /// of a point inside the edge, over 120 degrees in both schemes) and no
   /// bleed or ring shadow, as read from UIKit with each lens
   /// held on iOS 27.2.1 (notes private); its ring and drop shadows are the
-  /// widget's to draw. Its values are the same from 37 to 70 points.
+  /// widget's to draw. Its values are the same from 37 to 70 points. Reduce
+  /// Transparency leaves its recipe as it is (27.2 simulator): it takes
+  /// away only the lens's bend, which its settings' refraction draws.
   factory GlassRecipe.of({
     required GlassVariant variant,
     required Brightness brightness,
@@ -239,7 +241,7 @@ final class _Law {
       ],
       margin: margin,
     );
-    if (reduceTransparency) {
+    if (reduceTransparency && !lifted) {
       if (clear) {
         return ramp(
           50,

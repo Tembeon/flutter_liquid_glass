@@ -202,6 +202,25 @@ void main() {
       expect([for (final stop in clear.stops) stop.strength], [1, 1, 1, 1]);
     });
 
+    test('leaves a lifted lens its own recipe', () {
+      for (final lift in [GlassLift.lens, GlassLift.smallLens]) {
+        for (final brightness in Brightness.values) {
+          GlassRecipe lens({required bool reduced}) => GlassRecipe.of(
+            variant: GlassVariant.regular,
+            brightness: brightness,
+            shortSide: 44,
+            lift: lift,
+            reduceTransparency: reduced,
+          );
+          expect(
+            lens(reduced: true),
+            lens(reduced: false),
+            reason: '$lift $brightness',
+          );
+        }
+      }
+    });
+
     test("reads iOS's capture margin past the glass: 16 points, and 8/15 on "
         'clear glass up to the middle tick; glass outside it reads as far as '
         'its blur reaches', () {
