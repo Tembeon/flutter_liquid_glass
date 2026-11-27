@@ -1698,6 +1698,7 @@ class GlassPageControl extends StatelessWidget
     required int page,
     required void Function(int)? onChanged,
     double? progress,
+    GlassPageControlTimer? timer,
     GlassPageControlBackground backgroundStyle = ...,
     AxisDirection? direction,
     bool hidesForSinglePage = ...,
@@ -1731,6 +1732,7 @@ class GlassPageControl extends StatelessWidget
     Color? platterColor,
     Color? platterIndicatorColor,
   })
+  final GlassPageControlTimer? timer
   overrides: build
 enum GlassPageControlBackground
   automatic,
@@ -1781,6 +1783,19 @@ class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle>
   final WidgetStateProperty<Color?>? platterColor
   final WidgetStateProperty<Color?>? platterIndicatorColor
   overrides: ==, hashCode, lerp, merge
+class GlassPageControlTimer extends ChangeNotifier
+  GlassPageControlTimer({
+    required Duration duration,
+    bool resetsToInitialPageAfterEnd = ...,
+    bool Function(int)? shouldAdvanceToPage,
+  })
+  Duration duration
+  bool get isRunning
+  void pause()
+  double get progress
+  bool resetsToInitialPageAfterEnd
+  void resume()
+  bool Function(int)? shouldAdvanceToPage
 class GlassPageRoute<T> extends PresentationPageRoute<T>
   GlassPageRoute({
     required Widget Function(BuildContext) builder,
@@ -4069,9 +4084,12 @@ final class PageControlMotion extends Motion
   int get count
   double fillOpacity(int index)
   List<Rect> indicatorRects({required bool rtl})
+  bool get isTiming
   bool get isTouched
   final void Function(PageControlEvent)? onEvent
+  void Function(double)? onTimerEnd
   int get page
+  void pauseTimer(double t)
   double get platter
   bool get platterless
   set platterless(bool value)
@@ -4079,11 +4097,14 @@ final class PageControlMotion extends Motion
   void pointerDown(double t, double x)
   void pointerMove(double t, double x)
   void pointerUp(double t, double x, {required double width})
+  void resumeTimer(double t)
   double scaleOf(int index)
   void setPage(double t, int page)
   bool showsProgress
   Size get size
   static Size sizeFor(int count)
+  void startTimerPage(double t, double duration)
+  double get timerProgress
   double width(int index)
   overrides: needsFullFrameRate
 final class PageControlPicked extends PageControlEvent
@@ -4266,6 +4287,7 @@ class RawGlassPageControl extends StatefulWidget
     required void Function(int)? onChanged,
     required Widget Function(BuildContext, GlassPageControlDetails) builder,
     double? progress,
+    GlassPageControlTimer? timer,
     GlassPageControlBackground backgroundStyle = ...,
     AxisDirection? direction,
     bool allowsContinuousInteraction = ...,
@@ -4289,6 +4311,7 @@ class RawGlassPageControl extends StatefulWidget
   final String? semanticLabel
   final String Function(int, int)? semanticValueFormatter
   final WidgetStatesController? statesController
+  final GlassPageControlTimer? timer
   overrides: createState
 class RawGlassSearchField extends StatefulWidget
   const RawGlassSearchField({
@@ -5719,6 +5742,7 @@ enum GlassPageControlBackground (see package:apple_liquid_glass/apple_liquid_gla
 typedef GlassPageControlBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageControlDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageControlPose (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPageControlTimer (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSearchController (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassSearchFieldBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSearchFieldDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)

@@ -827,6 +827,10 @@ class PageControlPage extends StatefulWidget {
 class _PageControlPageState extends State<PageControlPage> {
   final _pages = PageController();
   final _stories = PageController();
+  final _storyTimer = GlassPageControlTimer(
+    duration: const Duration(milliseconds: 2500),
+    resetsToInitialPageAfterEnd: true,
+  );
   var _count = 6.0;
   var _page = 0;
   var _story = 0;
@@ -838,6 +842,7 @@ class _PageControlPageState extends State<PageControlPage> {
   void dispose() {
     _pages.dispose();
     _stories.dispose();
+    _storyTimer.dispose();
     super.dispose();
   }
 
@@ -880,6 +885,13 @@ class _PageControlPageState extends State<PageControlPage> {
           'Scrubs under a finger',
           value: _scrubs,
           onChanged: (on) => setState(() => _scrubs = on),
+        ),
+        ToggleKnob(
+          'Side pager turns by itself',
+          value: _storyTimer.isRunning,
+          onChanged: (on) => setState(
+            on ? _storyTimer.resume : _storyTimer.pause,
+          ),
         ),
       ],
       ideas: [
@@ -934,7 +946,8 @@ class _PageControlPageState extends State<PageControlPage> {
         Idea(
           'Down the side',
           'With direction down the dots stand on end beside a pager that '
-              'turns up and down.',
+              'turns up and down; with a GlassPageControlTimer they fill '
+              'and turn the pages by themselves.',
           child: ClipRSuperellipse(
             borderRadius: BorderRadius.circular(28),
             child: SizedBox(
@@ -959,6 +972,7 @@ class _PageControlPageState extends State<PageControlPage> {
                         count: 4,
                         page: _story,
                         direction: AxisDirection.down,
+                        timer: _storyTimer,
                         backgroundStyle: _background,
                         onChanged: (page) => _stories.animateToPage(
                           page,

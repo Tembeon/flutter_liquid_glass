@@ -139,6 +139,89 @@ final class GlassPageControlPose {
   );
 }
 
+/// Turns a page control's pages on a timer, a stories-style progress.
+///
+/// UIKit: `UIPageControlTimerProgress`. SwiftUI: none. Flutter: none.
+///
+/// Pass it to a [RawGlassPageControl], or a `GlassPageControl`, as `timer`.
+/// While [isRunning] the current indicator fills over [duration], and at
+/// its end the control calls `onChanged` with the next page, whose
+/// indicator starts empty. A page set otherwise, by the app or a tap,
+/// starts empty too. Past the last page the timer goes on from the first
+/// with [resetsToInitialPageAfterEnd], and otherwise stops there, full.
+/// [shouldAdvanceToPage] may refuse a page: the timer then stops where it
+/// is, and [resume] asks again.
+///
+/// A timer starts paused, as UIKit's does: [resume] runs it. It tells its
+/// listeners when it starts or stops running, not as it fills; [progress]
+/// reads how far it is. A timer serves one control at a time.
+///
+/// Fidelity. Timing, pausing, the refusal, the loop and a [duration]
+/// changed while it runs follow UIKit 27.2 (page control API passport):
+/// the running page keeps the duration it started with. UIKit's per-page
+/// `setDuration(_:forPage:)` had no effect in 27.2 and is left out.
+class GlassPageControlTimer extends ChangeNotifier {
+  /// Creates a paused timer that gives each page [duration].
+  GlassPageControlTimer({
+    required this.duration,
+    this.resetsToInitialPageAfterEnd = false,
+    this.shouldAdvanceToPage,
+  });
+
+  /// How long a page lasts; a page that starts takes it, the one running
+  /// keeps its own.
+  Duration duration;
+
+  /// Whether the timer goes on from the first page after the last.
+  bool resetsToInitialPageAfterEnd;
+
+  /// Asked with the next page as the current one ends; false stops the
+  /// timer on the current page, full.
+  bool Function(int page)? shouldAdvanceToPage;
+
+  _RawGlassPageControlState? _control;
+  bool _running = false;
+
+  /// Whether the timer runs.
+  bool get isRunning => _running;
+
+  /// How far the current page has run, 0 to 1; 0 with no control.
+  double get progress => _control?._motion.timerProgress ?? 0;
+
+  double get _seconds =>
+      duration.inMicroseconds / Duration.microsecondsPerSecond;
+
+  /// Runs the timer on from where it stands.
+  void resume() {
+    if (_running) return;
+    _running = true;
+    _control?._resumeTimer();
+    notifyListeners();
+  }
+
+  /// Stops the timer, keeping its progress.
+  void pause() {
+    if (!_running) return;
+    _running = false;
+    _control?._pauseTimer();
+    notifyListeners();
+  }
+
+  void _stopped() => notifyListeners();
+
+  void _attach(_RawGlassPageControlState control) {
+    assert(
+      _control == null || identical(_control, control),
+      'a GlassPageControlTimer serves one page control at a time',
+    );
+    _control = control;
+  }
+
+  void _detach(_RawGlassPageControlState control) {
+    if (identical(_control, control)) _control = null;
+  }
+}
+
 /// A page control with the measured motion of iOS 27's `UIPageControl` and
 /// no look of its own: [builder] decides how it looks.
 ///
@@ -175,6 +258,7 @@ class RawGlassPageControl extends StatefulWidget {
     required this.onChanged,
     required this.builder,
     this.progress,
+    this.timer,
     this.backgroundStyle = GlassPageControlBackground.automatic,
     this.direction,
     this.allowsContinuousInteraction = true,
@@ -202,6 +286,10 @@ class RawGlassPageControl extends StatefulWidget {
   /// How far the current page has progressed, 0 to 1, or null for plain
   /// indicators.
   final double? progress;
+
+  /// Turns the pages on a timer and shows its progress, where [progress]
+  /// is null.
+  final GlassPageControlTimer? timer;
 
   /// When the platter shows.
   final GlassPageControlBackground backgroundStyle;
@@ -244,6 +332,8 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
         ControlStates<RawGlassPageControl>,
         ControlledValue<RawGlassPageControl> {
   late PageControlMotion _motion = _create();
+  late MotionSelection<double> _timerProgress = _timerProgressOf();
+  GlassPageControlTimer? _timer;
   AxisDirection _direction = AxisDirection.right;
   late MotionSelection<GlassPageControlPose> _pose = _poseOf();
   late MotionSelection<bool> _touched = _touchedOf();
@@ -257,11 +347,65 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   PageControlMotion _create() => PageControlMotion(
     count: _count,
     page: _page,
-    showsProgress: widget.progress != null,
+    showsProgress: _showsProgress(widget),
     platterless: _platterless,
     onEvent: _deliver,
     clock: MotionClockScope.of(context),
-  );
+  )..onTimerEnd = _timerEnded;
+
+  static bool _showsProgress(RawGlassPageControl widget) =>
+      widget.progress != null || widget.timer != null;
+
+  MotionSelection<double> _timerProgressOf() =>
+      _motion.select((motion) => motion.timerProgress);
+
+  @override
+  void dispose() {
+    _timer?._detach(this);
+    _motion.pauseTimer(_motion.clock.now);
+    super.dispose();
+  }
+
+  // Takes the widget's timer, starting the current page for it.
+  void _takeTimer() {
+    final timer = widget.timer;
+    final now = _motion.clock.now;
+    if (!identical(timer, _timer)) {
+      _timer?._detach(this);
+      _timer = timer?.._attach(this);
+    }
+    _motion.pauseTimer(now);
+    if (timer == null) return;
+    _motion.startTimerPage(now, timer._seconds);
+    if (timer.isRunning) _motion.resumeTimer(now);
+  }
+
+  void _resumeTimer() => _motion.resumeTimer(_motion.clock.now);
+
+  void _pauseTimer() => _motion.pauseTimer(_motion.clock.now);
+
+  void _timerEnded(double t) {
+    final timer = _timer;
+    if (timer == null) return;
+    var next = _page + 1;
+    if (next >= _count) {
+      if (!timer.resetsToInitialPageAfterEnd) return _stopTimer(timer, t);
+      next = 0;
+    }
+    if (timer.shouldAdvanceToPage?.call(next) == false) {
+      return _stopTimer(timer, t);
+    }
+    _motion.startTimerPage(t, timer._seconds);
+    notifyChanged(() {
+      if (next != _page) widget.onChanged?.call(next);
+    });
+  }
+
+  void _stopTimer(GlassPageControlTimer timer, double t) {
+    _motion.pauseTimer(t);
+    timer._running = false;
+    runOutsideBuild(timer._stopped);
+  }
 
   MotionSelection<bool> _touchedOf() =>
       _motion.select((motion) => motion.isTouched);
@@ -304,6 +448,9 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
     final page = _page;
     if (page == _motion.page) return;
     _motion.setPage(_motion.clock.now, page);
+    if (_timer case final timer?) {
+      _motion.startTimerPage(_motion.clock.now, timer._seconds);
+    }
   }
 
   bool get enabled => widget.onChanged != null && _count > 0;
@@ -312,12 +459,17 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   void didUpdateWidget(RawGlassPageControl oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.count != oldWidget.count ||
-        (widget.progress == null) != (oldWidget.progress == null)) {
+        _showsProgress(widget) != _showsProgress(oldWidget)) {
+      _motion.pauseTimer(_motion.clock.now);
       _motion = _create();
       _pose = _poseOf();
       _touched = _touchedOf();
+      _timerProgress = _timerProgressOf();
+      _takeTimer();
+      _follow(_directionIn(context));
       return;
     }
+    if (!identical(widget.timer, oldWidget.timer)) _takeTimer();
     if (widget.backgroundStyle != oldWidget.backgroundStyle) {
       _motion.platterless = _platterless;
       _pose = _poseOf();
@@ -362,7 +514,13 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _follow(_directionIn(context));
+    if (!_tookTimer) {
+      _tookTimer = true;
+      _takeTimer();
+    }
   }
+
+  bool _tookTimer = false;
 
   @override
   Widget buildControl(BuildContext context) {
@@ -390,17 +548,24 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
         reach: glassTargetReach,
         child: SizedBox.fromSize(
           size: _size,
-          child: withStates(
-            (context, states) => widget.builder(
+          child: withStates((context, states) {
+            Widget look(double? progress) => widget.builder(
               context,
               GlassPageControlDetails(
                 pose: _pose,
-                progress: widget.progress,
+                progress: progress,
                 states: states,
                 statesListenable: widgetStates,
               ),
-            ),
-          ),
+            );
+            if (widget.progress != null || _timer == null) {
+              return look(widget.progress);
+            }
+            return ValueListenableBuilder<double>(
+              valueListenable: _timerProgress,
+              builder: (context, progress, _) => look(progress),
+            );
+          }),
         ),
       ),
     );

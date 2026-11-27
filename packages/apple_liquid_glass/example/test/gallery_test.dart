@@ -403,8 +403,14 @@ void galleryTests({bool onDevice = false}) {
     final dots = tester.getRect(side);
     expect(dots.height, greaterThan(dots.width));
     await tester.tapAt(dots.bottomCenter - const Offset(0, 6));
-    await _frames(tester, 60);
+    await _frames(tester);
     expect(tester.widget<GlassPageControl>(side).page, 1);
+    await flip('Side pager turns by itself');
+    await _bring(tester, side, page);
+    final from = tester.widget<GlassPageControl>(side).page;
+    await _frames(tester, 170);
+    expect(tester.widget<GlassPageControl>(side).page, (from + 1) % 4);
+    await flip('Side pager turns by itself');
     await _back(tester);
 
     await _open(tester, 'List');

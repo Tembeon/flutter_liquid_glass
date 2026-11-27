@@ -153,6 +153,7 @@ class GlassPageControl extends StatelessWidget {
     required this.page,
     required this.onChanged,
     this.progress,
+    this.timer,
     this.backgroundStyle = GlassPageControlBackground.automatic,
     this.direction,
     this.hidesForSinglePage = false,
@@ -179,6 +180,9 @@ class GlassPageControl extends StatelessWidget {
   /// How far the current page has progressed, 0 to 1, or null for plain
   /// dots.
   final double? progress;
+
+  /// See [RawGlassPageControl.timer].
+  final GlassPageControlTimer? timer;
 
   /// When the platter shows.
   final GlassPageControlBackground backgroundStyle;
@@ -268,6 +272,7 @@ class GlassPageControl extends StatelessWidget {
       page: page,
       onChanged: onChanged,
       progress: progress,
+      timer: timer,
       backgroundStyle: backgroundStyle,
       direction: direction,
       allowsContinuousInteraction: allowsContinuousInteraction,

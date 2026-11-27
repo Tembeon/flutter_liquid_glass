@@ -41,6 +41,7 @@ export 'src/raw/page_control.dart'
         GlassPageControlBuilder,
         GlassPageControlDetails,
         GlassPageControlPose,
+        GlassPageControlTimer,
         RawGlassPageControl;
 export 'src/raw/search_controller.dart' show GlassSearchController;
 export 'src/raw/search_field.dart'

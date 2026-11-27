@@ -206,6 +206,62 @@ final class PageControlMotion extends Motion {
   bool _stepped = false;
   static const _platterSlot = #platter;
 
+  late final _timer = own(MotionValue<double>(0));
+  double _timerDuration = 0;
+  bool _timing = false;
+  VoidCallback? _cancelTimerEnd;
+
+  /// Called when a running timer reaches the end of the current page, at
+  /// the time it does.
+  void Function(double t)? onTimerEnd;
+
+  /// How far a timer has run through the current page, 0 to 1: a linear
+  /// course of the page's duration (page control API passport: every page
+  /// lasted its duration within a frame).
+  double get timerProgress => _timer.valueAt(now).clamp(0.0, 1.0);
+
+  /// Whether a timer runs through the pages.
+  bool get isTiming => _timing;
+
+  /// A page starts at time [t] for a timer: its progress goes back to 0,
+  /// and it lasts [duration] seconds, running on if the timer runs.
+  void startTimerPage(double t, double duration) {
+    advance(t);
+    _timerDuration = duration;
+    _timer.snap(t, 0);
+    if (_timing) _runTimer(t);
+  }
+
+  /// The timer runs on from where it stands at time [t]; a page already at
+  /// its end ends again, at once.
+  void resumeTimer(double t) {
+    if (_timing) return;
+    _timing = true;
+    _runTimer(t);
+  }
+
+  /// The timer stops at time [t], its progress kept.
+  void pauseTimer(double t) {
+    if (!_timing) return;
+    _timing = false;
+    _cancelTimerEnd?.call();
+    _cancelTimerEnd = null;
+    advance(t);
+    _timer.snap(t, _timer.valueAt(t));
+  }
+
+  void _runTimer(double t) {
+    advance(t);
+    final from = _timer.valueAt(t).clamp(0.0, 1.0);
+    final left = (1 - from) * _timerDuration;
+    _timer.animate(t, 1, animation: TimingCurve.linear(duration: left));
+    _cancelTimerEnd?.call();
+    _cancelTimerEnd = clock.schedule(t + left, (time) {
+      _cancelTimerEnd = null;
+      onTimerEnd?.call(time);
+    });
+  }
+
   /// The opacity of the platter under a touch, 0 to 1.
   double get platter => _platter.valueAt(now).clamp(0.0, 1.0);
 
