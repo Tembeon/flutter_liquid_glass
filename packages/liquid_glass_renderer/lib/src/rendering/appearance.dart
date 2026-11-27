@@ -180,24 +180,94 @@ final class MixedAppearances extends ShapeAppearances {
   FinalShaderKind get kind => FinalShaderKind.material;
 }
 
-/// The iOS 27 recipes of [appearances], then of [fallback], in shader slot
-/// order.
+/// The iOS 27 recipes of [appearances], then of [fallback] where a slot is
+/// left, in shader slot order.
+///
+/// Where the appearances wear more than the slots
+/// ([overflowsColorModelSlots]), each kind of glass (a look but for its
+/// size) takes a slot first, in their order, and sizes fill the slots left:
+/// the looks without a slot draw with the slot nearest them
+/// (colorModelCode).
 @internal
 List<RecipeLook> colorModelSlots(
   List<WornAppearance> appearances,
   WornAppearance fallback,
 ) {
-  final slots = <RecipeLook>[];
-  void add(WornAppearance appearance) {
-    if (appearance.colorModel case WornRecipe(:final look)
-        when !slots.contains(look) && slots.length < colorModelSlotCount) {
-      slots.add(look);
+  final recipes = _distinctRecipes(appearances);
+  final slots = recipes.length <= colorModelSlotCount
+      ? recipes
+      : <RecipeLook>[];
+  if (recipes.length > colorModelSlotCount) {
+    for (final look in recipes) {
+      if (slots.length < colorModelSlotCount &&
+          !slots.any((slot) => _sameKind(slot, look))) {
+        slots.add(look);
+      }
+    }
+    for (final look in recipes) {
+      if (slots.length < colorModelSlotCount && !slots.contains(look)) {
+        slots.add(look);
+      }
     }
   }
-
-  appearances.forEach(add);
-  add(fallback);
+  if (fallback.colorModel case WornRecipe(:final look)
+      when slots.length < colorModelSlotCount && !slots.contains(look)) {
+    slots.add(look);
+  }
   return List.unmodifiable(slots);
+}
+
+/// Whether [appearances] wear more iOS 27 recipes than the final shader has
+/// slots for ([colorModelSlots]).
+@internal
+bool overflowsColorModelSlots(List<WornAppearance> appearances) =>
+    _distinctRecipes(appearances).length > colorModelSlotCount;
+
+List<RecipeLook> _distinctRecipes(List<WornAppearance> appearances) => [
+  ...{
+    for (final appearance in appearances)
+      if (appearance.colorModel case WornRecipe(:final look)) look,
+  },
+];
+
+bool _sameKind(RecipeLook a, RecipeLook b) =>
+    a.variant == b.variant &&
+    a.brightness == b.brightness &&
+    a.greyTint == b.greyTint &&
+    a.highContrast == b.highContrast &&
+    a.lift == b.lift;
+
+// The slot of [slots] that [look] draws with: its own, or the one whose
+// recipe lies nearest it, compared from what shows most: brightness,
+// regular or clear, the lens's lift, contrast and a grey tint, then size.
+int _slotOf(RecipeLook look, List<RecipeLook> slots) {
+  final own = slots.indexOf(look);
+  if (own >= 0 || slots.isEmpty) return own < 0 ? 0 : own;
+  List<num> distance(RecipeLook slot) => [
+    if (slot.brightness == look.brightness) 0 else 1,
+    if (slot.variant == look.variant) 0 else 1,
+    if (slot.lift == look.lift) 0 else 1,
+    (slot.highContrast == look.highContrast ? 0 : 1) +
+        (slot.greyTint == look.greyTint ? 0 : 1),
+    (slot.shortSide - look.shortSide).abs(),
+  ];
+  bool nearer(List<num> a, List<num> b) {
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return a[i] < b[i];
+    }
+    return false;
+  }
+
+  var nearest = 0;
+  var nearestDistance = distance(slots.first);
+  for (var i = 1; i < slots.length; i++) {
+    final next = distance(slots[i]);
+    if (nearer(next, nearestDistance)) {
+      nearest = i;
+      nearestDistance = next;
+    }
+  }
+  return nearest;
 }
 
 /// The recipes glass of [appearances] draws, or [fallback]'s where there
@@ -211,13 +281,13 @@ List<RecipeLook> drawnRecipes(
     if (appearance.colorModel case WornRecipe(:final look)) look,
 ];
 
-/// The shader's model code for [model]: 0 direct, else its slot, from 1.
+/// The shader's model code for [model]: 0 direct, else its slot, from 1: a
+/// recipe without a slot of its own takes the slot nearest it.
 @internal
 double colorModelCode(WornColorModel model, List<RecipeLook> slots) =>
     switch (model) {
       WornDirect() => 0,
-      WornRecipe(:final look) =>
-        (slots.indexOf(look).clamp(0, colorModelSlotCount - 1) + 1).toDouble(),
+      WornRecipe(:final look) => (_slotOf(look, slots) + 1).toDouble(),
     };
 
 /// The color models [shaded] needs: the direct model alone, one iOS 27

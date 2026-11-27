@@ -30,6 +30,11 @@ const LiquidGlassBackdrop _defaultBackdrop = LiquidGlassBackdrop.read();
 /// as a colored background, paint over the glass: the layer draws all of its
 /// glass before its child.
 ///
+/// A layer draws up to three iOS 27 looks exactly, a look being the glass's
+/// kind and its size, which changes the look between 64 and 160 points.
+/// Glass past them draws with the look nearest its own, and debug builds
+/// say so: give glass of many sizes or kinds layers of its own.
+///
 /// ## Example
 ///
 /// ```dart

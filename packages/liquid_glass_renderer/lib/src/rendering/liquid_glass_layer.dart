@@ -80,19 +80,29 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   static bool debugShaderVariants = true;
 
-  bool _debugWarnedShapeLimit = false;
+  final Set<String> _debugWarnings = {};
 
-  void _debugWarnShapeLimitExceeded() {
-    if (!kDebugMode || _debugWarnedShapeLimit) return;
-    _debugWarnedShapeLimit = true;
-    const message =
-        'a LiquidGlassLayer has more than '
-        '$geometryMaxShapesPerDraw glass shapes that '
-        'blend, lie within reach of each other, or carry their own '
-        'appearances; the extra shapes are not drawn. Split the glass across '
-        'several layers.';
+  void _debugWarn(String message) {
+    if (!kDebugMode || !_debugWarnings.add(message)) return;
     debugPrint('liquid_glass_renderer: $message');
   }
+
+  void _debugWarnShapeLimitExceeded() => _debugWarn(
+    'a LiquidGlassLayer has more than '
+    '$geometryMaxShapesPerDraw glass shapes that '
+    'blend, lie within reach of each other, or carry their own '
+    'appearances; the extra shapes are not drawn. Split the glass across '
+    'several layers.',
+  );
+
+  void _debugWarnLookLimitExceeded() => _debugWarn(
+    'a LiquidGlassLayer draws glass in more than $colorModelSlotCount '
+    'iOS 27 looks; the glass past them draws with the look nearest its '
+    "own. A look is the glass's kind and its size, which changes the look "
+    'between ${recipeSizes.control.round()} and '
+    '${recipeSizes.panel.round()} points. Split the glass across several '
+    'layers.',
+  );
 
   FinalShaderKind _kind({bool groupTints = false}) =>
       groupTints ? FinalShaderKind.tint : _appearances.kind;
@@ -440,6 +450,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final next = ShapeAppearances.of(appearances, defaultWornByNone);
     if (next == _appearances) return;
     _appearances = next;
+    if (kDebugMode && overflowsColorModelSlots(next.all)) {
+      _debugWarnLookLimitExceeded();
+    }
     _materialChanged();
   }
 
