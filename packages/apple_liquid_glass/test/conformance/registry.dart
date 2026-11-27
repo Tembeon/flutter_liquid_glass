@@ -1246,6 +1246,8 @@ const Map<String, String> nonInteractive = {
   'GlassHighlightPaint':
       'paints the focus ring and hover on a part of a control',
   'GlassListBackground': 'paints the grouped background behind sections',
+  'GlassListEditing':
+      'puts the rows below into editing; the rows take the input',
   'GlassListSection': 'lays out rows and a header; its rows are entries',
   'GlassMenuEntry': 'the sealed base of the menu entries',
   'GlassPageScaffold': 'lays out bars around content; its bars are entries',

@@ -116,3 +116,122 @@ class _InfoPainter extends CustomPainter {
   @override
   bool shouldRepaint(_InfoPainter oldDelegate) => color != oldDelegate.color;
 }
+
+/// A row's edit control over the first 60 points of its leading side: the
+/// delete or insert disc, which takes a tap, or the selection ring.
+class _EditMark extends StatefulWidget {
+  const _EditMark({required this.kind, required this.picked, this.onPressed});
+
+  final _EditKind kind;
+  final bool picked;
+  final VoidCallback? onPressed;
+
+  @override
+  State<_EditMark> createState() => _EditMarkState();
+}
+
+class _EditMarkState extends State<_EditMark> {
+  late final _tap = TapInteraction(onTap: (_) => widget.onPressed?.call());
+  late final List<Interaction> _interactions = [_tap];
+
+  @override
+  Widget build(BuildContext context) {
+    Color resolve(Color color) => GlassDynamicColor.resolve(color, context);
+    final mark = Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.only(
+          start: _Metrics.editMarkStart,
+        ),
+        child: CustomPaint(
+          size: const Size.square(_Metrics.editMarkBox),
+          painter: _EditMarkPainter(
+            kind: widget.kind,
+            picked: widget.picked,
+            fill: resolve(switch (widget.kind) {
+              _EditKind.delete => GlassColors.systemRed,
+              _EditKind.insert => GlassColors.systemGreen,
+              _EditKind.select when widget.picked =>
+                GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
+              _EditKind.select => GlassColors.tertiaryLabel,
+            }),
+          ),
+        ),
+      ),
+    );
+    if (widget.kind == _EditKind.select) return ExcludeSemantics(child: mark);
+    final strings = GlassLocalizations.of(context);
+    return InputRegion(
+      interactions: _interactions,
+      enabled: widget.onPressed != null,
+      semantics: SemanticsProperties(
+        label: widget.kind == _EditKind.delete
+            ? strings.deleteLabel
+            : strings.insertLabel,
+        button: true,
+      ),
+      child: mark,
+    );
+  }
+}
+
+class _EditMarkPainter extends CustomPainter {
+  const _EditMarkPainter({
+    required this.kind,
+    required this.picked,
+    required this.fill,
+  });
+
+  final _EditKind kind;
+  final bool picked;
+  final Color fill;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(const Offset(0, 1));
+    const radius = _Metrics.editMarkCircle / 2;
+    final disc = Paint()..color = fill;
+    if (kind == _EditKind.select && !picked) {
+      canvas.drawCircle(
+        center,
+        radius - 0.665,
+        disc
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.33,
+      );
+      return;
+    }
+    canvas.drawCircle(center, radius, disc);
+    final white = Paint()..color = const Color(0xFFFFFFFF);
+    final bar = Rect.fromCenter(center: center, width: 9.67, height: 1.33);
+    switch (kind) {
+      case _EditKind.delete:
+        canvas.drawRect(bar, white);
+      case _EditKind.insert:
+        canvas.drawRect(bar, white);
+        canvas.drawRect(
+          Rect.fromCenter(center: center, width: 1.33, height: 9.67),
+          white,
+        );
+      case _EditKind.select:
+        final path = Path()
+          ..moveTo(center.dx - 4.5, center.dy + 0.2)
+          ..lineTo(center.dx - 1.5, center.dy + 3.2)
+          ..lineTo(center.dx + 4.6, center.dy - 3.6);
+        canvas.drawPath(
+          path,
+          white
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.8
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round,
+        );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_EditMarkPainter oldDelegate) =>
+      kind != oldDelegate.kind ||
+      picked != oldDelegate.picked ||
+      fill != oldDelegate.fill;
+}

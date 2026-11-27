@@ -119,6 +119,7 @@ GlassLens
 GlassLensContent
 GlassListAccessory
 GlassListBackground
+GlassListEditing
 GlassListLayout
 GlassListRow
 GlassListRowBuilder

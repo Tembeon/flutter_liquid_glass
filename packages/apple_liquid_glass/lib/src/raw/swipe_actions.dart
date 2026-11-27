@@ -63,6 +63,7 @@ class RawGlassSwipeActions extends StatefulWidget {
     this.overswipe,
     this.fullSwipe = true,
     this.statesController,
+    @internal this.openOn,
     super.key,
   });
 
@@ -91,6 +92,11 @@ class RawGlassSwipeActions extends StatefulWidget {
 
   /// The row.
   final Widget child;
+
+  /// Opens the row to its actions each time it notifies, as a list row's
+  /// delete control in editing does.
+  @internal
+  final Listenable? openOn;
 
   @override
   State<RawGlassSwipeActions> createState() => _RawGlassSwipeActionsState();
@@ -170,6 +176,26 @@ class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
   ScrollPosition? _scroll;
 
   @override
+  void initState() {
+    super.initState();
+    widget.openOn?.addListener(_openFromCode);
+  }
+
+  @override
+  void didUpdateWidget(RawGlassSwipeActions oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.openOn, oldWidget.openOn)) {
+      oldWidget.openOn?.removeListener(_openFromCode);
+      widget.openOn?.addListener(_openFromCode);
+    }
+  }
+
+  void _openFromCode() {
+    _group?.opened(this);
+    _motion.moveTo(_motion.clock.now, -_motion.actionsWidth);
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _group = _OpenRowScope.maybeOf(context);
@@ -183,6 +209,7 @@ class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
 
   @override
   void dispose() {
+    widget.openOn?.removeListener(_openFromCode);
     _scroll?.isScrollingNotifier.removeListener(_scrolled);
     _group?.closed(this);
     _zones.dispose();

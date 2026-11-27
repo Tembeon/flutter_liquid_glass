@@ -81,6 +81,7 @@ class GlassSwipeActions extends StatelessWidget {
     required this.trailing,
     required this.child,
     this.fullSwipe = true,
+    @internal this.openOn,
     super.key,
   });
 
@@ -89,6 +90,10 @@ class GlassSwipeActions extends StatelessWidget {
 
   /// Whether a full swipe performs the first action.
   final bool fullSwipe;
+
+  /// See [RawGlassSwipeActions.openOn].
+  @internal
+  final Listenable? openOn;
 
   /// The row.
   final Widget child;
@@ -110,6 +115,7 @@ class GlassSwipeActions extends StatelessWidget {
       actionLabels: [for (final action in actions) action.title],
       onAction: (i) => actions[i].onPressed(),
       fullSwipe: fullSwipe,
+      openOn: openOn,
       overswipe: actions.isEmpty
           ? null
           : ColoredBox(color: _fillOf(actions.first, context)),

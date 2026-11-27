@@ -101,6 +101,12 @@ abstract class GlassLocalizations {
   /// simulator capture); Flutter's `MaterialLocalizations.formatDecimal`.
   String formatDecimal(int number);
 
+  /// A list row's delete control in editing, and the action it reveals.
+  String get deleteLabel;
+
+  /// A list row's insert control in editing.
+  String get insertLabel;
+
   /// The weekday a calendar's week starts on, as a [DateTime] weekday, as
   /// UIKit takes it from the locale's calendar (`firstWeekday`); Flutter's
   /// `MaterialLocalizations.firstDayOfWeekIndex`.
@@ -263,6 +269,12 @@ class DefaultGlassLocalizations extends GlassLocalizations {
 
   @override
   String percentValue(double fraction) => '${(fraction * 100).round()}%';
+
+  @override
+  String get deleteLabel => 'Delete';
+
+  @override
+  String get insertLabel => 'Insert';
 
   @override
   int get firstDayOfWeek => DateTime.sunday;

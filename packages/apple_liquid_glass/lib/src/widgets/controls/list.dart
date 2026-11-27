@@ -5,11 +5,13 @@ import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/list_accessory.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/list_style.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/swipe_actions.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/sheet.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/input.dart';
 import 'package:kinesis/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 
@@ -59,6 +61,70 @@ class GlassListBackground extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Puts the list rows below it into editing, as UIKit's `isEditing` on a
+/// table and SwiftUI's `editMode` do.
+///
+/// UIKit: `UITableView.isEditing`, `allowsMultipleSelectionDuringEditing`.
+/// SwiftUI: `EditMode`, `List(selection:)`. Flutter: none.
+///
+/// While [editing], a [GlassListRow] shows a control at its leading side,
+/// 19.17 points from the card's edge, and its text moves to 60 points from
+/// it in every [GlassListLayout]: a red minus for a row with an
+/// `onDelete`, whose tap reveals a trailing Delete action as a swipe does,
+/// a green plus for one with an `onInsert`, and, with [onSelectionChanged],
+/// a ring for each row with a `value`, filled with a check while the row is
+/// in [selection], whose tap on the row selects or deselects it. Rows hide
+/// their accessories and trailing controls, and take no tap of their own.
+/// A row with none of these keeps its layout, as a UIKit row that does not
+/// indent while editing. One scope above a list's sections holds one
+/// selection across them.
+///
+/// Fidelity. The places and colors are UIKit 27.2's (list API passport); the
+/// change switches at once, where UIKit moves the rows on a critically
+/// damped spring of response 0.3, and the minus of a row showing its Delete
+/// action does not turn. Not built: reordering, UIKit's grip at the
+/// trailing edge.
+class GlassListEditing extends InheritedWidget {
+  /// Puts the rows below into editing while [editing].
+  const GlassListEditing({
+    required this.editing,
+    required super.child,
+    this.selection = const {},
+    this.onSelectionChanged,
+    super.key,
+  });
+
+  /// Whether the rows are in editing.
+  final bool editing;
+
+  /// The values of the selected rows, while [onSelectionChanged] selects.
+  final Set<Object> selection;
+
+  /// Called with the new selection as a tap selects or deselects a row;
+  /// null for editing that does not select.
+  final ValueChanged<Set<Object>>? onSelectionChanged;
+
+  /// Whether editing selects rows.
+  bool get selects => onSelectionChanged != null;
+
+  /// The editing around [context], or null.
+  static GlassListEditing? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<GlassListEditing>();
+
+  /// Selects the row of [value], or deselects it when it is selected.
+  void toggle(Object value) => onSelectionChanged?.call(
+    selection.contains(value)
+        ? ({...selection}..remove(value))
+        : {...selection, value},
+  );
+
+  @override
+  bool updateShouldNotify(GlassListEditing oldWidget) =>
+      editing != oldWidget.editing ||
+      !setEquals(selection, oldWidget.selection) ||
+      onSelectionChanged != oldWidget.onSelectionChanged;
 }
 
 // A card's margin from the list's edges, past the safe area's sides as
@@ -511,6 +577,17 @@ abstract final class _Metrics {
 
   /// The thickness of a separator.
   static const double separatorThickness = 1;
+
+  /// Where a row's text starts in editing, past its edit control, in every
+  /// layout (list API passport, the three table styles).
+  static const double editingInset = 60;
+
+  /// Where a row's edit control starts from the card's leading edge.
+  static const double editMarkStart = 19.17;
+
+  /// The box of a row's edit control, and the circle drawn in it.
+  static const double editMarkBox = 25.67;
+  static const double editMarkCircle = 22;
 
   /// The least start of a separator from the card's leading edge: a grouped
   /// or plain row's text starts 16 in and its separator 20.

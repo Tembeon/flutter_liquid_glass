@@ -105,7 +105,7 @@ class DatePickerPlacement
 class DefaultGlassLocalizations extends GlassLocalizations
   const DefaultGlassLocalizations()
   static const LocalizationsDelegate<GlassLocalizations> delegate
-  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, columnDividerLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, countDownHoursUnit, countDownMinutesUnit, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, editMenuMoreLabel, firstDayOfWeek, formatDecimal, hideSidebarLabel, hideYearPickerLabel, hourLabel, incrementLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showSidebarLabel, showYearPickerLabel, weekdayAbbreviation, yearLabel
+  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, columnDividerLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, countDownHoursUnit, countDownMinutesUnit, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, deleteLabel, editMenuMoreLabel, firstDayOfWeek, formatDecimal, hideSidebarLabel, hideYearPickerLabel, hourLabel, incrementLabel, insertLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showSidebarLabel, showYearPickerLabel, weekdayAbbreviation, yearLabel
 final class EditMenuMotion
   EditMenuMotion({required MotionClock clock})
   static const double hiddenScale
@@ -1305,6 +1305,21 @@ class GlassListBackground extends StatelessWidget
   final Widget? child
   final Color color
   overrides: build
+class GlassListEditing extends InheritedWidget
+  const GlassListEditing({
+    required bool editing,
+    required Widget child,
+    Set<Object> selection = ...,
+    void Function(Set<Object>)? onSelectionChanged,
+    Key? key,
+  })
+  final bool editing
+  static GlassListEditing? maybeOf(BuildContext context)
+  final void Function(Set<Object>)? onSelectionChanged
+  final Set<Object> selection
+  bool get selects
+  void toggle(Object value)
+  overrides: updateShouldNotify
 enum GlassListLayout
   insetGrouped,
   grouped,
@@ -1329,6 +1344,9 @@ class GlassListRow extends StatefulWidget
     FocusNode? focusNode,
     bool autofocus = ...,
     String? accessorySemanticLabel,
+    void Function()? onDelete,
+    void Function()? onInsert,
+    Object? value,
     Key? key,
   })
   final GlassListAccessory? accessory
@@ -1340,6 +1358,8 @@ class GlassListRow extends StatefulWidget
   final FocusNode? focusNode
   final Widget? leading
   final void Function()? onAccessoryPressed
+  final void Function()? onDelete
+  final void Function()? onInsert
   final void Function()? onLongPress
   final void Function()? onPressed
   final bool selected
@@ -1349,6 +1369,7 @@ class GlassListRow extends StatefulWidget
   final Widget? subtitle
   final Widget? title
   final Widget? trailing
+  final Object? value
   overrides: createState
 typedef GlassListRowBuilder = Widget Function(BuildContext, GlassListRowDetails)
 final class GlassListRowDetails
@@ -1439,6 +1460,7 @@ abstract class GlassLocalizations
   abstract String dayLabel(DateTime date, {required bool today})
   abstract String get dayPeriodLabel
   abstract String get decrementLabel
+  abstract String get deleteLabel
   abstract String get editMenuMoreLabel
   abstract int get firstDayOfWeek
   abstract String formatDecimal(int number)
@@ -1446,6 +1468,7 @@ abstract class GlassLocalizations
   abstract String get hideYearPickerLabel
   abstract String get hourLabel
   abstract String get incrementLabel
+  abstract String get insertLabel
   abstract String get loadingLabel
   abstract String get menuDismissLabel
   abstract String get menuLabel
@@ -2774,11 +2797,13 @@ class GlassSwipeActions extends StatelessWidget
     required List<GlassSwipeAction> trailing,
     required Widget child,
     bool fullSwipe = ...,
+    @internal Listenable? openOn,
     Key? key,
   })
   final Widget child
   final bool fullSwipe
   static const double minActionWidth
+  @internal final Listenable? openOn
   final List<GlassSwipeAction> trailing
   overrides: build
 class GlassSwitch extends StatelessWidget
@@ -4594,6 +4619,7 @@ class RawGlassSwipeActions extends StatefulWidget
     Widget? overswipe,
     bool fullSwipe = ...,
     WidgetStatesController? statesController,
+    @internal Listenable? openOn,
     Key? key,
   })
   final Widget Function(BuildContext, GlassSwipeActionDetails) actionBuilder
@@ -4601,6 +4627,7 @@ class RawGlassSwipeActions extends StatefulWidget
   final Widget child
   final bool fullSwipe
   final void Function(int) onAction
+  @internal final Listenable? openOn
   final Widget? overswipe
   final WidgetStatesController? statesController
   overrides: createState
@@ -5968,6 +5995,7 @@ class GlassEditMenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassFloatingTabBar (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassListAccessory (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListBackground (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassListEditing (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassListLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListRow (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListSection (see package:apple_liquid_glass/apple_liquid_glass.dart)

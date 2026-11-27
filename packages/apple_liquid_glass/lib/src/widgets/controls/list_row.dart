@@ -66,6 +66,10 @@ part of 'list.dart';
 /// section's last row draws one unless a footer follows). Right-to-left
 /// text mirrors the row and the chevron.
 ///
+/// Below a [GlassListEditing] that is editing, a row with [onDelete],
+/// [onInsert] or, where the editing selects, a [value] shows its edit
+/// control and moves its text to 60 points; see [GlassListEditing].
+///
 /// Fidelity. The sizes, insets and press timing are measured on iOS 27, the
 /// selected fill on the iOS 27.2 simulator (inset grouped: a full-bleed
 /// rectangle in the overlay color, light, dark and Increase Contrast), the
@@ -98,6 +102,9 @@ class GlassListRow extends StatefulWidget {
     this.focusNode,
     this.autofocus = false,
     this.accessorySemanticLabel,
+    this.onDelete,
+    this.onInsert,
+    this.value,
     super.key,
   }) : assert(
          title != null || child != null,
@@ -170,16 +177,41 @@ class GlassListRow extends StatefulWidget {
   /// [GlassLocalizations.moreInfoLabel] when null.
   final String? accessorySemanticLabel;
 
+  /// Deletes the row in editing ([GlassListEditing]): a red minus stands at
+  /// its leading side, and a tap on it reveals a trailing Delete action, as
+  /// a swipe does, whose tap calls this, as UIKit's delete editing style.
+  final VoidCallback? onDelete;
+
+  /// Inserts after the row in editing: a green plus at its leading side
+  /// calls this, as UIKit's insert editing style.
+  final VoidCallback? onInsert;
+
+  /// What identifies the row in a [GlassListEditing.selection]: in editing
+  /// that selects, a row with a value shows a ring at its leading side,
+  /// filled with a check while selected, and a tap on the row selects or
+  /// deselects it.
+  final Object? value;
+
   @override
   State<GlassListRow> createState() => _GlassListRowState();
 }
 
+// The control a row in editing shows at its leading side.
+enum _EditKind { delete, insert, select }
+
+class _Ping extends ChangeNotifier {
+  void ping() => notifyListeners();
+}
+
 class _GlassListRowState extends State<GlassListRow> {
+  final _confirm = _Ping();
+
   // The width of the leading slot, which moves the separator's start.
   final _leadingWidth = ValueNotifier<double>(_Metrics.leadingWidth);
 
   @override
   void dispose() {
+    _confirm.dispose();
     _leadingWidth.dispose();
     super.dispose();
   }
@@ -200,12 +232,31 @@ class _GlassListRowState extends State<GlassListRow> {
         kind == GlassListAccessory.detailButton ||
         kind == GlassListAccessory.detailDisclosureButton;
     final check = kind == GlassListAccessory.checkmark;
-    return RawGlassListRow(
-      onPressed: widget.onPressed,
-      onLongPress: widget.onLongPress,
+    final editing = GlassListEditing.maybeOf(context);
+    final value = widget.value;
+    final edit = editing == null || !editing.editing
+        ? null
+        : editing.selects && value != null
+        ? _EditKind.select
+        : widget.onDelete != null
+        ? _EditKind.delete
+        : widget.onInsert != null
+        ? _EditKind.insert
+        : null;
+    final picked =
+        edit == _EditKind.select && editing!.selection.contains(value);
+    final row = RawGlassListRow(
+      onPressed: edit == null
+          ? widget.onPressed
+          : edit == _EditKind.select
+          ? () => editing!.toggle(value!)
+          : null,
+      onLongPress: edit == null ? widget.onLongPress : null,
       enabled: widget.enabled,
-      selected: widget.selected || check,
-      highlighted: widget.selected,
+      selected: edit == _EditKind.select
+          ? picked
+          : edit == null && (widget.selected || check),
+      highlighted: edit == _EditKind.select ? picked : widget.selected,
       statesController: widget.statesController,
       focusNode: widget.focusNode,
       autofocus: widget.autofocus,
@@ -237,10 +288,25 @@ class _GlassListRowState extends State<GlassListRow> {
         details,
         look: look,
         place: place,
-        chevron: chevron,
-        info: info,
-        check: check,
+        chevron: edit == null && chevron,
+        info: edit == null && info,
+        check: edit == null && check,
+        edit: edit,
+        picked: picked,
       ),
+    );
+    if (edit != _EditKind.delete) return row;
+    return GlassSwipeActions(
+      fullSwipe: false,
+      openOn: _confirm,
+      trailing: [
+        GlassSwipeAction(
+          title: GlassLocalizations.of(context).deleteLabel,
+          destructive: true,
+          onPressed: widget.onDelete!,
+        ),
+      ],
+      child: row,
     );
   }
 
@@ -265,6 +331,8 @@ class _GlassListRowState extends State<GlassListRow> {
     required bool chevron,
     required bool info,
     required bool check,
+    required _EditKind? edit,
+    required bool picked,
   }) {
     final states = details.states;
     final color = StateColors(context, states);
@@ -291,6 +359,7 @@ class _GlassListRowState extends State<GlassListRow> {
     final inset = place?.layout.contentInset ?? GlassListSection.contentInset;
     final padding = look.contentPadding?.resolve(Directionality.of(context));
     final start = switch (padding) {
+      _ when edit != null => _Metrics.editingInset,
       null => inset,
       final padding =>
         Directionality.of(context) == TextDirection.ltr
@@ -307,11 +376,12 @@ class _GlassListRowState extends State<GlassListRow> {
     final leading = widget.leading;
     final subtitle = widget.subtitle;
     final detail = widget.detail;
-    final trailing = widget.trailing;
+    final trailing = edit == null ? widget.trailing : null;
     final mark = chevron || info || check;
     final accessory = trailing != null || mark;
     // A row that highlights has more than the card's color under its control.
-    final highlights = widget.onPressed != null || widget.selected;
+    final highlights =
+        widget.onPressed != null || widget.selected || edit == _EditKind.select;
     final card = place != null && !highlights
         ? StateColors(context, const {})(place.look.backgroundColor)
         : null;
@@ -414,7 +484,29 @@ class _GlassListRowState extends State<GlassListRow> {
             child: row,
           )
         : row;
-    if (!highlights) return surface;
+    final marked = edit == null
+        ? surface
+        : Stack(
+            children: [
+              surface,
+              PositionedDirectional(
+                start: 0,
+                width: _Metrics.editingInset,
+                top: 0,
+                bottom: 0,
+                child: _EditMark(
+                  kind: edit,
+                  picked: picked,
+                  onPressed: switch (edit) {
+                    _EditKind.delete => _confirm.ping,
+                    _EditKind.insert => widget.onInsert,
+                    _EditKind.select => null,
+                  },
+                ),
+              ),
+            ],
+          );
+    if (!highlights) return marked;
     return GlassHighlightPaint.of(
       context,
       states: details.statesListenable,
@@ -424,7 +516,7 @@ class _GlassListRowState extends State<GlassListRow> {
       pressed: details.highlight,
       shape: const LiquidRoundedRectangle(radius: 0),
       inside: true,
-      child: surface,
+      child: marked,
     );
   }
 }

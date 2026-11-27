@@ -472,6 +472,22 @@ void galleryTests({bool onDevice = false}) {
       GlassListLayout.plain,
     );
     await choose('Grouped');
+    await choose('Select');
+    await _bring(tester, find.text('Monstera'), page);
+    await tester.tap(find.text('Monstera'));
+    await _frames(tester, 30);
+    expect(
+      tester
+          .widget<GlassListEditing>(
+            find.ancestor(
+              of: find.text('Monstera'),
+              matching: find.byType(GlassListEditing),
+            ),
+          )
+          .selection,
+      {'Monstera'},
+    );
+    await choose('Off');
     await _back(tester);
 
     for (final (component, knobs) in const [
