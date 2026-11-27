@@ -34,6 +34,9 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
     this.headerTextStyle,
     this.footerTextStyle,
     this.minRowHeight,
+    this.contentPadding,
+    this.separatorIndent,
+    this.separatorEndIndent,
   });
 
   /// The theme's [GlassListStyle] at [context], or null without one: the
@@ -100,6 +103,25 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
   /// more grows.
   final double? minRowHeight;
 
+  /// The space around a row's content, as UIKit's
+  /// `directionalLayoutMargins` and SwiftUI's `listRowInsets` set it, like
+  /// `ListTile.contentPadding`: its start moves the leading symbol or the
+  /// text in, its top and bottom stand above and below the text, and its
+  /// end ends the text of a row without an accessory, which keeps its own
+  /// end. By default 15.5 points above and below, and the text's inset of
+  /// the section's layout at the sides.
+  final EdgeInsetsGeometry? contentPadding;
+
+  /// How far a row's separator starts from the card's leading edge, as
+  /// UIKit's `separatorInset` and `Divider.indent` set it; by default where
+  /// the row's text starts, and at least 20 points in.
+  final double? separatorIndent;
+
+  /// How far a row's separator ends from the card's trailing edge, as
+  /// `Divider.endIndent`; by default the text's inset of the section's
+  /// layout.
+  final double? separatorEndIndent;
+
   /// This style over [other], state by state.
   @override
   GlassListStyle merge(GlassListStyle? other) {
@@ -135,6 +157,9 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
       headerTextStyle: _merge(headerTextStyle, other.headerTextStyle),
       footerTextStyle: _merge(footerTextStyle, other.footerTextStyle),
       minRowHeight: minRowHeight ?? other.minRowHeight,
+      contentPadding: contentPadding ?? other.contentPadding,
+      separatorIndent: separatorIndent ?? other.separatorIndent,
+      separatorEndIndent: separatorEndIndent ?? other.separatorEndIndent,
     );
   }
 
@@ -147,6 +172,7 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
     if (identical(this, other)) return this;
     final color = GlassStyle.lerpStateColors(t);
     final text = GlassStyle.lerpNullable(TextStyle.lerp);
+    final length = GlassStyle.lerpNullable(lerpDouble);
     return GlassListStyle(
       backgroundColor: color(backgroundColor, other.backgroundColor),
       overlayColor: color(overlayColor, other.overlayColor),
@@ -162,9 +188,16 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
       detailTextStyle: text(detailTextStyle, other.detailTextStyle, t),
       headerTextStyle: text(headerTextStyle, other.headerTextStyle, t),
       footerTextStyle: text(footerTextStyle, other.footerTextStyle, t),
-      minRowHeight: GlassStyle.lerpNullable(lerpDouble)(
-        minRowHeight,
-        other.minRowHeight,
+      minRowHeight: length(minRowHeight, other.minRowHeight, t),
+      contentPadding: EdgeInsetsGeometry.lerp(
+        contentPadding,
+        other.contentPadding,
+        t,
+      ),
+      separatorIndent: length(separatorIndent, other.separatorIndent, t),
+      separatorEndIndent: length(
+        separatorEndIndent,
+        other.separatorEndIndent,
         t,
       ),
     );
@@ -187,7 +220,10 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
       other.detailTextStyle == detailTextStyle &&
       other.headerTextStyle == headerTextStyle &&
       other.footerTextStyle == footerTextStyle &&
-      other.minRowHeight == minRowHeight;
+      other.minRowHeight == minRowHeight &&
+      other.contentPadding == contentPadding &&
+      other.separatorIndent == separatorIndent &&
+      other.separatorEndIndent == separatorEndIndent;
 
   @override
   int get hashCode => Object.hash(
@@ -206,5 +242,8 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
     headerTextStyle,
     footerTextStyle,
     minRowHeight,
+    contentPadding,
+    separatorIndent,
+    separatorEndIndent,
   );
 }

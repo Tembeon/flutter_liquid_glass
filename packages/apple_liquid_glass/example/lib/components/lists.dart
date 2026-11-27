@@ -23,6 +23,8 @@ class _ListPageState extends State<ListPage> {
   var _headers = true;
   var _separators = true;
   var _layout = GlassListLayout.insetGrouped;
+  var _edgeToEdge = false;
+  var _roomy = false;
   final _tasks = ['Water the monstera', 'Repot the jade', 'Wipe the leaves'];
   var _next = 0;
   var _size = 1;
@@ -86,6 +88,16 @@ class _ListPageState extends State<ListPage> {
           value: _separators,
           onChanged: (on) => setState(() => _separators = on),
         ),
+        ToggleKnob(
+          'Separators edge to edge',
+          value: _edgeToEdge,
+          onChanged: (on) => setState(() => _edgeToEdge = on),
+        ),
+        ToggleKnob(
+          'Roomy rows',
+          value: _roomy,
+          onChanged: (on) => setState(() => _roomy = on),
+        ),
       ],
       ideas: [
         Idea(
@@ -96,6 +108,13 @@ class _ListPageState extends State<ListPage> {
           child: GlassListSection(
             layout: _layout,
             showsSeparators: _separators,
+            style: GlassListStyle(
+              separatorIndent: _edgeToEdge ? 0 : null,
+              separatorEndIndent: _edgeToEdge ? 0 : null,
+              contentPadding: _roomy
+                  ? const EdgeInsetsDirectional.fromSTEB(24, 22, 24, 22)
+                  : null,
+            ),
             header: _headers ? const Text('Living room') : null,
             footer: _headers
                 ? const Text('Three plants by the east window.')

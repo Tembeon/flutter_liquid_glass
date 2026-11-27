@@ -289,6 +289,21 @@ class _GlassListRowState extends State<GlassListRow> {
           .copyWith(color: secondary),
     );
     final inset = place?.layout.contentInset ?? GlassListSection.contentInset;
+    final padding = look.contentPadding?.resolve(Directionality.of(context));
+    final start = switch (padding) {
+      null => inset,
+      final padding =>
+        Directionality.of(context) == TextDirection.ltr
+            ? padding.left
+            : padding.right,
+    };
+    final end = switch (padding) {
+      null => inset,
+      final padding =>
+        Directionality.of(context) == TextDirection.ltr
+            ? padding.right
+            : padding.left,
+    };
     final leading = widget.leading;
     final subtitle = widget.subtitle;
     final detail = widget.detail;
@@ -318,7 +333,10 @@ class _GlassListRowState extends State<GlassListRow> {
           ),
     );
     final text = Padding(
-      padding: const EdgeInsets.symmetric(vertical: _Metrics.rowPadding),
+      padding: EdgeInsets.only(
+        top: padding?.top ?? _Metrics.rowPadding,
+        bottom: padding?.bottom ?? _Metrics.rowPadding,
+      ),
       child: Row(
         children: [
           if (leading != null) ...[
@@ -358,12 +376,12 @@ class _GlassListRowState extends State<GlassListRow> {
       ),
       child: Padding(
         padding: EdgeInsetsDirectional.only(
-          start: inset,
+          start: start,
           end: switch (widget.accessory) {
             GlassListAccessory.checkmark => _Metrics.checkmarkInset,
             GlassListAccessory.detailButton => _Metrics.infoInset,
             _ when accessory => _Metrics.accessoryInset,
-            _ => inset,
+            _ => end,
           },
         ),
         child: Row(
@@ -388,7 +406,9 @@ class _GlassListRowState extends State<GlassListRow> {
     final surface = separated
         ? _RowSeparator(
             color: color(look.separatorColor),
-            inset: inset,
+            textStart: start,
+            indent: look.separatorIndent,
+            endIndent: look.separatorEndIndent ?? inset,
             leadingWidth: leading == null ? null : _leadingWidth,
             direction: Directionality.of(context),
             child: row,

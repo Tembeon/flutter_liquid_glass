@@ -422,7 +422,7 @@ void galleryTests({bool onDevice = false}) {
       ),
       ('Slider', ['Fill from the middle']),
       ('Page control', ['Hidden with one page', 'Scrubs under a finger']),
-      ('List', ['Separators']),
+      ('List', ['Separators', 'Separators edge to edge', 'Roomy rows']),
       (
         'Text field',
         ['Label and helper', 'Read only', 'Centered', 'At most 12 letters'],

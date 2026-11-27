@@ -216,6 +216,47 @@ void main() {
     expect(find.byType(GlassListRow).first, separatorFrom(56));
   });
 
+  testWidgets('a style pads the row content and sets where its separator '
+      'starts and ends', (tester) async {
+    Widget section(GlassListStyle style) => _app(
+      GlassListSection(
+        style: style,
+        children: const [
+          GlassListRow(title: Text('One')),
+          GlassListRow(title: Text('Two')),
+        ],
+      ),
+    );
+    PaintPattern separator(double left, double right) => paints
+      ..something(
+        (method, arguments) =>
+            method == #drawRect &&
+            (arguments[0] as Rect).height == 1 &&
+            (arguments[0] as Rect).left == left &&
+            (arguments[0] as Rect).right == right,
+      );
+    await tester.pumpWidget(
+      section(
+        const GlassListStyle(
+          minRowHeight: 0,
+          contentPadding: EdgeInsetsDirectional.fromSTEB(30, 4, 30, 6),
+        ),
+      ),
+    );
+    final row = tester.getRect(find.byType(GlassListRow).first);
+    final one = tester.getRect(find.text('One'));
+    expect(one.left - row.left, 30);
+    expect(one.top - row.top, 4);
+    expect(row.bottom - one.bottom, 6);
+    expect(find.byType(GlassListRow).first, separator(30, 370 - 20));
+    await tester.pumpWidget(
+      section(
+        const GlassListStyle(separatorIndent: 0, separatorEndIndent: 8),
+      ),
+    );
+    expect(find.byType(GlassListRow).first, separator(0, 370 - 8));
+  });
+
   testWidgets('a plain section stands on systemBackground, its header 22 '
       'below the rows above and 28 tall, the last row separated but before '
       'a footer', (tester) async {

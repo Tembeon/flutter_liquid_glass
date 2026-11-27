@@ -1387,8 +1387,12 @@ class GlassListStyle extends GlassStyle<GlassListStyle>
     TextStyle? headerTextStyle,
     TextStyle? footerTextStyle,
     double? minRowHeight,
+    EdgeInsetsGeometry? contentPadding,
+    double? separatorIndent,
+    double? separatorEndIndent,
   })
   final WidgetStateProperty<Color?>? backgroundColor
+  final EdgeInsetsGeometry? contentPadding
   final TextStyle? detailTextStyle
   final WidgetStateProperty<Color?>? disclosureColor
   final Color? focusColor
@@ -1402,6 +1406,8 @@ class GlassListStyle extends GlassStyle<GlassListStyle>
   final WidgetStateProperty<Color?>? overlayColor
   final WidgetStateProperty<Color?>? secondaryColor
   final WidgetStateProperty<Color?>? separatorColor
+  final double? separatorEndIndent
+  final double? separatorIndent
   final TextStyle? subtitleTextStyle
   final TextStyle? titleTextStyle
   overrides: ==, hashCode, lerp, merge

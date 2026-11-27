@@ -4,14 +4,18 @@ part of 'list.dart';
 class _RowSeparator extends SingleChildRenderObjectWidget {
   const _RowSeparator({
     required this.color,
-    required this.inset,
+    required this.textStart,
+    required this.indent,
+    required this.endIndent,
     required this.leadingWidth,
     required this.direction,
     required super.child,
   });
 
   final Color color;
-  final double inset;
+  final double textStart;
+  final double? indent;
+  final double endIndent;
   final ValueListenable<double>? leadingWidth;
   final TextDirection direction;
 
@@ -19,7 +23,9 @@ class _RowSeparator extends SingleChildRenderObjectWidget {
   _RenderRowSeparator createRenderObject(BuildContext context) =>
       _RenderRowSeparator(
         color: color,
-        inset: inset,
+        textStart: textStart,
+        indent: indent,
+        endIndent: endIndent,
         leadingWidth: leadingWidth,
         direction: direction,
         following: followsMotion(context),
@@ -31,7 +37,10 @@ class _RowSeparator extends SingleChildRenderObjectWidget {
     _RenderRowSeparator renderObject,
   ) {
     renderObject.color = color;
-    renderObject.inset = inset;
+    renderObject
+      ..textStart = textStart
+      ..indent = indent
+      ..endIndent = endIndent;
     renderObject.leadingWidth = leadingWidth;
     renderObject.direction = direction;
     renderObject.following = followsMotion(context);
@@ -41,7 +50,9 @@ class _RowSeparator extends SingleChildRenderObjectWidget {
 class _RenderRowSeparator extends RenderProxyBox {
   _RenderRowSeparator({
     required this._color,
-    required this._inset,
+    required this._textStart,
+    required this._indent,
+    required this._endIndent,
     required this._leadingWidth,
     required this._direction,
     required bool following,
@@ -57,13 +68,30 @@ class _RenderRowSeparator extends RenderProxyBox {
     markNeedsPaint();
   }
 
-  // The row text's inset: where the separator ends from the trailing edge,
-  // and where it starts without a leading slot.
-  double _inset;
-  double get inset => _inset;
-  set inset(double value) {
-    if (value == _inset) return;
-    _inset = value;
+  // Where the row's content starts, which the text starts at past a
+  // leading slot.
+  double _textStart;
+  double get textStart => _textStart;
+  set textStart(double value) {
+    if (value == _textStart) return;
+    _textStart = value;
+    markNeedsPaint();
+  }
+
+  // The style's start of the separator, or null to follow the text.
+  double? _indent;
+  double? get indent => _indent;
+  set indent(double? value) {
+    if (value == _indent) return;
+    _indent = value;
+    markNeedsPaint();
+  }
+
+  double _endIndent;
+  double get endIndent => _endIndent;
+  set endIndent(double value) {
+    if (value == _endIndent) return;
+    _endIndent = value;
     markNeedsPaint();
   }
 
@@ -110,13 +138,13 @@ class _RenderRowSeparator extends RenderProxyBox {
   @override
   void paint(PaintingContext context, Offset offset) {
     super.paint(context, offset);
-    final end = _inset;
+    final end = _endIndent;
     final ltr = _direction == TextDirection.ltr;
     final text = switch (_leadingWidth) {
-      null => _inset,
-      final width => _inset + width.value + _Metrics.leadingGap,
+      null => _textStart,
+      final width => _textStart + width.value + _Metrics.leadingGap,
     };
-    final start = math.max(text, _Metrics.separatorStart);
+    final start = _indent ?? math.max(text, _Metrics.separatorStart);
     final left = ltr ? start : end;
     final right = size.width - (ltr ? end : start);
     final line = Paint();
