@@ -287,11 +287,46 @@ class _SheetPageState extends State<SheetPage> {
         onChanged: (on) => setState(() => _tinted = on),
       ),
     ],
+    ideas: [
+      Idea(
+        'Over the whole screen',
+        'showGlassFullScreen slides a page up over everything, bars and '
+            'tabs included; no swipe sends it back, its own button does.',
+        child: Stage(
+          height: 110,
+          child: Center(
+            child: GlassButton(
+              onPressed: () => unawaited(
+                showGlassFullScreen<void>(
+                  context,
+                  builder: (context) => GlassPageScaffold(
+                    navigationBar: GlassNavigationBar(
+                      title: const Text('Greenhouse'),
+                      trailing: [
+                        GlassBarItem(
+                          icon: const Icon(CupertinoIcons.xmark),
+                          semanticLabel: 'Close',
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ],
+                    ),
+                    child: const _Plants(inSheet: false),
+                  ),
+                ),
+              ),
+              child: const Text('Cover the screen'),
+            ),
+          ),
+        ),
+      ),
+    ],
   );
 }
 
 class _Plants extends StatelessWidget {
-  const _Plants();
+  const _Plants({this.inSheet = true});
+
+  final bool inSheet;
 
   static const _plants = [
     ('Monstera', 'Living room', CupertinoIcons.tree),
@@ -309,7 +344,7 @@ class _Plants extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
-    controller: GlassSheet.scrollControllerOf(context),
+    controller: inSheet ? GlassSheet.scrollControllerOf(context) : null,
     padding: const EdgeInsets.only(top: 24, bottom: 40),
     children: [
       const Padding(
@@ -331,7 +366,7 @@ class _Plants extends StatelessWidget {
             ),
         ],
       ),
-      if (Navigator.of(context).canPop())
+      if (inSheet && Navigator.of(context).canPop())
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: GlassButton(

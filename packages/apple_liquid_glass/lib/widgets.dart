@@ -150,6 +150,7 @@ export 'src/widgets/presentations/alert.dart'
 export 'src/widgets/presentations/date_picker.dart'
     show GlassCompactDatePicker, GlassDatePickerMode;
 export 'src/widgets/presentations/edit_menu.dart' show GlassEditMenu;
+export 'src/widgets/presentations/full_screen.dart' show showGlassFullScreen;
 export 'src/widgets/presentations/menu_anchor.dart'
     show
         GlassContextMenu,

@@ -177,7 +177,7 @@ class ComponentsPage extends StatelessWidget {
           CupertinoIcons.rectangle_stack_fill,
           Color(0xFF40C8E0),
           'Sheet',
-          'showGlassSheet',
+          'showGlassSheet, showGlassFullScreen',
           SheetPage.new,
         ),
         (

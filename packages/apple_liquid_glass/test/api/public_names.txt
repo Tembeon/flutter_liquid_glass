@@ -38,6 +38,7 @@ FlexLaw
 FlexValues
 FollowInteraction
 FrameCadenceScope
+FullScreenMotion
 Glass
 GlassActivityIndicator
 GlassActivityIndicatorSize
@@ -534,6 +535,7 @@ searchBarLayout
 searchTabLayout
 showGlassActionSheet
 showGlassAlert
+showGlassFullScreen
 showGlassPopover
 showGlassSheet
 showGlassToast

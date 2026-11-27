@@ -516,6 +516,15 @@ void galleryTests({bool onDevice = false}) {
     Navigator.of(tester.element(find.text('Plants'))).pop();
     await _frames(tester, 90);
     expect(find.text('Plants'), findsNothing);
+    final cover = find.text('Cover the screen');
+    await _bring(tester, cover, _scrollOf(ComponentPage).first);
+    await tester.tap(cover);
+    await _frames(tester, 90);
+    expect(find.text('Greenhouse'), findsOneWidget);
+    expect(find.text('Monstera'), findsOneWidget);
+    await tester.tapAt(_centerOf(tester, find.bySemanticsLabel('Close')));
+    await _frames(tester, 90);
+    expect(find.text('Greenhouse'), findsNothing);
     await _back(tester);
 
     await _open(tester, 'Navigation bar and toolbar');

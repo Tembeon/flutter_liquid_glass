@@ -137,6 +137,10 @@ final class FlexLaw
   final bool stretches
   final double touchDelay
 typedef FlexValues = ({double driftX, double driftY, double scaleX, double scaleY})
+final class FullScreenMotion extends PresentedProgress
+  FullScreenMotion({required double height, MotionClock? clock})
+  static const Spring spring
+  overrides: needsFullFrameRate
 final class Glass
   const Glass.clear({Color? tint})
   const Glass.regular({Color? tint})
@@ -5339,6 +5343,12 @@ Future<GlassAlertAction?> showGlassAlert(
   Offset? anchorPoint,
   PresentationLevel level = ...,
 })
+Future<T?> showGlassFullScreen<T>(
+  BuildContext context, {
+  required Widget Function(BuildContext) builder,
+  String? semanticLabel,
+  PresentationLevel level = ...,
+})
 Future<T?> showGlassPopover<T>(
   BuildContext context, {
   required Widget Function(BuildContext) builder,
@@ -5625,6 +5635,7 @@ class DatePickerPlacement (see package:apple_liquid_glass/apple_liquid_glass.dar
 class EditMenuMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class FlexLaw (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef FlexValues (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class FullScreenMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassBarButtonKind (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarButtonSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarCapsuleFrame (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -5933,6 +5944,7 @@ class GlassWidthRange (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassZoomSource (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function showGlassActionSheet (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function showGlassAlert (see package:apple_liquid_glass/apple_liquid_glass.dart)
+function showGlassFullScreen (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function showGlassPopover (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function showGlassSheet (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function showGlassToast (see package:apple_liquid_glass/apple_liquid_glass.dart)
