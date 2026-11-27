@@ -718,6 +718,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                     covered: GlassBarInset.of(context),
                   ),
                   child: _CrampedTitleDrops(
+                    opensMenu: widget.titleMenu != null,
                     child: MotionTransition(
                       pose: _titleLook,
                       child: titleScale.apply(
@@ -975,15 +976,27 @@ class _TitleLayout extends SingleChildLayoutDelegate {
 /// takes input (a listener, a mouse region, an editable), so a window is
 /// dragged by a title of text as by the rest of the bar.
 class _CrampedTitleDrops extends SingleChildRenderObjectWidget {
-  const _CrampedTitleDrops({required super.child});
+  const _CrampedTitleDrops({required this.opensMenu, required super.child});
+
+  // Whether the title opens a menu, and so takes every hit on it.
+  final bool opensMenu;
 
   @override
   _RenderCrampedTitleDrops createRenderObject(BuildContext context) =>
-      _RenderCrampedTitleDrops();
+      _RenderCrampedTitleDrops()..opensMenu = opensMenu;
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderCrampedTitleDrops renderObject,
+  ) {
+    renderObject.opensMenu = opensMenu;
+  }
 }
 
 class _RenderCrampedTitleDrops extends RenderProxyBox {
   bool _dropped = false;
+  bool opensMenu = false;
 
   @override
   void performLayout() {
@@ -1007,6 +1020,7 @@ class _RenderCrampedTitleDrops extends RenderProxyBox {
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
     if (_dropped) return false;
+    if (opensMenu) return super.hitTestChildren(result, position: position);
     final probe = BoxHitTestResult();
     if (!super.hitTestChildren(probe, position: position)) return false;
     if (!probe.path.any((entry) => _takesInput(entry.target))) return false;

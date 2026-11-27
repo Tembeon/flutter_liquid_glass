@@ -105,4 +105,48 @@ void main() {
     await _settle(tester);
     expect(find.text('Rename'), findsOneWidget);
   });
+
+  testWidgets('a title menu opens on a page of a glass navigator, whose '
+      'bar the navigator shares', (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(
+          size: Size(402, 874),
+          devicePixelRatio: 3,
+          padding: EdgeInsets.only(top: 62, bottom: 34),
+        ),
+        child: WidgetsApp(
+          color: const Color(0xFFFFFFFF),
+          pageRouteBuilder: <T>(settings, builder) =>
+              GlassPageRoute<T>(builder: builder, settings: settings),
+          builder: (context, child) =>
+              GlassScope(renderer: const FlatGlassRenderer(), child: child!),
+          home: GlassPageScaffold(
+            navigationBar: GlassNavigationBar(
+              title: const Text('Inbox'),
+              trailing: [
+                GlassBarItem(
+                  icon: const SizedBox.square(dimension: 22),
+                  semanticLabel: 'Filter',
+                  onPressed: () {},
+                ),
+              ],
+              titleMenu: const [GlassMenuItem(title: 'Rename')],
+            ),
+            child: ListView(
+              children: [
+                for (var i = 0; i < 30; i++)
+                  SizedBox(height: 44, child: Text('Row $i')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    await tester.tap(find.text('Inbox'));
+    await _settle(tester);
+    expect(find.text('Rename'), findsOneWidget);
+  });
 }
