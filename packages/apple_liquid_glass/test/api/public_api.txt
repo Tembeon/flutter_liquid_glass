@@ -5481,6 +5481,7 @@ final class TabBarMinimizeMotion extends Motion
   double get accessoryY
   GlassTabBarMinimizeBehavior get behavior
   static const double contentBlur
+  bool crossFades
   double extent
   double get hint
   static const double lensGoneAt

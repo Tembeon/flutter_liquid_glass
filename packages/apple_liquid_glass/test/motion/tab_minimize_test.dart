@@ -126,6 +126,19 @@ void main() {
       expect(motion.minimized, isFalse);
     });
 
+    test('under Prefer Cross-Fade the accessory takes its place at once '
+        "while the bar still morphs (read from UIKit's code)", () {
+      final motion = TabBarMinimizeMotion();
+      motion.crossFades = true;
+      motion.advance(0);
+      _drag(motion.scrollAway, 100);
+      expect(motion.minimized, isTrue);
+      motion.advance(0.04);
+      expect(motion.seenAt(0.04).accessoryX, 1);
+      expect(motion.seenAt(0.04).accessoryY, 1);
+      expect(motion.seenAt(0.04).morph, inExclusiveRange(0, 1));
+    });
+
     test('the bar morphs on one spring; the accessory moves along first '
         'and up 0.05 s later, and back up first', () {
       final motion = TabBarMinimizeMotion();

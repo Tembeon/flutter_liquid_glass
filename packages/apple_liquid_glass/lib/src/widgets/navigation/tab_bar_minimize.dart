@@ -120,6 +120,7 @@ class _MinimizingBarState extends State<_MinimizingBar> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _body.motion.crossFades = GlassTraits.of(context).prefersCrossFade;
     final active = GlassChrome.maybeOf(context)?.active;
     if (identical(active, _active)) return;
     _active?.removeListener(_follow);

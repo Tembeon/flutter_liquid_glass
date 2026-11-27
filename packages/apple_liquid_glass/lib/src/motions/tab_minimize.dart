@@ -409,6 +409,11 @@ final class TabBarMinimizeMotion extends Motion {
   // spring and a finger lifts nothing.
   bool get _reduced => traits.reduceMotion;
 
+  /// Whether the bottom accessory takes its new place at once as the bar
+  /// minimizes or expands, as UIKit's does under Prefer Cross-Fade
+  /// Transitions (read from UIKit's code); the bar still morphs.
+  bool crossFades = false;
+
   /// Whether the bar is minimized or heading there.
   bool get minimized => _minimized;
   bool _minimized = false;
@@ -457,6 +462,12 @@ final class TabBarMinimizeMotion extends Motion {
           ? TabBarMinimizeTuning.reducedMotionMorphSpring
           : TabBarMinimizeTuning.morphSpring,
     );
+    if (crossFades) {
+      unschedule(_follow);
+      _accessoryX.snap(t, target);
+      _accessoryY.snap(t, target);
+      return;
+    }
     // Collapsing, the accessory moves along first and up after; expanding,
     // up first and along after: an L, not a straight path.
     final first = minimized ? _accessoryX : _accessoryY;
