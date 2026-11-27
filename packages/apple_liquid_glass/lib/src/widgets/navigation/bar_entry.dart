@@ -150,6 +150,8 @@ sealed class GlassBarItem extends GlassBarEntry {
     String? semanticLabel,
     List<GlassMenuEntry>? menuChildren,
     GlassMenuOrder menuOrder,
+    bool selected,
+    Widget? badge,
   }) = GlassBarButton;
 
   /// Creates a button in a capsule of its own, tinted with the theme's
@@ -185,6 +187,8 @@ final class GlassBarButton extends GlassBarItem {
     this.semanticLabel,
     this.menuChildren,
     this.menuOrder = GlassMenuOrder.automatic,
+    this.selected = false,
+    this.badge,
   }) : assert(icon != null || label != null, 'an icon or a label'),
        super._();
 
@@ -215,6 +219,19 @@ final class GlassBarButton extends GlassBarItem {
   /// How [menuChildren] order when the menu opens upward, as from a
   /// toolbar (UIKit `preferredMenuElementOrder`).
   final GlassMenuOrder menuOrder;
+
+  /// Whether the button shows selected (UIKit `isSelected`): its glyph in
+  /// white, or the color that reads on the tint, on a capsule of the tint
+  /// 7 points past the glyph at each side and 35.33 tall (a selected heart
+  /// of 27 points draws a capsule of 41; iOS 27.2 simulator).
+  final bool selected;
+
+  /// A badge on the button, usually a `GlassBadge` (UIKit
+  /// `UIBarButtonItem.badge`): centered 2.83 points past the glyph's
+  /// trailing edge and 2.5 above its top, over the capsule's rim, where a
+  /// bell alone in its capsule draws its 18.33 point badge 6.5 in from the
+  /// capsule's corner (iOS 27.2 simulator).
+  final Widget? badge;
 }
 
 /// A button in a capsule of its own, tinted with the theme's primary color,

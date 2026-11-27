@@ -277,12 +277,16 @@ final class GlassBarButton extends GlassBarItem
     String? semanticLabel,
     List<GlassMenuEntry>? menuChildren,
     GlassMenuOrder menuOrder = ...,
+    bool selected = ...,
+    Widget? badge,
   })
+  final Widget? badge
   final Widget? icon
   final Widget? label
   final List<GlassMenuEntry>? menuChildren
   final GlassMenuOrder menuOrder
   final void Function()? onPressed
+  final bool selected
   final String? semanticLabel
 enum GlassBarButtonKind
   icon,
@@ -359,6 +363,8 @@ sealed class GlassBarItem extends GlassBarEntry
     String? semanticLabel,
     List<GlassMenuEntry>? menuChildren,
     GlassMenuOrder menuOrder,
+    bool selected,
+    Widget? badge,
   })
   const factory GlassBarItem.prominent({
     LocalKey? key,

@@ -128,6 +128,57 @@ void main() {
     await tester.pump();
   }
 
+  testWidgets('a selected bar item draws a capsule of the tint 7 past its '
+      'glyph and 35.33 tall, its glyph white; a badge centers 2.83 past the '
+      "glyph's end and 2.5 above its top", (tester) async {
+    tester.view.physicalSize = const Size(402 * 3, 874 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _app(
+        GlassPageScaffold(
+          navigationBar: GlassNavigationBar(
+            title: const Text('Bar'),
+            trailing: [
+              GlassBarItem(
+                icon: const SizedBox.square(key: Key('heart'), dimension: 27),
+                semanticLabel: 'Like',
+                selected: true,
+                onPressed: () {},
+              ),
+              const GlassBarSpacer(),
+              GlassBarItem(
+                icon: const SizedBox.square(key: Key('bell'), dimension: 25),
+                semanticLabel: 'Alerts',
+                badge: const SizedBox.square(key: Key('badge'), dimension: 18),
+                onPressed: () {},
+              ),
+            ],
+          ),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    final heart = tester.getRect(find.byKey(const Key('heart')));
+    final capsule = tester.getRect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is DecoratedBox &&
+            widget.decoration is ShapeDecoration &&
+            (widget.decoration as ShapeDecoration).shape is StadiumBorder,
+      ),
+    );
+    expect(capsule.width, moreOrLessEquals(heart.width + 14, epsilon: 0.01));
+    expect(capsule.height, moreOrLessEquals(35.33, epsilon: 0.01));
+    expect(capsule.center.dx, moreOrLessEquals(heart.center.dx, epsilon: 0.01));
+    final bell = tester.getRect(find.byKey(const Key('bell')));
+    final badge = tester.getRect(find.byKey(const Key('badge')));
+    expect(badge.center.dx, moreOrLessEquals(bell.right + 2.83, epsilon: 0.01));
+    expect(badge.center.dy, moreOrLessEquals(bell.top - 2.5, epsilon: 0.01));
+  });
+
   testWidgets("a toolbar item's menu opens upward with its first entry "
       'next to the item, or in its order with menuOrder fixed', (tester) async {
     tester.view.physicalSize = const Size(402 * 3, 874 * 3);

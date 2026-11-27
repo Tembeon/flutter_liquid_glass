@@ -531,11 +531,20 @@ class _BarItem extends StatelessWidget {
         : look?.foregroundColor?.resolve({
             if (!enabled) WidgetState.disabled,
           });
-    final color = GlassDynamicColor.resolve(
-      styled ??
-          (enabled ? GlassTheme.labelColorOf(context) : _disabledIconColor),
+    final selected = item is GlassBarButton && item.selected;
+    final tint = GlassDynamicColor.resolve(
+      GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
       context,
     );
+    final color = selected && enabled
+        ? GlassTheme.contentColorOf(context)(tint)
+        : GlassDynamicColor.resolve(
+            styled ??
+                (enabled
+                    ? GlassTheme.labelColorOf(context)
+                    : _disabledIconColor),
+            context,
+          );
     final text = GlassTextScale.of(context).resolve(
       barLabelStyle
           .copyWith(fontWeight: prominent ? FontWeight.w600 : null)
@@ -569,7 +578,7 @@ class _BarItem extends StatelessWidget {
         ],
       );
     }
-    return IconTheme.merge(
+    final glyph = IconTheme.merge(
       data: IconThemeData(size: bar.metrics.iconSize, color: color),
       child: DefaultTextStyle(
         style: text,
@@ -577,7 +586,57 @@ class _BarItem extends StatelessWidget {
         child: _glyphOfItem(item)!,
       ),
     );
+    final badge = item is GlassBarButton ? item.badge : null;
+    if (!selected && badge == null) return glyph;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        if (selected)
+          Positioned(
+            left: -_selectedOutset,
+            right: -_selectedOutset,
+            top: 0,
+            bottom: 0,
+            child: OverflowBox(
+              minHeight: _selectedHeight,
+              maxHeight: _selectedHeight,
+              child: SizedBox.expand(
+                child: DecoratedBox(
+                  decoration: ShapeDecoration(
+                    color: enabled
+                        ? tint
+                        : GlassDynamicColor.resolve(
+                            GlassColors.tertiarySystemFill,
+                            context,
+                          ),
+                    shape: const StadiumBorder(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        glyph,
+        if (badge != null)
+          PositionedDirectional(
+            end: -_badgeOutset.dx,
+            top: -_badgeOutset.dy,
+            child: FractionalTranslation(
+              translation: Offset(context.isRightToLeft ? -0.5 : 0.5, -0.5),
+              child: badge,
+            ),
+          ),
+      ],
+    );
   }
+
+  // A selected item's capsule: 7 points past its glyph at each side and
+  // 35.33 tall (iOS 27.2 simulator).
+  static const double _selectedOutset = 7;
+  static const double _selectedHeight = 35.33;
+
+  // Where a badge's center stands from the glyph's trailing top corner
+  // (iOS 27.2 simulator).
+  static const _badgeOutset = Offset(2.83, 2.5);
 
   static const double _chevronHeight = 23;
 
