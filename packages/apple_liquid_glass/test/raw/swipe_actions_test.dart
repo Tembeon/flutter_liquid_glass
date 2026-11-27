@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/raw.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
@@ -80,6 +81,45 @@ void main() {
     await tester.pumpWidget(_app(_row('row', log)));
     await _swipe(tester, 'row', -350);
     expect(log, ['row action 0']);
+  });
+
+  testWidgets('crossing the full swipe commit plays a light impact each '
+      'way (UIKit, read from its code)', (tester) async {
+    final played = <Object?>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'HapticFeedback.vibrate') played.add(call.arguments);
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    final log = <String>[];
+    await tester.pumpWidget(_app(_row('row', log)));
+    final finger = await tester.startGesture(
+      tester.getCenter(find.text('row')),
+    );
+    for (final step in const [-60.0, -60.0, -60.0, -60.0, -60.0, -60.0]) {
+      await finger.moveBy(Offset(step, 0));
+      await tester.pump(_frame);
+    }
+    expect(played, ['HapticFeedbackType.lightImpact']);
+    for (var i = 0; i < 3; i++) {
+      await finger.moveBy(const Offset(60, 0));
+      await tester.pump(_frame);
+    }
+    expect(played, [
+      'HapticFeedbackType.lightImpact',
+      'HapticFeedbackType.lightImpact',
+    ]);
+    await finger.up();
+    await _settle(tester);
+    expect(log, isEmpty);
   });
 
   testWidgets('a tap on the open row closes it and the content does not '

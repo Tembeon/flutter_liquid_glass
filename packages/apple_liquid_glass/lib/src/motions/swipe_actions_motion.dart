@@ -43,8 +43,8 @@ enum SwipeRelease {
 ///   scale in from where they were on the row's spring at damping 0.71
 ///   ([appear]), and scale out on it when the row closes.
 ///
-/// Not measured: the haptic at the commit, and the rubber band of a row
-/// without a full swipe past its actions, which follows kinesis's band.
+/// Not measured: the rubber band of a row without a full swipe past its
+/// actions, which follows kinesis's band.
 /// NEAR: UIKit's strip trails the row by a few points under the finger and
 /// at a commit, and the buttons' fade runs on the critical spring; here
 /// the strip is where the row is and the fade follows the scale.

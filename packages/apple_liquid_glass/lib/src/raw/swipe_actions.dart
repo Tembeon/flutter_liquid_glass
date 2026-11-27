@@ -55,7 +55,11 @@ final class GlassSwipeActionDetails {
 /// (trailing) or resistance (leading): released there it performs the
 /// first action, as UIKit's `performsFirstActionWithFullSwipe`, and
 /// brought back under the commit the row closes on release. A quick short
-/// flick only opens the row ([SwipeActionsMotion]).
+/// flick only opens the row ([SwipeActionsMotion]). Crossing the commit
+/// either way plays a light impact: UIKit plays its swipe's own "confirm
+/// in" and "confirm out" patterns there, which Flutter cannot play, from a
+/// configuration that carries a light impact generator (read from UIKit's
+/// code); a `MotionHapticScope` turns it off.
 ///
 /// The actions stand as UIKit's buttons do: each 44 points tall, 4 below
 /// the row's top, all of a side as wide as its widest, 10 points apart and
@@ -277,8 +281,13 @@ class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
     _update(details);
   }
 
-  void _update(DragInteractionDetails details) =>
-      _motion.drag(details.time, details.translation.dx);
+  void _update(DragInteractionDetails details) {
+    final committed = _motion.isCommitted;
+    _motion.drag(details.time, details.translation.dx);
+    if (_motion.isCommitted != committed) {
+      MotionHaptic.lightImpact.play(context);
+    }
+  }
 
   void _end(DragInteractionDetails details) {
     final leading = _motion.offset.valueAt(details.time) > 0;
