@@ -81,11 +81,12 @@ void main() {
   setUp(MotionClock.debugReset);
 
   // The iPhone 16 Pro on iOS 27.2.1, a segmented control's selection held
-  // up over its grouped page: the darkest pixel of the lens's left end is 10
-  // over a page of 28 in dark mode and 148 over 227 in light mode.
-  for (final (brightness, page, iPhone) in [
-    (Brightness.dark, 28, 10),
-    (Brightness.light, 227, 148),
+  // up over its grouped page: the darkest pixel of the lens's two ends, which
+  // lie at two pixel phases, is 10 and 8 over a page of 28 in dark mode and
+  // 148 and 162 over 227 in light mode.
+  for (final (brightness, page, ends) in [
+    (Brightness.dark, 28, (8, 10)),
+    (Brightness.light, 227, (148, 162)),
   ]) {
     testWidgets('a lifted lens darkens its end as the iPhone does '
         '(${brightness.name})', (tester) async {
@@ -95,7 +96,7 @@ void main() {
       addTearDown(tester.view.reset);
       expect(
         await _end(tester, brightness: brightness, page: page),
-        closeTo(iPhone, 2),
+        inInclusiveRange(ends.$1 - 2, ends.$2 + 2),
       );
     }, skip: !ui.ImageFilter.isShaderFilterSupported);
   }
