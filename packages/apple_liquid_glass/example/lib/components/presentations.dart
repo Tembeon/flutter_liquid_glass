@@ -8,7 +8,9 @@ import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
-enum _AlertKind { two, destructive, three, sheet }
+enum _AlertKind { two, destructive, three, field, sheet }
+
+enum _Sides { any, aboveOrBelow, beside }
 
 class AlertPage extends StatefulWidget {
   const AlertPage({super.key});
@@ -22,6 +24,21 @@ class _AlertPageState extends State<AlertPage> {
   var _message = true;
   var _brand = Brand.system;
   var _answer = 'Nothing answered yet';
+  final _name = TextEditingController(text: 'Fern');
+  final _named = ValueNotifier(true);
+
+  @override
+  void initState() {
+    super.initState();
+    _name.addListener(() => _named.value = _name.text.trim().isNotEmpty);
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _named.dispose();
+    super.dispose();
+  }
 
   Future<void> _show() async {
     final keep = GlassAlertAction(
@@ -45,6 +62,27 @@ class _AlertPageState extends State<AlertPage> {
     final message = _message
         ? const Text('It has had no water for three weeks.')
         : null;
+    if (_kind == _AlertKind.field) {
+      await showGlassAlert(
+        context,
+        title: const Text('Rename the plant'),
+        message: _message ? const Text('The name shows on its pot.') : null,
+        textFields: [
+          GlassAlertTextField(controller: _name, placeholder: 'Name'),
+        ],
+        actions: [
+          cancel,
+          GlassAlertAction(
+            isDefaultAction: true,
+            enabledListenable: _named,
+            child: const Text('Save'),
+            onPressed: () =>
+                setState(() => _answer = 'Renamed ${_name.text.trim()}'),
+          ),
+        ],
+      );
+      return;
+    }
     if (_kind == _AlertKind.sheet) {
       await showGlassActionSheet(
         context,
@@ -100,6 +138,7 @@ class _AlertPageState extends State<AlertPage> {
           _AlertKind.two: 'Two',
           _AlertKind.destructive: 'Destructive',
           _AlertKind.three: 'Three',
+          _AlertKind.field: 'Field',
           _AlertKind.sheet: 'Sheet',
         },
         onChanged: (kind) => setState(() => _kind = kind),
@@ -134,9 +173,26 @@ class _SheetPageState extends State<SheetPage> {
   var _undimmed = true;
   var _dismissible = true;
   var _tinted = false;
+  var _corners = false;
+  var _open = false;
+  final _sheet = GlassSheetController();
 
-  Future<void> _show() => showGlassSheet<void>(
+  @override
+  void dispose() {
+    _sheet.dispose();
+    super.dispose();
+  }
+
+  Future<void> _show() async {
+    if (_open) return;
+    setState(() => _open = true);
+    await _present();
+    if (mounted) setState(() => _open = false);
+  }
+
+  Future<void> _present() => showGlassSheet<void>(
     context,
+    controller: _sheet,
     detents: switch (_detents) {
       _Detents.medium => const [GlassSheetDetent.medium],
       _Detents.both => const [GlassSheetDetent.medium, GlassSheetDetent.large],
@@ -147,15 +203,16 @@ class _SheetPageState extends State<SheetPage> {
         : null,
     showDragHandle: _handle,
     isDismissible: _dismissible,
-    style: _tinted
-        ? const GlassSheetStyle(
-            backgroundColor: GlassDynamicColor.withBrightness(
+    style: GlassSheetStyle(
+      backgroundColor: _tinted
+          ? const GlassDynamicColor.withBrightness(
               color: Color(0xFFE8F6EF),
               darkColor: Color(0xFF12342A),
-            ),
-            dragHandleColor: Color(0xFF1FB58F),
-          )
-        : null,
+            )
+          : null,
+      dragHandleColor: _tinted ? const Color(0xFF1FB58F) : null,
+      cornerRadius: _corners ? 20 : null,
+    ),
     builder: (context) =>
         _detents == _Detents.fitted ? const _Note() : const _Plants(),
   );
@@ -169,9 +226,29 @@ class _SheetPageState extends State<SheetPage> {
         'one.',
     backdrop: Wallpaper.coast,
     stageHeight: 130,
-    stage: GlassButton.prominent(
-      onPressed: () => unawaited(_show()),
-      child: const Text('Open the sheet'),
+    stage: ListenableBuilder(
+      listenable: _sheet,
+      builder: (context, _) {
+        final atMedium =
+            !_sheet.isAttached || _sheet.detent == GlassSheetDetent.medium;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GlassButton.prominent(
+              onPressed: () => unawaited(_show()),
+              child: const Text('Open the sheet'),
+            ),
+            if (_open && _undimmed && _detents == _Detents.both && atMedium)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: GlassButton(
+                  onPressed: () => _sheet.animateTo(GlassSheetDetent.large),
+                  child: const Text('Raise it from here'),
+                ),
+              ),
+          ],
+        );
+      },
     ),
     knobs: [
       ChoiceKnob<_Detents>(
@@ -200,16 +277,56 @@ class _SheetPageState extends State<SheetPage> {
         onChanged: (on) => setState(() => _dismissible = on),
       ),
       ToggleKnob(
+        'Corners of 20 points',
+        value: _corners,
+        onChanged: (on) => setState(() => _corners = on),
+      ),
+      ToggleKnob(
         'Its own colors',
         value: _tinted,
         onChanged: (on) => setState(() => _tinted = on),
+      ),
+    ],
+    ideas: [
+      Idea(
+        'Over the whole screen',
+        'showGlassFullScreen slides a page up over everything, bars and '
+            'tabs included; no swipe sends it back, its own button does.',
+        child: Stage(
+          height: 110,
+          child: Center(
+            child: GlassButton(
+              onPressed: () => unawaited(
+                showGlassFullScreen<void>(
+                  context,
+                  builder: (context) => GlassPageScaffold(
+                    navigationBar: GlassNavigationBar(
+                      title: const Text('Greenhouse'),
+                      trailing: [
+                        GlassBarItem(
+                          icon: const Icon(CupertinoIcons.xmark),
+                          semanticLabel: 'Close',
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ],
+                    ),
+                    child: const _Plants(inSheet: false),
+                  ),
+                ),
+              ),
+              child: const Text('Cover the screen'),
+            ),
+          ),
+        ),
       ),
     ],
   );
 }
 
 class _Plants extends StatelessWidget {
-  const _Plants();
+  const _Plants({this.inSheet = true});
+
+  final bool inSheet;
 
   static const _plants = [
     ('Monstera', 'Living room', CupertinoIcons.tree),
@@ -227,7 +344,7 @@ class _Plants extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
-    controller: GlassSheet.scrollControllerOf(context),
+    controller: inSheet ? GlassSheet.scrollControllerOf(context) : null,
     padding: const EdgeInsets.only(top: 24, bottom: 40),
     children: [
       const Padding(
@@ -249,7 +366,7 @@ class _Plants extends StatelessWidget {
             ),
         ],
       ),
-      if (Navigator.of(context).canPop())
+      if (inSheet && Navigator.of(context).canPop())
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: GlassButton(
@@ -302,11 +419,37 @@ class PopoverPage extends StatefulWidget {
 
 class _PopoverPageState extends State<PopoverPage> {
   var _adapts = false;
+  var _tinted = false;
+  var _live = false;
+  var _sides = _Sides.any;
 
   Future<void> _show(BuildContext anchor) => showGlassPopover<void>(
     context,
     anchor: anchor,
     adaptsToSheet: _adapts,
+    modal: !_live,
+    margin: _live
+        ? const EdgeInsets.symmetric(horizontal: 24)
+        : EdgeInsets.zero,
+    style: _tinted
+        ? GlassPopoverStyle(
+            backgroundColor: GlassDynamicColor.resolve(
+              GlassColors.systemGreen,
+              context,
+            ).withValues(alpha: 0.3),
+          )
+        : null,
+    permittedArrowDirections: switch (_sides) {
+      _Sides.any => PopoverArrowDirection.any,
+      _Sides.aboveOrBelow => const {
+        PopoverArrowDirection.up,
+        PopoverArrowDirection.down,
+      },
+      _Sides.beside => const {
+        PopoverArrowDirection.left,
+        PopoverArrowDirection.right,
+      },
+    },
     builder: (context) => Padding(
       padding: const EdgeInsets.all(20),
       child: SizedBox(
@@ -381,6 +524,26 @@ class _PopoverPageState extends State<PopoverPage> {
         'Becomes a sheet on a phone',
         value: _adapts,
         onChanged: (on) => setState(() => _adapts = on),
+      ),
+      ToggleKnob(
+        'Tinted glass',
+        value: _tinted,
+        onChanged: (on) => setState(() => _tinted = on),
+      ),
+      ToggleKnob(
+        'Page stays live, 24 in from the sides',
+        value: _live,
+        onChanged: (on) => setState(() => _live = on),
+      ),
+      ChoiceKnob<_Sides>(
+        'Arrow on',
+        value: _sides,
+        options: const {
+          _Sides.any: 'Any side',
+          _Sides.aboveOrBelow: 'Above or below',
+          _Sides.beside: 'Beside',
+        },
+        onChanged: (sides) => setState(() => _sides = sides),
       ),
     ],
   );
@@ -502,6 +665,59 @@ class _ToastPageState extends State<ToastPage> {
             ),
           ),
         ),
+      ),
+    ],
+  );
+}
+
+class TooltipPage extends StatefulWidget {
+  const TooltipPage({super.key});
+
+  @override
+  State<TooltipPage> createState() => _TooltipPageState();
+}
+
+class _TooltipPageState extends State<TooltipPage> {
+  var _shortcut = true;
+  var _enabled = true;
+
+  @override
+  Widget build(BuildContext context) => ComponentPage(
+    name: 'GlassTooltip',
+    summary:
+        'A hint on a small glass panel under a control, once a mouse has '
+        'rested on it half a second; screen readers read it as the name of '
+        'a glyph button. A touch shows nothing.',
+    backdrop: Wallpaper.alpine,
+    stageHeight: 150,
+    stage: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final (icon, message, keys) in const [
+          (CupertinoIcons.square_pencil, 'New note', 'Cmd N'),
+          (CupertinoIcons.share, 'Share', 'Cmd Shift S'),
+          (CupertinoIcons.trash, 'Delete', 'Cmd Delete'),
+        ]) ...[
+          GlassTooltip(
+            message: message,
+            enabled: _enabled,
+            shortcut: _shortcut ? Text(keys) : null,
+            child: GlassButton(onPressed: () {}, child: Icon(icon)),
+          ),
+          const SizedBox(width: 12),
+        ],
+      ],
+    ),
+    knobs: [
+      ToggleKnob(
+        'Shortcut after the message',
+        value: _shortcut,
+        onChanged: (on) => setState(() => _shortcut = on),
+      ),
+      ToggleKnob(
+        'Shows under a resting mouse',
+        value: _enabled,
+        onChanged: (on) => setState(() => _enabled = on),
       ),
     ],
   );

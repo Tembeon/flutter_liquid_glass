@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
@@ -22,6 +23,7 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
     this.backgroundColor,
     this.dragHandleColor,
     this.textStyle,
+    this.cornerRadius,
   });
 
   /// The theme's [GlassSheetStyle] at [context], or null without one: the
@@ -40,6 +42,14 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
   /// The default text of the content, over 17 points in label.
   final TextStyle? textStyle;
 
+  /// The radius of the sheet's corners, or null for UIKit's: 38 at the
+  /// top and, below the large detent, the display's less 8 at the bottom
+  /// (UIKit `preferredCornerRadius`, SwiftUI `presentationCornerRadius`).
+  /// A floating sheet takes it at all four corners, a docked one at its
+  /// top two, its bottom resting square (sheet passport; the effective
+  /// radii of the iOS 27.2 simulator's sheet at 20 and 50).
+  final double? cornerRadius;
+
   /// This style over [other].
   @override
   GlassSheetStyle merge(GlassSheetStyle? other) {
@@ -48,6 +58,7 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
       backgroundColor: backgroundColor ?? other.backgroundColor,
       dragHandleColor: dragHandleColor ?? other.dragHandleColor,
       textStyle: other.textStyle?.merge(textStyle) ?? textStyle,
+      cornerRadius: cornerRadius ?? other.cornerRadius,
     );
   }
 
@@ -64,6 +75,7 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
         other.textStyle,
         t,
       ),
+      cornerRadius: lerpDouble(cornerRadius, other.cornerRadius, t),
     );
   }
 
@@ -72,10 +84,12 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
       other is GlassSheetStyle &&
       other.backgroundColor == backgroundColor &&
       other.dragHandleColor == dragHandleColor &&
-      other.textStyle == textStyle;
+      other.textStyle == textStyle &&
+      other.cornerRadius == cornerRadius;
 
   @override
-  int get hashCode => Object.hash(backgroundColor, dragHandleColor, textStyle);
+  int get hashCode =>
+      Object.hash(backgroundColor, dragHandleColor, textStyle, cornerRadius);
 }
 
 /// Shows an iOS 27 sheet over the page and completes with the result it
@@ -137,7 +151,13 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
 /// down, a tap on the dimming, Escape and a screen reader's dismiss close
 /// it when `isDismissible` and no `PopScope` in it vetoes, and otherwise
 /// call `onDismissAttempt`. Android's predictive back drags the sheet
-/// down with the gesture and dismisses it on commit.
+/// down with the gesture and dismisses it on commit. `onDetentChanged`
+/// hears the detents the user picks; a [GlassSheetController] passed as
+/// `controller` reads and sets the detent from outside the sheet.
+/// `onDismissed` runs once the sheet has gone, however it closed, as
+/// SwiftUI's `sheet(onDismiss:)` and the completion of UIKit's dismissal
+/// do; the returned future completes earlier, when the sheet starts to
+/// close.
 ///
 /// The band at the sheet's top, where a tap cycles the detents, is also
 /// the sheet's detent control for the keyboard and screen readers: a
@@ -177,7 +197,9 @@ Future<T?> showGlassSheet<T>(
   GlassSheetStyle? style,
   String? semanticLabel,
   ValueChanged<GlassSheetDetent>? onDetentChanged,
+  GlassSheetController? controller,
   VoidCallback? onDismissAttempt,
+  VoidCallback? onDismissed,
   PresentationLevel level = PresentationLevel.window,
 }) {
   assert(detents.isNotEmpty, 'a sheet rests at a detent');
@@ -191,6 +213,7 @@ Future<T?> showGlassSheet<T>(
     scrollingExpandsSheet: scrollingExpandsSheet,
     style: style,
     onDetentChanged: onDetentChanged,
+    controller: controller,
   );
   return showPresentation(
     context,
@@ -211,6 +234,7 @@ Future<T?> showGlassSheet<T>(
             motion.isLaidOut ? _SheetLook.dimmingOpacity * motion.dimming : 0,
         modal: (motion) => !motion.isLaidOut || motion.dimming > 0,
         onVeto: onDismissAttempt == null ? null : (_) => onDismissAttempt(),
+        onDismissed: onDismissed == null ? null : (_) => onDismissed(),
         semanticsLabel: semanticLabel,
         semanticsRole: SemanticsRole.dialog,
         barrierLabel: isDismissible
@@ -235,6 +259,7 @@ class _SheetSpec {
     required this.scrollingExpandsSheet,
     required this.style,
     required this.onDetentChanged,
+    required this.controller,
   });
 
   final WidgetBuilder builder;
@@ -246,6 +271,7 @@ class _SheetSpec {
   final bool scrollingExpandsSheet;
   final GlassSheetStyle? style;
   final ValueChanged<GlassSheetDetent>? onDetentChanged;
+  final GlassSheetController? controller;
 
   GlassSheetStyle lookOf(BuildContext context) =>
       (style ?? const GlassSheetStyle()).merge(
@@ -263,6 +289,12 @@ abstract interface class GlassSheet {
 
   /// Moves the sheet to [detent] on the sheet's spring.
   void animateTo(GlassSheetDetent detent);
+
+  /// Resolves the custom detents again, as UIKit's `invalidateDetents`:
+  /// for a [GlassSheetDetent.custom] whose resolver reads something that
+  /// changed. The sheet moves to the new height of its detent on its
+  /// spring.
+  void invalidateDetents();
 
   /// The sheet around [context]; [context] rebuilds when its detent
   /// changes.
@@ -296,6 +328,53 @@ abstract interface class GlassSheet {
   @internal
   static ValueListenable<double>? fillOf(BuildContext context) =>
       context.getInheritedWidgetOfExactType<_SheetScope>()?.state._fill;
+}
+
+/// Reads and moves a sheet from the code that showed it, as [GlassSheet.of]
+/// does from inside the sheet.
+///
+/// UIKit: `UISheetPresentationController.selectedDetentIdentifier`.
+/// SwiftUI: `presentationDetents(_:selection:)`. Flutter:
+/// `DraggableScrollableController`.
+///
+/// Pass it to [showGlassSheet] as `controller`. It is attached while that
+/// sheet is up and tells its listeners each time the sheet's detent
+/// changes, whether a drag, a tap or [animateTo] changed it. A controller
+/// serves one sheet at a time.
+class GlassSheetController extends ChangeNotifier {
+  _SheetViewState? _sheet;
+
+  /// Whether a sheet shown with this controller is up.
+  bool get isAttached => _sheet != null;
+
+  /// The detent the sheet rests at or heads to.
+  GlassSheetDetent get detent {
+    final sheet = _sheet;
+    if (sheet == null) {
+      throw FlutterError('GlassSheetController.detent read with no sheet.');
+    }
+    return sheet.detent;
+  }
+
+  /// Moves the sheet to [detent] on the sheet's spring; does nothing with
+  /// no sheet attached.
+  void animateTo(GlassSheetDetent detent) => _sheet?.animateTo(detent);
+
+  /// See [GlassSheet.invalidateDetents]; does nothing with no sheet
+  /// attached.
+  void invalidateDetents() => _sheet?.invalidateDetents();
+
+  void _attach(_SheetViewState sheet) {
+    assert(_sheet == null, 'a GlassSheetController serves one sheet at a time');
+    _sheet = sheet;
+    sheet._detent.addListener(notifyListeners);
+  }
+
+  void _detach(_SheetViewState sheet) {
+    if (!identical(_sheet, sheet)) return;
+    sheet._detent.removeListener(notifyListeners);
+    _sheet = null;
+  }
 }
 
 class _SheetScope extends InheritedWidget {

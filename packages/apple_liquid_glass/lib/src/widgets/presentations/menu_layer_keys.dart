@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/foundation.dart';
@@ -40,6 +41,42 @@ class MenuLayerKeys {
   // row, else a target index; null when no key changed the card.
   int? _pending;
   int? _lastFocused;
+  String _typed = '';
+  double? _typedAt;
+
+  /// A letter typed while the menu has the keyboard moves the focus to the
+  /// next enabled row whose title starts with what was typed within the
+  /// last second, as UIKit's type select does (`allowsTypeSelect`): one
+  /// letter again steps on to the next such row, more letters narrow the
+  /// match from the focused row. Called by the zones for a printable key
+  /// that no `Shortcuts` binds.
+  bool typeSelect(int zone, String character, double time) {
+    if (!_layer.current) return false;
+    final last = _typedAt;
+    final fresh = last == null || time - last > 1;
+    _typed = (fresh ? '' : _typed) + character.toLowerCase();
+    _typedAt = time;
+    final targets = _layer.motion.cards[_layer.built.top].layout.targets;
+    final count = targets.length;
+    if (count == 0) return true;
+    final from = ids.targetOf(zone);
+    final again = _typed.length > 1 && _typed.split('').toSet().length == 1;
+    final prefix = again ? _typed.substring(0, 1) : _typed;
+    final start = _typed.length == 1 || again ? from + 1 : math.max(from, 0);
+    for (var step = 0; step < count; step++) {
+      final index = (start + step) % count;
+      final title = switch (targets[index].entry) {
+        GlassMenuItem(:final title, enabled: true) => title,
+        GlassSubmenu(:final title, enabled: true) => title,
+        _ => null,
+      };
+      if (title != null && title.toLowerCase().startsWith(prefix)) {
+        zones.requestFocus(ids.idOf(index));
+        break;
+      }
+    }
+    return true;
+  }
 
   /// The top card is now [top]: the focus a key asked for moves onto its
   /// row, carried by the zone that has the focus.

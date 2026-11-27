@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:flutter/widgets.dart';
@@ -66,6 +68,347 @@ double _titleOpacity(WidgetTester tester) => _titleLook(tester).opacity;
 
 void main() {
   setUp(MotionClock.debugReset);
+
+  testWidgets('a title of text lets a hit through to what lies under the '
+      'bar, and a title that takes input keeps it', (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(_app(_page(title: const Text('Notes'))));
+    await tester.pump();
+    final paragraph = tester.renderObject(find.text('Notes'));
+    final hit = tester.hitTestOnBinding(tester.getCenter(find.text('Notes')));
+    final targets = hit.path.map((entry) => entry.target);
+    expect(targets, isNot(contains(paragraph)));
+    expect(
+      targets,
+      contains(tester.renderObject(find.byType(Scrollable))),
+      reason: 'the hit reaches the content under the bar',
+    );
+
+    var taps = 0;
+    await tester.pumpWidget(
+      _app(
+        _page(
+          title: GestureDetector(
+            onTap: () => taps++,
+            child: const Text('Notes'),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Notes'));
+    expect(taps, 1);
+
+    await tester.pumpWidget(
+      _app(
+        _page(
+          title: GlassButton(
+            onPressed: () => taps++,
+            child: const Text('Notes'),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Notes'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(taps, 2, reason: 'a glass button for a title is pressed');
+  });
+
+  testWidgets('the title is a heading node of its own, read after the '
+      'leading side and before the page', (tester) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        _page(
+          title: const Text('Settings'),
+          leading: const Text('Back'),
+        ),
+      ),
+    );
+    await tester.pump();
+    final title = tester.getSemantics(find.text('Settings'));
+    expect(title.label, 'Settings');
+    expect(title.flagsCollection.isHeader, isTrue);
+    expect(title.childrenCount, 0);
+
+    final order = [
+      for (final node in tester.semantics.simulatedAccessibilityTraversal())
+        node.label,
+    ];
+    expect(order.indexOf('Back'), lessThan(order.indexOf('Settings')));
+    expect(order.indexOf('Settings'), lessThan(order.indexOf('Row 0')));
+    semantics.dispose();
+  });
+
+  testWidgets('a pushed page reads its back button and title before its '
+      'rows', (tester) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      WidgetsApp(
+        navigatorKey: navigator,
+        color: const Color(0xFF000000),
+        pageRouteBuilder: <T>(settings, builder) =>
+            GlassPageRoute<T>(builder: builder, settings: settings),
+        builder: (context, child) => GlassScope(
+          renderer: const FlatGlassRenderer(),
+          child: child!,
+        ),
+        home: _page(title: const Text('Library')),
+      ),
+    );
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(
+          builder: (context) => _page(title: const Text('Settings')),
+        ),
+      ),
+    );
+    for (var i = 0; i < 90; i++) {
+      await tester.pump(_frame);
+    }
+    final order = [
+      for (final node in tester.semantics.simulatedAccessibilityTraversal())
+        node.label,
+    ];
+    final back = order.indexWhere((label) => label.contains('Library'));
+    expect(back, isNonNegative, reason: '$order');
+    expect(back, lessThan(order.indexOf('Settings')));
+    expect(order.indexOf('Settings'), lessThan(order.indexOf('Row 0')));
+    final node = tester.semantics.simulatedAccessibilityTraversal().firstWhere(
+      (node) => node.label.contains('Library'),
+    );
+    expect(
+      (Offset.zero & const Size(402, 874)).contains(
+        globalRect(tester, node).center,
+      ),
+      isTrue,
+      reason: 'the page slid in, and so did its nodes',
+    );
+    semantics.dispose();
+  });
+
+  testWidgets("the item padding is where the bar's outer items stand, "
+      'after the window buttons on the same gap', (tester) async {
+    await _phone(tester);
+    late EdgeInsets padding;
+    const lead = Key('lead');
+    const trail = Key('trail');
+    await tester.pumpWidget(
+      _app(
+        GlassEnvironmentOverride(
+          windowControls: const GlassWindowControls(
+            left: 80,
+            lineCenter: 62 + GlassNavigationBar.height / 2,
+          ),
+          child: Builder(
+            builder: (context) {
+              padding = GlassNavigationBar.itemPaddingOf(context);
+              return _page(
+                title: const Text('Notes'),
+                leading: const SizedBox(key: lead, width: 36, height: 36),
+                trailing: const SizedBox(key: trail, width: 36, height: 36),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(padding, const EdgeInsets.only(left: 80 + 16, right: 16));
+    final leading = tester.getRect(find.byKey(lead));
+    final trailing = tester.getRect(find.byKey(trail));
+    // A custom item stands 4 inside its capsule.
+    expect(leading.left, padding.left + 4);
+    expect(402 - trailing.right, padding.right + 4);
+  });
+
+  testWidgets('a pushed page reads its toolbar after its rows', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      WidgetsApp(
+        navigatorKey: navigator,
+        color: const Color(0xFF000000),
+        pageRouteBuilder: <T>(settings, builder) =>
+            GlassPageRoute<T>(builder: builder, settings: settings),
+        builder: (context, child) => GlassScope(
+          renderer: const FlatGlassRenderer(),
+          child: child!,
+        ),
+        home: _page(title: const Text('Library')),
+      ),
+    );
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(
+          builder: (context) => GlassPageScaffold(
+            navigationBar: const GlassNavigationBar(title: Text('Notes')),
+            toolbar: GlassToolbar(
+              items: [
+                GlassBarItem(
+                  label: const Text('Share'),
+                  semanticLabel: 'Share',
+                  onPressed: () {},
+                ),
+              ],
+            ),
+            child: ListView(
+              children: [
+                for (var i = 0; i < 4; i++)
+                  SizedBox(height: 50, child: Text('Row $i')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    for (var i = 0; i < 90; i++) {
+      await tester.pump(_frame);
+    }
+    final order = [
+      for (final node in tester.semantics.simulatedAccessibilityTraversal())
+        node.label,
+    ];
+    final back = order.indexWhere((label) => label.contains('Library'));
+    expect(back, lessThan(order.indexOf('Row 0')), reason: '$order');
+    expect(order.indexOf('Row 3'), lessThan(order.indexOf('Share')));
+    semantics.dispose();
+  });
+
+  testWidgets('a subtitle turns the title 15 semibold over 12 regular, the '
+      'lines touching, centered where the title alone stands', (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(
+      _app(
+        const GlassPageScaffold(
+          navigationBar: GlassNavigationBar(
+            title: Text('Inbox'),
+            subtitle: Text('Updated just now'),
+          ),
+          child: SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pump();
+    final title = tester.getRect(find.text('Inbox'));
+    final subtitle = tester.getRect(find.text('Updated just now'));
+    expect(title.top, moreOrLessEquals(62 + 5.67, epsilon: 0.5));
+    expect(subtitle.top, moreOrLessEquals(62 + 23.67, epsilon: 0.5));
+    expect(subtitle.top, moreOrLessEquals(title.bottom, epsilon: 0.5));
+    expect(title.center.dx, moreOrLessEquals(201, epsilon: 0.5));
+    expect(subtitle.center.dx, moreOrLessEquals(201, epsilon: 0.5));
+    TextStyle styleOf(String text) => tester
+        .widget<RichText>(
+          find.descendant(of: find.text(text), matching: find.byType(RichText)),
+        )
+        .text
+        .style!;
+    expect(styleOf('Inbox').fontSize, 15);
+    expect(styleOf('Inbox').fontWeight, FontWeight.w600);
+    expect(styleOf('Updated just now').fontSize, 12);
+  });
+
+  testWidgets('a large title in the bar stands in the row at 34 points bold '
+      'from the leading side, 11.67 down, with no area under the row', (
+    tester,
+  ) async {
+    await _phone(tester);
+    await tester.pumpWidget(
+      _app(
+        GlassPageScaffold(
+          navigationBar: GlassNavigationBar(
+            largeTitle: const Text('Library'),
+            largeTitleInBar: true,
+            trailing: [
+              GlassBarItem(
+                icon: const SizedBox.square(dimension: 22),
+                semanticLabel: 'Add',
+                onPressed: () {},
+              ),
+            ],
+          ),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pump();
+    final bar = tester.widget<GlassNavigationBar>(
+      find.byType(GlassNavigationBar),
+    );
+    expect(bar.preferredSize.height, GlassNavigationBar.height);
+    expect(find.text('Library'), findsOneWidget);
+    final title = tester.getRect(find.text('Library'));
+    expect(title.left, moreOrLessEquals(16, epsilon: 0.01));
+    expect(title.top, moreOrLessEquals(62 + 11.67, epsilon: 0.01));
+    final style = tester
+        .widget<RichText>(
+          find.descendant(
+            of: find.text('Library'),
+            matching: find.byType(RichText),
+          ),
+        )
+        .text
+        .style!;
+    expect(style.fontSize, 34);
+    expect(style.fontWeight, FontWeight.w700);
+  });
+
+  testWidgets('a large subtitle stands 38.33 under the large title in 11 '
+      'point medium, and the bar grows to 125.33', (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(
+      _app(
+        const GlassPageScaffold(
+          navigationBar: GlassNavigationBar(
+            largeTitle: Text('Inbox'),
+            largeSubtitle: Text('3 unread'),
+          ),
+          child: SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pump();
+    final bar = tester.widget<GlassNavigationBar>(
+      find.byType(GlassNavigationBar),
+    );
+    expect(bar.preferredSize.height, moreOrLessEquals(125.33, epsilon: 0.01));
+    final title = tester.getRect(find.text('Inbox').last);
+    final subtitle = tester.getRect(find.text('3 unread'));
+    expect(subtitle.top - title.top, moreOrLessEquals(38.33, epsilon: 0.01));
+    final style = tester
+        .widget<RichText>(
+          find.descendant(
+            of: find.text('3 unread'),
+            matching: find.byType(RichText),
+          ),
+        )
+        .text
+        .style!;
+    expect(style.fontSize, 11);
+    expect(style.fontWeight, FontWeight.w500);
+  });
+
+  test('the bar a page stacks a search field under keeps every field', () {
+    const subtitle = Text('Updated just now');
+    final leading = [GlassBarItem(icon: const SizedBox(), onPressed: () {})];
+    final bar = GlassNavigationBar(
+      leading: leading,
+      title: const Text('Inbox'),
+      subtitle: subtitle,
+      leadingSupplementsBackButton: true,
+    ).withSearchField(const SizedBox());
+    expect(bar.subtitle, same(subtitle));
+    expect(bar.leading, same(leading));
+    expect(bar.leadingSupplementsBackButton, isTrue);
+    expect(bar.searchField, isNotNull);
+  });
 
   testWidgets('the inline title sits on the center when it fits, else from '
       'the leading side, level with the capsules', (tester) async {
@@ -282,6 +625,7 @@ void main() {
         .firstWhere((details) => details.edge == AxisDirection.up);
     expect(top.hard, isTrue);
     expect(top.extent, 62 + 54);
+    expect(top.systemExtent, 62, reason: 'the status bar, not the bar');
     controller.jumpTo(40);
     await _settle(tester);
     expect(top.presence.value, 0);

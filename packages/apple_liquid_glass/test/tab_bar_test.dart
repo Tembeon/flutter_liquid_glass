@@ -531,7 +531,8 @@ void main() {
     expect(selected, isEmpty);
   });
 
-  testWidgets('a badge sits at the top trailing corner of the glyph', (
+  testWidgets('a badge sits at the top trailing corner of the glyph, 2 '
+      "points below the tab button's top (iOS 27.2 simulator)", (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -539,7 +540,7 @@ void main() {
         GlassTabBar(
           destinations: const [
             GlassTabDestination(
-              icon: SizedBox.square(dimension: 24),
+              icon: SizedBox.square(dimension: 30),
               label: Text('Mail'),
               badge: SizedBox(key: Key('badge'), width: 18, height: 18),
             ),
@@ -555,7 +556,49 @@ void main() {
     );
     final badge = tester.getTopLeft(find.byKey(const Key('badge')));
     final title = tester.getCenter(find.text('Mail'));
-    expect(badge.dx, closeTo(title.dx - 12 + 19, 0.5));
+    final bar = tester.getRect(find.byType(GlassTabBar));
+    expect(badge.dx, closeTo(title.dx - 15 + 25, 0.5));
+    expect(badge.dy, closeTo(bar.top + 4 + 2, 0.01));
+  });
+
+  testWidgets('the text size and Bold Text leave the titles as they are '
+      '(iOS 27.2 simulator)', (tester) async {
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(
+          textScaler: TextScaler.linear(3),
+          boldText: true,
+        ),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: GlassScope(
+            renderer: const FlatGlassRenderer(),
+            child: Center(
+              child: SizedBox(
+                width: _phoneRoom,
+                child: GlassTabBar(
+                  destinations: _tabs(4),
+                  selectedIndex: 0,
+                  onDestinationSelected: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final title = tester.renderObject<RenderParagraph>(
+      find
+          .descendant(
+            of: find.text('Tab 1').first,
+            matching: find.byType(RichText),
+          )
+          .first,
+    );
+    expect(title.textScaler, TextScaler.noScaling);
+    expect(title.text.style?.fontSize, 10);
+    expect(title.text.style?.fontWeight, FontWeight.w500);
+    expect(tester.getSize(find.byType(RawGlassSelector)).height, 62);
   });
 
   group('wide', () {

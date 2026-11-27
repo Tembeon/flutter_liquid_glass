@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -34,6 +35,8 @@ Widget _app({
   TextDirection direction = TextDirection.ltr,
   bool reduceMotion = false,
   bool landscape = false,
+  bool composited = false,
+  Widget? badge,
 }) => MediaQuery(
   data: landscape
       ? const MediaQueryData(
@@ -59,8 +62,17 @@ Widget _app({
           tabs: [
             for (final (i, name) in ['One', 'Two', 'Three'].indexed)
               GlassTab(
-                icon: SizedBox.square(key: Key('glyph $i'), dimension: 24),
+                icon: composited
+                    ? RepaintBoundary(
+                        key: Key('boundary $i'),
+                        child: SizedBox.square(
+                          key: Key('glyph $i'),
+                          dimension: 24,
+                        ),
+                      )
+                    : SizedBox.square(key: Key('glyph $i'), dimension: 24),
                 label: Text(name),
+                badge: i == 0 ? badge : null,
                 builder: (context) =>
                     _scrolling(controller: controller, rows: rows),
               ),
@@ -114,6 +126,48 @@ Rect _body(WidgetTester tester) {
 
 bool _expanded(WidgetTester tester) => _body(tester).width > 100;
 
+// The bar's own glass in the selector's box.
+Rect _localBody(WidgetTester tester) {
+  final body = find
+      .descendant(
+        of: find.byType(RawGlassSelector),
+        matching: find.byType(GlassSurface),
+      )
+      .first;
+  return tester.widget<GlassSurface>(body).frame!.value.rect ??
+      Offset.zero & tester.getSize(body);
+}
+
+// The fade, blur and transform of the bar's content mid-morph: an opacity
+// layer over a blur over a transform, or null before the morph.
+(int, double, Matrix4)? _snapshot(WidgetTester tester) {
+  (int, double, Matrix4)? found;
+  void walk(Layer layer) {
+    if (found != null) return;
+    if (layer case OpacityLayer(
+      firstChild: ImageFilterLayer(
+        :final imageFilter?,
+        firstChild: TransformLayer(:final transform?),
+      ),
+      :final alpha?,
+    )) {
+      final sigma = RegExp(r'blur\(([\d.]+)').firstMatch('$imageFilter');
+      if (sigma != null) {
+        found = (alpha, double.parse(sigma.group(1)!), transform);
+        return;
+      }
+    }
+    if (layer is ContainerLayer) {
+      for (var c = layer.firstChild; c != null; c = c.nextSibling) {
+        walk(c);
+      }
+    }
+  }
+
+  walk(tester.binding.renderViews.first.debugLayer!);
+  return found;
+}
+
 void main() {
   setUp(MotionClock.debugReset);
 
@@ -125,6 +179,120 @@ void main() {
     await tester.pump();
     await _dragUp(tester, 300);
     expect(_expanded(tester), isTrue);
+  });
+
+  for (final direction in TextDirection.values) {
+    testWidgets("mid-morph the bar's content fades as 1 - p, blurs to 4p and "
+        'scales toward 48 / 62 with its top left on the glass, '
+        "${direction.name} (UIKit's code)", (tester) async {
+      await _phone(tester);
+      await tester.pumpWidget(
+        _app(
+          behavior: GlassTabBarMinimizeBehavior.onScrollDown,
+          direction: direction,
+          composited: true,
+        ),
+      );
+      await tester.pump();
+      final bar = _localBody(tester);
+      final gesture = await tester.startGesture(const Offset(201, 400));
+      for (var i = 0; i < 30 && _snapshot(tester) == null; i++) {
+        await gesture.moveBy(const Offset(0, -10));
+        await tester.pump(_frame);
+      }
+      await tester.pump(_frame);
+      final (alpha, sigma, transform) = _snapshot(tester)!;
+      final p = 1 - alpha / 255;
+      expect(p, inExclusiveRange(0.05, 0.95));
+      expect(sigma, closeTo(4 * p, 0.05));
+      expect(transform.entry(0, 0), closeTo(1 + (48 / 62 - 1) * p, 0.01));
+      expect(transform.entry(1, 1), transform.entry(0, 0));
+      final body = _localBody(tester);
+      final corner = MatrixUtils.transformPoint(transform, bar.topLeft);
+      expect(corner.dx, closeTo(body.left, 0.5));
+      expect(corner.dy, closeTo(body.top, 0.5));
+      await gesture.up();
+      await _settle(tester);
+    });
+  }
+
+  testWidgets("the selected tab's badge travels to the minimized circle, "
+      "from 5 to 7 inside the glyph's trailing edge and from 2 below the "
+      "button's top to 2 below the circle's (iOS 27.2 simulator)", (
+    tester,
+  ) async {
+    await _phone(tester);
+    await tester.pumpWidget(
+      _app(
+        behavior: GlassTabBarMinimizeBehavior.onScrollDown,
+        composited: true,
+        badge: const RepaintBoundary(
+          key: Key('badge'),
+          child: SizedBox.square(dimension: 18),
+        ),
+      ),
+    );
+    await tester.pump();
+    // The badge from the glyph, in the selected copy's own space.
+    Offset badgeFromGlyph() {
+      final selected = find.byWidgetPredicate(
+        (widget) => switch (widget.key) {
+          ValueKey(value: (1, _)) => true,
+          _ => false,
+        },
+        skipOffstage: false,
+      );
+      Offset at(Key key) {
+        final box = tester.renderObject<RenderBox>(
+          find.descendant(
+            of: selected,
+            matching: find.byKey(key, skipOffstage: false),
+            skipOffstage: false,
+          ),
+        );
+        return (box.debugLayer! as OffsetLayer).offset;
+      }
+
+      return at(const Key('badge')) - at(const Key('boundary 0'));
+    }
+
+    expect(badgeFromGlyph().dx, closeTo(24 - 5, 0.01));
+    expect(badgeFromGlyph().dy, closeTo((4 + 2) - (24 - 12), 0.01));
+    await _dragUp(tester, 200);
+    expect(_expanded(tester), isFalse);
+    expect(badgeFromGlyph().dx, closeTo(24 - 7, 0.01));
+    expect(badgeFromGlyph().dy, closeTo(2 - (24 - 12), 0.01));
+  });
+
+  testWidgets('an accessory set or taken away materializes over 0.3 s, '
+      "easing in and out, as UIKit's setBottomAccessory(animated:) does", (
+    tester,
+  ) async {
+    await _phone(tester);
+    const behavior = GlassTabBarMinimizeBehavior.onScrollDown;
+    await tester.pumpWidget(_app(behavior: behavior));
+    await tester.pump();
+    double shown() => tester
+        .widgetList<GlassSurface>(find.byType(GlassSurface))
+        .map((surface) => surface.frame?.value)
+        .whereType<GlassFrame>()
+        .where((frame) => (frame.rect?.height ?? 0) == 48)
+        .single
+        .opacity;
+    await tester.pumpWidget(
+      _app(behavior: behavior, accessory: const Text('Now playing')),
+    );
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(shown(), closeTo(0.5, 0.06));
+    await _settle(tester);
+    expect(shown(), 1);
+
+    await tester.pumpWidget(_app(behavior: behavior));
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(find.text('Now playing'), findsOneWidget);
+    expect(shown(), closeTo(0.5, 0.06));
+    await _settle(tester);
+    expect(find.text('Now playing'), findsNothing);
   });
 
   testWidgets('a user scroll shrinks the bar into a circle 28 points from '
@@ -282,6 +450,37 @@ void main() {
     expect(expanded.center.dx, 437);
     await _dragUp(tester, 200, from: const Offset(437, 200));
     expect(_body(tester), const Rect.fromLTWH(38, 338, 44, 44));
+  });
+
+  testWidgets('a fling counts where the content will stop: the bar '
+      'minimizes a frame into the glide, not where the content passes the '
+      '64 points (read from UIKit)', (tester) async {
+    await _phone(tester);
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _app(
+        behavior: GlassTabBarMinimizeBehavior.onScrollDown,
+        controller: controller,
+        accessory: const _Placement(),
+      ),
+    );
+    await tester.pump();
+    await tester.timedDrag(
+      find.byKey(const ValueKey(3)),
+      const Offset(0, -50),
+      const Duration(milliseconds: 200),
+    );
+    int? minimizedIn;
+    for (var i = 0; i < 60 && minimizedIn == null; i++) {
+      await tester.pump(_frame);
+      if (find.text('inline').evaluate().isNotEmpty) minimizedIn = i;
+    }
+    final offset = controller.offset;
+    await _settle(tester);
+    expect(controller.offset, greaterThan(64), reason: 'the glide goes on');
+    expect(minimizedIn, lessThanOrEqualTo(1));
+    expect(offset, lessThan(60));
   });
 
   testWidgets('the hint scales the accessory with the bar, as UIKit '

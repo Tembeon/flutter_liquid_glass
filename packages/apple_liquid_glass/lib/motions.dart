@@ -37,12 +37,22 @@ export 'src/motions/date_picker_motion.dart'
         DatePickerMotion,
         DatePickerPlacement,
         placeDatePicker;
+export 'src/motions/edit_menu_motion.dart' show EditMenuMotion;
 export 'src/motions/flex_interaction.dart' show FlexValues;
+export 'src/motions/full_screen_motion.dart' show FullScreenMotion;
 export 'src/motions/glass_press.dart' show FlexLaw, GlassPress;
+export 'src/motions/hold_repeat.dart' show HoldRepeat;
 export 'src/motions/large_title_snap.dart' show LargeTitleSnap;
 export 'src/motions/lens_motion.dart' show LensMotion;
 export 'src/motions/lens_values.dart' show LensEvent, LensSelected, LensSlot;
 export 'src/motions/list_highlight.dart' show ListRowHighlight;
+export 'src/motions/list_reorder.dart' show ListReorder;
+export 'src/motions/list_row_animation.dart'
+    show
+        GlassListRowAnimation,
+        ListEditMotion,
+        ListRowPlanner,
+        OutlineDisclosureMotion;
 export 'src/motions/menu_context_hold.dart' show ContextHold;
 export 'src/motions/menu_event.dart'
     show MenuActivated, MenuEvent, MenuHighlightChanged;
@@ -76,6 +86,8 @@ export 'src/motions/part_presence.dart' show PartPresence;
 export 'src/motions/popover_motion.dart'
     show PopoverArrowDirection, PopoverMotion, PopoverPlacement, placePopover;
 export 'src/motions/popover_shape.dart' show PopoverShape;
+export 'src/motions/progress_motion.dart' show ProgressMotion;
+export 'src/motions/refresh_motion.dart' show RefreshMotion;
 export 'src/motions/search_motion.dart'
     show
         SearchBarGeometry,
@@ -102,12 +114,14 @@ export 'src/motions/slider_motion.dart'
 export 'src/motions/small_lens.dart' show SmallLens;
 export 'src/motions/split_view_motion.dart' show SplitViewMotion;
 export 'src/motions/stacked_search_motion.dart' show StackedSearchMotion;
-export 'src/motions/swipe_actions_motion.dart' show SwipeActionsMotion;
+export 'src/motions/swipe_actions_motion.dart'
+    show SwipeActionsMotion, SwipeRelease;
 export 'src/motions/switch_motion.dart'
     show SwitchChanged, SwitchEvent, SwitchMotion, SwitchShown;
 export 'src/motions/tab_bar_hiding_motion.dart' show TabBarHidingMotion;
 export 'src/motions/tab_bar_layout.dart'
     show TabBarHost, TabBarLayout, TabBarMetrics;
+export 'src/motions/tab_circle_motion.dart' show TabCircleMotion;
 export 'src/motions/tab_minimize.dart'
     show GlassTabBarMinimizeBehavior, ScrollAway, TabBarMinimizeMotion;
 export 'src/motions/tab_sidebar_motion.dart' show TabSidebarMotion;

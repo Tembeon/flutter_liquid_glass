@@ -186,6 +186,49 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets("a button's states controller reports UIKit's touch events: "
+      'held, a slide away and back, a lift away and a cancel', (
+    tester,
+  ) async {
+    var presses = 0;
+    final states = WidgetStatesController();
+    addTearDown(states.dispose);
+    final pressed = <bool>[];
+    states.addListener(
+      () => pressed.add(states.value.contains(WidgetState.pressed)),
+    );
+    await tester.pumpWidget(
+      _app(
+        const FlatGlassRenderer(),
+        GlassButton(
+          onPressed: () => presses++,
+          statesController: states,
+          child: const SizedBox(width: 100, height: 44),
+        ),
+      ),
+    );
+    final center = tester.getCenter(find.byType(GlassButton));
+    final away = center + const Offset(0, 200);
+    final finger = await tester.startGesture(center);
+    await tester.pump(_frame);
+    await finger.moveTo(away);
+    await tester.pump(_frame);
+    await finger.moveTo(center);
+    await tester.pump(_frame);
+    await finger.moveTo(away);
+    await tester.pump(_frame);
+    await finger.up();
+    await tester.pump(_frame);
+    expect(presses, 0);
+    final cancelled = await tester.startGesture(center);
+    await tester.pump(_frame);
+    await cancelled.cancel();
+    await tester.pump(_frame);
+    expect(presses, 0);
+    expect(pressed.where((p) => p).length, 3);
+    expect(pressed.last, isFalse);
+  });
+
   testWidgets('a release beyond the slop does not press', (tester) async {
     var presses = 0;
     await tester.pumpWidget(

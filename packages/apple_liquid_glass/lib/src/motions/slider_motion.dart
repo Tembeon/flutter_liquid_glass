@@ -64,6 +64,13 @@ abstract final class SliderTuning {
 /// ([tickProjection], when that is at least [tickProjectionThreshold]),
 /// seen through the same curve, without a glide.
 ///
+/// Without [snapsToTicks] (UIKit's `allowsTickValuesOnly = false`) the
+/// ticks only catch: the value tracks the finger freely and takes a stop
+/// only within [tickZone] of the track from it, as UIKit's does (slider
+/// passport, read from UIKit). [enabledMin] and [enabledMax] bound where
+/// a drag or its glide can take the value, UIKit's `enabledRange`, which
+/// draws nothing at rest.
+///
 /// Times are seconds and positions pixels from the track's left end.
 ///
 /// Every part rests within [MotionRest]: invisible, NEAR. A stepped
@@ -78,6 +85,7 @@ final class SliderMotion extends Motion {
     required this._width,
     required double value,
     this._ticks = 0,
+    this.snapsToTicks = true,
     this.onEvent,
     super.clock,
   }) : _value = value.clamp(0.0, 1.0),
@@ -215,7 +223,31 @@ final class SliderMotion extends Motion {
     lens.resetFlex(now, _thumbAt(now));
   }
 
-  bool get _stepped => ticks >= 2;
+  bool get _stepped => ticks >= 2 && snapsToTicks;
+
+  /// Whether the value snaps to the ticks; without, they only catch it
+  /// within [tickZone].
+  bool snapsToTicks;
+
+  /// The share of the track about each stop within which a slider that
+  /// does not snap takes the stop (UIKit's 0.05).
+  static const double tickZone = 0.05;
+
+  /// The least and the most a drag or its glide can take the value to, 0
+  /// to 1.
+  double enabledMin = 0;
+
+  /// See [enabledMin].
+  double enabledMax = 1;
+
+  double _enabled(double x) => x.clamp(enabledMin, enabledMax);
+
+  // A value that does not snap, taken by a stop within [tickZone] of it.
+  double _caught(double x) {
+    if (ticks < 2) return x;
+    final stop = _stopNear(x);
+    return (x - stop).abs() <= tickZone ? stop : x;
+  }
 
   /// The length of the track.
   double get width => _width;
@@ -334,8 +366,19 @@ final class SliderMotion extends Motion {
         : (left: n, right: width + far);
   }
 
+  /// The height of the track of a slider without a thumb: 7, UIKit's
+  /// thumbless track (radius 3.5; iOS 27.2 simulator).
+  static const double thumblessTrackHeight = 7;
+
+  /// Whether the slider draws no thumb, so its track is
+  /// [thumblessTrackHeight] tall; it still drags by the hidden thumb, as
+  /// UIKit's tracking never asks the style (read from UIKit's code, not
+  /// run with a touch).
+  bool thumbless = false;
+
   /// The track height, thinner while stretched.
-  double get currentTrackHeight => trackHeight - squish * stretch.abs();
+  double get currentTrackHeight =>
+      (thumbless ? thumblessTrackHeight : trackHeight) - squish * stretch.abs();
 
   /// Whether a press at [x] grabs the thumb.
   bool hitsThumb(double x) =>
@@ -377,12 +420,16 @@ final class SliderMotion extends Motion {
     final raw = press.from + (x - press.anchor) / width;
     _stretch.snap(t, _stretchFor(raw));
     lens.follow(t);
-    final clamped = raw.clamp(0.0, 1.0);
+    final clamped = _enabled(raw.clamp(0.0, 1.0));
     if (!_stepped) {
-      if (clamped != _value && (clamped == 0 || clamped == 1)) {
-        _emit(const SliderFelt(detent: false));
+      final caught = _caught(clamped);
+      if (caught != _value &&
+          (caught == 0 || caught == 1 || caught != clamped)) {
+        _emit(
+          SliderFelt(detent: caught != clamped && caught > 0 && caught < 1),
+        );
       }
-      _set(clamped);
+      _set(caught);
       return;
     }
     _detented = true;
@@ -524,11 +571,11 @@ final class SliderMotion extends Motion {
     // Half the visible rest, so the glide's snap onto its end is invisible.
     if (glide.remaining(t) * travel < MotionRest.length / 2) {
       _glide = null;
-      _set(glide.end.clamp(0.0, 1.0));
+      _set(_caught(_enabled(glide.end.clamp(0.0, 1.0))));
       _emit(SliderChangeEnded(_value));
       return;
     }
-    _set(glide.value(t).clamp(0.0, 1.0));
+    _set(_enabled(glide.value(t).clamp(0.0, 1.0)));
   }
 
   double _stretchFor(double raw) {

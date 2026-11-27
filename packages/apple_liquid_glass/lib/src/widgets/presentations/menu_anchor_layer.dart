@@ -266,6 +266,7 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
       arrows: InputZoneArrows.grid,
       stops: InputZoneStops.one,
       onEdge: _keys.edge,
+      onType: _keys.typeSelect,
       excludeChildSemantics: false,
       interactions: [_follow, _offRows, _hoverInput],
       child: Stack(

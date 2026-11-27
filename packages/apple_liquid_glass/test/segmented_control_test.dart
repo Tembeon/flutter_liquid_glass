@@ -92,6 +92,69 @@ Offset _at(WidgetTester tester, String label) =>
     tester.getCenter(find.text(label));
 
 void main() {
+  testWidgets('a momentary control with the keyboard: the arrows move the '
+      'focus only, Space acts on the focused segment', (tester) async {
+    final picked = <String>[];
+    await tester.pumpWidget(
+      _keys(
+        GlassSegmentedControl<String>.momentary(
+          autofocus: true,
+          segments: const [
+            GlassSegment(value: 'a', label: Text('A')),
+            GlassSegment(value: 'b', label: Text('B')),
+            GlassSegment(value: 'c', label: Text('C')),
+          ],
+          onChanged: picked.add,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump(_frame);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump(_frame);
+    expect(picked, isEmpty);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump(_frame);
+    expect(picked, ['c']);
+  });
+
+  testWidgets('a momentary control calls with the tapped segment, shows it '
+      'selected for 0.2 s and then none, and calls again for the same one', (
+    tester,
+  ) async {
+    final picked = <String>[];
+    await tester.pumpWidget(
+      _app(
+        GlassSegmentedControl<String>.momentary(
+          segments: const [
+            GlassSegment(value: 'a', label: Text('A')),
+            GlassSegment(value: 'b', label: Text('B')),
+          ],
+          onChanged: picked.add,
+        ),
+      ),
+    );
+    int? selected() => tester
+        .widget<RawGlassSelector>(find.byType(RawGlassSelector))
+        .selectedIndex;
+    expect(selected(), isNull);
+    await tester.tapAt(_at(tester, 'B'));
+    await tester.pump(_frame);
+    expect(picked, ['b']);
+    expect(selected(), 1);
+    for (var i = 0; i < 14; i++) {
+      await tester.pump(_frame);
+    }
+    expect(selected(), isNull);
+    await _settle(tester);
+    await tester.tapAt(_at(tester, 'B'));
+    await tester.pump(_frame);
+    expect(picked, ['b', 'b']);
+    await _settle(tester);
+    expect(selected(), isNull);
+  });
+
   setUp(MotionClock.debugReset);
 
   testWidgets('a tap selects on release and the lens travels there', (

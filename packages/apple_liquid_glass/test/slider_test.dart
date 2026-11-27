@@ -115,6 +115,46 @@ Offset _thumbStart(WidgetTester tester) =>
     const Offset(37 / 2, RawGlassSlider.height / 2);
 
 void main() {
+  testWidgets('with snapsToTicks off a value between ticks rests where it '
+      "is, and enabled bounds in the slider's own range stop a drag", (
+    tester,
+  ) async {
+    var value = 45.0;
+    await tester.pumpWidget(
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) => GlassSlider(
+            value: value,
+            max: 100,
+            ticks: 4,
+            snapsToTicks: false,
+            enabledBounds: (20, 60),
+            onChanged: (next) => setState(() => value = next),
+          ),
+        ),
+      ),
+    );
+    final box = tester.getRect(find.byType(GlassSlider));
+    final thumb = Offset(
+      box.left + 18.5 + 0.45 * (box.width - 37),
+      box.center.dy,
+    );
+    final finger = await tester.startGesture(thumb);
+    await finger.moveBy(const Offset(15, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    await finger.moveBy(const Offset(15, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(value, inInclusiveRange(48.0, 56.0));
+    await finger.moveBy(const Offset(200, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(value, moreOrLessEquals(60));
+    await finger.up();
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(value, lessThanOrEqualTo(60));
+  });
+
   setUp(MotionClock.debugReset);
 
   testWidgets('a drag on the thumb moves the value without rebuilding the '
@@ -145,6 +185,138 @@ void main() {
     await _settle(tester);
     expect(probe.builds - built, lessThanOrEqualTo(1));
     expect(probe.thumb!.value.lift, 0);
+  });
+
+  testWidgets('with a neutral value the fill runs from it to the thumb, on '
+      'either side (slider passport, 300 wide)', (tester) async {
+    for (final (value, left, right) in [
+      (0.2, 71.1, 150.0),
+      (0.8, 150.0, 228.9),
+    ]) {
+      final probe = _Probe();
+      await tester.pumpWidget(
+        _app(
+          RawGlassSlider(
+            value: value,
+            neutralValue: 0.5,
+            onChanged: (_) {},
+            builder: probe.build,
+          ),
+        ),
+      );
+      await tester.pump();
+      final fill = probe.fill!.value.rect!;
+      expect(fill.left, moreOrLessEquals(left, epsilon: 0.5), reason: '$value');
+      expect(
+        fill.right,
+        moreOrLessEquals(right, epsilon: 0.5),
+        reason: '$value',
+      );
+    }
+  });
+
+  testWidgets('screen readers read the value through its formatter', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        GlassSlider(
+          value: 30,
+          max: 100,
+          semanticLabel: 'Volume',
+          semanticFormatterCallback: (value) => '${value.round()} dB',
+          onChanged: (_) {},
+        ),
+      ),
+    );
+    expect(
+      find.semantics.byPredicate(
+        (node) => node.label == 'Volume' && node.value == '30 dB',
+      ),
+      findsOne,
+    );
+    semantics.dispose();
+  });
+
+  for (final direction in TextDirection.values) {
+    testWidgets('value labels stand at the ends at their own size, the track '
+        '11 points from each, ${direction.name} (UIKit value images, iOS '
+        '27.2 simulator)', (tester) async {
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(),
+          child: Directionality(
+            textDirection: direction,
+            child: Center(
+              child: SizedBox(
+                width: 370,
+                child: GlassSlider(
+                  value: 0.5,
+                  onChanged: (_) {},
+                  minimumValueLabel: const SizedBox(
+                    key: Key('min'),
+                    width: 17,
+                    height: 17.33,
+                  ),
+                  maximumValueLabel: const SizedBox(
+                    key: Key('max'),
+                    width: 27.67,
+                    height: 19,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final box = tester.getRect(find.byType(GlassSlider));
+      final track = tester
+          .getRect(find.byType(RawGlassSlider))
+          .shift(-box.topLeft);
+      final ltr = direction == TextDirection.ltr;
+      expect(track.left, moreOrLessEquals(ltr ? 28 : 38.67, epsilon: 0.01));
+      expect(track.right, moreOrLessEquals(ltr ? 331.33 : 342, epsilon: 0.01));
+      expect(
+        tester.getSize(find.byKey(const Key('max'))),
+        const Size(27.67, 19),
+      );
+      expect(
+        tester.getCenter(find.byKey(const Key('min'))).dy,
+        moreOrLessEquals(tester.getCenter(find.byType(RawGlassSlider)).dy),
+      );
+    });
+  }
+
+  testWidgets('without its thumb the track is 7 points tall and no thumb '
+      'draws (UIKit thumbless, iOS 27.2 simulator)', (tester) async {
+    GlassSliderDetails? seen;
+    await tester.pumpWidget(
+      _app(
+        RawGlassSlider(
+          value: 0.5,
+          onChanged: (_) {},
+          showsThumb: false,
+          builder: (context, details) {
+            seen = details;
+            return const SizedBox.expand();
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(seen!.showsThumb, isFalse);
+    expect(seen!.track.value.rect!.height, 7);
+    await tester.pumpWidget(
+      _app(GlassSlider(value: 0.5, onChanged: (_) {}, showsThumb: false)),
+    );
+    await tester.pump();
+    expect(
+      tester
+          .widgetList<GlassSurface>(find.byType(GlassSurface))
+          .where((surface) => surface.role == GlassRole.lens),
+      isEmpty,
+    );
   });
 
   testWidgets('a tap on the track does nothing', (tester) async {
@@ -435,6 +607,46 @@ void main() {
       await tester.sendKeyEvent(key);
     }
     expect(values, [closeTo(16, 1e-9), closeTo(14, 1e-9), 10, 20]);
+  });
+
+  testWidgets('an adjustment step sets how far a key steps a continuous '
+      'slider, and screen readers hear the values a step away', (
+    tester,
+  ) async {
+    final values = <double>[];
+    await tester.pumpWidget(
+      _keyApp(
+        GlassSlider(
+          value: 15,
+          onChanged: values.add,
+          autofocus: true,
+          min: 10,
+          max: 20,
+          adjustmentStep: 0.5,
+          semanticFormatterCallback: (value) => value.toStringAsFixed(1),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    expect(values, [closeTo(15.5, 1e-9), closeTo(14.5, 1e-9)]);
+    expect(
+      tester.getSemantics(find.byType(GlassSlider)),
+      matchesSemantics(
+        value: '15.0',
+        increasedValue: '15.5',
+        decreasedValue: '14.5',
+        isSlider: true,
+        isFocusable: true,
+        isFocused: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        hasIncreaseAction: true,
+        hasDecreaseAction: true,
+        hasFocusAction: true,
+      ),
+    );
   });
 
   testWidgets('an app adds keys with Shortcuts, and right-to-left mirrors '

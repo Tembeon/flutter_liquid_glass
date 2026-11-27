@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/raw/still.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -87,7 +88,11 @@ final class GlassStepperDetails {
 /// changes nothing. A release after a repeat adds no step.
 ///
 /// A step that would cross [min] or [max] is refused, not clamped, so with a
-/// fractional [step] a half disables before the value reaches its limit. The
+/// fractional [step] a half disables before the value reaches its limit;
+/// with [wraps] it goes on from the other end and no half disables. Without
+/// [autorepeat] a touch steps once, at its release, however long it is
+/// held (stepper passport). [onChangeStart] comes with the touch and
+/// [onChangeEnd] with its release, once, with the value the touch left. The
 /// halves swap in a right-to-left context, minus on the right (stepper
 /// passport, trait and real locale), and the arrow keys follow them: the arrow
 /// toward plus increments, as up does. Home and End take the value to [min]
@@ -104,9 +109,13 @@ class RawGlassStepper extends StatefulWidget {
     required this.value,
     required this.onChanged,
     required this.builder,
+    this.onChangeStart,
+    this.onChangeEnd,
     this.min = 0,
     this.max = 100,
     this.step = 1,
+    this.wraps = false,
+    this.autorepeat = true,
     this.decrementLabel,
     this.incrementLabel,
     this.semanticFormatterCallback,
@@ -115,7 +124,44 @@ class RawGlassStepper extends StatefulWidget {
     this.focusNode,
     this.autofocus = false,
     super.key,
-  });
+  }) : onIncrement = null,
+       onDecrement = null,
+       _custom = false;
+
+  /// Creates a stepper that holds no value and calls [onIncrement] and
+  /// [onDecrement] for its halves, as SwiftUI's
+  /// `Stepper(onIncrement:onDecrement:)`: a null callback disables its
+  /// half, and screen readers hear [semanticLabel] with no value.
+  const RawGlassStepper.custom({
+    required this.onIncrement,
+    required this.onDecrement,
+    required this.builder,
+    this.autorepeat = true,
+    this.decrementLabel,
+    this.incrementLabel,
+    this.semanticLabel,
+    this.statesController,
+    this.focusNode,
+    this.autofocus = false,
+    super.key,
+  }) : value = 0,
+       onChanged = null,
+       onChangeStart = null,
+       onChangeEnd = null,
+       min = 0,
+       max = 0,
+       step = 1,
+       wraps = false,
+       semanticFormatterCallback = null,
+       _custom = true;
+
+  /// Called for a step of the plus half of a [RawGlassStepper.custom].
+  final VoidCallback? onIncrement;
+
+  /// Called for a step of the minus half of a [RawGlassStepper.custom].
+  final VoidCallback? onDecrement;
+
+  final bool _custom;
 
   /// The value.
   final double value;
@@ -127,6 +173,15 @@ class RawGlassStepper extends StatefulWidget {
   /// Builds the stepper's look.
   final GlassStepperBuilder builder;
 
+  /// Called with the value when a finger comes down on a half that can
+  /// step.
+  final ValueChanged<double>? onChangeStart;
+
+  /// Called with the value the touch left when it lifts from a half, after
+  /// its steps: one call for a hold however many steps it took, as UIKit's
+  /// `valueChanged` comes once at the release when `isContinuous` is off.
+  final ValueChanged<double>? onChangeEnd;
+
   /// The lowest value.
   final double min;
 
@@ -135,6 +190,14 @@ class RawGlassStepper extends StatefulWidget {
 
   /// How much one step changes the value; greater than zero.
   final double step;
+
+  /// Whether a step past [max] goes on from [min] and one past [min] from
+  /// [max], rather than being refused: plus at 10 of 10 shows 0.
+  final bool wraps;
+
+  /// Whether a held half repeats; without, a touch steps once, when it
+  /// lifts, however long it is held.
+  final bool autorepeat;
 
   /// What screen readers announce for the minus half; null reads
   /// [GlassLocalizations.decrementLabel].
@@ -175,6 +238,9 @@ class _RawGlassStepperState extends State<RawGlassStepper>
     canStep: _canStep,
     onStep: _stepBy,
     onCommand: _command,
+    onBegin: _began,
+    onEnd: _ended,
+    repeats: () => widget.autorepeat,
   );
   late final List<Interaction> _interactions = [_input];
   late final Map<GlassStepperHalf, Interaction> _halfInputs = {
@@ -187,26 +253,49 @@ class _RawGlassStepperState extends State<RawGlassStepper>
   final GlobalKey _halves = GlobalKey();
   GlassStepperHalf? _pressed;
 
+  // The value the touch has stepped to, for an app that reads it only at
+  // the end and does not rebuild in between.
+  double? _touched;
+
   @override
   WidgetStatesController? get statesController => widget.statesController;
 
-  bool get enabled => widget.onChanged != null;
+  @override
+  void didUpdateWidget(RawGlassStepper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_touched != null && widget.value != oldWidget.value) {
+      _touched = widget.value;
+    }
+  }
+
+  bool get enabled => widget._custom
+      ? widget.onIncrement != null || widget.onDecrement != null
+      : widget.onChanged != null;
+
+  VoidCallback? _callbackOf(GlassStepperHalf half) => switch (half) {
+    GlassStepperHalf.decrement => widget.onDecrement,
+    GlassStepperHalf.increment => widget.onIncrement,
+  };
 
   double get _minimum => widget.min.isFinite ? widget.min : 0;
 
   double get _maximum =>
       widget.max.isFinite && widget.max >= _minimum ? widget.max : _minimum;
 
-  double get _value =>
-      widget.value.isFinite ? widget.value.clamp(_minimum, _maximum) : _minimum;
+  double get _value {
+    final value = _touched ?? widget.value;
+    return value.isFinite ? value.clamp(_minimum, _maximum) : _minimum;
+  }
 
   double get _step => widget.step.isFinite && widget.step > 0 ? widget.step : 0;
 
   // A step lands within the range up to rounding: 0.9 + 0.1 reaches a
   // maximum of 1.
   bool _canStep(GlassStepperHalf half) {
+    if (widget._custom) return _callbackOf(half) != null;
     final step = _step;
     if (step == 0) return false;
+    if (widget.wraps && _maximum > _minimum) return true;
     final slack = step * 1e-9;
     return switch (half) {
       GlassStepperHalf.decrement => _value - step >= _minimum - slack,
@@ -217,12 +306,30 @@ class _RawGlassStepperState extends State<RawGlassStepper>
   double _after(GlassStepperHalf half) {
     if (!_canStep(half)) return _value;
     final delta = half == GlassStepperHalf.increment ? _step : -_step;
-    return (_value + delta).clamp(_minimum, _maximum);
+    final next = _value + delta;
+    final slack = _step * 1e-9;
+    if (widget.wraps && next > _maximum + slack) return _minimum;
+    if (widget.wraps && next < _minimum - slack) return _maximum;
+    return next.clamp(_minimum, _maximum);
   }
 
   void _stepBy(GlassStepperHalf half) {
+    if (widget._custom) return _callbackOf(half)?.call();
     final next = _after(half);
-    if (next != _value) widget.onChanged?.call(next);
+    if (next == _value) return;
+    if (_touched != null) _touched = next;
+    widget.onChanged?.call(next);
+  }
+
+  void _began() {
+    _touched = _value;
+    widget.onChangeStart?.call(_value);
+  }
+
+  void _ended() {
+    final value = _value;
+    _touched = null;
+    widget.onChangeEnd?.call(value);
   }
 
   void _command(ValueCommand command) {
@@ -244,7 +351,8 @@ class _RawGlassStepperState extends State<RawGlassStepper>
     final strings = GlassLocalizations.of(context);
     String format(double value) =>
         widget.semanticFormatterCallback?.call(value) ?? _format(value);
-    final value = format(_value);
+    final custom = widget._custom;
+    final value = custom ? null : format(_value);
     InputZone<GlassStepperHalf> half(GlassStepperHalf half, String label) =>
         InputZone(
           id: half,
@@ -268,8 +376,12 @@ class _RawGlassStepperState extends State<RawGlassStepper>
       semantics: SemanticsProperties(
         label: widget.semanticLabel,
         value: value,
-        increasedValue: format(_after(GlassStepperHalf.increment)),
-        decreasedValue: format(_after(GlassStepperHalf.decrement)),
+        increasedValue: custom
+            ? null
+            : format(_after(GlassStepperHalf.increment)),
+        decreasedValue: custom
+            ? null
+            : format(_after(GlassStepperHalf.decrement)),
       ),
       reach: glassTargetReach,
       child: SizedBox.fromSize(
@@ -337,20 +449,20 @@ final class _StepperInput extends Interaction {
     required this.canStep,
     required this.onStep,
     required this.onCommand,
+    required this.onBegin,
+    required this.onEnd,
+    required this.repeats,
   }) : super(role: InteractionRole.control);
 
   final ValueChanged<GlassStepperHalf?> onPressed;
   final bool Function(GlassStepperHalf half) canStep;
   final ValueChanged<GlassStepperHalf> onStep;
   final ValueChanged<ValueCommand> onCommand;
+  final VoidCallback onBegin;
+  final VoidCallback onEnd;
+  final bool Function() repeats;
 
-  // Stepper passport, "The repeat clock": the wait before the next repeat
-  // after [count] repeats in a row.
-  static double _interval(int count) => count <= 5
-      ? 0.5
-      : count < 20
-      ? 0.1
-      : 0.05;
+  static double _interval(int count) => HoldRepeat.interval(count);
 
   bool _touching = false;
   TextDirection _direction = TextDirection.ltr;
@@ -405,8 +517,9 @@ final class _StepperInput extends Interaction {
         _touching = true;
         _count = 0;
         _repeated = false;
-        _due = input.time + _interval(0);
+        _due = repeats() ? input.time + _interval(0) : null;
         _track(input.position, _box);
+        onBegin();
         return const InteractionUpdate(verdict: .claimed);
       case PointerMoveInput() when _touching:
         _track(input.position, input.regionBox);
@@ -416,9 +529,11 @@ final class _StepperInput extends Interaction {
         final repeated = _repeated;
         _end();
         if (half != null && !repeated) onStep(half);
+        onEnd();
         return const InteractionUpdate(verdict: .recognized);
       case PointerCancelInput() when _touching:
         _end();
+        onEnd();
         return const InteractionUpdate(fails: true);
       default:
     }

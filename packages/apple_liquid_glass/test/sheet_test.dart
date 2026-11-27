@@ -87,6 +87,8 @@ Future<void> _present(
   VoidCallback? onPageTap,
   Brightness brightness = Brightness.light,
   String? semanticLabel,
+  GlassSheetStyle? style,
+  GlassSheetController? controller,
 }) async {
   await tester.pumpWidget(
     _app(
@@ -103,6 +105,8 @@ Future<void> _present(
           semanticLabel: semanticLabel,
           onDetentChanged: onDetentChanged,
           onDismissAttempt: onDismissAttempt,
+          style: style,
+          controller: controller,
         ).then((value) => onResult?.call(value)),
       ),
     ),
@@ -131,7 +135,130 @@ bool _docked(WidgetTester tester, Color color) => tester
     );
 
 void main() {
+  test('a preferred corner radius takes every corner of a floating sheet, '
+      'where the display law gave the bottom ones', () {
+    final motion = SheetMotion(
+      heights: const [400, 800],
+      width: 402,
+      initial: 0,
+    )..preferredRadius = 20;
+    expect(motion.floatingRadius, 20);
+    expect(motion.bottomRadius, 20);
+    motion.preferredRadius = null;
+    expect(motion.floatingRadius, 62 - 8);
+  });
+
+  testWidgets('a sheet presents with a corner radius of its own', (
+    tester,
+  ) async {
+    _phone(tester);
+    await _present(
+      tester,
+      _content,
+      detents: const [GlassSheetDetent.medium],
+      style: const GlassSheetStyle(cornerRadius: 20),
+    );
+    expect(find.text('sheet'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   setUp(MotionClock.debugReset);
+
+  testWidgets('onDismissed runs once the sheet has gone, after its future '
+      'completed at the start of the close', (tester) async {
+    _phone(tester);
+    var dismissed = 0;
+    var completed = false;
+    await tester.pumpWidget(
+      _app(
+        onPresent: (context) => unawaited(
+          showGlassSheet<void>(
+            context,
+            detents: const [GlassSheetDetent.medium],
+            onDismissed: () => dismissed++,
+            builder: _content,
+          ).then((_) => completed = true),
+        ),
+      ),
+    );
+    await tester.tap(find.text('present'));
+    await _settle(tester);
+    Navigator.of(tester.element(find.byKey(_contentKey))).pop();
+    await tester.pump(_frame);
+    expect(completed, isTrue);
+    expect(dismissed, 0);
+    await _settle(tester);
+    expect(dismissed, 1);
+  });
+
+  testWidgets('invalidateDetents resolves a custom detent again and the '
+      'sheet moves to its new height', (tester) async {
+    _phone(tester);
+    var height = 300.0;
+    final controller = GlassSheetController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _app(
+        onPresent: (context) => unawaited(
+          showGlassSheet<void>(
+            context,
+            controller: controller,
+            detents: [
+              GlassSheetDetent.custom(
+                (maximum) => height,
+                identifier: 'notes',
+              ),
+            ],
+            builder: _content,
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('present'));
+    await _settle(tester);
+    final before = _sheet(tester).height;
+    height = 400;
+    await _settle(tester);
+    expect(_sheet(tester).height, before);
+    controller.invalidateDetents();
+    await _settle(tester);
+    expect(
+      _sheet(tester).height,
+      moreOrLessEquals(before + 100 * 386 / 402, epsilon: 0.1),
+    );
+  });
+
+  testWidgets('a controller reads and sets the detent from outside while '
+      'the sheet is up, and hears every change', (tester) async {
+    _phone(tester);
+    final controller = GlassSheetController();
+    addTearDown(controller.dispose);
+    final heard = <GlassSheetDetent>[];
+    controller.addListener(() => heard.add(controller.detent));
+    final picked = <GlassSheetDetent>[];
+    expect(controller.isAttached, isFalse);
+    await _present(
+      tester,
+      _content,
+      showDragHandle: true,
+      controller: controller,
+      onDetentChanged: picked.add,
+    );
+    expect(controller.isAttached, isTrue);
+    expect(controller.detent, GlassSheetDetent.medium);
+    controller.animateTo(GlassSheetDetent.large);
+    await _settle(tester);
+    expect(controller.detent, GlassSheetDetent.large);
+    expect(_sheet(tester).top, moreOrLessEquals(62, epsilon: 0.05));
+    await tester.tapAt(_sheet(tester).topCenter + const Offset(0, 4));
+    await _settle(tester);
+    expect(heard, [GlassSheetDetent.large, GlassSheetDetent.medium]);
+    expect(picked, [GlassSheetDetent.medium]);
+    Navigator.of(tester.element(find.byKey(_contentKey))).pop();
+    await _settle(tester);
+    expect(controller.isAttached, isFalse);
+    controller.animateTo(GlassSheetDetent.large);
+  });
 
   testWidgets('presents at the medium detent, floating, and docks at large', (
     tester,

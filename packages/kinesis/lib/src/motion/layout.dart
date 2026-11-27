@@ -125,6 +125,40 @@ final class LayoutMotion extends Motion {
     changed();
   }
 
+  /// Draws [id] at [rect] from [t] until [releaseItem], whatever the
+  /// layouts in between do: they move where it belongs, not where it is
+  /// drawn, as a row held under a finger while the rows around it make
+  /// room. Call it again to move the held item.
+  void holdItem(double t, Object id, Rect rect) {
+    advance(t);
+    final slot = _slots[id];
+    if (slot == null || slot.leaving) return;
+    slot.held = true;
+    slot.frame.snap(t, rect);
+    changed();
+  }
+
+  /// Whether [id] is held by [holdItem].
+  bool isHeld(Object id) => _slots[id]?.held ?? false;
+
+  /// Lets go of [id] at [t]: it moves from where it is drawn to where the
+  /// layout put it on [spring], or jumps there when [spring] is null.
+  void releaseItem(double t, Object id, {Spring? spring}) {
+    advance(t);
+    final slot = _slots[id];
+    if (slot == null || !slot.held) return;
+    slot.held = false;
+    final to = slot.model;
+    if (to != null) {
+      if (spring == null) {
+        slot.frame.snap(t, to);
+      } else {
+        slot.frame.retarget(t, to, springs: RectSprings.all(spring));
+      }
+    }
+    changed();
+  }
+
   /// Drops [id] at once, without a leave: for a host whose item went out
   /// of view, as a lazy list's row scrolls away.
   void forget(Object id) {
@@ -250,11 +284,22 @@ final class LayoutMotion extends Motion {
     required bool jumps,
     required bool carry,
   }) {
-    final spring = jumps ? null : plan.spring;
+    final curve = jumps ? null : plan.curve;
+    final spring = jumps || curve != null ? null : plan.spring;
     final springs = spring == null
         ? null
         : plan.springs ?? RectSprings.all(spring);
+    final moves = curve != null || springs != null;
     final delay = plan.delay;
+    void frameTo(_Slot slot, Rect to) => curve != null
+        ? slot.frame.animate(t, to, animation: curve, delay: delay)
+        : slot.frame.retarget(t, to, springs: springs, delay: delay);
+    void presenceTo(_Slot slot, double presence) => slot.presence.animate(
+      t,
+      presence,
+      animation: curve ?? spring!,
+      delay: delay,
+    );
     switch (entry) {
       case LayoutEntering(:final to):
         final existing = _slots[id];
@@ -263,7 +308,7 @@ final class LayoutMotion extends Motion {
         slot.restDistance = plan.restDistance;
         slot.model = to;
         slot.absent = _absent(plan.absent);
-        if (springs == null) {
+        if (!moves) {
           slot.frame.snap(t, to);
           slot.presence.snap(t, 1);
           return;
@@ -271,17 +316,16 @@ final class LayoutMotion extends Motion {
         if (existing == null) {
           slot.presence.snap(t, 0);
         }
-        if (existing != null || plan.origin != null) {
-          slot.frame.retarget(t, to, springs: springs, delay: delay);
-        }
-        slot.presence.retarget(t, 1, spring: spring, delay: delay);
+        if (existing != null || plan.origin != null) frameTo(slot, to);
+        presenceTo(slot, 1);
       case LayoutStaying(:final from, :final to):
         final slot = _slots[id]!;
         slot.restDistance = plan.restDistance;
         if (from == to) return;
         slot.model = to;
-        if (springs != null) {
-          slot.frame.retarget(t, to, springs: springs, delay: delay);
+        if (slot.held) return;
+        if (moves) {
+          frameTo(slot, to);
         } else if (!carry || slot.frame.restsAt(t)) {
           slot.frame.snap(t, to);
         } else {
@@ -293,18 +337,11 @@ final class LayoutMotion extends Motion {
         slot.restDistance = plan.restDistance;
         slot.absent = _absent(plan.absent);
         final destination = plan.destination;
-        if (spring == null) {
+        if (!moves) {
           slot.presence.snap(t, 0);
         } else {
-          if (destination != null) {
-            slot.frame.retarget(
-              t,
-              destination,
-              springs: springs,
-              delay: delay,
-            );
-          }
-          slot.presence.retarget(t, 0, spring: spring, delay: delay);
+          if (destination != null) frameTo(slot, destination);
+          presenceTo(slot, 0);
         }
     }
   }
@@ -357,6 +394,7 @@ final class _Slot {
   Rect? model;
   double restDistance = MotionRest.length;
   bool leaving = false;
+  bool held = false;
 }
 
 /// What a layout host asks its motion: whether a layout animates, and
@@ -523,6 +561,7 @@ final class LayoutPlan {
   const LayoutPlan({
     this.spring,
     this.springs,
+    this.curve,
     this.delay = 0,
     this.origin,
     this.destination,
@@ -536,6 +575,11 @@ final class LayoutPlan {
 
   /// The springs of the rect's center, width and height, when they differ.
   final RectSprings? springs;
+
+  /// The timing curve the rect and the presence move on in place of
+  /// [spring] and [springs], as a UIView animation of a duration moves its
+  /// layers; null moves on the springs.
+  final TimingCurve? curve;
 
   /// Seconds the item keeps its course before it moves.
   final double delay;

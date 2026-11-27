@@ -171,6 +171,10 @@ class _RenderSelectorRow extends RenderBox
   void attach(PipelineOwner owner) {
     super.attach(owner);
     _follow.attach();
+    _moved = true;
+    // Laid out again under the new parents in this frame, even where they
+    // pass the same constraints.
+    if (_resolvedAt != null) markNeedsLayout();
   }
 
   @override
@@ -281,6 +285,12 @@ class _RenderSelectorRow extends RenderBox
   ({SelectorGeometry geometry, Map<Object, Rect> rects, Offset origin})?
   _laidOut;
 
+  // Where the box was at the last resolve, and whether it has been attached
+  // since: a box moved under new parents (a tab bar whose circle comes or
+  // goes) reads offsets they have not set yet.
+  Offset? _resolvedAt;
+  bool _moved = false;
+
   @override
   void performLayout() {
     final geometry = _geometry(constraints);
@@ -306,8 +316,10 @@ class _RenderSelectorRow extends RenderBox
     }
     _lens?.layout(BoxConstraints.tight(size));
     // The parents place the box after this layout: the offset read now is
-    // the one it was drawn at.
-    _laidOut = (geometry: geometry, rects: rects, origin: _origin());
+    // the one it was drawn at, unless it moved under new parents.
+    final origin = _moved ? _resolvedAt ?? _origin() : _origin();
+    _moved = false;
+    _laidOut = (geometry: geometry, rects: rects, origin: origin);
     scheduleResolve();
   }
 
@@ -316,11 +328,12 @@ class _RenderSelectorRow extends RenderBox
     final laidOut = _laidOut;
     if (laidOut == null) return;
     _laidOut = null;
+    final origin = _resolvedAt = _origin();
     _motion.layout(
       _motion.clock.now,
       laidOut.geometry,
       laidOut.rects,
-      shift: _origin() - laidOut.origin,
+      shift: origin - laidOut.origin,
       mirrored: _direction == TextDirection.rtl,
       spring: MotionTransaction.layoutSpring,
     );
@@ -379,13 +392,13 @@ class _RenderSelectorRow extends RenderBox
     final frame = _frames.lens.value;
     final body = frame.bodyIn(size);
     final rect = body.drawnRect;
-    final mask = _showsLens
+    final mask = _showsLens || frame.opacity > 0
         ? RSuperellipse.fromRectAndRadius(
             rect,
             Radius.circular(body.drawnRadius),
           )
         : null;
-    final cutter = morph == 0 ? mask : null;
+    final cutter = morph == 0 && frame.opacity >= 1 ? mask : null;
     final (dimmed, opacity) = _frames.dim.value;
     final slots = <Rect>[];
     var i = 0;
@@ -466,33 +479,40 @@ class _RenderSelectorRow extends RenderBox
     if (morph != 0) _paintGlyph(context, offset, slots, morph, lift);
   }
 
-  // The tabs, the selected one's regular look among them, stay about where
-  // they are inside the shrinking glass and dissolve as one.
+  // The tabs, the selected one's regular look among them, go as one
+  // snapshot whose top left rides the glass's, in right to left too, and
+  // which scales, fades and blurs as the morph runs
+  // ([TabBarMinimizeMotion.contentBlur]).
   void _paintDissolving(
     PaintingContext context,
     Offset offset,
     List<Rect> slots,
     double morph,
   ) {
-    final left = 1 - morph / TabBarMinimizeMotion.othersGoneAt;
+    final progress = morph.clamp(0.0, 1.0);
+    final left = 1 - progress;
     if (left <= 0) return;
     final body = _frames.body.value.bodyIn(size).drawnRect;
-    final toward = _collapse!.circleIn(size).center.dx;
-    final together = 1 - TabBarMinimizeMotion.othersDrift * morph;
-    void items(PaintingContext context, Offset offset) {
-      var i = 0;
-      for (final (regular, _) in _live) {
-        final slot = slots[i++];
-        final x = toward + (slot.center.dx - toward) * together;
-        context.paintChild(
-          regular,
-          offset + Offset(x - slot.width / 2, slot.top),
-        );
-      }
-    }
+    final metrics = _tabBarMetrics;
+    final scale = 1 + (metrics.minimizedSize / metrics.height - 1) * progress;
+    final from = _motion.bar.topLeft;
+    final transform = Matrix4.translationValues(body.left, body.top, 0);
+    transform.scaleByDouble(scale, scale, 1, 1);
+    transform.translateByDouble(-from.dx, -from.dy, 0, 1);
+    void items(PaintingContext context, Offset offset) => context.pushTransform(
+      needsCompositing,
+      offset,
+      transform,
+      (context, offset) {
+        var i = 0;
+        for (final (regular, _) in _live) {
+          context.paintChild(regular, offset + slots[i++].topLeft);
+        }
+      },
+    );
 
     void dissolved(PaintingContext context, Offset offset) {
-      final sigma = TabBarMinimizeMotion.othersBlur * morph.clamp(0.0, 1.0);
+      final sigma = TabBarMinimizeMotion.contentBlur * progress;
       if (sigma <= 0) {
         _othersBlur.layer = null;
         return items(context, offset);

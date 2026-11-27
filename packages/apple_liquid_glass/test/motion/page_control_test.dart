@@ -18,6 +18,24 @@ double _d(Map<String, Object?> r, String k) => (r[k]! as num).toDouble();
 
 void main() {
   group('PageControlMotion', () {
+    test("a control of more pages than it shows glides its window on the "
+        "shown page's spring, its edge dots scaling on the way (read from "
+        "UIKit's code)", () {
+      final m = PageControlMotion(count: 12, page: 5);
+      const pitch = 9.67 + 8;
+      final from = m.center(6);
+      expect(m.scaleOf(6), 0.7588);
+      m.setPage(1, 6);
+      m.advance(1.05);
+      final mid = m.center(6);
+      expect(mid, lessThan(from - 0.2 * pitch));
+      expect(mid, greaterThan(from - 0.9 * pitch));
+      expect(m.scaleOf(6), inExclusiveRange(0.7588, 1));
+      m.advance(2);
+      expect(m.center(6), closeTo(from - pitch, 0.01));
+      expect(m.scaleOf(6), 1);
+    });
+
     test('replays the simulator: a timer page advance', () {
       final rows = _rows('$_pages/pc-timer.jsonl');
       final indicators = <int, List<Map<String, Object?>>>{};
@@ -93,10 +111,8 @@ void main() {
     ),
   ]) {
     group('PageControlMotion touches, replayed against $source', () {
-      /// The first dot's center in the probe's window, and the control's
-      /// width (5 pages).
+      /// The first dot's center in the probe's window.
       const firstDot = 166.0;
-      const width = 5 * 9.67 + 4 * 8 + 28;
 
       ({List<int> model, List<int> recorded, double platter}) replay(
         String name,
@@ -130,7 +146,7 @@ void main() {
               case 0:
                 motion.pointerDown(t, x);
               case 3:
-                motion.pointerUp(t, x, width: width);
+                motion.pointerUp(t, x);
               default:
                 motion.pointerMove(t, x);
             }

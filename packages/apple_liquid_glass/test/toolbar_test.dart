@@ -130,6 +130,57 @@ void main() {
     expect(edges, isNot(contains(AxisDirection.down)));
   });
 
+  testWidgets('an item that does not share the background stands alone with '
+      'no glass and splits the capsule around it (UIKit '
+      'hidesSharedBackground, read from its code)', (tester) async {
+    await _phone(tester);
+    Widget page({required bool shares}) => _app(
+      GlassPageScaffold(
+        toolbar: GlassToolbar(
+          items: [
+            GlassBarItem(label: const Text('One'), onPressed: () {}),
+            GlassBarItem(
+              label: const Text('Two'),
+              onPressed: () {},
+              sharesBackground: shares,
+            ),
+            GlassBarItem(label: const Text('Three'), onPressed: () {}),
+          ],
+        ),
+        child: const SizedBox.expand(),
+      ),
+    );
+    List<Rect> capsules() => [
+      for (final surface in tester.widgetList<GlassSurface>(
+        find.byType(GlassSurface),
+      ))
+        if (surface.frame?.value case final frame?
+            when frame.rect != null &&
+                frame.rect != Rect.zero &&
+                frame.opacity > 0)
+          frame.rect!,
+    ];
+    // The capsules lie in the bar's box, which starts at the screen's left.
+    int under(List<Rect> capsules, String label) {
+      final x = tester.getCenter(find.text(label)).dx;
+      return capsules.where((rect) => rect.left < x && x < rect.right).length;
+    }
+
+    await tester.pumpWidget(page(shares: true));
+    await tester.pump();
+    final shared = capsules();
+    expect(shared, hasLength(1));
+    await tester.pumpWidget(page(shares: false));
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    final split = capsules();
+    expect(split, hasLength(2));
+    expect(under(split, 'One'), 1);
+    expect(under(split, 'Two'), 0);
+    expect(under(split, 'Three'), 1);
+  });
+
   testWidgets('a prominent capsule takes its tint back once its button '
       'gets an action', (tester) async {
     await _phone(tester);
@@ -186,16 +237,20 @@ void main() {
     expect(box.top, 874 - 86);
     expect(box.bottom, 874);
     expect(
-      ScrollEdgeTuning.hardBlurOf(AxisDirection.down, box.height),
+      ScrollEdgeTuning.hardBlurOf(box.height),
       closeTo(2.3636, 1e-4),
     );
     expect(
-      ScrollEdgeTuning.hardBlurOf(AxisDirection.down, 93),
+      ScrollEdgeTuning.hardBlurOf(93),
       closeTo(2.4432, 1e-4),
     );
-    expect(ScrollEdgeTuning.hardBlurOf(AxisDirection.down, 140), 2.5);
-    expect(ScrollEdgeTuning.hardBlurOf(AxisDirection.down, 40), 2);
-    expect(ScrollEdgeTuning.hardBlurOf(AxisDirection.up, 116), 2);
+    expect(ScrollEdgeTuning.hardBlurOf(140), 2.5);
+    expect(ScrollEdgeTuning.hardBlurOf(40), 2);
+    expect(ScrollEdgeTuning.hardBlurOf(116 - 62), 2);
+    expect(
+      ScrollEdgeTuning.hardBlurOf(150 - 62),
+      moreOrLessEquals(2.386, epsilon: 0.001),
+    );
   });
 
   testWidgets('a hard edge effect over a custom bottom bar is as tall as '

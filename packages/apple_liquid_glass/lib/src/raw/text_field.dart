@@ -21,6 +21,7 @@ final class GlassTextFieldDetails {
     required this.statesListenable,
     required this.controller,
     required this.maxLines,
+    required this.textAlign,
   });
 
   /// The states the field is in: focused, hovered, disabled, and those the
@@ -36,23 +37,29 @@ final class GlassTextFieldDetails {
   /// The most lines the text shows, or null for as many as it holds.
   final int? maxLines;
 
+  /// How the text aligns, for a placeholder to align the same way.
+  final TextAlign textAlign;
+
   final Widget Function(
     TextStyle style,
     Color cursor,
     Color selection,
     GlassTextScale scale,
+    Color? handle,
   )
   _text;
 
   /// The editable text with its gestures and semantics, drawn in [style]
   /// at [scale] with a [cursorColor] cursor and [selectionColor] behind the
-  /// selected text.
+  /// selected text; a touch's selection shows UIKit's handles in
+  /// [handleColor], or in [cursorColor] when it is null.
   Widget text({
     required TextStyle style,
     required Color cursorColor,
     required Color selectionColor,
     required GlassTextScale scale,
-  }) => _text(style, cursorColor, selectionColor, scale);
+    Color? handleColor,
+  }) => _text(style, cursorColor, selectionColor, scale, handleColor);
 }
 
 /// A text field with no look of its own: [builder] decides how it looks
@@ -64,8 +71,9 @@ final class GlassTextFieldDetails {
 /// A tap anywhere on the field focuses it; on the text it also places the
 /// caret. The field is one Tab stop, shows the text cursor to a mouse, and
 /// says focused while its text has the focus. The keyboard capitalizes
-/// sentences by default, as UIKit's does. On iOS a long press shows the
-/// system edit menu; other platforms show none.
+/// sentences by default, as UIKit's does. A touch's selection shows
+/// UIKit's handles; the edit menu is [contextMenuBuilder]'s, by default
+/// UIKit's own on iOS and none elsewhere.
 class RawGlassTextField extends StatefulWidget {
   /// Creates a text field.
   const RawGlassTextField({
@@ -73,12 +81,19 @@ class RawGlassTextField extends StatefulWidget {
     this.controller,
     this.focusNode,
     this.onChanged,
+    this.onEditingComplete,
     this.onSubmitted,
+    this.onTapOutside,
     this.enabled = true,
+    this.readOnly = false,
     this.autofocus = false,
     this.obscureText = false,
     this.maxLines = 1,
     this.minLines,
+    this.maxLength,
+    this.textAlign = TextAlign.start,
+    this.scrollPhysics,
+    this.contextMenuBuilder,
     this.keyboardType,
     this.textInputAction,
     this.textCapitalization = TextCapitalization.sentences,
@@ -99,7 +114,8 @@ class RawGlassTextField extends StatefulWidget {
        assert(
          minLines == null || maxLines == null || minLines <= maxLines,
          'minLines is at most maxLines.',
-       );
+       ),
+       assert(maxLength == null || maxLength > 0, 'A field holds a character.');
 
   /// Builds the field's look.
   final GlassTextFieldBuilder builder;
@@ -113,11 +129,25 @@ class RawGlassTextField extends StatefulWidget {
   /// Called with the text as the user edits it.
   final ValueChanged<String>? onChanged;
 
+  /// Called when the user finishes editing with the keyboard's action
+  /// key, before [onSubmitted]; null lets the field submit and give up
+  /// the focus.
+  final VoidCallback? onEditingComplete;
+
   /// Called with the text when the user submits it from the keyboard.
   final ValueChanged<String>? onSubmitted;
 
+  /// Called for a pointer down outside the field while it has the focus;
+  /// null gives up the focus where the platform does (`EditableText`'s
+  /// own).
+  final TapRegionCallback? onTapOutside;
+
   /// Whether the field takes input.
   final bool enabled;
+
+  /// Whether the text shows unchanged by the user: it still takes the
+  /// focus and a selection to copy, and the keyboard does not show.
+  final bool readOnly;
 
   /// Whether the field takes focus when it first appears.
   final bool autofocus;
@@ -131,6 +161,19 @@ class RawGlassTextField extends StatefulWidget {
 
   /// The fewest lines the field is tall, or null for one.
   final int? minLines;
+
+  /// The most characters the user can type, or null for any number.
+  final int? maxLength;
+
+  /// How the text and its placeholder align in the field.
+  final TextAlign textAlign;
+
+  /// How the text scrolls past [maxLines], or null for the platform's.
+  final ScrollPhysics? scrollPhysics;
+
+  /// Builds the edit menu of the field's selection, or null for UIKit's
+  /// own on iOS where Flutter can show it and none elsewhere.
+  final EditableTextContextMenuBuilder? contextMenuBuilder;
 
   /// The keyboard, or null for text on one line and multiline text on more.
   final TextInputType? keyboardType;
@@ -205,6 +248,7 @@ class _RawGlassTextFieldState extends State<RawGlassTextField>
     Color cursor,
     Color selection,
     GlassTextScale scale,
+    Color? handle,
   ) {
     final multiline = widget.maxLines != 1;
     return editableText(
@@ -227,9 +271,20 @@ class _RawGlassTextFieldState extends State<RawGlassTextField>
       minLines: widget.minLines,
       autofocus: widget.autofocus,
       autofillHints: widget.autofillHints,
-      inputFormatters: widget.inputFormatters,
+      inputFormatters: [
+        ...?widget.inputFormatters,
+        if (widget.maxLength case final most?)
+          LengthLimitingTextInputFormatter(most),
+      ],
       onChanged: widget.onChanged,
+      onEditingComplete: widget.onEditingComplete,
       onSubmitted: widget.onSubmitted,
+      onTapOutside: widget.onTapOutside,
+      readOnly: widget.readOnly,
+      textAlign: widget.textAlign,
+      scrollPhysics: widget.scrollPhysics,
+      handleColor: handle,
+      contextMenuBuilder: widget.contextMenuBuilder,
     );
   }
 
@@ -253,6 +308,7 @@ class _RawGlassTextFieldState extends State<RawGlassTextField>
           statesListenable: widgetStates,
           controller: controller,
           maxLines: widget.maxLines,
+          textAlign: widget.textAlign,
         ),
       ),
     ),

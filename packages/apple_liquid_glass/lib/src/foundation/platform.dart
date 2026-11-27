@@ -416,6 +416,7 @@ final class GlassPlatformSettings {
     this.reduceTransparency,
     this.showBorders,
     this.prefersCrossFade,
+    this.reduceHighlighting,
     this.glassTintAmount,
     this.prefersReducedResourceUsage,
   });
@@ -431,6 +432,9 @@ final class GlassPlatformSettings {
 
   /// See [GlassTraits.prefersCrossFade].
   final bool? prefersCrossFade;
+
+  /// See [GlassTraits.reduceHighlighting].
+  final bool? reduceHighlighting;
 
   /// See [GlassTraits.glassTintAmount].
   final double? glassTintAmount;
@@ -449,6 +453,7 @@ final class GlassPlatformSettings {
       other.reduceTransparency == reduceTransparency &&
       other.showBorders == showBorders &&
       other.prefersCrossFade == prefersCrossFade &&
+      other.reduceHighlighting == reduceHighlighting &&
       other.glassTintAmount == glassTintAmount &&
       other.prefersReducedResourceUsage == prefersReducedResourceUsage;
 
@@ -457,6 +462,7 @@ final class GlassPlatformSettings {
     reduceTransparency,
     showBorders,
     prefersCrossFade,
+    reduceHighlighting,
     glassTintAmount,
     prefersReducedResourceUsage,
   );
@@ -465,6 +471,7 @@ final class GlassPlatformSettings {
   String toString() =>
       'GlassPlatformSettings(reduceTransparency: $reduceTransparency, '
       'showBorders: $showBorders, prefersCrossFade: $prefersCrossFade, '
+      'reduceHighlighting: $reduceHighlighting, '
       'glassTintAmount: $glassTintAmount, '
       'prefersReducedResourceUsage: $prefersReducedResourceUsage)';
 }

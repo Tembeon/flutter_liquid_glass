@@ -884,6 +884,52 @@ void main() {
             FocusHighlightStrategy.automatic;
       });
 
+      testWidgets('a node that lets go of the focus inside stays let go: '
+          'the focus rests on the presentation, not pulled back in', (
+        tester,
+      ) async {
+        for (final keyboard in [false, true]) {
+          for (final named in [false, true]) {
+            FocusManager.instance.highlightStrategy = keyboard
+                ? FocusHighlightStrategy.alwaysTraditional
+                : FocusHighlightStrategy.alwaysTouch;
+            final shell = make();
+            final first = FocusNode();
+            final second = FocusNode();
+            await shell.pump(tester, const SizedBox.expand());
+            await shell.present(
+              tester,
+              _presentation(
+                [],
+                focus: first,
+                initialFocus: second,
+                named: named,
+              ),
+            );
+            await tester.pump();
+            await tester.pump();
+            final held = named ? second : first;
+            held.requestFocus();
+            await tester.pump();
+            held.unfocus();
+            await tester.pump();
+            await tester.pump();
+            final reason = 'keyboard $keyboard, named $named';
+            expect(first.hasFocus || second.hasFocus, isFalse, reason: reason);
+            expect(
+              FocusManager.instance.primaryFocus?.debugLabel,
+              'Presentation',
+              reason: reason,
+            );
+            await tester.pumpWidget(const SizedBox());
+            first.dispose();
+            second.dispose();
+          }
+        }
+        FocusManager.instance.highlightStrategy =
+            FocusHighlightStrategy.automatic;
+      });
+
       testWidgets('Tab follows a modality that changes while it shows', (
         tester,
       ) async {

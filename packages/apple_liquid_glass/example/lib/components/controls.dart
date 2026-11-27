@@ -26,6 +26,8 @@ enum Brand {
 
 enum _ButtonKind { glass, prominent, clear, tinted }
 
+enum _ButtonSize { standard, small, medium, large }
+
 class ButtonPage extends StatefulWidget {
   const ButtonPage({super.key});
 
@@ -37,7 +39,14 @@ class _ButtonPageState extends State<ButtonPage> {
   var _kind = _ButtonKind.glass;
   var _icon = false;
   var _enabled = true;
+  var _size = _ButtonSize.standard;
+  var _loading = false;
+  var _rounded = false;
+  var _subtitle = false;
+  var _repeats = false;
+  var _poured = 0;
   var _sort = 'Thirst';
+  var _room = 'Kitchen';
   final _lit = <int>{1};
 
   Widget _sortButton() => GlassMenuAnchor(
@@ -64,10 +73,20 @@ class _ButtonPageState extends State<ButtonPage> {
 
   @override
   Widget build(BuildContext context) {
-    final onPressed = _enabled ? () {} : null;
+    final onPressed = _enabled ? () => setState(() => _poured++) : null;
+    final subtitle = _subtitle ? Text('$_poured poured') : null;
     final child = _icon
         ? const Icon(CupertinoIcons.drop_fill)
         : const Text('Water now');
+    final style = GlassButton.styleFrom(
+      controlSize: switch (_size) {
+        _ButtonSize.standard => null,
+        _ButtonSize.small => GlassControlSize.small,
+        _ButtonSize.medium => GlassControlSize.medium,
+        _ButtonSize.large => GlassControlSize.large,
+      },
+      shape: _rounded ? const LiquidRoundedSuperellipse(radius: 10) : null,
+    );
     return ComponentPage(
       name: 'GlassButton',
       summary:
@@ -78,21 +97,37 @@ class _ButtonPageState extends State<ButtonPage> {
         _ButtonKind.glass => GlassButton(
           onPressed: onPressed,
           semanticLabel: 'Water now',
+          style: style,
+          loading: _loading,
+          repeats: _repeats,
+          subtitle: subtitle,
           child: child,
         ),
         _ButtonKind.prominent => GlassButton.prominent(
           onPressed: onPressed,
           semanticLabel: 'Water now',
+          style: style,
+          loading: _loading,
+          repeats: _repeats,
+          subtitle: subtitle,
           child: child,
         ),
         _ButtonKind.clear => GlassButton.clear(
           onPressed: onPressed,
           semanticLabel: 'Water now',
+          style: style,
+          loading: _loading,
+          repeats: _repeats,
+          subtitle: subtitle,
           child: child,
         ),
         _ButtonKind.tinted => GlassButton.prominentClear(
           onPressed: onPressed,
           semanticLabel: 'Water now',
+          style: style,
+          loading: _loading,
+          repeats: _repeats,
+          subtitle: subtitle,
           child: child,
         ),
       },
@@ -112,6 +147,37 @@ class _ButtonPageState extends State<ButtonPage> {
           'Icon',
           value: _icon,
           onChanged: (on) => setState(() => _icon = on),
+        ),
+        ChoiceKnob<_ButtonSize>(
+          'Size',
+          value: _size,
+          options: const {
+            _ButtonSize.standard: 'Glass',
+            _ButtonSize.small: 'Small',
+            _ButtonSize.medium: 'Medium',
+            _ButtonSize.large: 'Large',
+          },
+          onChanged: (size) => setState(() => _size = size),
+        ),
+        ToggleKnob(
+          'Loading',
+          value: _loading,
+          onChanged: (on) => setState(() => _loading = on),
+        ),
+        ToggleKnob(
+          'Corners of 10 points',
+          value: _rounded,
+          onChanged: (on) => setState(() => _rounded = on),
+        ),
+        ToggleKnob(
+          'Subtitle',
+          value: _subtitle,
+          onChanged: (on) => setState(() => _subtitle = on),
+        ),
+        ToggleKnob(
+          'Repeats when held',
+          value: _repeats,
+          onChanged: (on) => setState(() => _repeats = on),
         ),
         ToggleKnob(
           'Enabled',
@@ -159,6 +225,90 @@ class _ButtonPageState extends State<ButtonPage> {
                         child: const Icon(CupertinoIcons.plus),
                       ),
                 ),
+              ],
+            ),
+          ),
+        ),
+        Idea(
+          'Without glass',
+          "UIKit's gray, tinted and filled buttons for content: a plain "
+              'fill that dims under a press, in the size and the loading '
+              'state the knobs set.',
+          child: Stage(
+            height: 96,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: GlassButton.gray(
+                      onPressed: onPressed,
+                      style: style,
+                      loading: _loading,
+                      child: const Text('Gray'),
+                    ),
+                  ),
+                ),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: GlassButton.tinted(
+                      onPressed: onPressed,
+                      style: style,
+                      loading: _loading,
+                      child: const Text('Tinted'),
+                    ),
+                  ),
+                ),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: GlassButton.filled(
+                      onPressed: onPressed,
+                      style: style,
+                      loading: _loading,
+                      child: const Text('Filled'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Idea(
+          'A pop-up button',
+          'GlassPopUpButton shows the value chosen and its chevrons, and '
+              'opens a menu of the others with it checked.',
+          child: Stage(
+            backdrop: Wallpaper.coast,
+            height: 96,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                for (final gray in const [false, true])
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: GlassPopUpButton<String>(
+                        value: _room,
+                        items: const [
+                          GlassPopUpItem(value: 'Kitchen', title: 'Kitchen'),
+                          GlassPopUpItem(value: 'Bedroom', title: 'Bedroom'),
+                          GlassPopUpItem(value: 'Balcony', title: 'Balcony'),
+                        ],
+                        builder: gray
+                            ? (context, onPressed, label) => GlassButton.gray(
+                                onPressed: onPressed,
+                                child: label,
+                              )
+                            : null,
+                        onChanged: _enabled
+                            ? (room) => setState(() => _room = room)
+                            : null,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -320,6 +470,11 @@ class SliderPage extends StatefulWidget {
 class _SliderPageState extends State<SliderPage> {
   var _value = 0.6;
   var _ticks = 0;
+  var _neutral = false;
+  var _snaps = true;
+  var _bounded = false;
+  var _labels = false;
+  var _thumb = true;
   var _brand = Brand.system;
   var _light = 0.4;
 
@@ -332,6 +487,16 @@ class _SliderPageState extends State<SliderPage> {
     stage: GlassSlider(
       value: _value,
       ticks: _ticks,
+      neutralValue: _neutral ? 0.5 : null,
+      snapsToTicks: _snaps,
+      enabledBounds: _bounded ? (0.2, 0.8) : null,
+      showsThumb: _thumb,
+      minimumValueLabel: _labels
+          ? const Icon(CupertinoIcons.speaker_fill, size: 17)
+          : null,
+      maximumValueLabel: _labels
+          ? const Icon(CupertinoIcons.speaker_3_fill, size: 17)
+          : null,
       style: _brand.color == null
           ? null
           : GlassSlider.styleFrom(activeTrackColor: _brand.color),
@@ -345,6 +510,31 @@ class _SliderPageState extends State<SliderPage> {
         value: _ticks,
         options: const {0: 'None', 3: '3', 5: '5', 9: '9'},
         onChanged: (ticks) => setState(() => _ticks = ticks),
+      ),
+      ToggleKnob(
+        'Fill from the middle',
+        value: _neutral,
+        onChanged: (on) => setState(() => _neutral = on),
+      ),
+      ToggleKnob(
+        'Snaps to ticks',
+        value: _snaps,
+        onChanged: (on) => setState(() => _snaps = on),
+      ),
+      ToggleKnob(
+        'Drag only between 0.2 and 0.8',
+        value: _bounded,
+        onChanged: (on) => setState(() => _bounded = on),
+      ),
+      ToggleKnob(
+        'Speakers at the ends',
+        value: _labels,
+        onChanged: (on) => setState(() => _labels = on),
+      ),
+      ToggleKnob(
+        'Thumb',
+        value: _thumb,
+        onChanged: (on) => setState(() => _thumb = on),
       ),
       ChoiceKnob<Brand>(
         'Colors',
@@ -407,16 +597,22 @@ class StepperPage extends StatefulWidget {
 class _StepperPageState extends State<StepperPage> {
   var _value = 4.0;
   var _step = 1.0;
+  var _wraps = false;
+  var _repeats = true;
+  var _chevrons = false;
   var _brand = Brand.system;
   var _days = 7.0;
   var _pots = 3.0;
+  var _pot = 1;
+  static const _potSizes = ['Small', 'Medium', 'Large', 'Huge'];
 
   @override
   Widget build(BuildContext context) => ComponentPage(
     name: 'GlassStepper',
     summary:
         'Two halves that count down and up. A held half repeats, faster '
-        'the longer it is held.',
+        'the longer it is held; with wraps the count runs on past an end '
+        'from the other.',
     stage: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -436,11 +632,20 @@ class _StepperPageState extends State<StepperPage> {
           value: _value,
           max: 40,
           step: _step,
+          wraps: _wraps,
+          autorepeat: _repeats,
+          decrementIcon: _chevrons
+              ? const Icon(CupertinoIcons.chevron_down)
+              : null,
+          incrementIcon: _chevrons
+              ? const Icon(CupertinoIcons.chevron_up)
+              : null,
           style: _brand.color == null
               ? null
               : GlassStepper.styleFrom(
                   backgroundColor: _brand.color!.withValues(alpha: 0.22),
                   foregroundColor: _brand.color,
+                  dividerColor: _brand.color!.withValues(alpha: 0.5),
                 ),
           onChanged: (value) => setState(() => _value = value),
         ),
@@ -453,6 +658,21 @@ class _StepperPageState extends State<StepperPage> {
         value: _step,
         options: {1.0: '1', 2.0: '2', 5.0: '5'},
         onChanged: (step) => setState(() => _step = step),
+      ),
+      ToggleKnob(
+        'Wraps past 0 and 40',
+        value: _wraps,
+        onChanged: (on) => setState(() => _wraps = on),
+      ),
+      ToggleKnob(
+        'Repeats when held',
+        value: _repeats,
+        onChanged: (on) => setState(() => _repeats = on),
+      ),
+      ToggleKnob(
+        'Chevrons for minus and plus',
+        value: _chevrons,
+        onChanged: (on) => setState(() => _chevrons = on),
       ),
       ChoiceKnob<Brand>(
         'Colors',
@@ -487,6 +707,17 @@ class _StepperPageState extends State<StepperPage> {
                 onChanged: (value) => setState(() => _pots = value),
               ),
             ),
+            GlassListRow(
+              title: const Text('Pot size'),
+              detail: Text(_potSizes[_pot]),
+              trailing: GlassStepper.custom(
+                semanticLabel: 'Pot size',
+                onDecrement: _pot == 0 ? null : () => setState(() => _pot--),
+                onIncrement: _pot == _potSizes.length - 1
+                    ? null
+                    : () => setState(() => _pot++),
+              ),
+            ),
           ],
         ),
       ),
@@ -519,6 +750,7 @@ class _SegmentedPageState extends State<SegmentedPage> {
   var _brand = Brand.system;
   final _rooms = ['Bedroom', 'Kitchen'];
   var _room = 'Bedroom';
+  var _water = 250;
 
   @override
   Widget build(BuildContext context) {
@@ -579,6 +811,36 @@ class _SegmentedPageState extends State<SegmentedPage> {
         ),
       ],
       ideas: [
+        Idea(
+          'Segments as buttons',
+          'GlassSegmentedControl.momentary keeps no selection: a tap acts and '
+              'the lens shows on its segment for a moment.',
+          child: Stage(
+            height: 120,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('$_water ml'),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: 240,
+                  child: GlassSegmentedControl<int>.momentary(
+                    segments: const [
+                      GlassSegment(value: -50, label: Text('Less')),
+                      GlassSegment(value: 0, label: Text('Reset')),
+                      GlassSegment(value: 50, label: Text('More')),
+                    ],
+                    onChanged: (step) => setState(
+                      () => _water = step == 0
+                          ? 250
+                          : (_water + step).clamp(0, 1000),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         Idea(
           'Segments that come and go',
           'Inside withSpring a segment added or taken makes the others '
@@ -663,13 +925,23 @@ class PageControlPage extends StatefulWidget {
 
 class _PageControlPageState extends State<PageControlPage> {
   final _pages = PageController();
+  final _stories = PageController();
+  final _storyTimer = GlassPageControlTimer(
+    duration: const Duration(milliseconds: 2500),
+    resetsToInitialPageAfterEnd: true,
+  );
   var _count = 6.0;
   var _page = 0;
+  var _story = 0;
   var _background = GlassPageControlBackground.prominent;
+  var _hidesSingle = true;
+  var _scrubs = true;
 
   @override
   void dispose() {
     _pages.dispose();
+    _stories.dispose();
+    _storyTimer.dispose();
     super.dispose();
   }
 
@@ -685,9 +957,9 @@ class _PageControlPageState extends State<PageControlPage> {
         AmountKnob(
           'Pages',
           value: _count,
-          min: 2,
-          max: 6,
-          ticks: 5,
+          min: 1,
+          max: 12,
+          ticks: 12,
           onChanged: (count) => setState(() {
             _count = count;
             _page = _page.clamp(0, count.round() - 1);
@@ -702,6 +974,23 @@ class _PageControlPageState extends State<PageControlPage> {
             GlassPageControlBackground.minimal: 'Minimal',
           },
           onChanged: (background) => setState(() => _background = background),
+        ),
+        ToggleKnob(
+          'Hidden with one page',
+          value: _hidesSingle,
+          onChanged: (on) => setState(() => _hidesSingle = on),
+        ),
+        ToggleKnob(
+          'Scrubs under a finger',
+          value: _scrubs,
+          onChanged: (on) => setState(() => _scrubs = on),
+        ),
+        ToggleKnob(
+          'Side pager turns by itself',
+          value: _storyTimer.isRunning,
+          onChanged: (on) => setState(
+            on ? _storyTimer.resume : _storyTimer.pause,
+          ),
         ),
       ],
       ideas: [
@@ -720,8 +1009,13 @@ class _PageControlPageState extends State<PageControlPage> {
                     controller: _pages,
                     onPageChanged: (page) => setState(() => _page = page),
                     children: [
-                      for (final wallpaper in Wallpaper.values.take(count))
-                        Image(image: wallpaper.image, fit: BoxFit.cover),
+                      for (var i = 0; i < count; i++)
+                        Image(
+                          image: Wallpaper
+                              .values[i % Wallpaper.values.length]
+                              .image,
+                          fit: BoxFit.cover,
+                        ),
                     ],
                   ),
                   Align(
@@ -733,7 +1027,72 @@ class _PageControlPageState extends State<PageControlPage> {
                         page: _page,
                         progress: _pages.hasClients ? _pages.page : null,
                         backgroundStyle: _background,
+                        hidesForSinglePage: _hidesSingle,
+                        allowsContinuousInteraction: _scrubs,
                         onChanged: (page) => _pages.animateToPage(
+                          page,
+                          duration: const Duration(milliseconds: 450),
+                          curve: Curves.easeOutCubic,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Idea(
+          'As one widget',
+          "GlassPageView puts the pages and their dots together, as SwiftUI's "
+              'page style does: the dots follow the pages and turn them.',
+          child: ClipRSuperellipse(
+            borderRadius: BorderRadius.circular(28),
+            child: SizedBox(
+              height: 220,
+              child: GlassPageView(
+                backgroundStyle: _background,
+                semanticLabel: 'Wallpapers',
+                children: [
+                  for (final wallpaper in Wallpaper.values.take(3))
+                    Image(image: wallpaper.image, fit: BoxFit.cover),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Idea(
+          'Down the side',
+          'With direction down the dots stand on end beside a pager that '
+              'turns up and down; with a GlassPageControlTimer they fill '
+              'and turn the pages by themselves.',
+          child: ClipRSuperellipse(
+            borderRadius: BorderRadius.circular(28),
+            child: SizedBox(
+              height: 220,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  PageView(
+                    controller: _stories,
+                    scrollDirection: Axis.vertical,
+                    onPageChanged: (page) => setState(() => _story = page),
+                    children: [
+                      for (final wallpaper in Wallpaper.values.take(4))
+                        Image(image: wallpaper.image, fit: BoxFit.cover),
+                    ],
+                  ),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 12),
+                      child: GlassPageControl(
+                        count: 4,
+                        page: _story,
+                        direction: AxisDirection.down,
+                        timer: _storyTimer,
+                        backgroundStyle: _background,
+                        onChanged: (page) => _stories.animateToPage(
                           page,
                           duration: const Duration(milliseconds: 450),
                           curve: Curves.easeOutCubic,

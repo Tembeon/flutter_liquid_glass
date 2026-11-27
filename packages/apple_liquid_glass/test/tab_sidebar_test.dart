@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
@@ -23,6 +24,7 @@ Future<void> _pump(
   GlassTabSidebarStyle? style,
   GlassThemeData theme = const GlassThemeData(),
   TextDirection direction = TextDirection.ltr,
+  Widget? badge,
 }) async {
   await tester.pumpWidget(
     WidgetsApp(
@@ -45,17 +47,18 @@ Future<void> _pump(
                 width: width,
                 height: _height,
                 child: GlassTabSidebar(
-                  destinations: const [
+                  destinations: [
                     GlassTabDestination(
-                      icon: SizedBox.square(dimension: 24),
-                      label: Text('One'),
+                      icon: const SizedBox.square(dimension: 24),
+                      label: const Text('One'),
+                      badge: badge,
                     ),
-                    GlassTabDestination(
+                    const GlassTabDestination(
                       icon: SizedBox.square(dimension: 24),
                       label: Text('Me'),
                       atSidebarEnd: true,
                     ),
-                    GlassTabDestination(
+                    const GlassTabDestination(
                       icon: SizedBox.square(dimension: 24),
                       label: Text('Two'),
                     ),
@@ -389,6 +392,48 @@ void main() {
           .center,
       rail.center,
     );
+  });
+
+  testWidgets('on the rail a badge is a dot 10 across on the row '
+      "circle's rim, up and toward the end, and beside the title in full", (
+    tester,
+  ) async {
+    Rect badge() => tester.getRect(find.byType(GlassBadge));
+    Rect rail() => tester.getRect(
+      find
+          .ancestor(
+            of: find.byType(GlassBadge),
+            matching: find.byType(GlassTabSidebarRow),
+          )
+          .first,
+    );
+    const reach = 22 * math.sqrt1_2;
+
+    await _pump(
+      tester,
+      width: GlassTabLayout.defaultRailWidth,
+      badge: const GlassBadge.count(12),
+    );
+    expect(badge().size, const Size.square(10));
+    expect(
+      badge().center,
+      offsetMoreOrLessEquals(rail().center + const Offset(reach, -reach)),
+    );
+
+    await _pump(
+      tester,
+      width: GlassTabLayout.defaultRailWidth,
+      badge: const GlassBadge.count(12),
+      direction: TextDirection.rtl,
+    );
+    expect(
+      badge().center,
+      offsetMoreOrLessEquals(rail().center + const Offset(-reach, -reach)),
+    );
+
+    await _pump(tester, width: 280, badge: const GlassBadge.count(12));
+    expect(badge().width, greaterThan(10), reason: 'the count in full');
+    expect(find.text('12'), findsOneWidget);
   });
 
   testWidgets('rows and a footer laid out by their width stand at the end '

@@ -557,6 +557,7 @@ class InputZones<T extends Object> extends StatefulWidget
     T? Function(Offset)? zoneAt,
     MotionHaptic? Function(T, InteractionEvent)? feedback,
     bool Function(T, TraversalDirection)? onEdge,
+    bool Function(T, String, double)? onType,
     InputPort? port,
     bool excludeChildSemantics = ...,
     List<Interaction> interactions = ...,
@@ -576,6 +577,7 @@ class InputZones<T extends Object> extends StatefulWidget
   final MotionHaptic? Function(InteractionEvent)? hostFeedback
   final List<Interaction> interactions
   final bool Function(T, TraversalDirection)? onEdge
+  final bool Function(T, String, double)? onType
   final InputPort? port
   final bool slides
   final bool Function(Offset)? slidesFrom
@@ -658,7 +660,9 @@ final class LayoutMotion extends Motion
   Rect get bounds
   bool contains(Object id)
   void forget(Object id)
+  void holdItem(double t, Object id, Rect rect)
   Iterable<Object> get ids
+  bool isHeld(Object id)
   bool isLeaving(Object id)
   LayoutItem itemAt(Object id)
   bool itemRests(Object id)
@@ -673,11 +677,13 @@ final class LayoutMotion extends Motion
   LayoutPlanner planner
   double presenceAt(Object id)
   bool presenceRests(Object id)
+  void releaseItem(double t, Object id, {Spring? spring})
   overrides: didAdvance
 final class LayoutPlan
   const LayoutPlan({
     Spring? spring,
     RectSprings? springs,
+    TimingCurve? curve,
     double delay = ...,
     Rect? origin,
     Rect? destination,
@@ -685,6 +691,7 @@ final class LayoutPlan
     double restDistance = ...,
   })
   final MotionPose absent
+  final TimingCurve? curve
   final double delay
   final Rect? destination
   final Rect? origin
@@ -1002,6 +1009,12 @@ final class MotionRect extends MotionPart
     required RectSprings springs,
     double Function()? restDistance,
   })
+  void animate(
+    double t,
+    Rect to, {
+    required MotionAnimation animation,
+    double delay = ...,
+  })
   double reach(double t)
   void retarget(
     double t,
@@ -1037,6 +1050,7 @@ final class MotionScroll extends Motion
     bool Function(ScrollNotification) predicate = ...,
     MotionClock? clock,
   })
+  double? get glideTarget
   bool handle(Notification notification)
   ScrollMetrics? get metrics
   MotionScrollPhase get phase
@@ -1585,13 +1599,17 @@ class SliverMotionList extends StatefulWidget
     LayoutPlanner planner = ...,
     LayoutMotion? motion,
     void Function(LayoutChange)? onLayout,
+    Object? raised,
+    Set<Object> lowered = ...,
     Key? key,
   })
   final List<Object> ids
   final Widget Function(BuildContext, Object) itemBuilder
+  final Set<Object> lowered
   final LayoutMotion? motion
   final void Function(LayoutChange)? onLayout
   final LayoutPlanner planner
+  final Object? raised
   overrides: createState
 final class SourceGeometry
   const SourceGeometry({required Rect rect, BorderRadius borderRadius = ...})

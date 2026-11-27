@@ -47,6 +47,45 @@ void main() {
     expect(scroll.metrics!.hasContentDimensions, isTrue);
   });
 
+  testWidgets('a glide knows where it comes to rest from its first step, '
+      'and only while it glides', (tester) async {
+    final scroll = MotionScroll();
+    await tester.pumpWidget(_list(scroll, count: 200));
+    await tester.pump();
+    final targets = <double?>[];
+    final phase = scroll.select((s) => s.phase);
+    void heard() {
+      if (phase.value == MotionScrollPhase.decelerating) {
+        targets.add(scroll.glideTarget);
+      }
+    }
+
+    phase.addListener(heard);
+    addTearDown(() => phase.removeListener(heard));
+    final target = scroll.select((s) => s.glideTarget);
+    final seen = <double>[];
+    void glides() {
+      if (target.value case final value?) seen.add(value);
+    }
+
+    target.addListener(glides);
+    addTearDown(() => target.removeListener(glides));
+    await tester.timedDrag(
+      find.byType(ListView),
+      const Offset(0, -300),
+      const Duration(milliseconds: 100),
+    );
+    for (var i = 0; i < 300; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(targets, hasLength(1));
+    expect(seen.toSet(), hasLength(1), reason: 'set once per glide');
+    final rest = scroll.metrics!.pixels;
+    expect(rest, greaterThan(600));
+    expect(seen.single, closeTo(rest, rest * 0.05));
+    expect(scroll.glideTarget, isNull);
+  });
+
   testWidgets('a render listener hears a scroll before the frame paints', (
     tester,
   ) async {

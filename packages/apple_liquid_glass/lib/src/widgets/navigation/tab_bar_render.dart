@@ -6,26 +6,33 @@ part of 'tab_bar.dart';
 /// Under the glyph (a compact bar): the glyph's center 24 points from the
 /// top and the title's bottom at 51, so a title in a taller script grows
 /// upward and moves nothing; the badge's leading edge 5 points inside the
-/// glyph's trailing edge and its top 6 points above the glyph's, by eye
-/// (UIKit places it 2 points below the tab button's top).
+/// glyph's trailing edge and its top 2 points below the tab button's (tab
+/// bar passport, iOS 27.2 simulator).
 ///
 /// Beside the glyph (a wide bar): the glyph, 8 points and the title
 /// centred in the button and on its middle line; the badge's leading edge
 /// 6 points before the title's trailing edge and its top on the button's
 /// (tab bar passport, iOS 27.2 simulator in landscape).
 ///
-/// [morph] takes the title away as the bar turns into its circle.
+/// [morph] takes the title away by [titleGoneAt] as the bar turns into
+/// its circle; without [titleGoneAt] the title stays, to go with the rest
+/// of the bar's content.
 class _TabItem extends MultiChildRenderObjectWidget {
   const _TabItem({
     required this.morph,
     required this.titleGoneAt,
     required this.metrics,
     required super.children,
+    this.circleBadge = false,
   });
 
   final ValueListenable<double>? morph;
-  final double titleGoneAt;
+  final double? titleGoneAt;
   final TabBarMetrics metrics;
+
+  /// Whether the badge moves to its place on the minimized circle as the
+  /// bar turns into it: on the selected tab's copy, which travels there.
+  final bool circleBadge;
 
   @override
   _RenderTabItem createRenderObject(BuildContext context) => _RenderTabItem(
@@ -34,12 +41,14 @@ class _TabItem extends MultiChildRenderObjectWidget {
     metrics,
     Directionality.of(context),
     following: followsMotion(context),
+    circleBadge: circleBadge,
   );
 
   @override
   void updateRenderObject(BuildContext context, _RenderTabItem renderObject) {
     renderObject.morph = morph;
     renderObject.titleGoneAt = titleGoneAt;
+    renderObject.circleBadge = circleBadge;
     renderObject.metrics = metrics;
     renderObject.direction = Directionality.of(context);
     renderObject.following = followsMotion(context);
@@ -58,13 +67,18 @@ class _RenderTabItem extends RenderBox
     this._metrics,
     this._direction, {
     required bool following,
+    this._circleBadge = false,
   }) : _follow = MotionFollow.render(following: following) {
     _hear();
   }
 
   static const double _titleBottom = 51;
   static const double _badgeInset = 5;
-  static const double _badgeRise = 6;
+  static const double _badgeDrop = 2;
+  // On the minimized circle the badge's top is 2 below the circle's and its
+  // leading edge 7 inside the glyph's trailing edge (iOS 27.2 simulator).
+  static const double _circleBadgeDrop = 2;
+  static const double _circleBadgeInset = 7;
   static const double _besideGap = 8;
   static const double _besideBadgeOverlap = 6;
 
@@ -99,9 +113,17 @@ class _RenderTabItem extends RenderBox
     super.detach();
   }
 
-  double _titleGoneAt;
-  double get titleGoneAt => _titleGoneAt;
-  set titleGoneAt(double value) {
+  bool _circleBadge;
+  bool get circleBadge => _circleBadge;
+  set circleBadge(bool value) {
+    if (value == _circleBadge) return;
+    _circleBadge = value;
+    markNeedsPaint();
+  }
+
+  double? _titleGoneAt;
+  double? get titleGoneAt => _titleGoneAt;
+  set titleGoneAt(double? value) {
     if (value == _titleGoneAt) return;
     _titleGoneAt = value;
     markNeedsPaint();
@@ -215,7 +237,7 @@ class _RenderTabItem extends RenderBox
         _rtl
             ? at.dx + _badgeInset - badge.size.width
             : at.dx + glyph.width - _badgeInset,
-        at.dy - _badgeRise,
+        TabBarLayout.buttonInset + _badgeDrop,
       ),
     );
   }
@@ -257,15 +279,29 @@ class _RenderTabItem extends RenderBox
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
       defaultHitTestChildren(result, position: position);
 
+  // How far the badge of the copy that travels to the minimized circle has
+  // moved toward its place there, [morph] of the way.
+  Offset _toCircle(double morph) {
+    if (!_circleBadge || _metrics.titlesBeside || morph == 0) {
+      return Offset.zero;
+    }
+    const along = _circleBadgeInset - _badgeInset;
+    final up =
+        (TabBarLayout.buttonInset + _badgeDrop - _metrics.glyphCenter) -
+        (_circleBadgeDrop - _metrics.minimizedSize / 2);
+    return Offset(_rtl ? along : -along, -up) * morph.clamp(0.0, 1.0);
+  }
+
   @override
   void paint(PaintingContext context, Offset offset) {
     context.paintChild(_glyph, offset + _at(_glyph));
     final title = offset + _at(_title);
     final morph = _morph?.value ?? 0;
-    if (morph == 0) {
+    final goneAt = _titleGoneAt;
+    if (morph == 0 || goneAt == null) {
       context.paintChild(_title, title);
     } else {
-      final left = 1 - morph / _titleGoneAt;
+      final left = 1 - morph / goneAt;
       if (left > 0) {
         context.pushOpacity(
           title,
@@ -275,7 +311,7 @@ class _RenderTabItem extends RenderBox
       }
     }
     if (_badge case final badge?) {
-      context.paintChild(badge, offset + _at(badge));
+      context.paintChild(badge, offset + _at(badge) + _toCircle(morph));
     }
   }
 }

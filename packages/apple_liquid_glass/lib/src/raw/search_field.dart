@@ -85,10 +85,13 @@ class RawGlassSearchField extends StatefulWidget {
     this.focusNode,
     this.onChanged,
     this.onSubmitted,
+    this.textInputAction = TextInputAction.search,
+    this.inputFormatters,
     this.enabled = true,
     this.autofocus = false,
     this.semanticLabel,
     this.statesController,
+    this.contextMenuBuilder,
     super.key,
   });
 
@@ -107,6 +110,14 @@ class RawGlassSearchField extends StatefulWidget {
   /// Called with the text when the user submits it from the keyboard.
   final ValueChanged<String>? onSubmitted;
 
+  /// The keyboard's action key: Search by default, as UIKit's search
+  /// field's return key reads.
+  final TextInputAction textInputAction;
+
+  /// What the field passes its text through as the user edits it
+  /// (UIKit `shouldChangeTextInRanges`).
+  final List<TextInputFormatter>? inputFormatters;
+
   /// Whether the field takes input.
   final bool enabled;
 
@@ -121,6 +132,10 @@ class RawGlassSearchField extends StatefulWidget {
   /// while its text has the focus, pressed, hovered and disabled. The field
   /// is its only writer: what else writes to it is written over.
   final WidgetStatesController? statesController;
+
+  /// Builds the edit menu of the field's selection, or null for UIKit's
+  /// own on iOS where Flutter can show it and none elsewhere.
+  final EditableTextContextMenuBuilder? contextMenuBuilder;
 
   /// The height of the field when its host sets none, in points (search
   /// passport).
@@ -265,7 +280,8 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
         selectionColor: cursor.withValues(alpha: 0.25),
         semanticLabel:
             widget.semanticLabel ?? GlassLocalizations.of(context).searchLabel,
-        textInputAction: TextInputAction.search,
+        textInputAction: widget.textInputAction,
+        inputFormatters: widget.inputFormatters,
         textCapitalization: TextCapitalization.sentences,
         // UIKit's search field offers no suggestions. iOS's engine ties
         // spell checking, and with it the prediction bar, to this flag.
@@ -274,6 +290,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
         autofocus: widget.autofocus,
         onChanged: widget.onChanged,
         onSubmitted: widget.onSubmitted,
+        contextMenuBuilder: widget.contextMenuBuilder,
       );
 
   @override

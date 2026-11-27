@@ -31,15 +31,20 @@ DismissTrigger
 DragInteraction
 DragInteractionDetails
 DwellInteraction
+EditMenuMotion
 FakeGlassRenderer
 FlatGlassRenderer
 FlexLaw
 FlexValues
 FollowInteraction
 FrameCadenceScope
+FullScreenMotion
 Glass
+GlassActivityIndicator
+GlassActivityIndicatorSize
 GlassAlertAction
 GlassAlertStyle
+GlassAlertTextField
 GlassBackButtonDisplayMode
 GlassBadge
 GlassBadgeStyle
@@ -77,6 +82,8 @@ GlassColumnDivider
 GlassCompactDatePicker
 GlassContentScroll
 GlassContextMenu
+GlassControlSize
+GlassCountDownPicker
 GlassDateBounds
 GlassDatePicker
 GlassDatePickerArrow
@@ -92,6 +99,7 @@ GlassDatePickerTitleBuilder
 GlassDefaultTextStyle
 GlassDirection
 GlassDynamicColor
+GlassEditMenu
 GlassEnvironment
 GlassEnvironmentOverride
 GlassFloatingTabBar
@@ -111,7 +119,11 @@ GlassLens
 GlassLensContent
 GlassListAccessory
 GlassListBackground
+GlassListContextMenu
+GlassListEditing
+GlassListLayout
 GlassListRow
+GlassListRowAnimation
 GlassListRowBuilder
 GlassListRowDetails
 GlassListSection
@@ -133,6 +145,7 @@ GlassMenuSection
 GlassMenuStyle
 GlassMenuWidget
 GlassMerge
+GlassMonthYearPicker
 GlassNavigationBar
 GlassNavigationBarStyle
 GlassOutline
@@ -142,15 +155,25 @@ GlassPageControlBuilder
 GlassPageControlDetails
 GlassPageControlPose
 GlassPageControlStyle
+GlassPageControlTimer
+GlassPageIndexDisplay
 GlassPageRoute
 GlassPageScaffold
+GlassPageScrollPhysics
+GlassPageView
 GlassPlainButtonStyle
 GlassPlatformScope
+GlassPopUpButton
+GlassPopUpButtonBuilder
+GlassPopUpItem
 GlassPopoverStyle
 GlassPress
+GlassProgressView
+GlassProgressViewStyle
 GlassProminentButtonStyle
 GlassReadReport
 GlassReadSource
+GlassRefreshCallback
 GlassRenderer
 GlassRendererScope
 GlassRole
@@ -165,6 +188,7 @@ GlassSearchFieldDetails
 GlassSearchFieldHost
 GlassSearchFieldStyle
 GlassSearchIcon
+GlassSearchScope
 GlassSegment
 GlassSegmentedControl
 GlassSegmentedStyle
@@ -175,6 +199,7 @@ GlassSelectorDetails
 GlassSelectorItemBuilder
 GlassSelectorMotion
 GlassSheet
+GlassSheetController
 GlassSheetDetent
 GlassSheetStyle
 GlassSizeClass
@@ -183,6 +208,7 @@ GlassSliderBuilder
 GlassSliderDetails
 GlassSliderStyle
 GlassSliverListSection
+GlassSliverRefreshControl
 GlassSolidBackdrop
 GlassSource
 GlassSourceContent
@@ -256,6 +282,7 @@ GlassWheelSelectionBuilder
 GlassWidthRange
 GlassWindowControls
 GlassZoomSource
+HoldRepeat
 InputCapture
 InputCommands
 InputKind
@@ -303,7 +330,10 @@ LiquidOval
 LiquidRoundedRectangle
 LiquidRoundedSuperellipse
 LiquidShape
+ListEditMotion
+ListReorder
 ListRowHighlight
+ListRowPlanner
 LongPressArmEvent
 LongPressInteraction
 LongPressStartEvent
@@ -376,6 +406,7 @@ MotionVisibility
 NavigationPopMotion
 NumericRollDirection
 NumericTextTransition
+OutlineDisclosureMotion
 PageControlEvent
 PageControlMotion
 PageControlPicked
@@ -414,6 +445,7 @@ Presented
 PresentedProgress
 PressInteraction
 PressReach
+ProgressMotion
 Projection
 ProjectionChoice
 ProjectionDirection
@@ -427,6 +459,7 @@ RawGlassDatePicker
 RawGlassList
 RawGlassListRow
 RawGlassPageControl
+RawGlassReorderHandle
 RawGlassSearchField
 RawGlassSelector
 RawGlassSlider
@@ -435,7 +468,9 @@ RawGlassSwipeActions
 RawGlassSwitch
 RawGlassTextField
 RawGlassWheel
+RawTooltipScope
 RectSprings
+RefreshMotion
 RenderListenable
 RenderListening
 RenderScrollEdge
@@ -477,6 +512,7 @@ Spring
 StackedSearchMotion
 SwipeActionsMotion
 SwipeGroup
+SwipeRelease
 SwitchChanged
 SwitchEvent
 SwitchMotion
@@ -491,6 +527,7 @@ TabBarHost
 TabBarLayout
 TabBarMetrics
 TabBarMinimizeMotion
+TabCircleMotion
 TabSidebarMotion
 TapInteraction
 TextStyleMotionConverter
@@ -517,6 +554,7 @@ searchBarLayout
 searchTabLayout
 showGlassActionSheet
 showGlassAlert
+showGlassFullScreen
 showGlassPopover
 showGlassSheet
 showGlassToast

@@ -63,6 +63,7 @@ class RawGlassSelector extends StatefulWidget {
     this.semanticLabel,
     this.itemLabels,
     this.collapse,
+    this.selectionFollowsFocus = true,
     @internal this.host = TabBarHost.none,
     @internal this.tabBarMetrics = TabBarMetrics.compact,
     super.key,
@@ -149,6 +150,11 @@ class RawGlassSelector extends StatefulWidget {
   /// says.
   final GlassSelectorCollapse? collapse;
 
+  /// Whether an arrow key that moves the focus also selects the item it
+  /// moves to, as a segmented control's does; false leaves the selection
+  /// to Space and Enter, as for items that act rather than stay selected.
+  final bool selectionFollowsFocus;
+
   /// What a tab bar hosts beside its tabs, which decides its width and
   /// where it stands in its box.
   @internal
@@ -214,6 +220,9 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     final given = _given;
     _given = widget.selectedIndex;
     final selected = widget._selected;
+    if (!_segmented) {
+      _motion.showLens(_now, shown: selected != null, animated: _hasBuilt);
+    }
     if (selected == null) return;
     if (given == null) {
       _motion.place(_now, selected);
@@ -223,6 +232,9 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   bool get _segmented => widget.motion == GlassSelectorMotion.segmented;
+
+  // Whether the selector has built, so a change of its selection animates.
+  bool _hasBuilt = false;
 
   bool _selectable(int index) =>
       enabled &&
@@ -517,7 +529,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       stops: InputZoneStops.one,
       current: selected == null ? null : _keys[selected],
       focusNode: widget.focusNode,
-      activatesOnMove: true,
+      activatesOnMove: widget.selectionFollowsFocus,
       child: _SelectorRow(
         motion: _motion,
         frames: _frames,
@@ -556,6 +568,12 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
 
   @override
   Widget buildControl(BuildContext context) {
+    if (!_hasBuilt) {
+      _hasBuilt = true;
+      if (!_segmented && widget._selected == null) {
+        _motion.showLens(_now, shown: false, animated: false);
+      }
+    }
     _ghosts.removeWhere((key) {
       if (_motion.items.contains(key)) return false;
       _built.remove(key);

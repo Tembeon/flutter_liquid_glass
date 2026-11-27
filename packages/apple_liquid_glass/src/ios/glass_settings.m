@@ -39,6 +39,11 @@ int glass_prefers_cross_fade(void) {
   return -1;
 }
 
+int glass_reduce_highlighting(void) {
+  if (@available(iOS 26.4, *)) return AXReduceHighlightingEffectsEnabled() ? 1 : 0;
+  return -1;
+}
+
 int glass_prefers_reduced_resource_usage(void) {
   if (@available(iOS 27.0, *)) {
     return UIApplication.sharedApplication.systemPrefersReducedResourceUsage ? 1 : 0;
@@ -67,6 +72,9 @@ void glass_observe_settings(void (^changed)(void)) {
     [names addObject:AXShowBordersEnabledStatusDidChangeNotification];
   } else if (@available(iOS 14.0, *)) {
     [names addObject:UIAccessibilityButtonShapesEnabledStatusDidChangeNotification];
+  }
+  if (@available(iOS 26.4, *)) {
+    [names addObject:AXReduceHighlightingEffectsEnabledDidChangeNotification];
   }
   NSNotificationName tint = glass_tint_amount_did_change();
   if (tint != nil) [names addObject:tint];

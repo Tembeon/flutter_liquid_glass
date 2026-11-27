@@ -46,6 +46,30 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'GlassButton.gray',
+    covers: const [],
+    kind: Kind.pressable,
+    build: (probe, {required enabled}) => GlassButton.gray(
+      onPressed: enabled ? () => probe.add('pressed') : null,
+      child: const Text('Save'),
+    ),
+  ),
+  Entry(
+    'GlassPopUpButton',
+    covers: const ['GlassPopUpButton', 'GlassPopUpItem'],
+    kind: Kind.opener,
+    marker: find.text('Second'),
+    inside: find.text('Second'),
+    build: (probe, {required enabled}) => GlassPopUpButton<int>(
+      value: 1,
+      items: const [
+        GlassPopUpItem(value: 1, title: 'First'),
+        GlassPopUpItem(value: 2, title: 'Second'),
+      ],
+      onChanged: enabled ? (value) => probe.add('chosen') : null,
+    ),
+  ),
+  Entry(
     'RawGlassButton',
     covers: const ['RawGlassButton'],
     look: Look.builder,
@@ -490,6 +514,17 @@ final List<Entry> registry = [
   Entry(
     'GlassSearchField',
     covers: const ['GlassSearchField'],
+    exempt: const {
+      'motion-clock': Exemption(
+        'after the finger lifts it asks the binding for frames its clock '
+        'does not run',
+        because:
+            "Flutter's selection overlay fades the edit menu in on a "
+            '150 ms ticker of its own (_SelectionToolbarWrapper) around '
+            'what contextMenuBuilder builds; GlassEditMenu itself opens on '
+            'the motion clock',
+      ),
+    },
     kind: Kind.textInput,
     build: (probe, {required enabled}) => SizedBox(
       width: 340,
@@ -553,6 +588,15 @@ final List<Entry> registry = [
         because:
             'UITextField draws no hover: the pointer over it turns to the '
             'text cursor, which the field declares',
+      ),
+      'motion-clock': Exemption(
+        'after the finger lifts it asks the binding for frames its clock '
+        'does not run',
+        because:
+            "Flutter's selection overlay fades the edit menu in on a "
+            '150 ms ticker of its own (_SelectionToolbarWrapper) around '
+            'what contextMenuBuilder builds; GlassEditMenu itself opens on '
+            'the motion clock',
       ),
     },
     kind: Kind.textInput,
@@ -802,6 +846,36 @@ final List<Entry> registry = [
       probe: probe,
       initial: DateTime(2026, 10, 3, 9, 41),
       builder: (context, value, set) => GlassTimePicker(
+        value: value,
+        onChanged: enabled ? set : null,
+      ),
+    ),
+  ),
+  Entry(
+    'GlassCountDownPicker',
+    covers: const ['GlassCountDownPicker'],
+    kind: Kind.value,
+    wheel: true,
+    focusStops: 2,
+    build: (probe, {required enabled}) => Held<Duration>(
+      probe: probe,
+      initial: const Duration(hours: 1, minutes: 30),
+      builder: (context, value, set) => GlassCountDownPicker(
+        value: value,
+        onChanged: enabled ? set : null,
+      ),
+    ),
+  ),
+  Entry(
+    'GlassMonthYearPicker',
+    covers: const ['GlassMonthYearPicker'],
+    kind: Kind.value,
+    wheel: true,
+    focusStops: 2,
+    build: (probe, {required enabled}) => Held<DateTime>(
+      probe: probe,
+      initial: DateTime(2026, 10),
+      builder: (context, value, set) => GlassMonthYearPicker(
         value: value,
         onChanged: enabled ? set : null,
       ),
@@ -1107,6 +1181,21 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'showGlassFullScreen',
+    covers: const ['showGlassFullScreen'],
+    kind: Kind.overlay,
+    dismissible: false,
+    marker: find.text(overlayText),
+    inside: find.text('Inside'),
+    build: (probe, {required enabled}) => Opener(
+      show: (context) => showGlassFullScreen<void>(
+        context,
+        semanticLabel: 'Cover',
+        builder: (context) => _content(probe),
+      ),
+    ),
+  ),
+  Entry(
     'showGlassPopover',
     covers: const ['showGlassPopover'],
     kind: Kind.overlay,
@@ -1127,21 +1216,41 @@ final List<Entry> registry = [
 /// Public widgets that take no input, each with the reason.
 const Map<String, String> nonInteractive = {
   'ContextHold': 'the measured growth of a held context menu view; no widget',
+  'GlassActivityIndicator':
+      'spokes that turn while a task runs; activity_indicator_test holds '
+      'its sizes, its stop and its reading',
+  'GlassAlertTextField':
+      "describes a field of an alert; alert_test holds the fields' input "
+      'and showGlassAlert runs its checks',
   'GlassBadge': 'a label drawn on another control; announces its text only',
   'GlassBarCustomItem':
       'a bar entry holding custom content, which takes its own input',
   'GlassBarEntry': 'the sealed base of GlassBarItem and GlassBarSpacer',
   'GlassClip': 'clips its child to a glass shape',
+  'GlassSearchScope':
+      'gives the widgets below a search controller; draws nothing',
+  'GlassPageView':
+      'a PageView and a GlassPageControl, whose input the GlassPageControl '
+      'entry checks; page_view_test holds the two together',
   'GlassContentScroll':
       'reports scroll edges to the bars; the scrollable '
       'inside it takes the input',
   'GlassDefaultTextStyle': 'provides a text style to its subtree',
+  'GlassEditMenu':
+      'the edit menu a text input shows for its selection, in the '
+      "input's selection overlay; edit_menu_test holds its taps and "
+      'GlassTextField runs it here',
   'GlassEnvironmentOverride':
       'gives its subtree what the app knows about the window',
   'GlassGroup': 'merges the glass of its children',
   'GlassHighlightPaint':
       'paints the focus ring and hover on a part of a control',
   'GlassListBackground': 'paints the grouped background behind sections',
+  'GlassListContextMenu':
+      'gives list rows their context menus; the rows and GlassContextMenu '
+      'take the input',
+  'GlassListEditing':
+      'puts the rows below into editing; the rows take the input',
   'GlassListSection': 'lays out rows and a header; its rows are entries',
   'GlassMenuEntry': 'the sealed base of the menu entries',
   'GlassPageScaffold': 'lays out bars around content; its bars are entries',
@@ -1150,6 +1259,9 @@ const Map<String, String> nonInteractive = {
   'GlassPlatformScope':
       'reads what the operating system decides about the window for its '
       'subtree',
+  'GlassProgressView':
+      'a bar that shows how far a task has come; progress_view_test holds '
+      'its sizes, its motion and its reading',
   'GlassRendererScope': 'provides the renderer to its subtree',
   'GlassScope': 'the root widget: theme and renderer',
   'GlassSliverListSection': 'the sliver form of GlassListSection',
@@ -1157,6 +1269,9 @@ const Map<String, String> nonInteractive = {
       'tells the search fields below the bar that hosts them',
   'GlassSearchIcon':
       'the magnifier of a search field; it draws and takes no input',
+  'GlassSliverRefreshControl':
+      'a sliver its scroll view pulls; refresh_control_test holds the pull, '
+      'the refresh and the end',
   'GlassSolidBackdrop': 'tells glass what is behind it',
   'GlassSource': "describes a control's body to the presentation around it",
   'GlassSourceContent':
@@ -1178,6 +1293,10 @@ const Map<String, String> nonInteractive = {
   'MenuRowSpec': 'describes a menu row to the layout law',
   'PageControlMotion': 'the page control law; a control runs it',
   'RawGlassList': 'animates the layout of keyed children',
+  'RawGlassReorderHandle':
+      'drags its row of a reordering RawGlassList, itself nothing outside '
+      'one; list_reorder_test drives it',
+  'RawTooltipScope': "gives a tooltip's message to the raw controls under it",
   'ScrollEdgeBand': 'draws the scroll edge band of a renderer',
   'SelectorMotion': 'the selector law; a control runs it',
   'SliderMotion': 'the slider law; a control runs it',

@@ -41,18 +41,33 @@ final class GlassTabDestination {
     this.semanticLabel,
     this.id,
     this.atSidebarEnd = false,
+    this.prominent = false,
   });
 
   /// What tells the tab apart across changes of the destinations, or null
-  /// to tell it by its position: a change inside `withSpring` slides the
-  /// tabs that stay, fades new ones in and old ones out, and the lens
-  /// moves with its tab ([RawGlassSelector.itemKeys]). Not measured: UIKit's
-  /// animated setItems was not captured.
+  /// to tell it by its position. A change inside `withSpring` runs as
+  /// UIKit's `setTabs(_:animated:)` does, whatever spring it gives: the
+  /// tabs, the lens and the bar move on a critically damped 0.3 s spring, a
+  /// new tab grows out of where the tab before it stood as it fades in, and
+  /// a removed one fades on a 0.2 s spring onto the place of the tab after
+  /// it (fitted to UIKit's live layers, iOS 27.2 simulator;
+  /// [RawGlassSelector.itemKeys]).
   final Object? id;
 
   /// The tab's glyph, 24 points by default, 20 beside the title of a wide
   /// bar.
   final Widget icon;
+
+  /// Whether a tab bar draws the tab in a glass circle of its own at the
+  /// trailing side instead of among the others, as UIKit's
+  /// `prominentTabIdentifier` and SwiftUI's prominent tab role do: 62
+  /// points across, where a search tab's circle stands (iOS 27.2
+  /// simulator). Selected, it tints its glyph and the bar's lens fades out
+  /// over 0.25 s; unselected, its glyph takes the label color. One tab at
+  /// most; a bar with one has no search tab, action or accessory and does
+  /// not minimize. Its circle comes and goes as [TabCircleMotion] says, the
+  /// bar's tabs moving with it inside an animation (`withSpring`).
+  final bool prominent;
 
   /// The tab's title.
   final Widget label;
@@ -283,12 +298,13 @@ enum GlassTabAccessoryPlacement {
 /// 44 points tall, each 12 point title beside its glyph, as wide as its
 /// tabs at the middle; with an accessory, a search tab or an action, one
 /// group at most 640 wide whose tabs share the bar. A title stays on one
-/// line at its size and ends in an ellipsis where it does not fit. Its
-/// motion is
+/// line at its size and ends in an ellipsis where it does not fit; the
+/// text size and Bold Text change neither the titles nor the bar, as on the
+/// iOS 27.2 simulator by trait and by the setting. Its motion is
 /// [RawGlassSelector]'s with [GlassSelectorMotion.tabBar]: the bar swells
 /// and drifts under the finger, a glow follows it, and a dragged lens
-/// carries a selected copy of the tabs under it. Titles follow the text
-/// scale up to [maxTextScale]. [onDestinationSelected] runs on every
+/// carries a selected copy of the tabs under it. [onDestinationSelected]
+/// runs on every
 /// selection, the selected tab's included: a tap on it, Space, Enter or an
 /// accessibility tap reselects it, where an app scrolls the tab's content
 /// to the top.
@@ -327,8 +343,13 @@ enum GlassTabAccessoryPlacement {
 /// not. The wide bar is read from UIKit and checked against the iOS 27.2
 /// simulator in landscape; its unhosted tabs' content is centred where a
 /// lost capture put the glyph 3 points nearer the leading edge, and a wide
-/// bar searching without the focus is not measured. Not ported: the bar in
-/// a sheet. Not measured: the focus ring and hover response, which are
+/// bar searching without the focus is not measured. In a sheet that
+/// reaches the screen's bottom, as every iPhone sheet does, UIKit places
+/// the bar as it does outside one, 21 points from the sides and bottom
+/// (read from UIKit's code and an iOS 27.2 simulator sheet); the smaller
+/// minimums it gives a sheet (18 at the sides, 13 below) show only in a
+/// sheet that ends above the home indicator, which this bar does not
+/// follow. Not measured: the focus ring and hover response, which are
 /// approximations of the platform.
 class GlassTabBar extends StatelessWidget {
   /// Creates a tab bar showing [selectedIndex] selected.
@@ -384,6 +405,11 @@ class GlassTabBar extends StatelessWidget {
 
   /// The content of the glass accessory above the bar (UIKit
   /// `bottomAccessory`, SwiftUI `tabViewBottomAccessory`), or null.
+  ///
+  /// Set or taken away on a bar that minimizes or has a search tab, the
+  /// accessory's glass and content materialize, or dematerialize, over
+  /// 0.3 s, easing in and out, as UIKit's `setBottomAccessory(_:animated:)`
+  /// runs (iOS 27.2 simulator); on any other bar it comes and goes at once.
   final Widget? bottomAccessory;
 
   /// The search of the bar's search tab, or null for a bar without one.
@@ -453,9 +479,6 @@ class GlassTabBar extends StatelessWidget {
       (accessory
           ? TabBarLayout.accessoryGap + TabBarLayout.accessoryHeight
           : 0);
-
-  /// The largest text scale the titles follow (tab bar passport).
-  static const double maxTextScale = 1.25;
 
   /// UITabBar's resting lens: what UIKit's color matrices make of the
   /// measured bar under the selection, over a plain page.
@@ -551,35 +574,62 @@ class GlassTabBar extends StatelessWidget {
     final look = (style ?? const GlassTabBarStyle())
         .merge(themed)
         .merge(_defaults(context, metrics));
-    final onSelected = onDestinationSelected;
+    final prominent = destinations.indexWhere((tab) => tab.prominent);
+    assert(
+      destinations.where((tab) => tab.prominent).length <= 1 &&
+          (prominent < 0 ||
+              (action == null &&
+                  searchController == null &&
+                  bottomAccessory == null)),
+      'One prominent tab at most, in a bar without a search tab, an action '
+      'or an accessory.',
+    );
+    final onDestination = onDestinationSelected;
+    // The bar shows the tabs but a prominent one, which its circle shows.
+    final tabs = prominent < 0
+        ? destinations
+        : [
+            ...destinations.take(prominent),
+            ...destinations.skip(prominent + 1),
+          ];
+    int toBar(int index) =>
+        prominent >= 0 && index > prominent ? index - 1 : index;
+    int fromBar(int index) =>
+        prominent >= 0 && index >= prominent ? index + 1 : index;
+    final onSelected = onDestination == null
+        ? null
+        : (int index) => onDestination(fromBar(index));
+    final barSelection = selectedIndex == prominent
+        ? null
+        : toBar(selectedIndex);
     Widget bar(GlassSelectorCollapse? collapse, {required TabBarHost host}) =>
         RawGlassSelector(
           motion: GlassSelectorMotion.tabBar,
           collapse: collapse,
           host: host,
           tabBarMetrics: metrics,
-          itemCount: destinations.length,
+          itemCount: tabs.length,
           itemKeys: [
-            for (final (i, destination) in destinations.indexed)
+            for (final (i, destination) in tabs.indexed)
               if (destination.id == null) (null, i) else (destination.id, null),
           ],
-          selectedIndex: selectedIndex,
+          selectedIndex: barSelection,
           onChanged: onSelected,
           onReselected: onSelected,
           disabledItems: {
-            for (var i = 0; i < destinations.length; i++)
-              if (!destinations[i].enabled) i,
+            for (var i = 0; i < tabs.length; i++)
+              if (!tabs[i].enabled) i,
           },
           statesController: statesController,
           focusNode: focusNode,
           autofocus: autofocus,
           semanticLabel: semanticLabel,
           itemLabels: [
-            for (final destination in destinations)
+            for (final destination in tabs)
               destination.semanticLabel ?? glassLabelTextOf(destination.label),
           ],
           itemBuilder: (context, index, states) => _TabContent(
-            destination: destinations[index],
+            destination: tabs[index],
             metrics: metrics,
             look: look,
             states: states,
@@ -595,20 +645,30 @@ class GlassTabBar extends StatelessWidget {
                 thumb: look.thumbColor,
               ),
         );
-    if (action case final action?) {
-      return _ActionTabBar(
-        action: action,
-        metrics: metrics,
-        bar: bar(null, host: TabBarHost.circle),
-      );
-    }
     final accessory = bottomAccessory;
     final search = searchController;
-    if (search == null && !minimizeBehavior.minimizes && accessory == null) {
-      return Align(
-        widthFactor: 1,
-        heightFactor: 1,
-        child: bar(null, host: TabBarHost.none),
+    final alone =
+        search == null && !minimizeBehavior.minimizes && accessory == null;
+    if (alone || action != null || prominent >= 0) {
+      final circle = switch (action) {
+        final action? => _ActionCircle(action: action, metrics: metrics),
+        null when prominent >= 0 => _ProminentCircle(
+          destination: destinations[prominent],
+          selected: selectedIndex == prominent,
+          metrics: metrics,
+          onPressed: onDestination == null
+              ? null
+              : () => onDestination(prominent),
+        ),
+        null => null,
+      };
+      return _CircleTabBar(
+        circle: circle,
+        metrics: metrics,
+        bar: bar(
+          null,
+          host: circle == null ? TabBarHost.none : TabBarHost.circle,
+        ),
       );
     }
     return _MinimizingBar(

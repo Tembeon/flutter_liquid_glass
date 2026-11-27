@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/raw.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
@@ -6,6 +7,9 @@ import 'package:kinesis/motion.dart';
 const _frame = Duration(milliseconds: 16);
 const _width = 400.0;
 const _actionWidth = 80.0;
+
+// The open strip: UIKit's 10 point margins and gap around the buttons.
+const _strip = 10 + _actionWidth + 10 + _actionWidth + 10;
 
 Widget _row(String name, List<String> log) => RawGlassSwipeActions(
   actionLabels: const ['A', 'B'],
@@ -63,9 +67,12 @@ void main() {
     expect(find.text('row 0'), findsNothing);
 
     await _swipe(tester, 'row', -120);
-    expect(_left(tester, 'row'), closeTo(-2 * _actionWidth, 0.5));
-    expect(_left(tester, 'row 0'), closeTo(_width - _actionWidth, 0.5));
-    expect(_left(tester, 'row 1'), closeTo(_width - 2 * _actionWidth, 0.5));
+    expect(_left(tester, 'row'), closeTo(-_strip, 0.5));
+    expect(_left(tester, 'row 0'), closeTo(_width - 10 - _actionWidth, 0.5));
+    expect(
+      _left(tester, 'row 1'),
+      closeTo(_width - 20 - 2 * _actionWidth, 0.5),
+    );
     expect(log, isEmpty);
   });
 
@@ -74,6 +81,45 @@ void main() {
     await tester.pumpWidget(_app(_row('row', log)));
     await _swipe(tester, 'row', -350);
     expect(log, ['row action 0']);
+  });
+
+  testWidgets('crossing the full swipe commit plays a light impact each '
+      'way (UIKit, read from its code)', (tester) async {
+    final played = <Object?>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'HapticFeedback.vibrate') played.add(call.arguments);
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    final log = <String>[];
+    await tester.pumpWidget(_app(_row('row', log)));
+    final finger = await tester.startGesture(
+      tester.getCenter(find.text('row')),
+    );
+    for (final step in const [-60.0, -60.0, -60.0, -60.0, -60.0, -60.0]) {
+      await finger.moveBy(Offset(step, 0));
+      await tester.pump(_frame);
+    }
+    expect(played, ['HapticFeedbackType.lightImpact']);
+    for (var i = 0; i < 3; i++) {
+      await finger.moveBy(const Offset(60, 0));
+      await tester.pump(_frame);
+    }
+    expect(played, [
+      'HapticFeedbackType.lightImpact',
+      'HapticFeedbackType.lightImpact',
+    ]);
+    await finger.up();
+    await _settle(tester);
+    expect(log, isEmpty);
   });
 
   testWidgets('a tap on the open row closes it and the content does not '
@@ -111,10 +157,10 @@ void main() {
       ),
     );
     await _swipe(tester, 'first', -120);
-    expect(_left(tester, 'first'), closeTo(-2 * _actionWidth, 0.5));
+    expect(_left(tester, 'first'), closeTo(-_strip, 0.5));
 
     await _swipe(tester, 'second', -120);
-    expect(_left(tester, 'second'), closeTo(-2 * _actionWidth, 0.5));
+    expect(_left(tester, 'second'), closeTo(-_strip, 0.5));
     expect(_left(tester, 'first'), closeTo(0, 0.5));
   });
 
@@ -132,7 +178,7 @@ void main() {
       ),
     );
     await _swipe(tester, 'row', -120);
-    expect(_left(tester, 'row'), closeTo(-2 * _actionWidth, 0.5));
+    expect(_left(tester, 'row'), closeTo(-_strip, 0.5));
 
     await tester.drag(find.text('3'), const Offset(0, -30));
     await _settle(tester);
@@ -149,12 +195,12 @@ void main() {
     await _swipe(tester, 'row', 120);
     expect(
       tester.getTopRight(find.text('row')).dx,
-      closeTo(closed + 2 * _actionWidth, 0.5),
+      closeTo(closed + _strip, 0.5),
     );
-    expect(tester.getTopLeft(find.text('row 0')).dx, closeTo(0, 0.5));
+    expect(tester.getTopLeft(find.text('row 0')).dx, closeTo(10, 0.5));
     expect(
       tester.getTopLeft(find.text('row 1')).dx,
-      closeTo(_actionWidth, 0.5),
+      closeTo(20 + _actionWidth, 0.5),
     );
 
     await tester.tap(find.text('row 0'));

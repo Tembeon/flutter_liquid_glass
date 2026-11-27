@@ -1,6 +1,7 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/components/bars.dart';
 import 'package:apple_liquid_glass_example/components/controls.dart';
+import 'package:apple_liquid_glass_example/components/indicators.dart';
 import 'package:apple_liquid_glass_example/components/lists.dart';
 import 'package:apple_liquid_glass_example/components/menus.dart';
 import 'package:apple_liquid_glass_example/components/pickers.dart';
@@ -41,7 +42,7 @@ class ComponentsPage extends StatelessWidget {
           CupertinoIcons.capsule_fill,
           GlassColors.systemBlue,
           'Button',
-          'GlassButton',
+          'GlassButton, GlassPopUpButton',
           ButtonPage.new,
         ),
         (
@@ -79,6 +80,39 @@ class ComponentsPage extends StatelessWidget {
           'GlassPageControl',
           PageControlPage.new,
         ),
+        (
+          CupertinoIcons.rectangle_on_rectangle,
+          Color(0xFF30B0C7),
+          'Pages',
+          'GlassPageScrollPhysics',
+          PageViewPage.new,
+        ),
+      ],
+    ),
+    (
+      'Indicators',
+      [
+        (
+          CupertinoIcons.slowmo,
+          GlassColors.systemGray,
+          'Activity indicator',
+          'GlassActivityIndicator',
+          ActivityIndicatorPage.new,
+        ),
+        (
+          CupertinoIcons.chart_bar_fill,
+          GlassColors.systemBlue,
+          'Progress view',
+          'GlassProgressView, GlassProgressView.timer',
+          ProgressViewPage.new,
+        ),
+        (
+          CupertinoIcons.arrow_clockwise,
+          GlassColors.systemGreen,
+          'Refresh control',
+          'GlassSliverRefreshControl',
+          RefreshControlPage.new,
+        ),
       ],
     ),
     (
@@ -95,7 +129,8 @@ class ComponentsPage extends StatelessWidget {
           CupertinoIcons.calendar,
           GlassColors.systemRed,
           'Date picker',
-          'GlassCompactDatePicker, GlassDatePicker',
+          'GlassCompactDatePicker, GlassDatePicker, GlassTimePicker, '
+              'GlassCountDownPicker, GlassMonthYearPicker',
           DatePickerPage.new,
         ),
         (
@@ -109,7 +144,7 @@ class ComponentsPage extends StatelessWidget {
           CupertinoIcons.textformat,
           GlassColors.systemBlue,
           'Text field',
-          'GlassTextField',
+          'GlassTextField, GlassEditMenu',
           TextFieldPage.new,
         ),
         (
@@ -135,14 +170,14 @@ class ComponentsPage extends StatelessWidget {
           CupertinoIcons.exclamationmark_bubble_fill,
           Color(0xFFFF375F),
           'Alert',
-          'showGlassAlert, showGlassActionSheet',
+          'showGlassAlert, showGlassActionSheet, GlassAlertTextField',
           AlertPage.new,
         ),
         (
           CupertinoIcons.rectangle_stack_fill,
           Color(0xFF40C8E0),
           'Sheet',
-          'showGlassSheet',
+          'showGlassSheet, showGlassFullScreen',
           SheetPage.new,
         ),
         (
@@ -158,6 +193,13 @@ class ComponentsPage extends StatelessWidget {
           'Toast',
           'showGlassToast, GlassToast, GlassToaster',
           ToastPage.new,
+        ),
+        (
+          CupertinoIcons.text_bubble,
+          GlassColors.systemGray,
+          'Tooltip',
+          'GlassTooltip',
+          TooltipPage.new,
         ),
       ],
     ),

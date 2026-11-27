@@ -1,6 +1,7 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_entries.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/kinesis.dart';
 
 /// The text of a bar's labels: 17 pt, weight 500, height 1.2 (bars
 /// passport).
@@ -149,6 +150,12 @@ sealed class GlassBarItem extends GlassBarEntry {
     VoidCallback? onPressed,
     String? semanticLabel,
     List<GlassMenuEntry>? menuChildren,
+    GlassMenuOrder menuOrder,
+    bool selected,
+    Widget? badge,
+    Color? tint,
+    MotionSource? zoomSource,
+    bool sharesBackground,
   }) = GlassBarButton;
 
   /// Creates a button in a capsule of its own, tinted with the theme's
@@ -163,13 +170,23 @@ sealed class GlassBarItem extends GlassBarEntry {
 
   /// Creates an item of custom content in the capsule, such as a segmented
   /// control (UIKit `customView`); [child] handles its own input.
-  const factory GlassBarItem.custom({required Widget child, LocalKey? key}) =
-      GlassBarCustomItem;
+  const factory GlassBarItem.custom({
+    required Widget child,
+    LocalKey? key,
+    bool sharesBackground,
+  }) = GlassBarCustomItem;
 
-  const GlassBarItem._({this.key});
+  const GlassBarItem._({this.key, this.sharesBackground = true});
 
   /// The identity of the item across changes of the bar and across pages.
   final LocalKey? key;
+
+  /// Whether the item stands in a glass capsule, shared with the items
+  /// beside it; false stands it alone with no glass of its own, splitting
+  /// the items around it into capsules of their own, as UIKit's
+  /// `hidesSharedBackground` and SwiftUI's `sharedBackgroundVisibility`
+  /// do (read from UIKit's code). A prominent button always has its own.
+  final bool sharesBackground;
 }
 
 /// A button of a bar: an icon or a label, an action and maybe a menu; it
@@ -183,6 +200,12 @@ final class GlassBarButton extends GlassBarItem {
     this.onPressed,
     this.semanticLabel,
     this.menuChildren,
+    this.menuOrder = GlassMenuOrder.automatic,
+    this.selected = false,
+    this.badge,
+    this.tint,
+    this.zoomSource,
+    super.sharesBackground,
   }) : assert(icon != null || label != null, 'an icon or a label'),
        super._();
 
@@ -209,6 +232,37 @@ final class GlassBarButton extends GlassBarItem {
   /// capture on an iPhone 16 Pro; the pressed glyph's dimming is left out and a
   /// custom view in the capsule hides without riding the shape (near).
   final List<GlassMenuEntry>? menuChildren;
+
+  /// How [menuChildren] order when the menu opens upward, as from a
+  /// toolbar (UIKit `preferredMenuElementOrder`).
+  final GlassMenuOrder menuOrder;
+
+  /// Whether the button shows selected (UIKit `isSelected`): its glyph in
+  /// white, or the color that reads on the tint, on a capsule of the tint
+  /// 7 points past the glyph at each side and 35.33 tall (a selected heart
+  /// of 27 points draws a capsule of 41; iOS 27.2 simulator). Screen
+  /// readers do not hear the selection yet; say it in [semanticLabel] where
+  /// it matters.
+  final bool selected;
+
+  /// A badge on the button, usually a `GlassBadge` (UIKit
+  /// `UIBarButtonItem.badge`): centered 2.83 points past the glyph's
+  /// trailing edge and 2.5 above its top, over the capsule's rim, where a
+  /// bell alone in its capsule draws its 18.33 point badge 6.5 in from the
+  /// capsule's corner (iOS 27.2 simulator).
+  final Widget? badge;
+
+  /// The color of the button's glyph or label, and of its capsule while
+  /// [selected], as UIKit's `tintColor` on an item and SwiftUI's `tint` on
+  /// a toolbar button; null for the bar's. A disabled button keeps the
+  /// disabled color.
+  final Color? tint;
+
+  /// The source a `GlassPageRoute` zooms out of and back into, shown by
+  /// this button as a `GlassZoomSource` around its place in the capsule,
+  /// as UIKit's `.zoom(sourceBarButtonItemProvider:)` zooms from a bar
+  /// button; null for none.
+  final MotionSource? zoomSource;
 }
 
 /// A button in a capsule of its own, tinted with the theme's primary color,
@@ -243,7 +297,11 @@ final class GlassBarProminentButton extends GlassBarItem {
 /// `customView`); its child handles its own input and speaks for itself.
 final class GlassBarCustomItem extends GlassBarItem {
   /// Creates an item showing [child]; [child] handles its own input.
-  const GlassBarCustomItem({required this.child, super.key}) : super._();
+  const GlassBarCustomItem({
+    required this.child,
+    super.key,
+    super.sharesBackground,
+  }) : super._();
 
   /// The content.
   final Widget child;

@@ -207,7 +207,7 @@ void main() {
     expect(edges, isNot(contains(AxisDirection.down)));
   });
 
-  testWidgets('a page that hides the tab bar slides it away while it shows, '
+  testWidgets('a page that hides the tab bar fades it away while it shows, '
       'so its toolbar takes the taps; a page pushed on it and another tab '
       'bring the bar back', (tester) async {
     await _phone(tester);
@@ -258,7 +258,7 @@ void main() {
     );
     await _frames(tester);
     final bar = find.text('One');
-    expect(bar.hitTestable(), findsNothing, reason: 'the bar slid away');
+    expect(bar.hitTestable(), findsNothing, reason: 'the bar faded away');
     await tester.tap(find.text('Share'));
     await tester.pump();
     expect(shared, 1);
@@ -279,6 +279,69 @@ void main() {
 
     rebuild(() => hides = false);
     await _frames(tester);
+    expect(bar.hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('a page that hides the tab bar fades it in place on a 0.3 s '
+      'spring and takes its room back on the same curve (UIKit, iOS 27.2 '
+      'simulator)', (tester) async {
+    await _phone(tester);
+    var hides = false;
+    late StateSetter rebuild;
+    var padding = -1.0;
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFF000000),
+        pageRouteBuilder: <T>(settings, builder) =>
+            GlassPageRoute<T>(builder: builder, settings: settings),
+        builder: (context, child) =>
+            GlassScope(renderer: const FlatGlassRenderer(), child: child!),
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            rebuild = setState;
+            return GlassTabScaffold(
+              tabs: [
+                GlassTab(
+                  icon: const SizedBox.square(dimension: 24),
+                  label: const Text('One'),
+                  builder: (context) => GlassPageScaffold(
+                    hidesTabBar: hides,
+                    child: Builder(
+                      builder: (context) {
+                        padding = MediaQuery.paddingOf(context).bottom;
+                        return const SizedBox.expand();
+                      },
+                    ),
+                  ),
+                ),
+                GlassTab(
+                  icon: const SizedBox.square(dimension: 24),
+                  label: const Text('Two'),
+                  builder: (context) => const SizedBox.expand(),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+    await _frames(tester);
+    final bar = find.text('One');
+    final rest = tester.getRect(bar);
+    expect(padding, 21 + 62);
+
+    rebuild(() => hides = true);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(tester.getRect(bar), rest, reason: 'in place');
+    expect(bar.hitTestable(), findsNothing);
+    expect(padding, moreOrLessEquals(83 * 0.38, epsilon: 4));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(padding, lessThan(2));
+
+    rebuild(() => hides = false);
+    await _frames(tester);
+    expect(padding, 83);
     expect(bar.hitTestable(), findsOneWidget);
   });
 

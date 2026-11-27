@@ -51,7 +51,7 @@ class SelectorGlass extends StatelessWidget {
           ),
         ),
         details.items(
-          lens: details.selectedIndex == null
+          lens: details.selectedIndex == null && role != GlassRole.bar
               ? null
               : GlassSurface.live(
                   role: GlassRole.lens,

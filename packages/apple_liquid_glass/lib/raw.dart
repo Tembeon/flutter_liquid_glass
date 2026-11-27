@@ -32,7 +32,7 @@ export 'src/raw/date_picker_values.dart'
         GlassDatePickerMonthYearBuilder,
         GlassDatePickerTitle,
         GlassDatePickerTitleBuilder;
-export 'src/raw/list.dart' show RawGlassList;
+export 'src/raw/list.dart' show RawGlassList, RawGlassReorderHandle;
 export 'src/raw/list_row.dart'
     show GlassListRowBuilder, GlassListRowDetails, RawGlassListRow;
 export 'src/raw/page_control.dart'
@@ -41,8 +41,10 @@ export 'src/raw/page_control.dart'
         GlassPageControlBuilder,
         GlassPageControlDetails,
         GlassPageControlPose,
+        GlassPageControlTimer,
         RawGlassPageControl;
-export 'src/raw/search_controller.dart' show GlassSearchController;
+export 'src/raw/search_controller.dart'
+    show GlassSearchController, GlassSearchScope;
 export 'src/raw/search_field.dart'
     show
         GlassSearchFieldBuilder,
@@ -80,5 +82,6 @@ export 'src/raw/switch.dart'
     show GlassSwitchBuilder, GlassSwitchDetails, RawGlassSwitch;
 export 'src/raw/text_field.dart'
     show GlassTextFieldBuilder, GlassTextFieldDetails, RawGlassTextField;
+export 'src/raw/tooltip_scope.dart' show RawTooltipScope;
 export 'src/raw/wheel.dart'
     show GlassWheelRowBuilder, GlassWheelSelectionBuilder, RawGlassWheel;

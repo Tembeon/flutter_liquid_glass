@@ -298,9 +298,26 @@ final class SheetMotion extends Motion with Presented, PredictiveBack {
 
   /// The radius of the bottom corners of a floating sheet, in unscaled
   /// pixels: the display's less [inset] (62 - 8 = 54 on an iPhone 16 Pro),
-  /// [fallbackDisplayRadius] less it where the platform
-  /// reports none.
-  double get floatingRadius => (displayRadius ?? fallbackDisplayRadius) - inset;
+  /// [fallbackDisplayRadius] less it where the platform reports none, and
+  /// never under [minimumBottomRadius]; [preferredRadius] instead,
+  /// where the app gives one.
+  double get floatingRadius =>
+      preferredRadius ??
+      math.max(
+        minimumBottomRadius,
+        (displayRadius ?? fallbackDisplayRadius) - inset,
+      );
+
+  /// The radius the app prefers for a floating sheet's corners, all four
+  /// (UIKit `preferredCornerRadius`), or null for the display's law.
+  double? preferredRadius;
+
+  /// The least radius of a sheet's bottom corners: 20, the minimum UIKit
+  /// gives the bottom corners of an edge-attached sheet, which every iPhone
+  /// sheet is, the inset medium one included (read from UIKit's code; its
+  /// 32 on all four corners is for iPad and other floating sheets). A
+  /// display of tighter corners than 28 points reaches it.
+  static const double minimumBottomRadius = 20;
 
   /// The radius the bottom corners turn to as the sheet docks: the
   /// display's, 0 where the platform reports none.
@@ -483,10 +500,14 @@ final class SheetMotion extends Motion with Presented, PredictiveBack {
   /// to its largest detent while the keyboard shows and back to the
   /// selected one when it hides, neither reported as a [SheetDetentChanged].
   /// Otherwise a later layout keeps the detent the sheet rests at or heads
-  /// to; one that changes nothing but the selected detent does nothing.
-  void layout(double t, SheetLayout layout) {
+  /// to; one that changes nothing but the selected detent does nothing,
+  /// unless [resolve] asks for the detents to be resolved again (a custom
+  /// resolver that reads other state).
+  void layout(double t, SheetLayout layout, {bool resolve = false}) {
     final last = _layout;
-    if (last != null && layout.copyWith(selected: last.selected) == last) {
+    if (!resolve &&
+        last != null &&
+        layout.copyWith(selected: last.selected) == last) {
       return;
     }
     _layout = layout;

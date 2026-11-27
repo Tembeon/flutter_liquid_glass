@@ -52,6 +52,12 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+// The view of a navigator's navigation bar; its toolbar has a view of its
+// own.
+final _navigationBar = find.byWidgetPredicate(
+  (widget) => widget is GlassBarView && widget.kind != GlassBarKind.toolbar,
+);
+
 void main() {
   setUp(MotionClock.debugReset);
 
@@ -78,6 +84,86 @@ void main() {
     await _settle(tester);
     expect(find.bySemanticsLabel('Home'), findsOneWidget);
     expect(tester.getCenter(find.byKey(const Key('share'))).dx, 364);
+    semantics.dispose();
+  });
+
+  testWidgets('a large title in the bar of a page with a back button '
+      'starts past the button', (tester) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFF000000),
+        builder: (context, child) => GlassScope(
+          renderer: const FlatGlassRenderer(),
+          child: Navigator(
+            onGenerateInitialRoutes: (navigator, name) => [
+              GlassPageRoute<void>(builder: (_) => _page('Home')),
+              GlassPageRoute<void>(
+                builder: (_) => const GlassPageScaffold(
+                  navigationBar: GlassNavigationBar(
+                    largeTitle: Text('Library'),
+                    largeTitleInBar: true,
+                  ),
+                  child: ColoredBox(color: Color(0xFFFFFFFF)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    final back = tester.getRect(find.bySemanticsLabel('Home'));
+    final title = tester.getRect(find.text('Library'));
+    expect(title.left, greaterThan(back.right));
+    semantics.dispose();
+  });
+
+  testWidgets('leading items replace the back button, or follow it in a '
+      'capsule of their own with leadingSupplementsBackButton', (tester) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    Future<void> show({required bool supplements}) async {
+      await tester.pumpWidget(
+        WidgetsApp(
+          key: ValueKey(supplements),
+          color: const Color(0xFF000000),
+          builder: (context, child) => GlassScope(
+            renderer: const FlatGlassRenderer(),
+            child: Navigator(
+              onGenerateInitialRoutes: (navigator, name) => [
+                GlassPageRoute<void>(builder: (_) => _page('Home')),
+                GlassPageRoute<void>(
+                  builder: (_) => GlassPageScaffold(
+                    navigationBar: GlassNavigationBar(
+                      title: const Text('Next'),
+                      leading: [_icon('edit')],
+                      leadingSupplementsBackButton: supplements,
+                    ),
+                    child: const ColoredBox(color: Color(0xFFFFFFFF)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await _settle(tester);
+    }
+
+    await show(supplements: false);
+    expect(find.bySemanticsLabel('Home'), findsNothing);
+    final alone = tester.getCenter(find.byKey(const Key('edit'))).dx;
+
+    await show(supplements: true);
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Home')),
+      isSemantics(isButton: true),
+    );
+    final back = tester.getSemantics(find.bySemanticsLabel('Home')).rect;
+    final edit = tester.getCenter(find.byKey(const Key('edit'))).dx;
+    expect(edit, greaterThan(alone + back.width));
     semantics.dispose();
   });
 
@@ -132,7 +218,7 @@ void main() {
       _app(navigator, _page('Home', trailing: [_icon('plus')])),
     );
     await tester.pump();
-    expect(find.byType(GlassBarView), findsOneWidget);
+    expect(_navigationBar, findsOneWidget);
     expect(tester.getCenter(find.byKey(const Key('plus'))).dx, 364);
 
     unawaited(
@@ -146,14 +232,14 @@ void main() {
     for (var i = 0; i < 4; i++) {
       await tester.pump(_frame);
     }
-    expect(find.byType(GlassBarView), findsOneWidget);
+    expect(_navigationBar, findsOneWidget);
     expect(
       tester.getCenter(find.text('Next')).dx,
       greaterThan(201),
       reason: 'the page is still sliding in',
     );
     await _settle(tester);
-    expect(find.byType(GlassBarView), findsOneWidget);
+    expect(_navigationBar, findsOneWidget);
     expect(tester.getCenter(find.byKey(const Key('share'))).dx, 364);
     expect(find.byKey(const Key('plus')), findsNothing);
     final back = find.bySemanticsLabel('Home');
@@ -201,7 +287,7 @@ void main() {
         ),
       );
       await _settle(tester);
-      final bar = find.byType(GlassBarView);
+      final bar = _navigationBar;
       for (final text in ['Home', 'Back', 'Root']) {
         expect(
           find.descendant(of: bar, matching: find.text(text)),
@@ -675,7 +761,7 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.byType(GlassBarView), findsNWidgets(3));
+    expect(_navigationBar, findsNWidgets(3));
     expect(find.byKey(const Key('left')), findsOneWidget);
     expect(find.byKey(const Key('right')), findsOneWidget);
   });
@@ -766,7 +852,7 @@ void main() {
     double glass() => tester
         .widgetList<GlassSurface>(
           find.descendant(
-            of: find.byType(GlassBarView),
+            of: _navigationBar,
             matching: find.byType(GlassSurface),
           ),
         )

@@ -5,6 +5,7 @@ import 'package:apple_liquid_glass/src/widgets/controls/selector_glass.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/widgets.dart';
 
 /// One segment of a [GlassSegmentedControl].
 ///
@@ -236,7 +237,51 @@ class GlassSegmentedControl<T> extends StatelessWidget {
     this.autofocus = false,
     this.semanticLabel,
     super.key,
-  });
+  }) : _momentary = false,
+       _acts = false;
+
+  /// Creates a control whose segments act as buttons, as UIKit's
+  /// `isMomentary`: none stays selected, a tap calls [onChanged] with its
+  /// segment, and the lens shows on that segment for 0.2 s and leaves in
+  /// one frame (segmented API passport, iOS 27.2 simulator).
+  ///
+  /// Fidelity. UIKit calls at the touch down and fades the lens in over
+  /// 0.17 s as it grows from 0.88; this one calls at the tap and shows the
+  /// lens at rest, as a first selection does.
+  const GlassSegmentedControl.momentary({
+    required this.segments,
+    required this.onChanged,
+    this.proportionalWidth = false,
+    this.style,
+    this.statesController,
+    this.focusNode,
+    this.autofocus = false,
+    this.semanticLabel,
+    super.key,
+  }) : groupValue = null,
+       onReselected = null,
+       _momentary = true,
+       _acts = false;
+
+  const GlassSegmentedControl._acting({
+    required this.segments,
+    required this.groupValue,
+    required this.onChanged,
+    required this.onReselected,
+    required this.proportionalWidth,
+    required this.style,
+    required this.statesController,
+    required this.focusNode,
+    required this.autofocus,
+    required this.semanticLabel,
+  }) : _momentary = false,
+       _acts = true;
+
+  final bool _momentary;
+
+  // Whether the segments act rather than stay selected: the arrows only
+  // move the focus.
+  final bool _acts;
 
   /// The segments, in reading order.
   final List<GlassSegment<T>> segments;
@@ -337,6 +382,7 @@ class GlassSegmentedControl<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (_momentary) return _Momentary<T>(control: this);
     final themed = GlassSegmentedStyle.maybeOf(context);
     final look = (style ?? const GlassSegmentedStyle())
         .merge(themed)
@@ -361,6 +407,7 @@ class GlassSegmentedControl<T> extends StatelessWidget {
           ? [for (final segment in segments) segment.width]
           : null,
       proportionalWidth: proportionalWidth,
+      selectionFollowsFocus: !_acts,
       statesController: statesController,
       focusNode: focusNode,
       autofocus: autofocus,
@@ -458,6 +505,58 @@ class _SegmentLabel extends StatelessWidget {
           child: label,
         ),
       ),
+    );
+  }
+}
+
+// A momentary control: the segment a tap picks shows selected for
+// [_flash] seconds on the motion clock.
+class _Momentary<T> extends StatefulWidget {
+  const _Momentary({required this.control});
+
+  final GlassSegmentedControl<T> control;
+
+  @override
+  State<_Momentary<T>> createState() => _MomentaryState<T>();
+}
+
+class _MomentaryState<T> extends State<_Momentary<T>> {
+  static const double _flash = 0.2;
+
+  T? _shown;
+  VoidCallback? _cancel;
+
+  @override
+  void dispose() {
+    _cancel?.call();
+    super.dispose();
+  }
+
+  void _picked(T value) {
+    widget.control.onChanged?.call(value);
+    final clock = MotionClockScope.of(context);
+    _cancel?.call();
+    _cancel = clock.schedule(clock.now + _flash, (_) {
+      _cancel = null;
+      if (mounted) setState(() => _shown = null);
+    });
+    setState(() => _shown = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final control = widget.control;
+    return GlassSegmentedControl<T>._acting(
+      segments: control.segments,
+      groupValue: _shown,
+      onChanged: control.onChanged == null ? null : _picked,
+      onReselected: control.onChanged == null ? null : _picked,
+      proportionalWidth: control.proportionalWidth,
+      style: control.style,
+      statesController: control.statesController,
+      focusNode: control.focusNode,
+      autofocus: control.autofocus,
+      semanticLabel: control.semanticLabel,
     );
   }
 }

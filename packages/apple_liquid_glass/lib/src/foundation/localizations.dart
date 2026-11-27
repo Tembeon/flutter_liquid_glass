@@ -80,6 +80,16 @@ abstract class GlassLocalizations {
   /// The label of a row's button that shows more about it.
   String get moreInfoLabel;
 
+  /// The label of an outline row's button that shows its children.
+  String get expandLabel;
+
+  /// The label of an outline row's button that hides its children.
+  String get collapseLabel;
+
+  /// The label of an edit menu's button that shows the items that do not
+  /// fit.
+  String get editMenuMoreLabel;
+
   /// The value of a page control: [page] of [count], counting from 1.
   String pageValue(int page, int count);
 
@@ -91,6 +101,31 @@ abstract class GlassLocalizations {
 
   /// The value of a slider at [fraction] of its range, 0 to 1.
   String percentValue(double fraction);
+
+  /// [number] in the locale's digits and grouping, as a badge's count
+  /// shows it (UIKit 27.2 draws `Badge.count(1234)` as "1,234" in English,
+  /// simulator capture); Flutter's `MaterialLocalizations.formatDecimal`.
+  String formatDecimal(int number);
+
+  /// A list row's delete control in editing, and the action it reveals.
+  String get deleteLabel;
+
+  /// A list row's insert control in editing.
+  String get insertLabel;
+
+  /// A list row's reorder control in editing.
+  String get reorderLabel;
+
+  /// The action that moves a list row one place up.
+  String get moveUpLabel;
+
+  /// The action that moves a list row one place down.
+  String get moveDownLabel;
+
+  /// The weekday a calendar's week starts on, as a [DateTime] weekday, as
+  /// UIKit takes it from the locale's calendar (`firstWeekday`); Flutter's
+  /// `MaterialLocalizations.firstDayOfWeekIndex`.
+  int get firstDayOfWeek;
 
   /// The name of [month], 1 for January to 12 for December.
   String monthName(int month);
@@ -154,6 +189,13 @@ abstract class GlassLocalizations {
 
   /// The label of the wheel of the half of the day.
   String get dayPeriodLabel;
+
+  /// The unit beside a count-down's hours, for [hours] of them: "hour" or
+  /// "hours".
+  String countDownHoursUnit(int hours);
+
+  /// The unit beside a count-down's minutes: "min".
+  String get countDownMinutesUnit;
 
   /// The first half of the day on a wheel of 12 hours.
   String get anteMeridiemAbbreviation;
@@ -229,6 +271,15 @@ class DefaultGlassLocalizations extends GlassLocalizations {
   String get moreInfoLabel => 'More info';
 
   @override
+  String get expandLabel => 'Expand';
+
+  @override
+  String get collapseLabel => 'Collapse';
+
+  @override
+  String get editMenuMoreLabel => 'More';
+
+  @override
   String pageValue(int page, int count) => 'page $page of $count';
 
   @override
@@ -239,6 +290,35 @@ class DefaultGlassLocalizations extends GlassLocalizations {
 
   @override
   String percentValue(double fraction) => '${(fraction * 100).round()}%';
+
+  @override
+  String get deleteLabel => 'Delete';
+
+  @override
+  String get insertLabel => 'Insert';
+
+  @override
+  String get reorderLabel => 'Reorder';
+
+  @override
+  String get moveUpLabel => 'Move up';
+
+  @override
+  String get moveDownLabel => 'Move down';
+
+  @override
+  int get firstDayOfWeek => DateTime.sunday;
+
+  @override
+  String formatDecimal(int number) {
+    final digits = number.abs().toString();
+    final grouped = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) grouped.write(',');
+      grouped.write(digits[i]);
+    }
+    return number < 0 ? '-$grouped' : '$grouped';
+  }
 
   static const List<String> _months = [
     'January',
@@ -325,6 +405,12 @@ class DefaultGlassLocalizations extends GlassLocalizations {
 
   @override
   String get dayPeriodLabel => 'AM/PM';
+
+  @override
+  String countDownHoursUnit(int hours) => hours == 1 ? 'hour' : 'hours';
+
+  @override
+  String get countDownMinutesUnit => 'min';
 
   @override
   String get anteMeridiemAbbreviation => 'AM';

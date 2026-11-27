@@ -78,6 +78,31 @@ void main() {
     expect(submitted, ['lens']);
   });
 
+  testWidgets('the action key is Search unless the app says otherwise, and '
+      'formatters filter what the user types', (tester) async {
+    await tester.pumpWidget(_app(const GlassSearchField()));
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText)).textInputAction,
+      TextInputAction.search,
+    );
+    final changes = <String>[];
+    await tester.pumpWidget(
+      _app(
+        GlassSearchField(
+          textInputAction: TextInputAction.done,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          onChanged: changes.add,
+        ),
+      ),
+    );
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText)).textInputAction,
+      TextInputAction.done,
+    );
+    await tester.enterText(find.byType(EditableText), 'a1b2');
+    expect(changes.last, '12');
+  });
+
   testWidgets('disabled it drops its glass for a plain fill and takes no '
       'focus', (tester) async {
     final focus = FocusNode();

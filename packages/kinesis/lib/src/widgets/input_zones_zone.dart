@@ -66,6 +66,45 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
 
   _InputZonesState<T> get host => widget.host;
 
+  KeyEventResult _typed(FocusNode node, KeyEvent event) {
+    final onType = host.widget.onType;
+    if (onType == null ||
+        (event is! KeyDownEvent && event is! KeyRepeatEvent)) {
+      return KeyEventResult.ignored;
+    }
+    final character = event.character;
+    final keyboard = HardwareKeyboard.instance;
+    if (character == null ||
+        character.trim().isEmpty ||
+        keyboard.isControlPressed ||
+        keyboard.isMetaPressed ||
+        keyboard.isAltPressed ||
+        _bound(event, keyboard)) {
+      return KeyEventResult.ignored;
+    }
+    final time = MotionClockScope.of(context).stamp(event.timeStamp);
+    return onType(id, character, time)
+        ? KeyEventResult.handled
+        : KeyEventResult.ignored;
+  }
+
+  // Whether a Shortcuts above the zone binds the key: the app's intent, or
+  // the zone's own, goes first.
+  bool _bound(KeyEvent event, HardwareKeyboard keyboard) {
+    var bound = false;
+    context.visitAncestorElements((element) {
+      final widget = element.widget;
+      if (widget is Shortcuts &&
+          widget.shortcuts.keys.any(
+            (activator) => activator.accepts(event, keyboard),
+          )) {
+        bound = true;
+      }
+      return !bound;
+    });
+    return bound;
+  }
+
   InputZonesController<T> get _controller => host.controller;
 
   InputZoneFrame? get frame => host._frameOf(id);
@@ -203,6 +242,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
             autofocus: zone.autofocus,
             includeSemantics: false,
             onFocusChange: _focusChanged,
+            onKeyEvent: host.widget.onType == null ? null : _typed,
             child: _ZoneAnchor<T>(state: this),
           ),
         ),

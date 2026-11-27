@@ -98,10 +98,11 @@ class GlassCompactDatePicker extends StatefulWidget {
     this.mode = GlassDatePickerMode.date,
     this.style,
     this.minuteInterval = 1,
+    this.roundsToMinuteInterval = true,
     this.minimumDate,
     this.maximumDate,
     this.use24HourFormat,
-    this.firstDayOfWeek = DateTime.sunday,
+    this.firstDayOfWeek,
     this.today,
     this.semanticLabel,
     super.key,
@@ -121,6 +122,14 @@ class GlassCompactDatePicker extends StatefulWidget {
   /// with its seconds dropped, in the label and on the wheel alike, and the
   /// picker reports only such times (read from UIKit, notes private).
   final int minuteInterval;
+
+  /// Whether a time between two multiples of [minuteInterval] shows
+  /// floored in the label (UIKit `roundsToMinuteInterval`, true by
+  /// default). False shows it as it is; the wheels still stand on the
+  /// earlier multiple and a turn reports multiples, as UIKit's wheels show
+  /// 12:00 for 12:07 with an interval of 15 while `date` keeps 12:07 (iOS
+  /// 27.2 simulator).
+  final bool roundsToMinuteInterval;
 
   /// The picked moment.
   final DateTime value;
@@ -147,8 +156,9 @@ class GlassCompactDatePicker extends StatefulWidget {
   /// setting on iOS), as UIKit follows the locale's.
   final bool? use24HourFormat;
 
-  /// The first column of the calendar, as a [DateTime] weekday.
-  final int firstDayOfWeek;
+  /// The first column of the calendar, as a [DateTime] weekday; null for
+  /// the locale's ([GlassLocalizations.firstDayOfWeek]).
+  final int? firstDayOfWeek;
 
   /// The day to tint as today; null for the current day.
   final DateTime? today;
@@ -255,7 +265,9 @@ class _GlassCompactDatePickerState extends State<GlassCompactDatePicker> {
   @override
   Widget build(BuildContext context) {
     final loc = GlassLocalizations.of(context);
-    final value = _floorToMinuteInterval(widget.value, widget.minuteInterval);
+    final value = widget.roundsToMinuteInterval
+        ? _floorToMinuteInterval(widget.value, widget.minuteInterval)
+        : widget.value;
     final date = loc.compactDate(value);
     final time = loc.compactTime(value, use24HourFormat: _twentyFour);
     final parts = switch (widget.mode) {

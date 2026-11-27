@@ -6,6 +6,7 @@ import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar_room.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/navigation_bar.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/page_route.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/toolbar.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_anchor.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_entries.dart';
@@ -36,21 +37,31 @@ const double glassBarDrift = 0.5;
 int glassBarLayerHandles(RenderObject object) =>
     object is _RenderBarItems ? object._layers.length : -1;
 
-({VoidCallback? onPressed, List<GlassMenuEntry>? menu, bool enabled}) _actionOf(
-  _Button button,
-) {
-  final (onPressed, menu) = switch (button.item) {
-    GlassBarButton(:final onPressed, :final menuChildren) => (
+({
+  VoidCallback? onPressed,
+  List<GlassMenuEntry>? menu,
+  GlassMenuOrder order,
+  bool enabled,
+})
+_actionOf(_Button button) {
+  final (onPressed, menu, order) = switch (button.item) {
+    GlassBarButton(:final onPressed, :final menuChildren, :final menuOrder) => (
       onPressed,
       menuChildren,
+      menuOrder,
     ),
-    GlassBarProminentButton(:final onPressed) => (onPressed, null),
-    GlassBarCustomItem() || null => (null, null),
+    GlassBarProminentButton(:final onPressed) => (
+      onPressed,
+      null,
+      GlassMenuOrder.automatic,
+    ),
+    GlassBarCustomItem() || null => (null, null, GlassMenuOrder.automatic),
   };
   final action = button.back?.onPressed ?? onPressed;
   return (
     onPressed: action,
     menu: menu,
+    order: order,
     enabled: action != null || menu != null,
   );
 }
@@ -72,6 +83,7 @@ final class GlassBarDeclaration {
     this.leading = const [],
     this.trailing = const [],
     this.automaticallyImplyLeading = true,
+    this.leadingSupplementsBack = false,
     this.previousPageTitle,
     this.backButtonDisplayMode = GlassBackButtonDisplayMode.title,
     this.title,
@@ -79,7 +91,8 @@ final class GlassBarDeclaration {
     this.beforeBack,
   });
 
-  /// The entries at the leading edge; they replace the back button.
+  /// The entries at the leading edge; they replace the back button unless
+  /// [leadingSupplementsBack].
   final List<GlassBarEntry> leading;
 
   /// An item in a capsule of its own at the leading end, before the back
@@ -92,6 +105,10 @@ final class GlassBarDeclaration {
   /// Whether the page gets a back button when [leading] is empty and a
   /// glass page lies below.
   final bool automaticallyImplyLeading;
+
+  /// Whether [leading] stands after the back button rather than in its
+  /// place.
+  final bool leadingSupplementsBack;
 
   /// The previous page title the back button may show beside its chevron.
   final String? previousPageTitle;
@@ -346,8 +363,12 @@ final class GlassBarHost {
 
   static final Expando<GlassBarHost> _hosts = Expando('GlassBarHost');
 
-  /// The key of the one bar view, which moves between the pages' slots.
+  /// The keys of the navigation bar's view and the toolbar's, which move
+  /// between the pages' slots.
   final GlobalKey viewKey = GlobalKey(debugLabel: 'GlassBarView');
+  final GlobalKey toolbarViewKey = GlobalKey(
+    debugLabel: 'GlassBarView toolbar',
+  );
 
   /// The page whose slot draws the bars: the topmost live glass page.
   ValueListenable<GlassPageBarLink?> get painter => _painter;
@@ -614,6 +635,7 @@ final class GlassBarHost {
         previous != null &&
         previous.automaticallyImplyLeading ==
             declaration.automaticallyImplyLeading &&
+        previous.leadingSupplementsBack == declaration.leadingSupplementsBack &&
         previous.previousPageTitle == declaration.previousPageTitle &&
         previous.backButtonDisplayMode == declaration.backButtonDisplayMode &&
         previous.title == declaration.title &&
@@ -750,12 +772,15 @@ final class GlassBarHost {
         (final GlassBarButton p, final GlassBarButton q) =>
           _ItemIdentity.of(p) == _ItemIdentity.of(q) &&
               (p.menuChildren == null) == (q.menuChildren == null) &&
-              (p.onPressed == null) == (q.onPressed == null),
+              (p.onPressed == null) == (q.onPressed == null) &&
+              p.sharesBackground == q.sharesBackground,
         (final GlassBarProminentButton p, final GlassBarProminentButton q) =>
           _ItemIdentity.of(p) == _ItemIdentity.of(q) &&
               (p.onPressed == null) == (q.onPressed == null),
         (final GlassBarCustomItem p, final GlassBarCustomItem q) =>
-          _ItemIdentity.of(p) == _ItemIdentity.of(q) && p.child == q.child,
+          _ItemIdentity.of(p) == _ItemIdentity.of(q) &&
+              p.child == q.child &&
+              p.sharesBackground == q.sharesBackground,
         _ => false,
       };
       if (!same) return false;

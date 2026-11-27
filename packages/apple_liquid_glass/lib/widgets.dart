@@ -33,18 +33,29 @@
 /// and works with every renderer: no widget asks which renderer draws it.
 library;
 
+export 'src/widgets/controls/activity_indicator.dart'
+    show GlassActivityIndicator, GlassActivityIndicatorSize;
 export 'src/widgets/controls/badge.dart' show GlassBadge, GlassBadgeStyle;
 export 'src/widgets/controls/button.dart'
     show
         GlassButton,
         GlassButtonStyle,
+        GlassControlSize,
         GlassPlainButtonStyle,
         GlassProminentButtonStyle;
 export 'src/widgets/controls/date_picker.dart'
-    show GlassDatePicker, GlassDatePickerStyle, GlassTimePicker;
+    show
+        GlassCountDownPicker,
+        GlassDatePicker,
+        GlassDatePickerStyle,
+        GlassMonthYearPicker,
+        GlassTimePicker;
 export 'src/widgets/controls/list.dart'
     show
         GlassListBackground,
+        GlassListContextMenu,
+        GlassListEditing,
+        GlassListLayout,
         GlassListRow,
         GlassListSection,
         GlassSliverListSection;
@@ -52,6 +63,10 @@ export 'src/widgets/controls/list_accessory.dart' show GlassListAccessory;
 export 'src/widgets/controls/list_style.dart' show GlassListStyle;
 export 'src/widgets/controls/page_control.dart'
     show GlassPageControl, GlassPageControlStyle;
+export 'src/widgets/controls/progress_view.dart'
+    show GlassProgressView, GlassProgressViewStyle;
+export 'src/widgets/controls/refresh_control.dart'
+    show GlassRefreshCallback, GlassSliverRefreshControl;
 export 'src/widgets/controls/search_field.dart'
     show GlassSearchField, GlassSearchFieldStyle;
 export 'src/widgets/controls/search_glyphs.dart'
@@ -87,6 +102,10 @@ export 'src/widgets/navigation/navigation_bar.dart'
     show GlassNavigationBar, GlassNavigationBarStyle;
 export 'src/widgets/navigation/page_route.dart'
     show GlassPageRoute, GlassZoomSource;
+export 'src/widgets/navigation/page_scroll_physics.dart'
+    show GlassPageScrollPhysics;
+export 'src/widgets/navigation/page_view.dart'
+    show GlassPageIndexDisplay, GlassPageView;
 export 'src/widgets/navigation/split_view.dart'
     show
         GlassSplitView,
@@ -129,10 +148,13 @@ export 'src/widgets/presentations/alert.dart'
     show
         GlassAlertAction,
         GlassAlertStyle,
+        GlassAlertTextField,
         showGlassActionSheet,
         showGlassAlert;
 export 'src/widgets/presentations/date_picker.dart'
     show GlassCompactDatePicker, GlassDatePickerMode;
+export 'src/widgets/presentations/edit_menu.dart' show GlassEditMenu;
+export 'src/widgets/presentations/full_screen.dart' show showGlassFullScreen;
 export 'src/widgets/presentations/menu_anchor.dart'
     show
         GlassContextMenu,
@@ -153,10 +175,12 @@ export 'src/widgets/presentations/menu_entries.dart'
         GlassMenuSection,
         GlassMenuWidget,
         GlassSubmenu;
+export 'src/widgets/presentations/pop_up_button.dart'
+    show GlassPopUpButton, GlassPopUpButtonBuilder, GlassPopUpItem;
 export 'src/widgets/presentations/popover.dart'
     show GlassPopoverStyle, showGlassPopover;
 export 'src/widgets/presentations/sheet.dart'
-    show GlassSheet, GlassSheetStyle, showGlassSheet;
+    show GlassSheet, GlassSheetController, GlassSheetStyle, showGlassSheet;
 export 'src/widgets/presentations/toast.dart'
     show
         GlassToast,

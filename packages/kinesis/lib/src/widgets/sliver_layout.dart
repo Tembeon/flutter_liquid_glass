@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/src/motion/layout.dart';
@@ -31,7 +32,10 @@ import 'package:kinesis/src/widgets/scope.dart';
 /// neither hit nor read. A row keeps its laid out size and is drawn centered
 /// on its item's rect. `MotionLayout.maybeItemOf` and
 /// `MotionLayout.adoptItemOf` work inside a row. The list grows down or
-/// right; a reversed axis is not supported.
+/// right; a reversed axis is not supported. The row of [raised] is drawn
+/// above the others, as a row lifted under a finger, and the rows of
+/// [lowered] below them, as rows that slide in from under their
+/// neighbours.
 class SliverMotionList extends StatefulWidget {
   /// Creates a list of the rows of [ids].
   const SliverMotionList({
@@ -40,6 +44,8 @@ class SliverMotionList extends StatefulWidget {
     this.planner = const LayoutPlanner.flip(),
     this.motion,
     this.onLayout,
+    this.raised,
+    this.lowered = const {},
     super.key,
   });
 
@@ -60,6 +66,13 @@ class SliverMotionList extends StatefulWidget {
   /// it, in the frame's resolve phase before paint: it must not rebuild;
   /// what it marks for layout is laid out again in that frame.
   final ValueChanged<LayoutChange>? onLayout;
+
+  /// The id of the row drawn above the others, or null to draw them in
+  /// order.
+  final Object? raised;
+
+  /// The ids of the rows drawn below the others.
+  final Set<Object> lowered;
 
   @override
   State<SliverMotionList> createState() => _SliverMotionListState();
@@ -128,6 +141,8 @@ class _SliverMotionListState extends State<SliverMotionList>
       motion: motion,
       child: _SliverHost(
         state: this,
+        raised: widget.raised,
+        lowered: widget.lowered,
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
             (context, i) => _probe(context, order[i]),
@@ -177,29 +192,88 @@ class _SliverMotionListState extends State<SliverMotionList>
 }
 
 class _SliverHost extends SingleChildRenderObjectWidget {
-  const _SliverHost({required this.state, required Widget sliver})
-    : super(child: sliver);
+  const _SliverHost({
+    required this.state,
+    required this.raised,
+    required this.lowered,
+    required Widget sliver,
+  }) : super(child: sliver);
 
   final _SliverMotionListState state;
+  final Object? raised;
+  final Set<Object> lowered;
 
   @override
   _RenderSliverHost createRenderObject(BuildContext context) =>
-      _RenderSliverHost(state);
+      _RenderSliverHost(state, raised, lowered);
 
   @override
   void updateRenderObject(
     BuildContext context,
     _RenderSliverHost renderObject,
   ) {
-    renderObject.state = state;
+    renderObject
+      ..state = state
+      ..raised = raised
+      ..lowered = lowered;
   }
 }
 
 class _RenderSliverHost extends RenderProxySliver
     with MotionResolveHost, LayoutProbeHost {
-  _RenderSliverHost(this.state);
+  _RenderSliverHost(this.state, this._raised, this._lowered);
 
   _SliverMotionListState state;
+
+  Object? _raised;
+  Object? get raised => _raised;
+  set raised(Object? value) {
+    if (value == _raised) return;
+    _raised = value;
+    markNeedsPaint();
+  }
+
+  Set<Object> _lowered;
+  Set<Object> get lowered => _lowered;
+  set lowered(Set<Object> value) {
+    if (setEquals(value, _lowered)) return;
+    _lowered = value;
+    markNeedsPaint();
+  }
+
+  // A row painted again after the list moves its layer above the rows
+  // painted before: every row but the lowered ones goes again, in order,
+  // when some are lowered, and the raised one goes last.
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    super.paint(context, offset);
+    final raised = _raised;
+    final lowered = _lowered;
+    if (raised == null && lowered.isEmpty) return;
+    void again(LayoutProbeBox probe) {
+      if (!probe.hasSize || probe.layer?.parent == null) return;
+      final at = MatrixUtils.getAsTranslation(probe.getTransformTo(this));
+      if (at != null) context.paintChild(probe, offset + at);
+    }
+
+    if (lowered.isNotEmpty) {
+      final shown = [
+        for (final probe in probes)
+          if (probe is _RenderProbe &&
+              !lowered.contains(probe.id) &&
+              probe.id != raised)
+            probe,
+      ]..sort((a, b) => a.layoutRect.top.compareTo(b.layoutRect.top));
+      shown.forEach(again);
+    }
+    if (raised == null) return;
+    for (final probe in probes) {
+      if (probe.id == raised && probe is _RenderProbe && !probe.ghost) {
+        again(probe);
+        return;
+      }
+    }
+  }
 
   @override
   void performLayout() {

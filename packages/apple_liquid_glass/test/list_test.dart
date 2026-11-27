@@ -59,6 +59,31 @@ const _highlight = Color(0xFFD1D1D6);
 void main() {
   setUp(MotionClock.debugReset);
 
+  testWidgets('a section can leave its separators out, and a row can say '
+      'otherwise for itself; the last row has none', (tester) async {
+    final separators = find.byWidgetPredicate(
+      (widget) => '${widget.runtimeType}' == '_RowSeparator',
+    );
+    Widget section({required bool shows, bool? first}) => _app(
+      GlassListSection(
+        showsSeparators: shows,
+        children: [
+          GlassListRow(title: const Text('One'), showsSeparator: first),
+          const GlassListRow(title: Text('Two')),
+          const GlassListRow(title: Text('Three')),
+        ],
+      ),
+    );
+    await tester.pumpWidget(section(shows: true));
+    expect(separators, findsNWidgets(2));
+    await tester.pumpWidget(section(shows: false));
+    expect(separators, findsNothing);
+    await tester.pumpWidget(section(shows: false, first: true));
+    expect(separators, findsOneWidget);
+    await tester.pumpWidget(section(shows: true, first: false));
+    expect(separators, findsOneWidget);
+  });
+
   testWidgets('a section lays its rows on an inset card with separators '
       'between them', (tester) async {
     await tester.pumpWidget(
@@ -97,6 +122,203 @@ void main() {
     expect(
       find.byType(GlassListRow).last,
       isNot(paints..rect(color: separator)),
+    );
+  });
+
+  testWidgets('a grouped section runs its card across the list with the '
+      'text 16 in, separators from 20 and lines across its top and bottom', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        const Column(
+          children: [
+            GlassListSection(
+              layout: GlassListLayout.grouped,
+              header: Text('Controls'),
+              children: [
+                GlassListRow(title: Text('One')),
+                GlassListRow(
+                  leading: Icon(IconData(0xe000)),
+                  title: Text('Two'),
+                ),
+                GlassListRow(title: Text('Three')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    final section = tester.getRect(find.byType(GlassListSection));
+    final one = tester.getRect(find.byType(GlassListRow).first);
+    expect(one.left, section.left);
+    expect(one.width, 402);
+    final label = tester.getSize(find.text('Controls')).height;
+    expect(one.top - section.top, moreOrLessEquals(11.67 + label + 6));
+    expect(tester.getTopLeft(find.text('Controls')).dx - section.left, 16);
+    expect(tester.getTopLeft(find.text('One')).dx - section.left, 16);
+    expect(tester.getTopLeft(find.text('Two')).dx - section.left, 56);
+    bool line(Rect rect, double left, double right) =>
+        rect.height == 1 && rect.left == left && rect.right == right;
+    expect(
+      find.byType(GlassListRow).first,
+      paints..something(
+        (method, arguments) =>
+            method == #drawRect && line(arguments[0] as Rect, 20, 386),
+      ),
+    );
+    expect(
+      find.byType(GlassListRow).at(1),
+      paints..something(
+        (method, arguments) =>
+            method == #drawRect && line(arguments[0] as Rect, 56, 386),
+      ),
+    );
+    final card = find.byWidgetPredicate(
+      (widget) =>
+          widget is CustomPaint &&
+          '${widget.foregroundPainter.runtimeType}' == '_EdgeLines',
+    );
+    for (final edge in [
+      const Rect.fromLTWH(0, 0, 402, 1),
+      const Rect.fromLTWH(0, 53 * 3 - 1, 402, 1),
+    ]) {
+      expect(
+        card,
+        paints..something(
+          (method, arguments) => method == #drawRect && arguments[0] == edge,
+        ),
+      );
+    }
+  });
+
+  testWidgets('a row with a symbol moves its separator when its section '
+      'changes layout', (tester) async {
+    Widget section(GlassListLayout layout) => _app(
+      GlassListSection(
+        layout: layout,
+        children: const [
+          GlassListRow(leading: Icon(IconData(0xe000)), title: Text('One')),
+          GlassListRow(title: Text('Two')),
+        ],
+      ),
+    );
+    PaintPattern separatorFrom(double left) => paints
+      ..something(
+        (method, arguments) =>
+            method == #drawRect &&
+            (arguments[0] as Rect).height == 1 &&
+            (arguments[0] as Rect).left == left,
+      );
+    await tester.pumpWidget(section(GlassListLayout.insetGrouped));
+    expect(find.byType(GlassListRow).first, separatorFrom(60));
+    await tester.pumpWidget(section(GlassListLayout.grouped));
+    expect(find.byType(GlassListRow).first, separatorFrom(56));
+  });
+
+  testWidgets('a style pads the row content and sets where its separator '
+      'starts and ends', (tester) async {
+    Widget section(GlassListStyle style) => _app(
+      GlassListSection(
+        style: style,
+        children: const [
+          GlassListRow(title: Text('One')),
+          GlassListRow(title: Text('Two')),
+        ],
+      ),
+    );
+    PaintPattern separator(double left, double right) => paints
+      ..something(
+        (method, arguments) =>
+            method == #drawRect &&
+            (arguments[0] as Rect).height == 1 &&
+            (arguments[0] as Rect).left == left &&
+            (arguments[0] as Rect).right == right,
+      );
+    await tester.pumpWidget(
+      section(
+        const GlassListStyle(
+          minRowHeight: 0,
+          contentPadding: EdgeInsetsDirectional.fromSTEB(30, 4, 30, 6),
+        ),
+      ),
+    );
+    final row = tester.getRect(find.byType(GlassListRow).first);
+    final one = tester.getRect(find.text('One'));
+    expect(one.left - row.left, 30);
+    expect(one.top - row.top, 4);
+    expect(row.bottom - one.bottom, 6);
+    expect(find.byType(GlassListRow).first, separator(30, 370 - 20));
+    await tester.pumpWidget(
+      section(
+        const GlassListStyle(separatorIndent: 0, separatorEndIndent: 8),
+      ),
+    );
+    expect(find.byType(GlassListRow).first, separator(0, 370 - 8));
+  });
+
+  testWidgets('a plain section stands on systemBackground, its header 22 '
+      'below the rows above and 28 tall, the last row separated but before '
+      'a footer', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        const Column(
+          children: [
+            GlassListSection(
+              layout: GlassListLayout.plain,
+              header: Text('Controls'),
+              footer: Text('Footer'),
+              children: [
+                GlassListRow(title: Text('One')),
+                GlassListRow(title: Text('Two')),
+              ],
+            ),
+            GlassListSection(
+              layout: GlassListLayout.plain,
+              children: [GlassListRow(title: Text('Three'))],
+            ),
+          ],
+        ),
+      ),
+    );
+    final first = tester.getRect(find.byType(GlassListSection).first);
+    final one = tester.getRect(find.byType(GlassListRow).first);
+    final two = tester.getRect(find.byType(GlassListRow).at(1));
+    final three = tester.getRect(find.byType(GlassListRow).last);
+    final label = tester.getSize(find.text('Controls')).height;
+    expect(
+      one.top - first.top,
+      moreOrLessEquals(22 + 28 - 20.33 + label, epsilon: 0.01),
+    );
+    expect(
+      tester.getTopLeft(find.text('Controls')).dy - first.top,
+      moreOrLessEquals(26, epsilon: 0.01),
+    );
+    expect(
+      first.bottom - two.bottom,
+      moreOrLessEquals(
+        28 - 15.67 + tester.getSize(find.text('Footer')).height,
+        epsilon: 0.01,
+      ),
+    );
+    expect(
+      tester.getTopLeft(find.text('Footer')).dy - two.bottom,
+      moreOrLessEquals(6, epsilon: 0.01),
+    );
+    expect(three.top, first.bottom);
+    expect(one.width, 402);
+    final separator = GlassColors.separator.color;
+    expect(
+      find.byType(GlassListRow).at(1),
+      isNot(paints..rect(color: separator)),
+    );
+    expect(find.byType(GlassListRow).last, paints..rect(color: separator));
+    expect(
+      find
+          .ancestor(of: find.text('Three'), matching: find.byType(ColoredBox))
+          .evaluate()
+          .map((e) => (e.widget as ColoredBox).color.toARGB32()),
+      contains(0xFFFFFFFF),
     );
   });
 
@@ -890,5 +1112,37 @@ void main() {
     final row = tester.getSize(find.byType(GlassListRow));
     expect(row.height, greaterThan(53));
     expect((row.height * 3).roundToDouble(), closeTo(row.height * 3, 1e-6));
+  });
+
+  testWidgets("a style sets the cards' margin from the sides and the space "
+      "between two sections, as SwiftUI's listSectionMargins and "
+      'listSectionSpacing', (tester) async {
+    Widget sections(GlassListStyle? style) => _app(
+      Column(
+        children: [
+          GlassListSection(
+            style: style,
+            children: const [GlassListRow(title: Text('One'))],
+          ),
+          GlassListSection(
+            style: style,
+            children: const [GlassListRow(title: Text('Two'))],
+          ),
+        ],
+      ),
+    );
+    await tester.pumpWidget(sections(null));
+    final one = tester.getRect(find.byType(GlassListRow).first);
+    final two = tester.getRect(find.byType(GlassListRow).last);
+    expect(two.top - one.bottom, moreOrLessEquals(35));
+    final list = tester.getRect(find.byType(Column).first);
+    expect(one.left - list.left, 16);
+    await tester.pumpWidget(
+      sections(const GlassListStyle(sectionMargin: 24, sectionSpacing: 10)),
+    );
+    final first = tester.getRect(find.byType(GlassListRow).first);
+    final second = tester.getRect(find.byType(GlassListRow).last);
+    expect(first.left - list.left, 24);
+    expect(second.top - first.bottom, moreOrLessEquals(10));
   });
 }

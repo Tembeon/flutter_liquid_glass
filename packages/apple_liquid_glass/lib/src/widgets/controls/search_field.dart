@@ -4,8 +4,10 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/search_glyphs.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
+import 'package:apple_liquid_glass/src/widgets/presentations/edit_menu.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
@@ -200,12 +202,15 @@ class GlassSearchField extends StatelessWidget {
     this.placeholder,
     this.onChanged,
     this.onSubmitted,
+    this.textInputAction = TextInputAction.search,
+    this.inputFormatters,
     this.enabled = true,
     this.autofocus = false,
     this.style,
     this.semanticLabel,
     this.clearSemanticLabel,
     this.statesController,
+    this.contextMenuBuilder = _editMenu,
     super.key,
   });
 
@@ -224,6 +229,12 @@ class GlassSearchField extends StatelessWidget {
   /// Called with the text when the user submits it from the keyboard.
   final ValueChanged<String>? onSubmitted;
 
+  /// See [RawGlassSearchField.textInputAction].
+  final TextInputAction textInputAction;
+
+  /// See [RawGlassSearchField.inputFormatters].
+  final List<TextInputFormatter>? inputFormatters;
+
   /// Whether the field takes input.
   final bool enabled;
 
@@ -240,6 +251,15 @@ class GlassSearchField extends StatelessWidget {
   /// What accessibility reads for the clear button; the localized "Clear
   /// text" when null.
   final String? clearSemanticLabel;
+
+  /// Builds the edit menu of the field's selection: by default
+  /// [GlassEditMenu.editableText], UIKit's own menu on iOS where Flutter
+  /// can show it and the glass one elsewhere; null for UIKit's own on iOS
+  /// and none elsewhere.
+  final EditableTextContextMenuBuilder? contextMenuBuilder;
+
+  static Widget _editMenu(BuildContext context, EditableTextState state) =>
+      GlassEditMenu.editableText(editableTextState: state);
 
   /// The field's states, or null for its own: the field writes focused,
   /// pressed, hovered and disabled to it.
@@ -298,10 +318,13 @@ class GlassSearchField extends StatelessWidget {
       focusNode: focusNode,
       onChanged: onChanged,
       onSubmitted: onSubmitted,
+      textInputAction: textInputAction,
+      inputFormatters: inputFormatters,
       enabled: enabled,
       autofocus: autofocus,
       semanticLabel: semanticLabel,
       statesController: statesController,
+      contextMenuBuilder: contextMenuBuilder,
       builder:
           look.builder ??
           (context, details) => _SearchFieldLook(

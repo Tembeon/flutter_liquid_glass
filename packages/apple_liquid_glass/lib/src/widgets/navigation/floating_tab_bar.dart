@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar_room.dart';
@@ -39,8 +40,9 @@ import 'package:kinesis/widgets.dart';
 /// `GlassPageScaffold` or a `GlassContentScroll` under it sees the floating
 /// bar at its bottom edge: the scroll edge under the bar and the bar's
 /// minimizing follow the onstage content scroll. It draws nothing of its
-/// own. The bar slides away while a page under it with
-/// [GlassPageScaffold.hidesTabBar] shows.
+/// own. The bar fades away in place while a page under it with
+/// [GlassPageScaffold.hidesTabBar] shows, taking no touches, and the
+/// padding of [child] gives its room back on the same curve.
 ///
 /// Fidelity. The bar's 21 point inset is measured on iOS 27, the wide bar's
 /// 20 on the iOS 27.2 simulator in landscape, which reads 38 at the sides
@@ -73,11 +75,10 @@ class GlassFloatingTabBar extends StatefulWidget {
 class _GlassFloatingTabBarState extends State<GlassFloatingTabBar> {
   final _active = ValueNotifier<MotionScroll?>(null);
   late final _hiding = GlassTabBarHiding(clock: MotionClockScope.of(context));
-  late final _drop = MotionSelection(
-    () => (1 - _hiding.shown.value) * _dropBy,
+  late final _takesTouches = MotionSelection(
+    () => _hiding.shown.target == 1,
     clock: MotionClockScope.of(context),
   );
-  double _dropBy = 0;
 
   @override
   void dispose() {
@@ -97,11 +98,13 @@ class _GlassFloatingTabBarState extends State<GlassFloatingTabBar> {
     );
     final bottom = math.max(media.padding.bottom, inset + group);
     final sides = BarRoom.sidesOf(context, inset: metrics.sideInset);
-    _dropBy = inset + group;
     Widget hiding(Widget bar) => MotionTransition(
-      translateY: _drop,
       opacity: _hiding.shown,
-      child: bar,
+      child: MotionVisibility(
+        visible: _takesTouches,
+        maintainPaint: true,
+        child: bar,
+      ),
     );
     return GlassChrome(
       edges: ChromeEdges(
@@ -121,9 +124,19 @@ class _GlassFloatingTabBarState extends State<GlassFloatingTabBar> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          MediaQuery(
-            data: media.copyWith(
-              padding: media.padding.copyWith(bottom: bottom),
+          ListenableBuilder(
+            listenable: _hiding.shown,
+            builder: (context, child) => MediaQuery(
+              data: media.copyWith(
+                padding: media.padding.copyWith(
+                  bottom: lerpDouble(
+                    media.padding.bottom,
+                    bottom,
+                    _hiding.shown.value.clamp(0.0, 1.0),
+                  ),
+                ),
+              ),
+              child: child!,
             ),
             child: widget.child,
           ),

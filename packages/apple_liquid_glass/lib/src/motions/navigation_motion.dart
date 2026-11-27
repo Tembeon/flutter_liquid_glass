@@ -83,14 +83,47 @@ class NavigationPopMotion {
   static const double flickBoost = 4.25;
 
   /// The share of the page's width at its leading edge an interactive pop
-  /// starts from: 13 points, or 9 percent of the portrait width on phones
-  /// with thin bezels (read from UIKit; which branch an iPhone 16 Pro takes
-  /// is not read, the port takes the thin-bezel one).
+  /// starts from on a phone: 9 percent of the portrait width on phones with
+  /// thin bezels (read from UIKit; which branch an iPhone 16 Pro takes is
+  /// not read, the port takes the thin-bezel one).
   static const double edgeShare = 0.09;
 
-  /// How far a finger on the edge moves before the pop begins, in points
-  /// (read from UIKit).
+  /// The width of the leading edge an interactive pop starts from off a
+  /// phone, in points (read from UIKit).
+  static const double edgeDefault = 13;
+
+  /// The width of the leading edge an interactive pop starts from in a page
+  /// [width] wide: [edgeShare] of it on a [phone], [edgeDefault] elsewhere.
+  static double edgeWidth(double width, {required bool phone}) =>
+      phone ? width * edgeShare : edgeDefault;
+
+  /// How far a finger on the edge moves before the pop begins, in points:
+  /// UIKit's edge hysteresis, 15. On an iPhone 16 Pro the pop began at 15.3
+  /// to 16.3 points, 0.11 s into a swipe and after a 0.6 s rest on the edge
+  /// alike, so no time limit and no travel that falls with time holds it,
+  /// whatever the edge settings UIKit's code reads elsewhere say.
   static const double edgeHysteresis = 15;
+
+  /// The window of directions about the inward one, in radians, that sets
+  /// how far an edge swipe may drift along the edge ([edgeDrift]): 155
+  /// degrees (read from UIKit).
+  static const double edgeAngleWindow = 2.705260340591211;
+
+  /// The seconds over which [edgeDrift] narrows (read from UIKit).
+  static const double edgeAngleDecay = 0.5;
+
+  /// How far a finger on the edge may drift along it, [elapsed] seconds
+  /// after it touched, before it has moved [edgeHysteresis] inward: as far
+  /// as a swipe on the side of [edgeAngleWindow] drifts while it moves 10
+  /// points inward (45.2 points), narrowing over [edgeAngleDecay] to 20
+  /// points; a finger that drifts farther first gives the pop up (read
+  /// from UIKit's code; the recorded swipes run straight).
+  static double edgeDrift(double elapsed) => math.max(
+    10 /
+        math.tan(math.pi / 2 - edgeAngleWindow / 2) *
+        (1 - elapsed / edgeAngleDecay),
+    20,
+  );
 
   /// How far a finger away from the edge moves along the page before the
   /// pop begins, or the wrong way before it fails, in points (read from

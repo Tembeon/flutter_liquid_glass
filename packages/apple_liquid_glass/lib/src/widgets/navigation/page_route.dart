@@ -53,11 +53,21 @@ part 'package:apple_liquid_glass/src/widgets/navigation/page_route_zoom.dart';
 /// height on one of response 0.406, damping 0.925, while the source's look
 /// crossfades into it and the page underneath dims 15 percent under the growing
 /// card's shadow; popped, it shrinks back into the source on UIKit's zoom-out
-/// spring (iPhone 16 Pro recordings, replayed). A drag down or toward the
-/// trailing side shrinks the page under the finger after 13.5 points, and a
-/// release past 132.5 points or at 1050 points a second pops it into the
-/// source; short of that it returns. The source hides while the page shows.
-/// Without an attached source the page slides.
+/// spring (iPhone 16 Pro recordings, replayed). A drag within 22.5 degrees
+/// of down or of the trailing side (UIKit's cones, read from its code)
+/// shrinks the page under the finger after 13.5 points, and a release
+/// pops it into the source when its travel along the drag, less UIKit's
+/// 10 point slop, plus 0.099 s of its release speed (UIKit's pan
+/// velocity: the last two moves, weighed 0.2 and 0.8) passes 150 points,
+/// as UIKit's code has it; short of that it returns. A drag from the
+/// leading edge takes the page as the interactive pop takes a sliding
+/// one, with no cones, and pops it past 200 points measured from where it
+/// began. Two fingers that pinch in shrink the page about the point
+/// between them, rubber banded under a quarter of its size and over its
+/// full size, and pop it when released under half its size or 200 points
+/// lower (UIKit's code; its pinch also turns the page, which this does
+/// not). The source hides while the page shows. Without an attached
+/// source the page slides.
 ///
 /// To assistive technology the page is a route of its own, as a
 /// `CupertinoPageRoute`'s page is, named by [title], which screen readers
@@ -68,6 +78,8 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
     required this.builder,
     this.title,
     this.source,
+    this.zoomDismissShouldBegin,
+    this.zoomDimmingColor,
     super.settings,
   });
 
@@ -80,15 +92,30 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   final String? title;
 
   /// The source the page zooms out of and back into, shown by a
-  /// [GlassZoomSource], or null for a page that slides in.
+  /// [GlassZoomSource], or a `GlassBarButton.zoomSource`, or null for a page
+  /// that slides in.
   final MotionSource? source;
+
+  /// Asked as a finger's drag or a pinch would start to shrink a zoomed
+  /// page; false keeps the page where it is, as UIKit's
+  /// `ZoomOptions.interactiveDismissShouldBegin` does. Null lets every
+  /// such gesture begin.
+  final ValueGetter<bool>? zoomDismissShouldBegin;
+
+  /// The dim over the page underneath a zoomed page at full strength, as
+  /// UIKit's `ZoomOptions.dimmingColor`; null for black at 15 percent.
+  final Color? zoomDimmingColor;
 
   // Fixed when the page is installed, so the page and the route agree on
   // its transition for its whole life.
   late final bool _zooms = source?.geometry != null;
 
   late final PageMotion _motion = _zooms
-      ? ZoomPageMotion(page: _navigatorRect(), clock: clock)
+      ? ZoomPageMotion(
+          page: _navigatorRect(),
+          commits: _previewSources[source!] ?? false,
+          clock: clock,
+        )
       : PageSlideMotion(clock: clock);
   late final MotionSelection<double> _progress = _motion.select(
     (m) => m.progress,
@@ -285,6 +312,15 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
 // What each zoom source shows, which its page draws while the source's look
 // crossfades into the page.
 final _looks = Expando<Widget>('GlassZoomSource.look');
+
+// The sources that are a context menu's preview, which a page commits out
+// of as UIKit commits a tapped preview.
+final _previewSources = Expando<bool>('GlassZoomSource.preview');
+
+/// Marks [source] as a context menu's preview: a [GlassPageRoute] pushed
+/// with it grows out of it as UIKit commits a tapped preview.
+@internal
+void markPreviewSource(MotionSource source) => _previewSources[source] = true;
 
 /// The widget a [GlassPageRoute] with a [source] grows out of when it is
 /// pushed and lands in when it is popped.

@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
@@ -152,7 +153,11 @@ class GlassPageControl extends StatelessWidget {
     required this.page,
     required this.onChanged,
     this.progress,
+    this.timer,
     this.backgroundStyle = GlassPageControlBackground.automatic,
+    this.direction,
+    this.hidesForSinglePage = false,
+    this.allowsContinuousInteraction = true,
     this.style,
     this.semanticLabel,
     this.semanticValueFormatter,
@@ -176,8 +181,22 @@ class GlassPageControl extends StatelessWidget {
   /// dots.
   final double? progress;
 
+  /// See [RawGlassPageControl.timer].
+  final GlassPageControlTimer? timer;
+
   /// When the platter shows.
   final GlassPageControlBackground backgroundStyle;
+
+  /// See [RawGlassPageControl.direction].
+  final AxisDirection? direction;
+
+  /// Whether a control of one page or none draws nothing, keeping its place,
+  /// and takes no input; UIKit's default is false and SwiftUI's page style
+  /// true (page control API passport).
+  final bool hidesForSinglePage;
+
+  /// See [RawGlassPageControl.allowsContinuousInteraction].
+  final bool allowsContinuousInteraction;
 
   /// The look, over the theme's and the control's defaults.
   final GlassPageControlStyle? style;
@@ -229,8 +248,22 @@ class GlassPageControl extends StatelessWidget {
     darkHighContrastColor: Color(0x73FFFFFF),
   );
 
+  /// The size of a control of [count] pages without a progress: 14 points
+  /// of padding at either end around dots 9.67 across, 8 apart, 25.67
+  /// tall (page control passport, `sizeForNumberOfPages`).
+  static Size sizeFor(int count) => PageControlMotion.sizeFor(count);
+
   @override
   Widget build(BuildContext context) {
+    if (hidesForSinglePage && count <= 1) {
+      final size = sizeFor(count);
+      return SizedBox.fromSize(
+        size: switch (direction) {
+          AxisDirection.up || AxisDirection.down => size.flipped,
+          _ => size,
+        },
+      );
+    }
     final look = (style ?? const GlassPageControlStyle()).merge(
       GlassPageControlStyle.maybeOf(context),
     );
@@ -239,7 +272,10 @@ class GlassPageControl extends StatelessWidget {
       page: page,
       onChanged: onChanged,
       progress: progress,
+      timer: timer,
       backgroundStyle: backgroundStyle,
+      direction: direction,
+      allowsContinuousInteraction: allowsContinuousInteraction,
       semanticLabel: semanticLabel,
       semanticValueFormatter: semanticValueFormatter,
       statesController: statesController,
@@ -261,7 +297,6 @@ class GlassPageControl extends StatelessWidget {
     final painted = CustomPaint(
       painter: _PageControlPainter(
         pose: details.pose,
-        rtl: Directionality.maybeOf(context) == TextDirection.rtl,
         progress: details.progress,
         pageIndicator: color(look.pageIndicatorColor, _pageIndicator),
         currentPageIndicator: color(
@@ -292,7 +327,6 @@ class GlassPageControl extends StatelessWidget {
 class _PageControlPainter extends CustomPainter {
   _PageControlPainter({
     required this.pose,
-    required this.rtl,
     required this.progress,
     required this.pageIndicator,
     required this.currentPageIndicator,
@@ -301,7 +335,6 @@ class _PageControlPainter extends CustomPainter {
   }) : super(repaint: pose);
 
   final ValueListenable<GlassPageControlPose> pose;
-  final bool rtl;
   final double? progress;
   final Color pageIndicator;
   final Color currentPageIndicator;
@@ -318,7 +351,7 @@ class _PageControlPainter extends CustomPainter {
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Offset.zero & size,
-          Radius.circular(size.height / 2),
+          Radius.circular(size.shortestSide / 2),
         ),
         paint,
       );
@@ -326,7 +359,7 @@ class _PageControlPainter extends CustomPainter {
     final other = Color.lerp(pageIndicator, platterIndicator, shown)!;
     for (var i = 0; i < frame.indicators.length; i++) {
       final rect = frame.indicators[i];
-      final radius = Radius.circular(rect.height / 2);
+      final radius = Radius.circular(rect.shortestSide / 2);
       final base = Paint();
       base.color = progress == null && i == frame.page
           ? currentPageIndicator
@@ -334,19 +367,42 @@ class _PageControlPainter extends CustomPainter {
       canvas.drawRRect(RRect.fromRectAndRadius(rect, radius), base);
       final fill = progress == null ? 0.0 : frame.fills[i];
       if (fill <= 0) continue;
-      final fraction = i == frame.page ? (progress ?? 0) : 1.0;
-      final fillWidth =
-          rect.height + (rect.width - rect.height) * fraction.clamp(0, 1);
-      final left = rtl ? rect.right - fillWidth : rect.left;
+      final fraction = i == frame.page
+          ? (frame.progress ?? progress ?? 0)
+          : 1.0;
+      final across = rect.shortestSide;
+      final along = across + (rect.longestSide - across) * fraction.clamp(0, 1);
       final paint = Paint();
       paint.color = currentPageIndicator.withValues(
         alpha: currentPageIndicator.a * fill,
       );
       canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(left, rect.top, fillWidth, rect.height),
-          radius,
-        ),
+        RRect.fromRectAndRadius(switch (frame.direction) {
+          AxisDirection.right => Rect.fromLTWH(
+            rect.left,
+            rect.top,
+            along,
+            across,
+          ),
+          AxisDirection.left => Rect.fromLTWH(
+            rect.right - along,
+            rect.top,
+            along,
+            across,
+          ),
+          AxisDirection.down => Rect.fromLTWH(
+            rect.left,
+            rect.top,
+            across,
+            along,
+          ),
+          AxisDirection.up => Rect.fromLTWH(
+            rect.left,
+            rect.bottom - along,
+            across,
+            along,
+          ),
+        }, radius),
         paint,
       );
     }
@@ -355,7 +411,6 @@ class _PageControlPainter extends CustomPainter {
   @override
   bool shouldRepaint(_PageControlPainter oldDelegate) =>
       oldDelegate.pose != pose ||
-      oldDelegate.rtl != rtl ||
       oldDelegate.progress != progress ||
       oldDelegate.pageIndicator != pageIndicator ||
       oldDelegate.currentPageIndicator != currentPageIndicator ||

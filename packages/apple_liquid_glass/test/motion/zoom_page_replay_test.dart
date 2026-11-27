@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
 import 'package:apple_liquid_glass/src/motions/zoom_page_motion.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -140,7 +141,22 @@ void main() {
         final lift = (drag['lift']! as num).toDouble() - _rowsTrail;
         final motion = _opened(-10, _card, _page);
         motion.advance(0);
-        motion.dragStart(0, Offset(touches.first[1], touches.first[2]));
+        final first = Offset(touches.first[1], touches.first[2]);
+        // A touch on the leading edge is the edge pan, measured from the
+        // touch before the one 15 points in.
+        final edge = first.dx <= NavigationPopMotion.edgeWidth(402, phone: true)
+            ? touches[touches.indexWhere((p) => p[1] - first.dx > 15) - 1]
+            : null;
+        if (edge == null) {
+          motion.dragStart(0, first);
+        } else {
+          motion.edgePanStart(
+            0,
+            first,
+            from: Offset(edge[1], edge[2]),
+            rtl: false,
+          );
+        }
         var next = 1;
         bool? dismissed;
         var dragSum = 0.0;
@@ -158,16 +174,8 @@ void main() {
           }
           if (dismissed == null && t >= lift) {
             final last = touches.last;
-            final pan = PanVelocityTracker();
-            for (final p in touches.sublist(0, touches.length - 1)) {
-              pan.addPosition(p[0], Offset(p[1], p[2]));
-            }
-            final velocity = pan.velocityAtLift(
-              last[0],
-              Offset(last[1], last[2]),
-            );
             motion.dragUpdate(lift, Offset(last[1], last[2]));
-            dismissed = motion.dragEnd(lift, velocity);
+            dismissed = motion.dragEnd(lift);
             if (dismissed) _close(motion, lift, _card);
           }
           motion.advance(t);
@@ -198,6 +206,94 @@ void main() {
   });
 
   group('motion', () {
+    test("a release pops the page when its travel less 10 plus 0.099 s of "
+        "UIKit's pan velocity passes 150 (read from UIKit's code)", () {
+      bool releases(List<(double, double)> moves) {
+        final motion = _opened(-10, _card, _page);
+        motion.advance(0);
+        motion.dragStart(0, const Offset(200, 300));
+        for (final (t, y) in moves) {
+          motion.advance(t);
+          motion.dragUpdate(t, Offset(200, 300 + y));
+        }
+        final end = moves.last.$1 + 0.5;
+        motion.advance(end);
+        return motion.dragEnd(end);
+      }
+
+      List<(double, double)> steady(double to, double speed) => [
+        for (var y = 10.0; y <= to; y += 10) (y / speed, y),
+      ];
+      expect(releases(steady(150, 260)), isTrue, reason: '140 + 25.7');
+      expect(releases([...steady(148, 260), (1, 149), (1.25, 150)]), isFalse);
+      expect(releases(steady(100, 800)), isTrue, reason: '90 + 79');
+      expect(releases(steady(70, 670)), isFalse, reason: '60 + 66');
+    });
+
+    test("a committed preview grows as UIKit's commit runs: the size on "
+        '0.5 / 0.7 with a kick, the center and the page on a critically '
+        'damped 0.35, the preview out over 0.14 s, the backdrop covered from '
+        "0.105 to 0.245 s, both filling the container (read from UIKit's "
+        'code)', () {
+      final motion = ZoomPageMotion(page: _page, commits: true);
+      motion.sourceMoved(
+        0,
+        const SourceGeometry(rect: _card),
+      );
+      motion.open(0);
+      motion.start(0);
+      final center = Spring.settling(duration: 0.35, dampingRatio: 1);
+      motion.advance(0.07);
+      final mid = motion.seenAt(0.07);
+      expect(mid.lookOpacity, closeTo(0.5, 0.02));
+      expect(mid.dimming, 0);
+      final travel =
+          (mid.rect.center.dy - _card.center.dy) /
+          (_page.center.dy - _card.center.dy);
+      final w = 2 * math.pi / center.response;
+      final left = (1 + w * 0.07) * math.exp(-w * 0.07);
+      expect(travel, closeTo(1 - left, 0.03));
+      motion.advance(0.175);
+      expect(motion.seenAt(0.175).dimming, closeTo(0.5, 0.02));
+      expect(motion.seenAt(0.175).lookOpacity, 0);
+      final (scale, shift) = motion.seenAt(0.175).contentPlacement;
+      final rect = motion.seenAt(0.175).rect;
+      expect(
+        scale,
+        closeTo(math.max(rect.width / 402, rect.height / 874), 1e-9),
+      );
+      expect(shift.dx, closeTo((rect.width - 402 * scale) / 2, 1e-9));
+      var widest = 0.0;
+      for (var t = 0.0; t < 1.5; t += 1 / 120) {
+        motion.advance(t);
+        widest = math.max(widest, motion.seenAt(t).rect.width);
+      }
+      expect(widest, greaterThan(402), reason: 'the 0.7 spring overshoots');
+      expect(
+        motion.seenAt(1.5).rect,
+        rectMoreOrLessEquals(_page, epsilon: 1e-3),
+      );
+      expect(motion.seenAt(1.5).fade, closeTo(1, 1e-3));
+      expect(motion.seenAt(1.5).dimming, 1);
+    });
+
+    test('a drag moves the page within 22.5 degrees of down or of the '
+        'trailing edge, and one outside gives up 15 points past the slop '
+        "(read from UIKit's code)", () {
+      final motion = ZoomPageMotion(page: _page);
+      Offset at(double degreesOffDown, double distance) {
+        final a = degreesOffDown * math.pi / 180;
+        return Offset(math.sin(a), math.cos(a)) * distance;
+      }
+
+      expect(motion.allowsDrag(at(20, 20)), isTrue);
+      expect(motion.allowsDrag(at(25, 20)), isNull);
+      expect(motion.allowsDrag(at(25, 30)), isFalse);
+      expect(motion.allowsDrag(at(80, 20)), isTrue, reason: 'sideways');
+      expect(motion.allowsDrag(const Offset(0, -20)), isNull);
+      expect(motion.allowsDrag(const Offset(0, -30)), isFalse);
+    });
+
     test('a pop mid-open turns around with the velocity it had', () {
       final motion = _opened(0, _card, _page);
       final opening = _opened(0, _card, _page);

@@ -190,6 +190,42 @@ void main() {
     expect(controller.offset, 0);
   });
 
+  testWidgets('a scroll view with a start of its own takes the status '
+      "bar's tap", (tester) async {
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    var starts = 0;
+    await tester.pumpWidget(
+      _app(
+        GlassPageScaffold(
+          navigationBar: _bar(54),
+          child: GlassContentScroll(
+            onScrollToTop: () => starts++,
+            child: ListView(
+              controller: controller,
+              children: [
+                for (var i = 0; i < 40; i++) const SizedBox(height: 50),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    controller.jumpTo(600);
+    await tester.pump();
+    await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+      SystemChannels.statusBar.name,
+      SystemChannels.statusBar.codec.encodeMethodCall(
+        const MethodCall('handleScrollToTop'),
+      ),
+      (_) {},
+    );
+    await tester.pumpAndSettle();
+    expect(starts, 1);
+    expect(controller.offset, 600);
+  });
+
   testWidgets('the bars follow the scroll view shown last', (tester) async {
     final first = ScrollController();
     final second = ScrollController();

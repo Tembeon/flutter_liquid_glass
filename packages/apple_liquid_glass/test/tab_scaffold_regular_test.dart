@@ -15,6 +15,7 @@ const _top = 32.0;
 const _bottom = 20.0;
 
 final _padding = <String, EdgeInsets>{};
+final _beside = <String, bool>{};
 
 // The tab sidebar over the content in portrait and beside it from 1024
 // wide in landscape, hiding into its button: where the automatic layout
@@ -40,6 +41,7 @@ class _Page extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     _padding[name] = MediaQuery.paddingOf(context);
+    _beside[name] = GlassSplitView.besideOf(context);
     return GlassPageScaffold(
       hidesTabBar: hidesTabBar,
       navigationBar: GlassNavigationBar(title: Text('$name bar')),
@@ -72,6 +74,7 @@ Future<void> _pump(
   int more = 0,
   Pose? pose,
   GlassTabLayoutPolicy layout = const GlassTabLayoutPolicy.automatic(),
+  Widget? sidebarTopBackground,
 }) async {
   if (pose != null) {
     pose.apply(tester);
@@ -106,6 +109,7 @@ Future<void> _pump(
                   : (context) => const _Page('Search'),
               bottomAccessory: accessory,
               action: action,
+              sidebarTopBackground: sidebarTopBackground,
               tabs: [
                 GlassTab(
                   icon: const SizedBox.square(dimension: 24),
@@ -236,6 +240,91 @@ void main() {
     expect(controller.index, 1);
     expect(find.text('Two page'), findsOneWidget);
     expect(_sidebar, findsOneWidget);
+  });
+
+  testWidgets("the band above the sidebar's rows takes every hit its "
+      'button leaves, and the app fills it, as a bar does', (tester) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    const grip = Key('grip');
+    final background = GestureDetector(
+      key: grip,
+      behavior: HitTestBehavior.opaque,
+      onPanStart: (_) {},
+      child: const SizedBox.expand(),
+    );
+    void probe(String name) {
+      final band = tester.getRect(find.byKey(grip));
+      expect(band.height, greaterThan(_top), reason: name);
+      final button = tester.getRect(
+        _buttons(
+          (controller.sidebarShown ?? true) ? 'Hide Sidebar' : 'Show Sidebar',
+        ).first,
+      );
+      final listener = tester.renderObject(
+        find.descendant(of: find.byKey(grip), matching: find.byType(Listener)),
+      );
+      for (final y in [band.top + 2, band.center.dy, band.bottom - 2]) {
+        for (var x = band.left + 8; x < band.right; x += 16) {
+          final at = Offset(x, y);
+          if (button.contains(at)) continue;
+          final hit = tester.hitTestOnBinding(at);
+          expect(
+            hit.path.map((entry) => entry.target),
+            contains(listener),
+            reason: '$name at $at',
+          );
+        }
+      }
+    }
+
+    await _pump(
+      tester,
+      controller,
+      _landscape,
+      more: 20,
+      sidebarTopBackground: background,
+    );
+    probe('beside');
+    await tester.drag(find.text('More 5'), const Offset(0, -300));
+    await _settle(tester);
+    final band = tester.getRect(find.byKey(grip));
+    final under = tester.getRect(_rows.at(3));
+    expect(under.top, lessThan(band.bottom - 10), reason: 'a row under it');
+    await tester.tapAt(Offset(under.center.dx, band.bottom - 5));
+    await _settle(tester);
+    expect(controller.index, 0, reason: 'the row under the band is not hit');
+
+    await _pump(
+      tester,
+      controller,
+      _landscape,
+      direction: TextDirection.rtl,
+      sidebarTopBackground: background,
+    );
+    probe('beside, right to left');
+
+    await _pump(
+      tester,
+      controller,
+      _portrait,
+      layout: _overInPortrait,
+      sidebarTopBackground: background,
+    );
+    await tester.tap(_alone);
+    await _settle(tester);
+    probe('over the content');
+  });
+
+  testWidgets('a sidebar that loses tabs asks no frame of a row gone', (
+    tester,
+  ) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    await _pump(tester, controller, _landscape, more: 6);
+    await _pump(tester, controller, _landscape);
+    expect(tester.takeException(), isNull);
+    expect(_rows, findsNWidgets(2));
   });
 
   testWidgets('from 1100 wide the sidebar stands beside the content, whose '
@@ -392,6 +481,33 @@ void main() {
     await _settle(tester);
     expect(pill('Two')?.toARGB32(), GlassColors.systemBlue.color.toARGB32());
     expect(pill('One'), isNull);
+  });
+
+  testWidgets("a page open beside a list tab's list knows it stands "
+      'beside it, and not while the list is hidden', (tester) async {
+    for (final list in [GlassTabListMode.beside, GlassTabListMode.hidden]) {
+      final controller = GlassTabController();
+      addTearDown(controller.dispose);
+      await _pump(
+        tester,
+        controller,
+        _landscape,
+        list: true,
+        layout: GlassTabLayoutPolicy.custom(
+          (environment, size) =>
+              GlassTabLayout.sidebar(beside: true, list: list),
+        ),
+      );
+      GlassTabStack.of(
+        tester.element(find.text('One page', skipOffstage: false)),
+      ).push(const _Page('One.next'));
+      await _settle(tester);
+      expect(
+        _beside['One.next'],
+        list == GlassTabListMode.beside,
+        reason: '$list',
+      );
+    }
   });
 
   testWidgets('right to left, the sidebar stands at the right', (

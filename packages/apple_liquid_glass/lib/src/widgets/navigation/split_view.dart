@@ -378,8 +378,38 @@ class GlassSplitView extends StatefulWidget {
     darkColor: Color(0xFF181D20),
   );
 
+  /// The column of the nearest split view that [context] stands in, or
+  /// null outside one; in a collapsed stack, the column of the page it
+  /// stands on.
+  static GlassSplitViewColumn? columnOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_SplitColumn>()?.column;
+
+  /// Whether the column [context] stands in shows beside the other one:
+  /// side by side with the primary column shown. False in a collapsed
+  /// stack, in the secondary column while the primary is hidden, and
+  /// outside a split view: a page of the secondary column leaves out a way
+  /// back to a list it stands beside, as UIKit's first detail page does.
+  static bool besideOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_SplitColumn>()?.beside ??
+      false;
+
   @override
   State<GlassSplitView> createState() => _GlassSplitViewState();
+}
+
+class _SplitColumn extends InheritedWidget {
+  const _SplitColumn({
+    required this.column,
+    required this.beside,
+    required super.child,
+  });
+
+  final GlassSplitViewColumn column;
+  final bool beside;
+
+  @override
+  bool updateShouldNotify(_SplitColumn oldWidget) =>
+      column != oldWidget.column || beside != oldWidget.beside;
 }
 
 class _GlassSplitViewState extends State<GlassSplitView> {
@@ -719,9 +749,13 @@ class _GlassSplitViewState extends State<GlassSplitView> {
         pages: [
           _ColumnPage(
             key: const ValueKey(GlassSplitViewColumn.primary),
-            child: GlassMovableSubtree(
-              key: _primaryKey,
-              child: widget.primary,
+            child: _SplitColumn(
+              column: GlassSplitViewColumn.primary,
+              beside: false,
+              child: GlassMovableSubtree(
+                key: _primaryKey,
+                child: widget.primary,
+              ),
             ),
           ),
           if (secondaryOnTop)
@@ -734,9 +768,13 @@ class _GlassSplitViewState extends State<GlassSplitView> {
                   onPressed: () =>
                       controller.hide(GlassSplitViewColumn.secondary),
                 ),
-                child: KeyedSubtree(
-                  key: _secondaryKey,
-                  child: widget.secondary,
+                child: _SplitColumn(
+                  column: GlassSplitViewColumn.secondary,
+                  beside: false,
+                  child: KeyedSubtree(
+                    key: _secondaryKey,
+                    child: widget.secondary,
+                  ),
                 ),
               ),
             ),
@@ -831,9 +869,13 @@ class _GlassSplitViewState extends State<GlassSplitView> {
                         width: primaryWidth,
                         whole: width,
                         ownWidth: columnWidth,
-                        child: GlassMovableSubtree(
-                          key: _primaryKey,
-                          child: widget.primary,
+                        child: _SplitColumn(
+                          column: GlassSplitViewColumn.primary,
+                          beside: _shows,
+                          child: GlassMovableSubtree(
+                            key: _primaryKey,
+                            child: widget.primary,
+                          ),
                         ),
                       ),
                     ),
@@ -870,9 +912,13 @@ class _GlassSplitViewState extends State<GlassSplitView> {
                     width: secondaryWidth,
                     whole: width,
                     ownWidth: _shows ? rest - columnWidth : rest,
-                    child: KeyedSubtree(
-                      key: _secondaryKey,
-                      child: widget.secondary,
+                    child: _SplitColumn(
+                      column: GlassSplitViewColumn.secondary,
+                      beside: _shows,
+                      child: KeyedSubtree(
+                        key: _secondaryKey,
+                        child: widget.secondary,
+                      ),
                     ),
                   ),
                 ),

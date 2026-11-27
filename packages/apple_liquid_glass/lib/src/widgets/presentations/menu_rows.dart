@@ -3,11 +3,11 @@ import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/activity_indicator.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_appearance.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_content.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_entries.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -536,7 +536,7 @@ class _MenuElement extends StatelessWidget {
           _at(
             check,
             MenuAppearance.imageSlot,
-            _Spinner(color: style.disabledColor),
+            GlassActivityIndicator(color: style.disabledColor),
           ),
           PositionedDirectional(
             start: element.titleStart,

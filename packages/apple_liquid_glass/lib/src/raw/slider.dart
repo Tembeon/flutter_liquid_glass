@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/raw/mirror.dart';
@@ -28,6 +30,7 @@ final class GlassSliderDetails {
     required this.ticks,
     required this.states,
     this.statesListenable,
+    this.showsThumb = true,
   });
 
   /// The frames of the track in the slider's box: it stretches toward a
@@ -53,6 +56,9 @@ final class GlassSliderDetails {
   /// the thumb, whose renderer then draws the focus ring and the hover
   /// response.
   final ValueListenable<Set<WidgetState>>? statesListenable;
+
+  /// Whether the look draws the thumb ([RawGlassSlider.showsThumb]).
+  final bool showsThumb;
 }
 
 /// A slider with the measured motion of iOS 27's `UISlider` and no look of
@@ -92,11 +98,17 @@ class RawGlassSlider extends StatefulWidget {
     this.min = 0,
     this.max = 1,
     this.ticks = 0,
+    this.neutralValue,
+    this.adjustmentStep,
+    this.snapsToTicks = true,
+    this.enabledBounds,
     this.animated = false,
     this.statesController,
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.semanticFormatterCallback,
+    this.showsThumb = true,
     super.key,
   }) : assert(min < max, 'min must be less than max');
 
@@ -132,6 +144,27 @@ class RawGlassSlider extends StatefulWidget {
   /// one, without calling [onChanged], as UIKit snaps at rest.
   final int ticks;
 
+  /// The value the fill starts from, toward the thumb on either side, or
+  /// null for [min]: a balance or a pitch reads from its middle
+  /// (`neutralValue`; slider passport, recheck 27.2).
+  final double? neutralValue;
+
+  /// How much a key or a screen reader's increase or decrease changes the
+  /// value of a slider without [ticks], as SwiftUI's `Slider(step:)` and
+  /// UIKit's `accessibilityIncrement` set it; null for a tenth of the
+  /// range. A finger still moves it freely.
+  final double? adjustmentStep;
+
+  /// Whether the value snaps to [ticks]; false, UIKit's
+  /// `allowsTickValuesOnly = false`, lets it track the finger freely and
+  /// takes a tick only within 0.05 of the track from it.
+  final bool snapsToTicks;
+
+  /// The least and the most, between [min] and [max], a drag can take the
+  /// value to, as UIKit's `enabledRange` and SwiftUI's `enabledBounds`;
+  /// nothing is drawn for it.
+  final (double, double)? enabledBounds;
+
   /// Whether a new [value] from outside moves the thumb on UIKit's
   /// programmatic spring instead of jumping; a stepped slider always jumps.
   final bool animated;
@@ -148,6 +181,16 @@ class RawGlassSlider extends StatefulWidget {
 
   /// What accessibility reads for the slider.
   final String? semanticLabel;
+
+  /// Formats the value screen readers read, and the values one step up and
+  /// down; null reads it as a percentage of the range.
+  final String Function(double value)? semanticFormatterCallback;
+
+  /// Whether the thumb shows, as UIKit's `sliderStyle` and SwiftUI's
+  /// `sliderThumbVisibility` choose; without it the track is 7 points
+  /// tall, and a finger still takes the slider where the thumb would be,
+  /// as UIKit's does (read from its code, not run with a touch).
+  final bool showsThumb;
 
   /// The height of the slider, not measured.
   static const double height = 34;
@@ -167,6 +210,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     width: 0,
     value: _unit(widget.value),
     ticks: widget.ticks,
+    snapsToTicks: widget.snapsToTicks,
     onEvent: _deliver,
     clock: MotionClockScope.of(context),
   );
@@ -178,7 +222,11 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   );
   late final List<Interaction> _interactions = [_input];
   late final MotionSelection<bool> _driving = _motion.select(_drivenBy);
-  late _SliderFrames _frames = _SliderFrames(_motion, mirrored: false);
+  late _SliderFrames _frames = _SliderFrames(
+    _motion,
+    mirrored: false,
+    neutral: _neutral,
+  );
   Widget? _visual;
   Object? _visualKey;
   Set<WidgetState>? _visualStates;
@@ -193,6 +241,15 @@ class _RawGlassSliderState extends State<RawGlassSlider>
 
   @override
   MotionClock get valueClock => _motion.clock;
+
+  void _bound() {
+    final bounds = widget.enabledBounds;
+    _motion
+      ..thumbless = !widget.showsThumb
+      ..snapsToTicks = widget.snapsToTicks
+      ..enabledMin = bounds == null ? 0 : _unit(bounds.$1)
+      ..enabledMax = bounds == null ? 1 : _unit(bounds.$2);
+  }
 
   static bool _drivenBy(SliderMotion motion) =>
       motion.isDragging || motion.isGliding;
@@ -219,10 +276,23 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   void didUpdateWidget(RawGlassSlider oldWidget) {
     super.didUpdateWidget(oldWidget);
     _motion.ticks = widget.ticks;
+    _bound();
     if (oldWidget.min != widget.min || oldWidget.max != widget.max) {
       _reported = null;
     }
+    if (_neutral != _frames.neutral) {
+      _frames = _SliderFrames(
+        _motion,
+        mirrored: _frames.mirrored,
+        neutral: _neutral,
+      );
+    }
   }
+
+  double? get _neutral => switch (widget.neutralValue) {
+    final value? => _unit(value),
+    null => null,
+  };
 
   double _unit(double value) => Ramp.fraction(value, widget.min, widget.max);
 
@@ -266,7 +336,11 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   double _stepFrom(double from, int delta) {
     final ticks = widget.ticks;
     if (ticks < 2) {
-      return (from + delta * RawGlassSlider._keyboardStep).clamp(0.0, 1.0);
+      final step = switch (widget.adjustmentStep) {
+        final step? when step > 0 => step / (widget.max - widget.min),
+        _ => RawGlassSlider._keyboardStep,
+      };
+      return (from + delta * step).clamp(0.0, 1.0);
     }
     final steps = ticks - 1;
     final at = from * steps;
@@ -298,7 +372,13 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     Set<WidgetState> states,
   ) {
     final frames = _frames;
-    final key = (widget.builder, width, widget.ticks, frames);
+    final key = (
+      widget.builder,
+      width,
+      widget.ticks,
+      frames,
+      widget.showsThumb,
+    );
     final visual = _visual;
     if (visual != null &&
         key == _visualKey &&
@@ -316,6 +396,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
         ticks: frames.tickCenters(width, widget.ticks),
         states: states,
         statesListenable: widgetStates,
+        showsThumb: widget.showsThumb,
       ),
     );
   }
@@ -325,16 +406,20 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _bound();
     final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     if (rtl != _frames.mirrored) {
-      _frames = _SliderFrames(_motion, mirrored: rtl);
+      _frames = _SliderFrames(_motion, mirrored: rtl, neutral: _neutral);
     }
   }
 
   @override
   Widget buildControl(BuildContext context) {
     final value = _unit(widget.value);
-    final percent = GlassLocalizations.of(context).percentValue;
+    final formatter = widget.semanticFormatterCallback;
+    final percentValue = GlassLocalizations.of(context).percentValue;
+    String percent(double unit) =>
+        formatter?.call(_out(unit)) ?? percentValue(unit);
     return MotionScope(
       motion: _motion,
       child: InputRegion(
@@ -378,10 +463,13 @@ class _RawGlassSliderState extends State<RawGlassSlider>
 /// What a slider shows of its motion: the frames of its track, fill and
 /// thumb, laid out left to right or mirrored.
 final class _SliderFrames {
-  _SliderFrames(this._motion, {required this.mirrored});
+  _SliderFrames(this._motion, {required this.mirrored, this.neutral});
 
   final SliderMotion _motion;
   final bool mirrored;
+
+  /// Where the fill starts, 0 to 1, or null for the track's start.
+  final double? neutral;
 
   static const double _y = RawGlassSlider.height / 2;
 
@@ -398,6 +486,29 @@ final class _SliderFrames {
   late final MotionSelection<GlassFrame> fill = _motion.select((motion) {
     final ends = motion.trackEnds;
     final height = _trackHeight(motion);
+    final neutral = this.neutral;
+    if (neutral != null) {
+      // From the thumb's center at the neutral value to its center now.
+      final width = motion.width;
+      double at(double u) => width <= 0
+          ? ends.left
+          : ends.left +
+                (SliderMotion.thumbSize.width / 2 + u * motion.travel) *
+                    (ends.right - ends.left) /
+                    width;
+      final from = at(neutral);
+      final to = at(motion.position);
+      return GlassFrame(
+        rect: _shown(
+          Rect.fromLTRB(
+            math.min(from, to),
+            _y - height / 2,
+            math.max(from, to),
+            _y + height / 2,
+          ),
+        ),
+      );
+    }
     final end = motion.fillEnd.clamp(ends.left, double.infinity);
     return GlassFrame(
       rect: _shown(

@@ -83,10 +83,10 @@ void main() {
     for (var i = 0; i < 160; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
-    expect(values, [4, 4, 4]);
+    expect(values, [4, 3, 2], reason: 'a hold climbs from its own steps');
     await hold.up();
     await tester.pump();
-    expect(values, [4, 4, 4]);
+    expect(values, [4, 3, 2]);
   });
 
   testWidgets('sliding to the other half moves the highlight without a '

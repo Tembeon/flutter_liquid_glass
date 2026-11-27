@@ -92,6 +92,9 @@ final class _Bar {
   // Whether each prominent capsule's button has an action, by the
   // capsule's layout identity.
   final Map<Object, bool> prominent = {};
+  // The capsules of items that draw no glass of their own, by the
+  // capsule's layout identity.
+  final Set<Object> bare = {};
   Set<Object> built = const {};
   Set<Object> measuredIds = const {};
   double width = 0;
@@ -389,9 +392,9 @@ final class _Bar {
     final leading = [
       if (declaration.beforeBack case final item?)
         ..._capsules(page, [item], seen),
-      ...declaration.leading.isEmpty
-          ? _back(page, declaration)
-          : _capsules(page, declaration.leading, seen),
+      if (declaration.leading.isEmpty || declaration.leadingSupplementsBack)
+        ..._back(page, declaration),
+      ..._capsules(page, declaration.leading, seen),
     ];
     return [leading, _capsules(page, declaration.trailing, seen)];
   }
@@ -459,7 +462,7 @@ final class _Bar {
             ),
             GlassBarProminentButton() => (GlassBarButtonKind.label, true),
           };
-          if (prominent) {
+          if (prominent || !entry.sharesBackground) {
             close();
             out.add([(id, _Button.item(entry, kind))]);
             continue;
@@ -527,6 +530,7 @@ final class _Bar {
     final pages = host._measured(this).toList();
     final rooms = <(GlassPageBarLink, GlassTitleRoom)>[];
     prominent.clear();
+    bare.clear();
     for (final page in pages) {
       final runs = this.runs(page);
       final layout = page._layouts[kind] = _layoutOf(runs);
@@ -539,11 +543,19 @@ final class _Bar {
                 when button.item is GlassBarProminentButton)
               id: _actionOf(button).enabled,
       };
+      final alone = {
+        for (final run in runs)
+          for (final capsule in run)
+            if (capsule.first case (final id, final button)
+                when !(button.item?.sharesBackground ?? true))
+              id,
+      };
       for (final capsule in layout) {
         for (final item in capsule.items) {
           if (tinted[item.id] case final enabled?) {
             prominent[capsule.id] = enabled;
           }
+          if (alone.contains(item.id)) bare.add(capsule.id);
         }
       }
       if (_navigation) {
@@ -669,7 +681,8 @@ final class _Bar {
           scaleX: lift?.scaleX ?? 1,
           scaleY: lift?.scaleY ?? 1,
           glow: lift?.touchGlow,
-          opacity: _menuCapsules.containsValue(frame.id)
+          opacity:
+              _menuCapsules.containsValue(frame.id) || bare.contains(frame.id)
               ? 0
               : frame.opacity * fade,
           tint: switch (prominent[frame.id]) {

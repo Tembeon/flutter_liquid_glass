@@ -20,6 +20,7 @@ class _Slide extends StatefulWidget {
 class _SlideState extends State<_Slide> {
   late final _input = _SwipePop(this);
   late final List<Interaction> _interactions = [_input];
+  bool _phone = true;
 
   GlassPageRoute<Object?> get route => widget.route;
   PageSlideMotion get motion => widget.motion;
@@ -76,6 +77,7 @@ class _SlideState extends State<_Slide> {
   Widget build(BuildContext context) {
     motion.width = MediaQuery.sizeOf(context).width;
     motion.crossFades = GlassTraits.of(context).prefersCrossFade;
+    _phone = GlassEnvironment.of(context).formFactor == GlassFormFactor.phone;
     return InputRegion(
       interactions: _interactions,
       child: _Card(
@@ -113,9 +115,11 @@ BorderRadius _cardRadius(BuildContext context) =>
 /// The interactive pop: a touch on the page that moves along it toward
 /// the trailing side drags the page, and its release pops or returns the
 /// page as UIKit predicts. A touch on the leading edge begins after
-/// [NavigationPopMotion.edgeHysteresis]; one elsewhere, UIKit's content
-/// swipe, after [NavigationPopMotion.contentHysteresis] inside its funnel, so
-/// the page's own drags and scrolls take the touches they claim first.
+/// [NavigationPopMotion.edgeHysteresis] inward unless it first drifts
+/// along the edge past [NavigationPopMotion.edgeDrift]; one elsewhere,
+/// UIKit's content swipe, after [NavigationPopMotion.contentHysteresis]
+/// inside its funnel, so the page's own drags and scrolls take the touches
+/// they claim first.
 final class _SwipePop extends Interaction {
   _SwipePop(this._slide) : super(role: InteractionRole.gesture);
 
@@ -124,6 +128,8 @@ final class _SwipePop extends Interaction {
   bool _touching = false;
   bool _rtl = false;
   Offset _start = Offset.zero;
+  Offset _last = Offset.zero;
+  double _downTime = 0;
   bool _fromEdge = false;
   bool _dragging = false;
   late NavigationPopMotion _predictor;
@@ -144,19 +150,32 @@ final class _SwipePop extends Interaction {
         _touching = true;
         _rtl = input.textDirection == TextDirection.rtl;
         _start = input.position;
+        _last = input.position;
+        _downTime = input.time;
         final x = (_rtl ? input.mirrored(_width) : input).position.dx;
-        _fromEdge = x <= _width * NavigationPopMotion.edgeShare;
+        _fromEdge =
+            x <= NavigationPopMotion.edgeWidth(_width, phone: _slide._phone);
         _dragging = false;
         _predictor = NavigationPopMotion(_width);
         _predictor.addPosition(input.time, _along(input.position));
       case PointerMoveInput() when _touching:
+        final last = _last;
+        _last = input.position;
         final along = _along(input.position);
         final predictor = _predictor;
         predictor.addPosition(input.time, along);
         final travel = along - _along(_start);
         if (!_dragging) {
           if (_fromEdge) {
-            if (travel.abs() < NavigationPopMotion.edgeHysteresis) break;
+            if (travel <= NavigationPopMotion.edgeHysteresis) {
+              final drift = (input.position.dy - _start.dy).abs();
+              if (drift >
+                  NavigationPopMotion.edgeDrift(input.time - _downTime)) {
+                _touching = false;
+                return const InteractionUpdate(fails: true);
+              }
+              break;
+            }
           } else {
             final across = (input.position.dy - _start.dy).abs();
             if (across >= NavigationPopMotion.contentFunnel(travel) ||
@@ -167,9 +186,17 @@ final class _SwipePop extends Interaction {
             if (travel < NavigationPopMotion.contentHysteresis) break;
           }
           _dragging = true;
-          _start = input.position;
+          // UIKit's edge pan takes its hysteresis out of the travel at the
+          // touch before the one that begins it, so the page starts a
+          // step along; its content swipe starts from where it begins.
+          _start = _fromEdge ? last : input.position;
           _slide._dragStarted(input.time);
           predictor.begin(input.time);
+          if (_fromEdge) {
+            final progress = (along - _along(_start)) / _width;
+            _slide.motion.drag(input.time, progress);
+            predictor.update(input.time, progress);
+          }
           return const InteractionUpdate(verdict: .recognized);
         }
         final progress = travel / _width;

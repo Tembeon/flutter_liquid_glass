@@ -22,9 +22,9 @@ part 'package:apple_liquid_glass/src/widgets/controls/date_picker_wheels.dart';
 // iPhone 16 Pro).
 const double _wheelFadedOpacity = 0.4;
 
-// The opacity of a day outside the picker's range (not measured on a
-// device).
-const double _unavailableDayOpacity = 0.35;
+// The opacity of a month chevron that leads past the picker's range (not
+// measured on a device).
+const double _unavailableChevronOpacity = 0.35;
 
 /// Whether a picker shows 24-hour time at [context]: [given], else the
 /// platform's setting.
@@ -56,15 +56,18 @@ Widget glassDatePickerHighlight(
 /// with `.graphical`. Flutter: `CalendarDatePicker`.
 ///
 /// Its behaviour, keys and accessibility are [RawGlassDatePicker]'s: the
-/// arrows turn the month with a slide, a tap on the month title turns the
+/// arrows and a swipe on the days turn the month with a slide, a tap on
+/// the month title turns the
 /// day grid into month and year wheels (the title takes the accent color
 /// at once and its chevron turns to point down over 0.25 s, as UIKit
 /// does), and a tap on a day picks it. The picked day sits on a disc in
 /// the label color, or in the accent when it is today, its number in the
 /// color that reads on it ([GlassThemeData.primaryContrastingColor]; on
 /// the accent the prominent glass button's rule, not measured on the
-/// calendar), and today's number takes the accent on a tinted disc; days
-/// outside [minimumDate] and [maximumDate] fade. Texts come from
+/// calendar), and today's number takes the accent on a disc of the accent
+/// at 12 percent, in light and dark; a day outside [minimumDate] and
+/// [maximumDate] draws its number in quaternaryLabel with no disc, as
+/// UIKit draws a day it cannot select (iOS 27.2 simulator). Texts come from
 /// [GlassLocalizations]. The calendar follows the text scale up to
 /// [maxTextScale], except the day numbers, which keep their size. It works
 /// with any renderer.
@@ -82,7 +85,7 @@ class GlassDatePicker extends StatelessWidget {
     required this.onChanged,
     this.minimumDate,
     this.maximumDate,
-    this.firstDayOfWeek = DateTime.sunday,
+    this.firstDayOfWeek,
     this.today,
     this.style,
     this.focusNode,
@@ -104,8 +107,9 @@ class GlassDatePicker extends StatelessWidget {
   /// The latest moment that can be picked; null for no limit.
   final DateTime? maximumDate;
 
-  /// The first column of the calendar, as a [DateTime] weekday.
-  final int firstDayOfWeek;
+  /// The first column of the calendar, as a [DateTime] weekday; null for
+  /// the locale's ([GlassLocalizations.firstDayOfWeek]).
+  final int? firstDayOfWeek;
 
   /// The day to tint as today; null for the current day.
   final DateTime? today;
@@ -146,7 +150,8 @@ class GlassDatePicker extends StatelessWidget {
           onChanged: onChanged,
           minimumDate: minimumDate,
           maximumDate: maximumDate,
-          firstDayOfWeek: firstDayOfWeek,
+          firstDayOfWeek:
+              firstDayOfWeek ?? GlassLocalizations.of(context).firstDayOfWeek,
           today: today,
           focusNode: focusNode,
           autofocus: autofocus,
@@ -157,7 +162,7 @@ class GlassDatePicker extends StatelessWidget {
             onAccent: onAccent,
             highlights: highlights,
             scale: days,
-            style: details.selected ? selectedDay : day,
+            style: details.selected && details.enabled ? selectedDay : day,
           ),
           titleBuilder: (context, details) => glassDatePickerHighlight(
             highlights,

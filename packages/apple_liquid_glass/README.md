@@ -297,21 +297,26 @@ library can also be imported alone.
 
 | Name | What it is |
 | --- | --- |
-| `GlassButton` | A glass button: `GlassButton`, `.clear`, `.prominent`, `.prominentClear`. |
+| `GlassButton` | A button: glass (`GlassButton`, `.clear`, `.prominent`, `.prominentClear`) or without glass (`.plain`, `.gray`, `.tinted`, `.filled`); `styleFrom` sets a `GlassControlSize` and a shape, and `loading` shows a spinner. |
+| `GlassPopUpButton` | A button that shows its selected item and picks another from a menu. |
 | `GlassSwitch` | A switch. |
 | `GlassSlider` | A slider, optionally with ticks. |
-| `GlassStepper` | A stepper with a minus and a plus half. |
+| `GlassStepper` | A stepper with a minus and a plus half, or icons of your own; `GlassStepper.custom` steps through anything with its own callbacks. |
 | `GlassSegmentedControl` | A segmented control of `GlassSegment`s. |
-| `GlassPageControl` | A page control that looks and steps like `UIPageControl`. |
+| `GlassPageControl` | A page control that looks and steps like `UIPageControl`, across or on end; `GlassPageControlTimer` turns its pages by itself. |
 | `GlassSearchField` | A search field. |
+| `GlassSearchController`, `GlassSearchScope` | A search's query and open state; `GlassSearchController.of(context)` reads the search a page belongs to. |
 | `GlassSearchIcon`, `GlassCloseIcon` | The search magnifier and the close cross. |
-| `GlassListSection` | One section of an inset grouped list: header, rows on a rounded card, footer. |
+| `GlassListSection` | One section of a list: header, rows on a card, footer; inset grouped, grouped or plain (`GlassListLayout`). |
 | `GlassSliverListSection` | A list section as a sliver that builds its rows lazily. |
 | `GlassListRow` | A row of an inset grouped list: title, subtitle, detail, leading, trailing, accessory. |
 | `GlassListBackground` | The page behind an inset grouped list. |
 | `GlassSwipeActions` | A row that a finger swipes to show trailing `GlassSwipeAction`s. |
 | `GlassDatePicker` | A month calendar date picker, in place. |
 | `GlassTimePicker` | Hour and minute wheels, with an AM/PM wheel in 12-hour time. |
+| `GlassCountDownPicker`, `GlassMonthYearPicker` | A timer's hours and minutes, and a month and year, on wheels. |
+| `GlassProgressView`, `GlassActivityIndicator` | A progress bar, of a value or over a time interval (`GlassProgressView.timer`), and a spinner. |
+| `GlassSliverRefreshControl` | Pull to refresh at the top of a scroll view. |
 | `GlassBadge` | A badge on a tab: a count, a short text or a dot. |
 
 ### Navigation
@@ -345,9 +350,13 @@ library can also be imported alone.
 | `GlassMenuItem`, `GlassSubmenu`, `GlassMenuSection`, `GlassMenuDivider`, `GlassMenuDeferred`, `GlassMenuWidget` | The entries of a menu. |
 | `showGlassAlert` | Shows an alert and completes with the `GlassAlertAction` chosen. |
 | `showGlassActionSheet` | Shows an action sheet and completes with the action chosen. |
-| `showGlassSheet` | Shows a sheet over the page, with detents. |
+| `showGlassSheet` | Shows a sheet over the page, with detents; a `GlassSheetController` reads and sets its detent from outside. |
+| `showGlassFullScreen` | Shows a page over the whole screen, sliding up from the bottom. |
 | `showGlassPopover` | Shows content in a popover next to its source. |
 | `GlassCompactDatePicker` | A label that opens its picker in an overlay. |
+| `GlassTooltip` | A short message that shows beside its child when it is held or hovered. |
+| `showGlassToast`, `GlassToaster` | Shows a `GlassToast` at the top of the screen for a while. |
+| `GlassEditMenu` | The edit menu over selected text or content. |
 
 ### Surfaces (`surfaces.dart`)
 

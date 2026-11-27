@@ -161,6 +161,7 @@ final class GlassScrollEdgeDetails {
     required this.extent,
     required this.presence,
     required this.background,
+    this.systemExtent = 0,
   }) : assert(
          edge == AxisDirection.up || edge == AxisDirection.down,
          'Only the top and bottom edges have an effect.',
@@ -182,6 +183,11 @@ final class GlassScrollEdgeDetails {
   /// bottom.
   final double extent;
 
+  /// How much of [extent] the system's own bar takes at the edge: the
+  /// status bar's height at the top of a full-screen scroll view, 0
+  /// elsewhere. UIKit sizes the hard band's blur by the bar past it.
+  final double systemExtent;
+
   /// How present the effect is, 0 to 1; a renderer follows it below build.
   final ValueListenable<double> presence;
 
@@ -195,11 +201,13 @@ final class GlassScrollEdgeDetails {
       other.edge == edge &&
       other.hard == hard &&
       other.extent == extent &&
+      other.systemExtent == systemExtent &&
       other.presence == presence &&
       other.background == background;
 
   @override
-  int get hashCode => Object.hash(edge, hard, extent, presence, background);
+  int get hashCode =>
+      Object.hash(edge, hard, extent, systemExtent, presence, background);
 }
 
 // Wraps a surface's frames once, so every renderer listens to them in the

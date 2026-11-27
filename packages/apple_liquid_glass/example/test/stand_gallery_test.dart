@@ -15,8 +15,21 @@ Future<void> _frames(WidgetTester tester, [int count = 60]) async {
 
 // A bar item is read from its zone, whose node stands where the item is
 // drawn: the centre of its rectangle on the screen.
-Offset _centerOf(WidgetTester tester, Finder finder) {
-  final node = tester.getSemantics(finder);
+Offset _centerOf(WidgetTester tester, Finder finder) =>
+    _centerOfNode(tester, tester.getSemantics(finder));
+
+// The button read as [label]: a title of the same name is a heading.
+Offset _buttonCenter(WidgetTester tester, String label) => _centerOfNode(
+  tester,
+  find.semantics
+      .byPredicate(
+        (node) => node.label == label && node.flagsCollection.isButton,
+      )
+      .evaluate()
+      .last,
+);
+
+Offset _centerOfNode(WidgetTester tester, SemanticsNode node) {
   var rect = node.rect;
   for (SemanticsNode? at = node; at != null; at = at.parent) {
     if (at.transform case final transform?) {
@@ -88,9 +101,7 @@ void main() {
     expect(find.text('Liquid Dreams'), findsWidgets);
     await tester.drag(find.text('Refraction').first, const Offset(0, -400));
     await _frames(tester);
-    await tester.tapAt(
-      _centerOf(tester, find.bySemanticsLabel('Present').last),
-    );
+    await tester.tapAt(_buttonCenter(tester, 'Present'));
     await _frames(tester, 90);
     expect(find.text('Music app'), findsOneWidget);
     await tester.tap(find.text('Sheet with detents'));

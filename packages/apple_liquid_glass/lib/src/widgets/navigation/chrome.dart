@@ -90,6 +90,7 @@ final class ChromeEdges {
     required this.bottom,
     required this.bottomExtent,
     required this.background,
+    this.topSystemExtent,
   });
 
   /// The bar at the top.
@@ -97,6 +98,10 @@ final class ChromeEdges {
 
   /// The distance from the page's top to the top bar's far edge.
   final double topExtent;
+
+  /// How much of [topExtent] the system's own bar takes (the status bar
+  /// above a navigation bar), or null when all of it is the system's.
+  final double? topSystemExtent;
 
   /// How far the content scrolls before it passes under the top bar.
   final double scrolledUnderAfter;
@@ -115,6 +120,7 @@ final class ChromeEdges {
       other is ChromeEdges &&
       other.top == top &&
       other.topExtent == topExtent &&
+      other.topSystemExtent == topSystemExtent &&
       other.scrolledUnderAfter == scrolledUnderAfter &&
       other.bottom == bottom &&
       other.bottomExtent == bottomExtent &&
@@ -124,6 +130,7 @@ final class ChromeEdges {
   int get hashCode => Object.hash(
     top,
     topExtent,
+    topSystemExtent,
     scrolledUnderAfter,
     bottom,
     bottomExtent,
@@ -222,6 +229,7 @@ class GlassContentScroll extends StatefulWidget {
     required this.child,
     this.edgeEffects = const GlassScrollEdgeEffects(),
     this.notificationPredicate = defaultScrollNotificationPredicate,
+    this.onScrollToTop,
     super.key,
   });
 
@@ -234,9 +242,18 @@ class GlassContentScroll extends StatefulWidget {
   /// Which scroll notifications come from the page's scroll view.
   final ScrollNotificationPredicate notificationPredicate;
 
+  /// Called in place of scrolling the content to its start when the status
+  /// bar is tapped, for content that starts elsewhere, such as a feed that
+  /// starts at its newest end; null scrolls to the start, as UIKit's
+  /// `scrollsToTop` does.
+  final VoidCallback? onScrollToTop;
+
   @override
   State<GlassContentScroll> createState() => _GlassContentScrollState();
 }
+
+// The start a claimed scroll view brings for the status bar's tap.
+final _scrollsToTop = Expando<VoidCallback>('onScrollToTop');
 
 class _GlassContentScrollState extends State<GlassContentScroll> {
   late final MotionClock _clock;
@@ -360,6 +377,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
 
   @override
   Widget build(BuildContext context) {
+    _scrollsToTop[_scroll] = widget.onScrollToTop;
     final renderer = GlassRendererScope.of(context);
     final edges = _chrome?.edges;
     final top = _hard(
@@ -408,6 +426,10 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
                       edge: AxisDirection.up,
                       hard: top,
                       extent: topExtent - after,
+                      systemExtent: math.min(
+                        edges?.topSystemExtent ?? topExtent,
+                        topExtent - after,
+                      ),
                       presence: _top.progressListenable,
                       background: background,
                     ),
@@ -507,8 +529,17 @@ class GlassPageBackground extends InheritedWidget {
 /// out. While the on-screen keyboard shows, the content ends at its top
 /// ([resizeToAvoidBottomInset]).
 ///
+/// A bar of the app's own, any [PreferredSizeWidget] such as a
+/// `PreferredSize`, takes either slot as UIKit's `safeAreaBar` and
+/// `UIScrollEdgeElementContainerInteraction` take a custom bar: the content
+/// keeps clear of its preferred height, and the edge effect lies under it,
+/// soft by default as UIKit's automatic effect is under a bar that is
+/// neither a navigation bar nor a floating one.
+///
 /// Fidelity. The scroll to the start on a status bar tap is Flutter's, not
-/// measured on iOS 27.
+/// measured on iOS 27. Under a custom bar the hard band reaches the bar's
+/// far edge; UIKit's reaches max(h, 62) at the top and h at the bottom for
+/// a bar h tall (bars passport, iOS 27.2 simulator), not checked here.
 class GlassPageScaffold extends StatefulWidget {
   /// Creates a page.
   const GlassPageScaffold({
@@ -548,7 +579,7 @@ class GlassPageScaffold extends StatefulWidget {
   /// tracks the keyboard live passes false and keeps clear of it itself.
   final bool resizeToAvoidBottomInset;
 
-  /// Whether the floating tab bar over the page slides away while the page
+  /// Whether the floating tab bar over the page fades away while the page
   /// shows, as UIKit's `hidesBottomBarWhenPushed` and
   /// `setTabBarHidden(_:animated:)` hide it; false by default.
   ///
@@ -557,7 +588,8 @@ class GlassPageScaffold extends StatefulWidget {
   /// bar back. The bar draws over the page's own [toolbar], as UIKit's tab
   /// bar draws over a navigation controller's toolbar, so a page that
   /// selects its content and acts on it with a toolbar hides the bar, as
-  /// Photos does. The page keeps the room the bar takes at its bottom.
+  /// Photos does. The page's bottom padding gives the bar's room back as
+  /// the bar fades, as UIKit's safe area does.
   final bool hidesTabBar;
 
   @override
@@ -615,8 +647,11 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
 
   @override
   void handleStatusBarTap() {
-    final position = _active.value?.position;
-    if (position == null || !position.hasPixels || !_foreground()) return;
+    final scroll = _active.value;
+    if (scroll == null || !_foreground()) return;
+    if (_scrollsToTop[scroll] case final custom?) return custom();
+    final position = scroll.position;
+    if (position == null || !position.hasPixels) return;
     position
         .animateTo(
           position.minScrollExtent,
@@ -693,6 +728,7 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
     final edges = ChromeEdges(
       top: _kind(navigationBar),
       topExtent: top,
+      topSystemExtent: media.padding.top,
       scrolledUnderAfter: switch (navigationBar) {
         GlassNavigationBar(:final scrolledUnderAfter) => scrolledUnderAfter,
         _ => 0,
@@ -725,7 +761,11 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
                       bottom: media.viewInsets.bottom - keyboard,
                     ),
                   ),
-                  child: widget.child,
+                  child: Semantics(
+                    container: true,
+                    sortKey: const OrdinalSortKey(1),
+                    child: widget.child,
+                  ),
                 ),
               ),
             ),
@@ -747,14 +787,25 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
                 top: rowTop,
                 left: 0,
                 right: 0,
-                child: PageLift(lift: _lift, child: navigationBar),
+                child: PageLift(
+                  lift: _lift,
+                  child: Semantics(
+                    container: true,
+                    sortKey: const OrdinalSortKey(0),
+                    child: navigationBar,
+                  ),
+                ),
               ),
             if (toolbar != null)
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: floating ? 0 : media.padding.bottom,
-                child: toolbar,
+                child: Semantics(
+                  container: true,
+                  sortKey: const OrdinalSortKey(2),
+                  child: toolbar,
+                ),
               ),
           ],
         ),

@@ -7,9 +7,11 @@ import 'package:meta/meta.dart';
 /// UIKit: `UITabBarController.MinimizeBehavior`. SwiftUI:
 /// `TabBarMinimizeBehavior`.
 enum GlassTabBarMinimizeBehavior {
-  /// The platform's default for the context. On an iPhone tab bar that
-  /// does not opt in, UIKit's default does not minimize, so this resolves
-  /// to [never] (an approximation: the resolution is not read from UIKit).
+  /// The platform's default for the context. UIKit minimizes a bar only
+  /// when its layout allows it, it stands pinned to an edge and the
+  /// behavior is [onScrollDown] or [onScrollUp], so this never minimizes,
+  /// as [never] (read from UIKit on iOS 27.2, notes private; measured on
+  /// the iPhone in the 27.2 simulator).
   automatic,
 
   /// The bar never minimizes.
@@ -38,8 +40,9 @@ enum GlassTabBarMinimizeBehavior {
 /// the bottom). The bar turns into the circle in one liquid morph of its
 /// shape and content ([morphSpring]); the four collapse and expand springs
 /// move only the bottom accessory, one axis after the other (iPhone 16 Pro,
-/// layer rows, within 0.09 points). What the content does during the morph
-/// is taken from films of the same phone, by eye.
+/// layer rows, within 0.09 points). The bar's content goes in the morph as
+/// UIKit's code has it ([TabBarMinimizeMotion.contentBlur]); when the lens
+/// goes is taken from films of the same phone.
 @internal
 abstract final class TabBarMinimizeTuning {
   /// The scroll in the minimizing direction, in points, before the bar
@@ -143,7 +146,9 @@ abstract final class TabBarMinimizeTuning {
 /// moves toward its end (Flutter's `pixels` on a downward list, UIKit's
 /// `contentOffset.y`); `min` and `max` are the offsets of the content's
 /// two ends. Only a user's scroll counts: a drag, and the deceleration
-/// after it. A programmatic scroll is only recorded ([last]).
+/// after it, which a host gives as where the content will stop, so a fling's
+/// progress lands at once (read from UIKit). A programmatic scroll is only
+/// recorded ([last]).
 ///
 /// - A drag starts a fresh accumulation ([beginDrag]).
 /// - Past an end, only motion further past it counts (a rubber band's
@@ -326,20 +331,15 @@ final class TabBarMinimizeMotion extends Motion {
   /// frames of the start (film), and comes back as late.
   static const double lensGoneAt = 0.1;
 
-  /// The morph's progress at which the titles have gone: 0.07 s into it
-  /// (film).
-  static const double titlesGoneAt = 0.48;
-
-  /// The morph's progress at which the other tabs have gone: 0.13 s into it
-  /// (film).
-  static const double othersGoneAt = 0.85;
-
-  /// How much the tabs that dissolve draw together toward the circle over
-  /// the whole morph, by eye.
-  static const double othersDrift = 0.15;
-
-  /// The blur the dissolving tabs reach, by eye: UIKit's radius is not read.
-  static const double othersBlur = 3;
+  /// The blur, in points, the bar's content reaches as the bar turns into
+  /// its circle. UIKit morphs a snapshot of the bar's tabs, titles and
+  /// unselected glyphs with the glass: its top left edge on the shape's,
+  /// scaled from 1 to the circle's height over the bar's (clipped by the
+  /// shape), its opacity 1 - p and its
+  /// blur radius this times p at the morph's progress p, and back the same
+  /// way; the selected glyph travels on its own (read from UIKit's code
+  /// and live morph layers, iOS 27.2 simulator).
+  static const double contentBlur = 4;
 
   /// The scroll-away interaction; feed it the content's scrolls after
   /// [advance] to their time.
@@ -409,6 +409,40 @@ final class TabBarMinimizeMotion extends Motion {
   // spring and a finger lifts nothing.
   bool get _reduced => traits.reduceMotion;
 
+  /// How much the bottom accessory shows, 0 to 1: it materializes, its
+  /// glass and its content, over 0.3 s, easing in and out, when the app
+  /// sets one, and dematerializes so when the app takes it away, as
+  /// UIKit's `setBottomAccessory(_:animated:)` runs (its CA animations,
+  /// iOS 27.2 simulator).
+  double get accessoryShown => _accessoryShown.valueAt(now).clamp(0.0, 1.0);
+  late final _accessoryShown = own(
+    MotionValue<double>(1, restDistance: () => MotionRest.opacity),
+  );
+  static const _accessoryFade = TimingCurve(0.3);
+
+  /// Whether a bottom accessory the app took away has gone.
+  bool get accessoryGone =>
+      _accessoryShown.target == 0 && _accessoryShown.restsAt(now);
+
+  /// The app sets a bottom accessory, or takes it away, at time [t]: over
+  /// 0.3 s when [animated].
+  void showAccessory(double t, {required bool shown, required bool animated}) {
+    advance(t);
+    final target = shown ? 1.0 : 0.0;
+    if (!animated) return _accessoryShown.snap(t, target);
+    if (shown && _accessoryShown.target == 0 && accessoryGone) {
+      _accessoryShown.snap(t, 0);
+    }
+    _accessoryShown.animate(t, target, animation: _accessoryFade);
+  }
+
+  /// Whether the bottom accessory takes its new place at once as the bar
+  /// minimizes or expands, as UIKit's does under Prefer Cross-Fade
+  /// Transitions (read from UIKit's code). The bar morphs on the Reduce
+  /// Motion spring, as the setting counts only with Reduce Motion on;
+  /// whether UIKit replaces that morph there is not read.
+  bool crossFades = false;
+
   /// Whether the bar is minimized or heading there.
   bool get minimized => _minimized;
   bool _minimized = false;
@@ -457,6 +491,12 @@ final class TabBarMinimizeMotion extends Motion {
           ? TabBarMinimizeTuning.reducedMotionMorphSpring
           : TabBarMinimizeTuning.morphSpring,
     );
+    if (crossFades) {
+      unschedule(_follow);
+      _accessoryX.snap(t, target);
+      _accessoryY.snap(t, target);
+      return;
+    }
     // Collapsing, the accessory moves along first and up after; expanding,
     // up first and along after: an L, not a straight path.
     final first = minimized ? _accessoryX : _accessoryY;

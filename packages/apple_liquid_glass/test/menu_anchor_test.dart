@@ -510,6 +510,55 @@ void main() {
     expect(log, ['pressed', 'pressed']);
   });
 
+  testWidgets('typed letters move the focus to the row they start, one '
+      'letter again to the next such row', (tester) async {
+    _phone(tester);
+    final focus = FocusNode();
+    addTearDown(focus.dispose);
+    final log = <String>[];
+    await tester.pumpWidget(
+      _app(
+        GlassMenuAnchor(
+          menuChildren: [
+            for (final title in ['Copy', 'Save', 'Share', 'Sort', 'Delete'])
+              GlassMenuItem(title: title, onPressed: () => log.add(title)),
+          ],
+          builder: (context, controller, child) => GlassButton(
+            focusNode: focus,
+            onPressed: controller.open,
+            child: const Text('More'),
+          ),
+        ),
+      ),
+    );
+    focus.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await _settle(tester);
+    Future<String> choose(List<LogicalKeyboardKey> keys) async {
+      for (final key in keys) {
+        await tester.sendKeyEvent(key);
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await _settle(tester);
+      return log.last;
+    }
+
+    expect(
+      await choose([LogicalKeyboardKey.keyS, LogicalKeyboardKey.keyH]),
+      'Share',
+    );
+    focus.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await _settle(tester);
+    expect(
+      await choose([LogicalKeyboardKey.keyS, LogicalKeyboardKey.keyS]),
+      'Share',
+    );
+  });
+
   testWidgets('the control reads as an expandable button named by its label, '
       'and the focus comes back to it when the menu closes', (tester) async {
     _phone(tester);

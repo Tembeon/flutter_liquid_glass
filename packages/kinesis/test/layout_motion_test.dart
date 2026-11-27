@@ -169,6 +169,28 @@ void main() {
     expect(rect.width, lessThan(80));
   });
 
+  test('a timing curve moves the rect and the presence in place of the '
+      'springs, as a UIView animation of a duration moves layers', () {
+    const curve = TimingCurve(0.25);
+    final motion = _laidOut(
+      {'a': _a, 'b': _b},
+      planner: _Planner(
+        (_, _) => const LayoutPlan(
+          spring: _spring,
+          curve: curve,
+          absent: MotionPose(opacity: 0),
+        ),
+      ),
+    );
+    motion.layout(0, {'a': _far, 'c': _farther}, spring: _spring);
+    expect(_at(motion, 0.125, 'a').left, closeTo(50, 0.5));
+    expect(motion.itemAt('c').pose.opacity, closeTo(0.5, 0.01));
+    expect(motion.itemAt('b').pose.opacity, closeTo(0.5, 0.01));
+    expect(_at(motion, 0.25, 'a'), _far);
+    motion.advance(0.26);
+    expect(motion.contains('b'), isFalse);
+  });
+
   test('a delay keeps the item on its course before it moves', () {
     final motion = _laidOut(
       {'a': _a},
@@ -198,6 +220,33 @@ void main() {
     expect(motion.isSettled, isTrue);
     motion.layout(0, {'a': _far}, spring: _spring);
     expect(_at(motion, 0.05, 'a').left, inExclusiveRange(drawn.left, 100));
+  });
+
+  test('a held item stays where it is held through layouts that move where '
+      'it belongs, and a release springs it there', () {
+    final motion = _laidOut({'a': _a, 'b': _b});
+    final held = Rect.lerp(_a, _far, 0.5)!;
+    motion.holdItem(0, 'a', held);
+    expect(motion.isHeld('a'), isTrue);
+    expect(motion.itemAt('a').rect, held);
+    motion.layout(0.1, {'a': _b, 'b': _a}, spring: _spring);
+    expect(_at(motion, 0.2, 'a'), held);
+    expect(_at(motion, 0.2, 'b').top, inExclusiveRange(0, 20));
+    motion.holdItem(0.3, 'a', _farther);
+    expect(motion.itemAt('a').rect, _farther);
+    motion.releaseItem(0.3, 'a', spring: _spring);
+    expect(motion.isHeld('a'), isFalse);
+    expect(_at(motion, 0.35, 'a').left, inExclusiveRange(0, 200));
+    expect(_at(motion, 5, 'a'), _b);
+  });
+
+  test('a release without a spring puts the item where it belongs', () {
+    final motion = _laidOut({'a': _a});
+    motion.holdItem(0, 'a', _far);
+    motion.layout(0, {'a': _b}, spring: _spring);
+    motion.releaseItem(0, 'a');
+    expect(motion.itemAt('a').rect, _b);
+    expect(motion.isSettled, isTrue);
   });
 
   test('without a spring an item at rest jumps', () {

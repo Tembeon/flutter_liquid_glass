@@ -26,10 +26,17 @@ class NavigationBarPage extends StatefulWidget {
 
 class _NavigationBarPageState extends State<NavigationBarPage> {
   var _large = true;
+  var _subtitle = false;
   var _search = false;
   var _toolbar = true;
   var _items = _Items.icons;
   var _back = GlassBackButtonDisplayMode.title;
+  var _beside = false;
+  var _edge = GlassScrollEdgeEffect.automatic;
+  var _titleMenu = false;
+  var _largeSubtitle = false;
+  var _inBar = false;
+  var _filtering = false;
 
   @override
   Widget build(BuildContext context) => ComponentPage(
@@ -45,10 +52,17 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
         context,
         _Journal(
           large: _large,
+          subtitle: _subtitle,
           search: _search,
           toolbar: _toolbar,
           items: _items,
           back: _back,
+          beside: _beside,
+          edge: _edge,
+          titleMenu: _titleMenu,
+          largeSubtitle: _largeSubtitle,
+          inBar: _inBar,
+          filtering: _filtering,
         ),
       ),
       child: const Text('Open the journal'),
@@ -58,6 +72,31 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
         'Large title',
         value: _large,
         onChanged: (on) => setState(() => _large = on),
+      ),
+      ToggleKnob(
+        'Large title in the bar',
+        value: _inBar,
+        onChanged: (on) => setState(() => _inBar = on),
+      ),
+      ToggleKnob(
+        'Subtitle under the inline title',
+        value: _subtitle,
+        onChanged: (on) => setState(() => _subtitle = on),
+      ),
+      ToggleKnob(
+        'Subtitle under the large title',
+        value: _largeSubtitle,
+        onChanged: (on) => setState(() => _largeSubtitle = on),
+      ),
+      ToggleKnob(
+        'A menu from the title',
+        value: _titleMenu,
+        onChanged: (on) => setState(() => _titleMenu = on),
+      ),
+      ToggleKnob(
+        'Filter on, with a badge',
+        value: _filtering,
+        onChanged: (on) => setState(() => _filtering = on),
       ),
       ToggleKnob(
         'Search field under the title',
@@ -89,6 +128,22 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
         },
         onChanged: (back) => setState(() => _back = back),
       ),
+      ToggleKnob(
+        'Edit beside the back button',
+        value: _beside,
+        onChanged: (on) => setState(() => _beside = on),
+      ),
+      ChoiceKnob<GlassScrollEdgeEffect>(
+        'Edge under the bar',
+        value: _edge,
+        options: const {
+          GlassScrollEdgeEffect.automatic: 'Automatic',
+          GlassScrollEdgeEffect.soft: 'Soft',
+          GlassScrollEdgeEffect.hard: 'Hard',
+          GlassScrollEdgeEffect.hidden: 'None',
+        },
+        onChanged: (edge) => setState(() => _edge = edge),
+      ),
     ],
     ideas: [
       Idea(
@@ -119,17 +174,31 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
 class _Journal extends StatefulWidget {
   const _Journal({
     required this.large,
+    required this.subtitle,
     required this.search,
     required this.toolbar,
     required this.items,
     required this.back,
+    required this.beside,
+    required this.edge,
+    required this.titleMenu,
+    required this.largeSubtitle,
+    required this.inBar,
+    required this.filtering,
   });
 
   final bool large;
+  final bool subtitle;
   final bool search;
   final bool toolbar;
   final _Items items;
   final GlassBackButtonDisplayMode back;
+  final bool beside;
+  final GlassScrollEdgeEffect edge;
+  final bool titleMenu;
+  final bool largeSubtitle;
+  final bool inBar;
+  final bool filtering;
 
   @override
   State<_Journal> createState() => _JournalState();
@@ -154,6 +223,7 @@ class _JournalState extends State<_Journal> {
   ];
 
   final _query = TextEditingController();
+  final _write = MotionSource();
   final _picked = <int>{};
   var _selecting = false;
 
@@ -183,6 +253,8 @@ class _JournalState extends State<_Journal> {
             GlassBarItem(
               icon: const Icon(CupertinoIcons.line_horizontal_3_decrease),
               semanticLabel: 'Filter',
+              selected: widget.filtering,
+              badge: widget.filtering ? const GlassBadge.count(2) : null,
               onPressed: () {},
             ),
             _selectIcon(),
@@ -222,6 +294,7 @@ class _JournalState extends State<_Journal> {
             GlassBarItem(
               icon: const Icon(CupertinoIcons.trash),
               semanticLabel: 'Delete',
+              tint: GlassColors.systemRed,
               onPressed: () {},
             ),
           ]
@@ -229,7 +302,18 @@ class _JournalState extends State<_Journal> {
             GlassBarItem(
               icon: const Icon(CupertinoIcons.camera),
               semanticLabel: 'Add a photo',
-              onPressed: () {},
+              menuChildren: [
+                GlassMenuItem(
+                  title: 'Take a photo',
+                  icon: const Icon(CupertinoIcons.camera),
+                  onPressed: () {},
+                ),
+                GlassMenuItem(
+                  title: 'Choose from the library',
+                  icon: const Icon(CupertinoIcons.photo),
+                  onPressed: () {},
+                ),
+              ],
             ),
             const GlassBarSpacer.flexible(),
             _status('${_entries.length} entries'),
@@ -237,7 +321,17 @@ class _JournalState extends State<_Journal> {
             GlassBarItem(
               icon: const Icon(CupertinoIcons.square_pencil),
               semanticLabel: 'Write',
-              onPressed: () {},
+              zoomSource: _write,
+              onPressed: () => Navigator.of(context).push(
+                GlassPageRoute<void>(
+                  source: _write,
+                  title: 'New entry',
+                  builder: (context) => const GlassPageScaffold(
+                    navigationBar: GlassNavigationBar(title: Text('New entry')),
+                    child: Center(child: Text('Today the fern...')),
+                  ),
+                ),
+              ),
             ),
           ],
   );
@@ -247,8 +341,33 @@ class _JournalState extends State<_Journal> {
     navigationBar: GlassNavigationBar(
       title: widget.large ? null : const Text('Journal'),
       largeTitle: widget.large ? const Text('Journal') : null,
+      largeTitleInBar: widget.inBar,
+      subtitle: widget.subtitle
+          ? Text('${_entries.length} entries since spring')
+          : null,
+      largeSubtitle: widget.large && widget.largeSubtitle
+          ? const Text('Kept since spring')
+          : null,
+      titleMenu: widget.titleMenu
+          ? [
+              GlassMenuItem(
+                title: 'Rename',
+                icon: const Icon(CupertinoIcons.pencil),
+                onPressed: () {},
+              ),
+              GlassMenuItem(
+                title: 'Export',
+                icon: const Icon(CupertinoIcons.share),
+                onPressed: () {},
+              ),
+            ]
+          : null,
       previousPageTitle: 'Bar',
       backButtonDisplayMode: widget.back,
+      leading: widget.beside
+          ? [GlassBarItem(label: const Text('Edit'), onPressed: _select)]
+          : const [],
+      leadingSupplementsBackButton: widget.beside,
       trailing: _trailing(),
       searchField: widget.search
           ? GlassSearchField(
@@ -259,6 +378,7 @@ class _JournalState extends State<_Journal> {
     ),
     toolbar: widget.toolbar ? _toolbar() : null,
     child: GlassContentScroll(
+      edgeEffects: GlassScrollEdgeEffects(top: widget.edge),
       child: ListenableBuilder(
         listenable: _query,
         builder: (context, _) {
@@ -312,6 +432,7 @@ class _TabBarPageState extends State<TabBarPage> {
   var _minimizes = true;
   var _accessory = false;
   var _search = false;
+  var _prominent = false;
 
   @override
   Widget build(BuildContext context) => ComponentPage(
@@ -329,9 +450,10 @@ class _TabBarPageState extends State<TabBarPage> {
         _Greenhouse(
           tabs: _tabs.round(),
           badges: _badges,
-          minimizes: _minimizes,
-          accessory: _accessory,
-          search: _search,
+          minimizes: _minimizes && !_prominent,
+          accessory: _accessory && !_prominent,
+          search: _search && !_prominent,
+          prominent: _prominent,
         ),
       ),
       child: const Text('Open the greenhouse'),
@@ -366,6 +488,12 @@ class _TabBarPageState extends State<TabBarPage> {
         value: _accessory,
         onChanged: (on) => setState(() => _accessory = on),
       ),
+      ToggleKnob(
+        'The last tab prominent, in a circle (no search, accessory or '
+        'tucking away)',
+        value: _prominent,
+        onChanged: (on) => setState(() => _prominent = on),
+      ),
     ],
   );
 }
@@ -378,6 +506,7 @@ class _Greenhouse extends StatefulWidget {
     required this.minimizes,
     required this.accessory,
     required this.search,
+    required this.prominent,
   });
 
   final int tabs;
@@ -385,6 +514,7 @@ class _Greenhouse extends StatefulWidget {
   final bool minimizes;
   final bool accessory;
   final bool search;
+  final bool prominent;
 
   @override
   State<_Greenhouse> createState() => _GreenhouseState();
@@ -470,6 +600,7 @@ class _GreenhouseState extends State<_Greenhouse> {
           icon: Icon(icon),
           selectedIcon: selected == null ? null : Icon(selected),
           label: Text(name),
+          prominent: widget.prominent && index == widget.tabs - 1,
           badge: switch (index) {
             _ when !widget.badges => null,
             1 => const GlassBadge.indicator(),

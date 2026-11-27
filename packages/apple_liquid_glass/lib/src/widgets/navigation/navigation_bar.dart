@@ -2,14 +2,18 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar_room.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/search_host.dart';
+import 'package:apple_liquid_glass/src/widgets/presentations/menu_anchor.dart';
+import 'package:apple_liquid_glass/src/widgets/presentations/menu_entries.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart' show MouseTrackerAnnotation;
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -164,8 +168,9 @@ class GlassNavigationBarStyle extends GlassStyle<GlassNavigationBarStyle> {
 /// below also has lean halfway toward their places there at most. The
 /// titles belong to the page and move with it. A page with a glass page
 /// below gets a back button, named after that page's title, as the first
-/// leading capsule; [leading] replaces it and [automaticallyImplyLeading]
-/// false removes it. Elsewhere, the bar draws its capsules for its page
+/// leading capsule; [leading] replaces it, or follows it with
+/// [leadingSupplementsBackButton], and [automaticallyImplyLeading] false
+/// removes it. Elsewhere, the bar draws its capsules for its page
 /// alone.
 ///
 /// Fidelity. The row's layout is measured on iOS 27: 46 bars match within
@@ -177,9 +182,14 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   const GlassNavigationBar({
     this.leading = const [],
     this.title,
+    this.subtitle,
+    this.titleMenu,
     this.largeTitle,
+    this.largeTitleInBar = false,
+    this.largeSubtitle,
     this.trailing = const [],
     this.automaticallyImplyLeading = true,
+    this.leadingSupplementsBackButton = false,
     this.previousPageTitle,
     this.backButtonDisplayMode = GlassBackButtonDisplayMode.title,
     this.searchField,
@@ -194,8 +204,48 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// The inline title; [largeTitle] when null.
   final Widget? title;
 
+  /// The line under the inline title, or null for none (UIKit
+  /// `UINavigationItem.subtitle`): the title turns 15 points semibold over
+  /// the subtitle in 12 points regular secondary label, the two lines
+  /// touching and centered as one block where the title alone stands
+  /// (bars passport, 27.2). It goes with the inline title, so under a
+  /// [largeTitle] it shows once the large title has scrolled away; UIKit's
+  /// `largeSubtitle` under the large title is not built. Where the block
+  /// does not fit centered it stands at the leading side with its lines
+  /// centered on each other, where UIKit aligns them leading (not
+  /// reproduced).
+  final Widget? subtitle;
+
+  /// The menu the inline title opens, or null for none (UIKit
+  /// `titleMenuProvider`, SwiftUI `toolbarTitleMenu`): a 20 point circle
+  /// of secondarySystemFill with a chevron down in the secondary label
+  /// color stands 6 points after the title, the two centered as one block,
+  /// and a tap on either opens a [GlassMenuAnchor] menu of these entries
+  /// (bars passport and a tree dump and screenshot of the iOS 27.2
+  /// simulator: the chevron 8.67 by 5 in a 17.67 point circle). Under a
+  /// [largeTitle] it opens from the inline title once the large title has
+  /// scrolled away; a menu from the large title at rest is not built.
+  final List<GlassMenuEntry>? titleMenu;
+
   /// The large title under the row, or null for an inline title only.
   final Widget? largeTitle;
+
+  /// Whether the [largeTitle] stands in the row itself, as UIKit's
+  /// `largeTitleDisplayMode = .inline` draws it: 34 points bold from the
+  /// leading side, past the leading items, its top 11.67 below the row's,
+  /// with no large title area under the row and nothing that scrolls away;
+  /// at the accessibility text sizes it grows to 38 points at most (bars
+  /// passport, iOS 27.2 simulator, on a root page). [largeSubtitle] and
+  /// [titleMenu] do not show with it. Where it stands past a back button or
+  /// leading items is this package's choice, not measured.
+  final bool largeTitleInBar;
+
+  /// The line under the [largeTitle], or null for none (UIKit
+  /// `UINavigationItem.largeSubtitle`): 11 points medium in the secondary
+  /// label color, its top 38.33 below the large title's, which keeps its 34
+  /// points; the bar grows by [largeSubtitleHeight] more (bars passport,
+  /// iOS 27.2 simulator, a bar of 125.33).
+  final Widget? largeSubtitle;
 
   /// The capsules at the trailing edge (UIKit `rightBarButtonItems`).
   final List<GlassBarEntry> trailing;
@@ -203,6 +253,11 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// Whether the page gets a back button when [leading] is empty and a
   /// glass page lies below (UIKit `hidesBackButton` false).
   final bool automaticallyImplyLeading;
+
+  /// Whether [leading] stands after the back button, in capsules of its
+  /// own, rather than in its place (UIKit
+  /// `leftItemsSupplementBackButton`, false by default).
+  final bool leadingSupplementsBackButton;
 
   /// The back button's name for the page below, shown beside its chevron
   /// in the [GlassBackButtonDisplayMode.title] mode; without it the chevron
@@ -243,9 +298,37 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// The height of the row under the status bar (navigation bar passport).
   static const double height = 54;
 
+  /// The space between a bar's box and its outer items: 16 on a 402 point
+  /// screen (bars passport).
+  static const double sideInset = navigationSideInset;
+
+  /// How far in from the sides of the box of [context] a navigation bar's
+  /// outer items stand on its row: [sideInset] from the box's sides, past
+  /// a side's safe area but 24 points of it, past a tab sidebar over the
+  /// box, past the window buttons whose line runs through the row, and
+  /// clear of what the hardware covers beside it. An app's own control on
+  /// the row stands inside it to line up with the bar's items, after the
+  /// window buttons on the same gap.
+  static EdgeInsets itemPaddingOf(BuildContext context) {
+    final sides = BarRoom.sidesOf(
+      context,
+      inset: sideInset,
+      top: BarRoom.rowTopOf(context),
+      height: height,
+    );
+    return EdgeInsets.only(left: sides.left, right: sides.right);
+  }
+
   /// The height a large title adds under the row (navigation bar
   /// passport).
   static const double largeTitleHeight = 52;
+
+  /// The height a [largeSubtitle] adds under a large title.
+  static const double largeSubtitleHeight = 71.33 - largeTitleHeight;
+
+  double get _large => largeTitle == null || largeTitleInBar
+      ? 0
+      : largeTitleHeight + (largeSubtitle == null ? 0 : largeSubtitleHeight);
 
   /// The height a stacked search field adds under the titles: the field
   /// and the space below it.
@@ -262,9 +345,14 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   GlassNavigationBar withSearchField(Widget field) => GlassNavigationBar(
     leading: leading,
     title: title,
+    subtitle: subtitle,
+    titleMenu: titleMenu,
     largeTitle: largeTitle,
+    largeTitleInBar: largeTitleInBar,
+    largeSubtitle: largeSubtitle,
     trailing: trailing,
     automaticallyImplyLeading: automaticallyImplyLeading,
+    leadingSupplementsBackButton: leadingSupplementsBackButton,
     previousPageTitle: previousPageTitle,
     backButtonDisplayMode: backButtonDisplayMode,
     searchField: field,
@@ -275,8 +363,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// How far the content scrolls before it passes under the bar: the
   /// large title and the search field it scrolls away first.
   @internal
-  double get scrolledUnderAfter =>
-      (largeTitle == null ? 0 : largeTitleHeight) + _search;
+  double get scrolledUnderAfter => _large + _search;
 
   @override
   State<GlassNavigationBar> createState() => _GlassNavigationBarState();
@@ -478,6 +565,107 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     );
   }
 
+  Widget _inBarTitle(
+    Widget title,
+    GlassNavigationBarStyle look,
+    Color color,
+    BuildContext context,
+  ) {
+    final scale = GlassTextScale.of(
+      context,
+      max: _Metrics.inBarTitleMax / _Metrics.largeTitle.fontSize!,
+    );
+    return scale.apply(
+      DefaultTextStyle(
+        style: scale.resolve(
+          _Metrics.largeTitle
+              .merge(look.largeTitleTextStyle)
+              .copyWith(color: color),
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        child: Semantics(header: true, child: title),
+      ),
+    );
+  }
+
+  Widget _titleBlock(
+    Widget title,
+    GlassTextScale scale,
+    GlassNavigationBarStyle look,
+    Color color,
+    BuildContext context,
+  ) {
+    final subtitle = widget.subtitle;
+    Widget line(Widget child, TextStyle style) => DefaultTextStyle(
+      style: scale.resolve(style),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      child: child,
+    );
+    final menu = widget.titleMenu;
+    if (menu != null) {
+      final block = subtitle == null
+          ? line(
+              title,
+              _Metrics.title.merge(look.titleTextStyle).copyWith(color: color),
+            )
+          : _subtitled(title, subtitle, line, look, color, context);
+      return GlassMenuAnchor(
+        menuChildren: menu,
+        builder: (context, controller, _) => RawGlassButton(
+          onPressed: controller.open,
+          builder: (context, details) => details.label,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(child: block),
+              const SizedBox(width: _TitleMenuGlyph.gap),
+              const _TitleMenuGlyph(),
+            ],
+          ),
+        ),
+      );
+    }
+    if (subtitle == null) {
+      return line(
+        title,
+        _Metrics.title.merge(look.titleTextStyle).copyWith(color: color),
+      );
+    }
+    return _subtitled(title, subtitle, line, look, color, context);
+  }
+
+  Widget _subtitled(
+    Widget title,
+    Widget subtitle,
+    Widget Function(Widget, TextStyle) line,
+    GlassNavigationBarStyle look,
+    Color color,
+    BuildContext context,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        line(
+          title,
+          _Metrics.subtitledTitle
+              .merge(look.titleTextStyle)
+              .copyWith(color: color),
+        ),
+        line(
+          subtitle,
+          _Metrics.subtitle.copyWith(
+            color: GlassDynamicColor.resolve(
+              GlassColors.secondaryLabel,
+              context,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final look = (widget.style ?? const GlassNavigationBarStyle()).merge(
@@ -487,8 +675,9 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
       look.foregroundColor ?? GlassTheme.labelColorOf(context),
       context,
     );
+    final inBar = widget.largeTitleInBar ? widget.largeTitle : null;
     final title = widget.title ?? widget.largeTitle;
-    final largeTitle = widget.largeTitle;
+    final largeTitle = inBar == null ? widget.largeTitle : null;
     final titleScale = GlassTextScale.of(context, max: _Metrics.maxTextScale);
     final largeScale = GlassTextScale.of(context, max: 1);
     final background = look.backgroundColor;
@@ -515,6 +704,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
             ],
           ],
           automaticallyImplyLeading: widget.automaticallyImplyLeading,
+          leadingSupplementsBack: widget.leadingSupplementsBackButton,
           previousPageTitle: widget.previousPageTitle,
           backButtonDisplayMode: widget.backButtonDisplayMode,
           back: supplement?.back,
@@ -554,7 +744,21 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                 sides: sides,
               ),
             ),
-          if (title != null)
+          if (inBar != null)
+            MotionTransition(
+              opacity: _fade,
+              child: CustomSingleChildLayout(
+                delegate: _TitleLayout(
+                  link.titleRoom,
+                  Directionality.of(context),
+                  sides: sides,
+                  covered: GlassBarInset.of(context),
+                  leading: true,
+                ),
+                child: _inBarTitle(inBar, look, color, context),
+              ),
+            )
+          else if (title != null)
             MotionScope(
               motion: _title,
               child: MotionTransition(
@@ -567,18 +771,17 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                     covered: GlassBarInset.of(context),
                   ),
                   child: _CrampedTitleDrops(
+                    opensMenu: widget.titleMenu != null,
+                    shown: _title.progressListenable,
                     child: MotionTransition(
                       pose: _titleLook,
                       child: titleScale.apply(
-                        DefaultTextStyle(
-                          style: titleScale.resolve(
-                            _Metrics.title
-                                .merge(look.titleTextStyle)
-                                .copyWith(color: color),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          child: Semantics(header: true, child: title),
+                        _titleBlock(
+                          title,
+                          titleScale,
+                          look,
+                          color,
+                          context,
                         ),
                       ),
                     ),
@@ -615,7 +818,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                   children: [
                     if (largeTitle != null)
                       SizedBox(
-                        height: GlassNavigationBar.largeTitleHeight,
+                        height: widget._large,
                         child: _ScrollAway(
                           shift: _awayAfter(widget._search),
                           opacity: _fade,
@@ -625,23 +828,46 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                               end: _Metrics.largeTitleInset,
                               top: _Metrics.largeTitleTop,
                             ),
-                            child: Align(
-                              alignment: AlignmentDirectional.topStart,
-                              child: largeScale.apply(
-                                DefaultTextStyle(
-                                  style: largeScale.resolve(
-                                    _Metrics.largeTitle
-                                        .merge(look.largeTitleTextStyle)
-                                        .copyWith(color: color),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  child: Semantics(
-                                    header: true,
-                                    child: largeTitle,
+                            child: Stack(
+                              children: [
+                                Align(
+                                  alignment: AlignmentDirectional.topStart,
+                                  child: largeScale.apply(
+                                    DefaultTextStyle(
+                                      style: largeScale.resolve(
+                                        _Metrics.largeTitle
+                                            .merge(look.largeTitleTextStyle)
+                                            .copyWith(color: color),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      child: Semantics(
+                                        header: true,
+                                        child: largeTitle,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
+                                if (widget.largeSubtitle case final line?)
+                                  PositionedDirectional(
+                                    top: _Metrics.largeSubtitleTop,
+                                    start: 0,
+                                    end: 0,
+                                    child: DefaultTextStyle(
+                                      style: largeScale.resolve(
+                                        _Metrics.largeSubtitle.copyWith(
+                                          color: GlassDynamicColor.resolve(
+                                            GlassColors.secondaryLabel,
+                                            context,
+                                          ),
+                                        ),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      child: line,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                         ),
@@ -650,11 +876,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                       _StackedSearch(
                         field: field,
                         offset: _offset,
-                        travel:
-                            GlassNavigationBar.height +
-                            (largeTitle == null
-                                ? 0
-                                : GlassNavigationBar.largeTitleHeight),
+                        travel: GlassNavigationBar.height + widget._large,
                         lift: lift,
                         fade: _fade,
                       ),
@@ -678,6 +900,11 @@ abstract final class _Metrics {
 
   /// The space between the top of the large title area and its text.
   static const double largeTitleTop = 3.67;
+
+  // A large title in the bar (UIKit `.inline`, bars passport recheck): its
+  // top below the row's top, and its size at the accessibility sizes.
+  static const double inBarTitleTop = 11.67;
+  static const double inBarTitleMax = 38;
 
   /// The largest text scale the inline title follows.
   static const double maxTextScale = 1.25;
@@ -703,6 +930,27 @@ abstract final class _Metrics {
     height: 1.2,
   );
 
+  /// The inline title over a subtitle: 15 points semibold, and the
+  /// subtitle 12 points regular (bars passport, 27.2).
+  static const subtitledTitle = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    height: 18.33 / 15,
+  );
+  static const subtitle = TextStyle(
+    fontSize: 12,
+    height: 14.67 / 12,
+  );
+
+  /// The large subtitle: 11 points medium, 13.33 tall, its top 38.33 below
+  /// the large title's (bars passport, iOS 27.2 simulator).
+  static const largeSubtitle = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    height: 13.33 / 11,
+  );
+  static const double largeSubtitleTop = 38.33;
+
   /// The large title: 34 points bold.
   static const largeTitle = TextStyle(
     fontSize: 34,
@@ -721,7 +969,13 @@ class _TitleLayout extends SingleChildLayoutDelegate {
     this.direction, {
     required this.sides,
     required this.covered,
+    this.leading = false,
   }) : super(relayout: room);
+
+  /// Whether the title stands at the leading side, its top
+  /// [_Metrics.inBarTitleTop] below the row's, as a large title in the bar
+  /// does, rather than centered.
+  final bool leading;
 
   final ValueListenable<GlassTitleRoom?> room;
   final TextDirection direction;
@@ -758,6 +1012,14 @@ class _TitleLayout extends SingleChildLayoutDelegate {
   @override
   Offset getPositionForChild(Size size, Size childSize) {
     final room = _roomIn(size);
+    if (leading) {
+      return Offset(
+        direction == TextDirection.rtl
+            ? room.end - childSize.width
+            : room.start,
+        _Metrics.inBarTitleTop,
+      );
+    }
     final box = _boxIn(size);
     final center = (box.left + box.right) / 2;
     final half = childSize.width / 2;
@@ -773,6 +1035,7 @@ class _TitleLayout extends SingleChildLayoutDelegate {
 
   @override
   bool shouldRelayout(_TitleLayout oldDelegate) =>
+      leading != oldDelegate.leading ||
       !identical(room, oldDelegate.room) ||
       direction != oldDelegate.direction ||
       sides != oldDelegate.sides ||
@@ -781,17 +1044,44 @@ class _TitleLayout extends SingleChildLayoutDelegate {
 
 /// An inline title in the room the bar gives it, drawn, hit and read
 /// only while it fits, or while the room is wider than
-/// [_Metrics.titleDropRoom] to truncate it in.
+/// [_Metrics.titleDropRoom] to truncate it in. It is read as a heading of
+/// its own, so a screen reader reads the bar's buttons before the page.
+/// Like a label in UIKit, a title takes a hit only where something in it
+/// takes input (a listener, a mouse region, an editable), so a window is
+/// dragged by a title of text as by the rest of the bar.
 class _CrampedTitleDrops extends SingleChildRenderObjectWidget {
-  const _CrampedTitleDrops({required super.child});
+  const _CrampedTitleDrops({
+    required this.opensMenu,
+    required this.shown,
+    required super.child,
+  });
+
+  // Whether the title opens a menu, and so takes every hit on it while it
+  // shows more than half: not under a large title at rest.
+  final bool opensMenu;
+  final ValueListenable<double> shown;
 
   @override
   _RenderCrampedTitleDrops createRenderObject(BuildContext context) =>
-      _RenderCrampedTitleDrops();
+      _RenderCrampedTitleDrops()
+        ..opensMenu = opensMenu
+        ..shown = shown;
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderCrampedTitleDrops renderObject,
+  ) {
+    renderObject
+      ..opensMenu = opensMenu
+      ..shown = shown;
+  }
 }
 
 class _RenderCrampedTitleDrops extends RenderProxyBox {
   bool _dropped = false;
+  bool opensMenu = false;
+  ValueListenable<double>? shown;
 
   @override
   void performLayout() {
@@ -813,8 +1103,35 @@ class _RenderCrampedTitleDrops extends RenderProxyBox {
   }
 
   @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
-      !_dropped && super.hitTestChildren(result, position: position);
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    if (_dropped) return false;
+    if (opensMenu) {
+      if ((shown?.value ?? 1) <= 0.5) return false;
+      return super.hitTestChildren(result, position: position);
+    }
+    final probe = BoxHitTestResult();
+    if (!super.hitTestChildren(probe, position: position)) return false;
+    if (!probe.path.any((entry) => _takesInput(entry.target))) return false;
+    return super.hitTestChildren(result, position: position);
+  }
+
+  static bool _takesInput(Object target) => switch (target) {
+    TextSpan(:final recognizer, :final onEnter, :final onExit) =>
+      recognizer != null || onEnter != null || onExit != null,
+    RenderPointerListener() ||
+    MouseTrackerAnnotation() ||
+    RenderEditable() => true,
+    _ => false,
+  };
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    if (_dropped) return;
+    config
+      ..isSemanticBoundary = true
+      ..isHeader = true;
+  }
 
   @override
   void visitChildrenForSemantics(RenderObjectVisitor visitor) {
@@ -847,4 +1164,60 @@ class _ScrollAway extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// The circle a title menu shows after the title: 20 points, a 17.67 point
+/// disc of secondarySystemFill with a chevron down 8.67 by 5 in the
+/// secondary label color, its middle half a point below the disc's
+/// (screenshot of the iOS 27.2 simulator at 3x).
+class _TitleMenuGlyph extends StatelessWidget {
+  const _TitleMenuGlyph();
+
+  static const double gap = 6;
+
+  @override
+  Widget build(BuildContext context) => ExcludeSemantics(
+    child: CustomPaint(
+      size: const Size.square(20),
+      painter: _TitleMenuPainter(
+        disc: GlassDynamicColor.resolve(
+          GlassColors.secondarySystemFill,
+          context,
+        ),
+        chevron: GlassDynamicColor.resolve(GlassColors.secondaryLabel, context),
+      ),
+    ),
+  );
+}
+
+class _TitleMenuPainter extends CustomPainter {
+  _TitleMenuPainter({required this.disc, required this.chevron});
+
+  final Color disc;
+  final Color chevron;
+
+  static const double _stroke = 1.4;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const half = _stroke / 2;
+    canvas
+      ..drawCircle(const Offset(10, 10), 17.67 / 2, Paint()..color = disc)
+      ..drawPath(
+        Path()
+          ..moveTo(5.67 + half, 8 + half)
+          ..lineTo(10, 13 - half)
+          ..lineTo(5.67 + 8.67 - half, 8 + half),
+        Paint()
+          ..color = chevron
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round,
+      );
+  }
+
+  @override
+  bool shouldRepaint(_TitleMenuPainter oldDelegate) =>
+      oldDelegate.disc != disc || oldDelegate.chevron != chevron;
 }

@@ -1,4 +1,6 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,17 +15,18 @@ Widget _app(Widget child, {TextDirection direction = TextDirection.ltr}) =>
     );
 
 class _Pages extends StatefulWidget {
-  const _Pages({this.picks, this.accept = true});
+  const _Pages({this.picks, this.accept = true, this.start = 2});
 
   final List<int>? picks;
   final bool accept;
+  final int start;
 
   @override
   State<_Pages> createState() => _PagesState();
 }
 
 class _PagesState extends State<_Pages> {
-  int page = 2;
+  late int page = widget.start;
 
   @override
   Widget build(BuildContext context) => GlassPageControl(
@@ -36,6 +39,25 @@ class _PagesState extends State<_Pages> {
     },
   );
 }
+
+const _pitch = Offset(9.67 + 8, 0);
+
+// The test's frames run on a fake clock the engine clock does not follow;
+// pinning both to it lets pointer time stamps space taps as on a device.
+Duration Function() _deviceTime(WidgetTester tester) {
+  Duration now() =>
+      Duration(microseconds: tester.binding.clock.now().microsecondsSinceEpoch);
+  MotionClock.debugEngineNow = now;
+  MotionClock.debugPointerClockOffset = () => Duration.zero;
+  addTearDown(() {
+    MotionClock.debugEngineNow = null;
+    MotionClock.debugPointerClockOffset = null;
+  });
+  return now;
+}
+
+Offset _dot(Rect box, int index) =>
+    box.centerLeft + const Offset(14 + 9.67 / 2, 0) + _pitch * index.toDouble();
 
 Widget _keyApp(Widget child, {TextDirection direction = TextDirection.ltr}) =>
     WidgetsApp(
@@ -82,8 +104,8 @@ void main() {
     expect(picks, [3, 2, 1]);
   });
 
-  testWidgets('a scrub follows the nearest dot and plays a selection haptic '
-      'per page', (tester) async {
+  testWidgets('a finger that rests 0.15 s scrubs: it follows the nearest dot '
+      'and plays a selection haptic per page', (tester) async {
     final haptics = <String>[];
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
@@ -104,6 +126,7 @@ void main() {
     await tester.pumpWidget(_app(_Pages(picks: picks)));
     final box = tester.getRect(find.byType(GlassPageControl));
     final gesture = await tester.startGesture(box.center);
+    await tester.pump(const Duration(milliseconds: 200));
     for (var i = 0; i < 10; i++) {
       await gesture.moveBy(const Offset(5, 0));
       await tester.pump(const Duration(milliseconds: 25));
@@ -112,6 +135,153 @@ void main() {
     await tester.pump();
     expect(picks, [3, 4]);
     expect(haptics, hasLength(2));
+  });
+
+  testWidgets("a finger resting on another page's dot keeps the page, and a "
+      'slide lifted within 0.15 s taps', (tester) async {
+    final picks = <int>[];
+    await tester.pumpWidget(_app(_Pages(picks: picks)));
+    final box = tester.getRect(find.byType(GlassPageControl));
+    final resting = await tester.startGesture(box.center + _pitch * 2);
+    await tester.pump(const Duration(milliseconds: 300));
+    await resting.up();
+    await tester.pump();
+    expect(picks, isEmpty);
+
+    final sliding = await tester.startGesture(box.center);
+    await sliding.moveBy(_pitch * 2);
+    await tester.pump(const Duration(milliseconds: 50));
+    await sliding.up();
+    await tester.pump();
+    expect(picks, [3]);
+  });
+
+  testWidgets('taps within 8 points of the last, within 0.75 s, keep its '
+      'way (read from UIKit)', (tester) async {
+    final picks = <int>[];
+    await tester.pumpWidget(_app(_Pages(picks: picks, start: 0)));
+    final box = tester.getRect(find.byType(GlassPageControl));
+    final now = _deviceTime(tester);
+    Future<void> tap() async {
+      final finger = await tester.createGesture();
+      await finger.down(_dot(box, 2), timeStamp: now());
+      await finger.up(timeStamp: now());
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+
+    for (var i = 0; i < 3; i++) {
+      await tap();
+    }
+    expect(picks, [1, 2, 3]);
+    await tester.pump(const Duration(milliseconds: 600));
+    await tap();
+    expect(picks, [1, 2, 3, 2]);
+  });
+
+  testWidgets('a scrub runs from the current dot whatever dot the finger '
+      'rests on (read from UIKit)', (tester) async {
+    final picks = <int>[];
+    await tester.pumpWidget(_app(_Pages(picks: picks)));
+    final box = tester.getRect(find.byType(GlassPageControl));
+    final finger = await tester.startGesture(_dot(box, 4));
+    await tester.pump(const Duration(milliseconds: 200));
+    for (var i = 0; i < 4; i++) {
+      await finger.moveBy(const Offset(-5, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await finger.up();
+    await tester.pump();
+    expect(picks, [1]);
+  });
+
+  testWidgets('a tap steps toward the side of the current dot it lands on, '
+      'two pages toggle, and a mouse picks the dot under it', (tester) async {
+    final picks = <int>[];
+    await tester.pumpWidget(
+      _app(GlassPageControl(count: 5, page: 0, onChanged: picks.add)),
+    );
+    final box = tester.getRect(find.byType(GlassPageControl));
+    await tester.tapAt(_dot(box, 1));
+    await tester.pump();
+    expect(picks, [1]);
+
+    await tester.tapAt(_dot(box, 3), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(picks, [1, 3]);
+
+    await tester.pumpWidget(
+      _app(GlassPageControl(count: 2, page: 0, onChanged: picks.add)),
+    );
+    final two = tester.getRect(find.byType(GlassPageControl));
+    await tester.tapAt(two.centerLeft + const Offset(2, 0));
+    await tester.pump();
+    expect(picks, [1, 3, 1]);
+  });
+
+  testWidgets('without continuous interaction a moving finger only taps, '
+      'at its release', (tester) async {
+    final picks = <int>[];
+    await tester.pumpWidget(
+      _app(
+        GlassPageControl(
+          count: 5,
+          page: 2,
+          allowsContinuousInteraction: false,
+          onChanged: picks.add,
+        ),
+      ),
+    );
+    final box = tester.getRect(find.byType(GlassPageControl));
+    final gesture = await tester.startGesture(box.center);
+    for (var i = 0; i < 10; i++) {
+      await gesture.moveBy(const Offset(5, 0));
+      await tester.pump(const Duration(milliseconds: 25));
+    }
+    expect(picks, isEmpty);
+    await gesture.up();
+    await tester.pump();
+    expect(picks, [3]);
+  });
+
+  testWidgets('its size by the count, and with hidesForSinglePage one page '
+      'keeps its place, draws nothing and is not read', (tester) async {
+    final five = GlassPageControl.sizeFor(5);
+    expect(five.width, moreOrLessEquals(108.33, epsilon: 0.05));
+    expect(five.height, 25.67);
+    expect(
+      GlassPageControl.sizeFor(1).width,
+      moreOrLessEquals(37.67, epsilon: 0.05),
+    );
+    expect(
+      GlassPageControl.sizeFor(3).width,
+      moreOrLessEquals(73, epsilon: 0.05),
+    );
+    await tester.pumpWidget(
+      _app(GlassPageControl(count: 5, page: 0, onChanged: (_) {})),
+    );
+    final drawn = tester.getSize(find.byType(GlassPageControl));
+    expect(drawn.width, moreOrLessEquals(five.width));
+    expect(drawn.height, five.height);
+
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        GlassPageControl(
+          count: 1,
+          page: 0,
+          hidesForSinglePage: true,
+          semanticLabel: 'Pages',
+          onChanged: (_) {},
+        ),
+      ),
+    );
+    expect(
+      tester.getSize(find.byType(GlassPageControl)).width,
+      moreOrLessEquals(GlassPageControl.sizeFor(1).width),
+    );
+    expect(find.byType(RawGlassPageControl), findsNothing);
+    expect(find.bySemanticsLabel('Pages'), findsNothing);
+    semantics.dispose();
   });
 
   testWidgets('keys and accessibility step; it reads as an adjustable value', (
@@ -165,6 +335,126 @@ void main() {
     await tester.tapAt(box.centerLeft + const Offset(6, 0));
     await tester.pump();
     expect(picks, [3]);
+  });
+
+  testWidgets('down or up a vertical control the pages run from the top or '
+      'the bottom, 25.67 wide, and a tap steps toward its half', (
+    tester,
+  ) async {
+    for (final (direction, first) in const [
+      (AxisDirection.down, true),
+      (AxisDirection.up, false),
+    ]) {
+      final picks = <int>[];
+      GlassPageControlPose? pose;
+      await tester.pumpWidget(
+        _app(
+          GlassPageControl(
+            count: 5,
+            page: 2,
+            direction: direction,
+            progress: 0.5,
+            onChanged: picks.add,
+            style: GlassPageControlStyle(
+              builder: (context, details) {
+                pose = details.pose.value;
+                return const SizedBox.expand();
+              },
+            ),
+          ),
+        ),
+      );
+      final box = tester.getRect(find.byType(GlassPageControl));
+      final across = GlassPageControl.sizeFor(5);
+      expect(box.width, moreOrLessEquals(across.height, epsilon: 0.01));
+      expect(pose!.direction, direction);
+      final rects = pose!.indicators;
+      expect(
+        rects.every((r) => r.width <= r.height + 1e-9),
+        isTrue,
+      );
+      expect(rects.first.center.dy < rects.last.center.dy, first);
+      expect(rects.first.center.dx, moreOrLessEquals(box.width / 2));
+      await tester.tapAt(box.bottomCenter - const Offset(0, 6));
+      await tester.pump();
+      expect(picks, [if (first) 3 else 1]);
+    }
+  });
+
+  testWidgets('a progress that changes every frame keeps the same pose, '
+      'which the look reads it beside', (tester) async {
+    final poses = <ValueListenable<GlassPageControlPose>>[];
+    final progresses = <double?>[];
+    Widget control(double progress) => _app(
+      GlassPageControl(
+        count: 3,
+        page: 1,
+        progress: progress,
+        onChanged: (_) {},
+        style: GlassPageControlStyle(
+          builder: (context, details) {
+            poses.add(details.pose);
+            progresses.add(details.progress);
+            return const SizedBox.expand();
+          },
+        ),
+      ),
+    );
+    await tester.pumpWidget(control(0.2));
+    await tester.pumpWidget(control(0.6));
+    expect(identical(poses.first, poses.last), isTrue);
+    expect(progresses.last, 0.6);
+    expect(poses.last.value.progress, isNull);
+  });
+
+  testWidgets("its states are UIKit's interaction state: pressed under a "
+      'finger, dragged too while it scrubs', (tester) async {
+    final states = WidgetStatesController();
+    addTearDown(states.dispose);
+    await tester.pumpWidget(
+      _app(
+        GlassPageControl(
+          count: 5,
+          page: 2,
+          statesController: states,
+          onChanged: (_) {},
+        ),
+      ),
+    );
+    final box = tester.getRect(find.byType(GlassPageControl));
+    final finger = await tester.startGesture(box.center);
+    await tester.pump(const Duration(milliseconds: 140));
+    expect(states.value, contains(WidgetState.pressed));
+    expect(states.value, isNot(contains(WidgetState.dragged)));
+    await tester.pump(const Duration(milliseconds: 20));
+    expect(
+      states.value,
+      containsAll([WidgetState.pressed, WidgetState.dragged]),
+    );
+    await finger.up();
+    await tester.pump();
+    expect(states.value, isNot(contains(WidgetState.pressed)));
+    expect(states.value, isNot(contains(WidgetState.dragged)));
+  });
+
+  testWidgets('a direction across runs the pages that way whatever the '
+      'reading direction', (tester) async {
+    final picks = <int>[];
+    await tester.pumpWidget(
+      _app(
+        GlassPageControl(
+          count: 5,
+          page: 2,
+          direction: AxisDirection.right,
+          onChanged: picks.add,
+        ),
+        direction: TextDirection.rtl,
+      ),
+    );
+    final box = tester.getRect(find.byType(GlassPageControl));
+    await tester.tapAt(box.centerLeft + const Offset(6, 0));
+    await tester.pump();
+    expect(picks, [1]);
   });
 
   testWidgets('a control whose page does not follow returns to it; disabled '
@@ -317,7 +607,7 @@ void main() {
     );
     final box = tester.getRect(find.byType(GlassPageControl));
     await tester.tapAt(box.center + const Offset(4, 0));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.tapAt(box.center - const Offset(4, 0));
     await tester.pump();
     expect(picks, [3, 1]);
@@ -575,7 +865,7 @@ void main() {
               builder: (context, constraints) {
                 if (raise) {
                   raise = false;
-                  motion.pointerUp(motion.clock.now, 1000, width: 10);
+                  motion.pointerUp(motion.clock.now, 1000);
                 }
                 return RawGlassPageControl(
                   count: 5,
@@ -607,5 +897,33 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
     expect(page, 3);
     expect(motion.page, 3);
+  });
+
+  testWidgets('a control of 12 pages stands 8 slots wide on page 9, the '
+      "current one a progress capsule with a pager's progress", (tester) async {
+    for (final progress in [null, 9.0, 9.4]) {
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: GlassPageControl(
+              count: 12,
+              page: 9,
+              progress: progress,
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(find.byType(GlassPageControl)).width,
+        moreOrLessEquals(
+          progress == null ? 161.33 : 161.33 + 27.33 - 9.67,
+          epsilon: 0.05,
+        ),
+      );
+    }
   });
 }

@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:liquid_glass_renderer/painting.dart';
@@ -34,7 +36,9 @@ import 'package:liquid_glass_renderer/painting.dart';
 /// without it. A touch shows nothing.
 ///
 /// Screen readers read [message] as the tooltip of [child], which names a
-/// glyph button that has no label of its own; the hint itself is not read.
+/// glyph button that has no label of its own: a glass button under it takes
+/// the message into its own node, any other child has it on the node it
+/// stands in; the hint itself is not read.
 ///
 /// The hint is laid out in the nearest `Overlay` from where [child] stands,
 /// with no layer around [child] while it is closed or open, so glass beside
@@ -83,6 +87,7 @@ class GlassTooltip extends StatefulWidget {
 
 class _GlassTooltipState extends State<GlassTooltip> {
   final _portal = OverlayPortalController();
+  final _claims = ValueNotifier(0);
   late final _follow = FollowInteraction(
     _HoverFollower(this),
     role: InteractionRole.observer,
@@ -99,6 +104,7 @@ class _GlassTooltipState extends State<GlassTooltip> {
   @override
   void dispose() {
     _cancelWait?.call();
+    _claims.dispose();
     super.dispose();
   }
 
@@ -132,12 +138,17 @@ class _GlassTooltipState extends State<GlassTooltip> {
   }
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    tooltip: widget.message,
-    child: OverlayPortal.overlayChildLayoutBuilder(
-      controller: _portal,
-      overlayChildBuilder: _tip,
-      child: InputRegion(interactions: [_follow], child: widget.child),
+  Widget build(BuildContext context) => _TooltipSemantics(
+    message: widget.message,
+    claims: _claims,
+    child: RawTooltipScope(
+      message: widget.message,
+      claims: _claims,
+      child: OverlayPortal.overlayChildLayoutBuilder(
+        controller: _portal,
+        overlayChildBuilder: _tip,
+        child: InputRegion(interactions: [_follow], child: widget.child),
+      ),
     ),
   );
 
@@ -277,4 +288,73 @@ class _TipLayout extends SingleChildLayoutDelegate {
   @override
   bool shouldRelayout(_TipLayout oldDelegate) =>
       anchor != oldDelegate.anchor || padding != oldDelegate.padding;
+}
+
+// Names the node [child] stands in with [message] while no control under
+// it has taken the message as its own.
+class _TooltipSemantics extends SingleChildRenderObjectWidget {
+  const _TooltipSemantics({
+    required this.message,
+    required this.claims,
+    required super.child,
+  });
+
+  final String message;
+  final ValueNotifier<int> claims;
+
+  @override
+  _RenderTooltipSemantics createRenderObject(BuildContext context) =>
+      _RenderTooltipSemantics(message, claims);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderTooltipSemantics renderObject,
+  ) {
+    renderObject
+      ..message = message
+      ..claims = claims;
+  }
+}
+
+class _RenderTooltipSemantics extends RenderProxyBox {
+  _RenderTooltipSemantics(this._message, this._claims);
+
+  String _message;
+  String get message => _message;
+  set message(String value) {
+    if (value == _message) return;
+    _message = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  ValueNotifier<int> _claims;
+  ValueNotifier<int> get claims => _claims;
+  set claims(ValueNotifier<int> value) {
+    if (identical(value, _claims)) return;
+    if (attached) {
+      _claims.removeListener(markNeedsSemanticsUpdate);
+      value.addListener(markNeedsSemanticsUpdate);
+    }
+    _claims = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _claims.addListener(markNeedsSemanticsUpdate);
+  }
+
+  @override
+  void detach() {
+    _claims.removeListener(markNeedsSemanticsUpdate);
+    super.detach();
+  }
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    if (_claims.value == 0) config.tooltip = _message;
+  }
 }

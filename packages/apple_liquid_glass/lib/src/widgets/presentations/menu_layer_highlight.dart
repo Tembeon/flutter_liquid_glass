@@ -24,6 +24,22 @@ class MenuLayerHighlight {
   /// The ids of those zones.
   final MenuZoneIds ids;
 
+  final _slides = <int, _Slide>{};
+
+  /// Where the highlight of [card] shows now: a highlight that changes rows
+  /// slides from one to the other on the tuning's `highlightSpring`, and one
+  /// that appears or whose row is laid out again stands there at once.
+  RRect? shownOf(int card, MenuLayout layout) {
+    final target = rrectOf(card, layout);
+    final slide = _slides[card] ??= _Slide(_layer.motion.clock);
+    slide.aim(target, lit(card), _layer.motion.tuning.highlightSpring);
+    return slide.now;
+  }
+
+  /// The values the highlight of [card] moves on, to repaint on.
+  Listenable slidingOf(int card) =>
+      Listenable.merge((_slides[card] ??= _Slide(_layer.motion.clock)).values);
+
   /// The target of [card] the highlight shows on now: the focused row of
   /// the top card while the keyboard or the mouse is in use, else the row
   /// the motion highlights (under the finger, or the one chosen).
@@ -105,7 +121,11 @@ class _HighlightPainter extends CustomPainter {
     required this.layout,
     required this.color,
   }) : super(
-         repaint: Listenable.merge([highlight._layer.frames, highlight.zones]),
+         repaint: Listenable.merge([
+           highlight._layer.frames,
+           highlight.zones,
+           highlight.slidingOf(card),
+         ]),
        );
 
   final MenuLayerHighlight highlight;
@@ -116,7 +136,7 @@ class _HighlightPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (!highlight._layer.mounted) return;
-    final rrect = highlight.rrectOf(card, layout);
+    final rrect = highlight.shownOf(card, layout);
     if (rrect == null) return;
     final paint = Paint();
     paint.color = color;
@@ -128,4 +148,54 @@ class _HighlightPainter extends CustomPainter {
       !identical(oldDelegate.layout, layout) ||
       oldDelegate.card != card ||
       oldDelegate.color != color;
+}
+
+// The highlight of one card on its way between rows.
+final class _Slide {
+  _Slide(MotionClock clock)
+    : _left = MotionValue<double>(0, clock: clock),
+      _top = MotionValue<double>(0, clock: clock),
+      _right = MotionValue<double>(0, clock: clock),
+      _bottom = MotionValue<double>(0, clock: clock);
+
+  final MotionValue<double> _left;
+  final MotionValue<double> _top;
+  final MotionValue<double> _right;
+  final MotionValue<double> _bottom;
+  RRect? _target;
+  int? _row;
+
+  List<MotionValue<double>> get values => [_left, _top, _right, _bottom];
+
+  void aim(RRect? target, int? row, Spring spring) {
+    if (target == _target && row == _row) return;
+    final slides = _target != null && target != null && row != _row;
+    _target = target;
+    _row = row;
+    if (target == null) return;
+    void place() {
+      _left.target = target.left;
+      _top.target = target.top;
+      _right.target = target.right;
+      _bottom.target = target.bottom;
+    }
+
+    if (slides) {
+      withSpring(spring, place);
+    } else {
+      place();
+    }
+  }
+
+  RRect? get now {
+    final target = _target;
+    if (target == null) return null;
+    return RRect.fromLTRBR(
+      _left.value,
+      _top.value,
+      _right.value,
+      _bottom.value,
+      target.tlRadius,
+    );
+  }
 }

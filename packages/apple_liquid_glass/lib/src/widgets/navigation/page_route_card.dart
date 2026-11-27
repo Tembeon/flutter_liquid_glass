@@ -77,9 +77,17 @@ class _RenderCard extends RenderProxyBox {
   }
 
   void _hear() => _follow.hear([
-    if (_presence case final presence?) (presence, markNeedsPaint),
-    if (_fades case final fades?) (fades, markNeedsPaint),
+    if (_presence case final presence?) (presence, _moved),
+    if (_fades case final fades?) (fades, _moved),
   ]);
+
+  // The shift is the page's paint transform, so its semantics move too:
+  // once at rest, as a screen reader reads a page that stands still.
+  void _moved() {
+    markNeedsPaint();
+    final p = _presence?.value;
+    if (p == null || p == 0 || p == 1) markNeedsSemanticsUpdate();
+  }
 
   final MotionFollow _follow;
 

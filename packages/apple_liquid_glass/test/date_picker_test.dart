@@ -14,7 +14,12 @@ const _white = Color(0xFFFFFFFF);
 const _todayFill = Color(0x1F0088FF);
 
 class _App extends StatelessWidget {
-  const _App({required this.home, this.builder, this.brightness});
+  const _App({
+    required this.home,
+    this.builder,
+    this.brightness,
+    super.key,
+  });
 
   final Widget home;
   final TransitionBuilder? builder;
@@ -56,7 +61,65 @@ Object? _dayCell(WidgetTester tester, String day, String name) {
 }
 
 void main() {
+  testWidgets("the week starts on the locale's first weekday unless the "
+      'picker sets its own', (tester) async {
+    Future<double> left(String weekday, {int? first}) async {
+      await tester.pumpWidget(
+        _App(
+          home: Localizations(
+            locale: const Locale('en', 'GB'),
+            delegates: const [
+              DefaultWidgetsLocalizations.delegate,
+              _MondayFirst.delegate,
+            ],
+            child: Center(
+              child: GlassDatePicker(
+                value: DateTime(2026, 11, 27),
+                onChanged: (_) {},
+                firstDayOfWeek: first,
+              ),
+            ),
+          ),
+        ),
+      );
+      return tester.getCenter(find.text(weekday)).dx;
+    }
+
+    expect(await left('MON'), lessThan(await left('SUN')));
+    expect(
+      await left('SUN', first: DateTime.sunday),
+      lessThan(await left('MON', first: DateTime.sunday)),
+    );
+  });
+
   setUp(MotionClock.debugReset);
+
+  for (final dark in [false, true]) {
+    testWidgets("today's disc is the accent at 12 percent and a day the "
+        'picker does not offer draws in quaternaryLabel with no disc, '
+        '${dark ? 'dark' : 'light'} (iOS 27.2 simulator)', (tester) async {
+      await tester.pumpWidget(
+        _App(
+          brightness: dark ? Brightness.dark : Brightness.light,
+          home: Center(
+            child: GlassDatePicker(
+              value: DateTime(2026, 10, 20),
+              minimumDate: DateTime(2026, 10, 2),
+              today: DateTime(2026, 10, 3),
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+      final todayFill = _dayCell(tester, '3', 'fill')! as Color;
+      expect(todayFill.a, moreOrLessEquals(0x1F / 255, epsilon: 0.002));
+      expect(_dayCell(tester, '1', 'fill'), isNull);
+      expect(
+        tester.widget<Text>(find.text('1')).style!.color,
+        isSameColorAs(dark ? const Color(0x28EBEBF5) : const Color(0x2D3C3C43)),
+      );
+    });
+  }
 
   group('GlassDatePicker', () {
     Future<void> pump(
@@ -378,6 +441,64 @@ void main() {
         EnginePhase.sendSemanticsUpdate,
         const Duration(seconds: 10),
       );
+      expect(find.text('October 2026'), findsOneWidget);
+    });
+
+    testWidgets('a finger pages the month: the grid follows it, a slow '
+        'release short of half a page goes back, past half turns, a quick '
+        'flick turns, and the title names the nearer page', (tester) async {
+      await pump(tester, onChanged: (_) {});
+      await tester.tap(find.byType(GlassCompactDatePicker));
+      await tester.pumpAndSettle(
+        const Duration(milliseconds: 100),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 10),
+      );
+      Future<void> settle() => tester.pumpAndSettle(
+        const Duration(milliseconds: 16),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 10),
+      );
+      final start = tester.getCenter(find.text('14'));
+      final rest = tester.getTopLeft(find.text('14')).dx;
+      var finger = await tester.startGesture(start);
+      for (var i = 0; i < 10; i++) {
+        await finger.moveBy(const Offset(-10, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(
+        tester.getTopLeft(find.text('14').first).dx,
+        moreOrLessEquals(rest - 90, epsilon: 1),
+      );
+      expect(find.text('October 2026'), findsOneWidget);
+      for (var i = 0; i < 8; i++) {
+        await finger.moveBy(const Offset(-10, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(find.text('November 2026'), findsOneWidget);
+      for (var i = 0; i < 8; i++) {
+        await finger.moveBy(const Offset(10, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(find.text('October 2026'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 300));
+      await finger.up();
+      await settle();
+      expect(find.text('October 2026'), findsOneWidget);
+      expect(tester.getTopLeft(find.text('14')).dx, rest);
+
+      finger = await tester.startGesture(start);
+      for (var i = 0; i < 20; i++) {
+        await finger.moveBy(const Offset(-9, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pump(const Duration(milliseconds: 300));
+      await finger.up();
+      await settle();
+      expect(find.text('November 2026'), findsOneWidget);
+
+      await tester.flingFrom(start, const Offset(70, 0), 1200);
+      await settle();
       expect(find.text('October 2026'), findsOneWidget);
     });
 
@@ -1397,4 +1518,53 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  testWidgets('a compact time between two multiples shows floored, or as it '
+      'is with roundsToMinuteInterval false', (tester) async {
+    Future<void> show({required bool rounds}) => tester.pumpWidget(
+      _App(
+        key: ValueKey(rounds),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        ),
+        home: Center(
+          child: GlassCompactDatePicker(
+            value: DateTime(2026, 11, 27, 12, 7),
+            mode: GlassDatePickerMode.time,
+            minuteInterval: 15,
+            roundsToMinuteInterval: rounds,
+            onChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+    await show(rounds: true);
+    expect(find.text('12:00'), findsOneWidget);
+    await show(rounds: false);
+    expect(find.text('12:07'), findsOneWidget);
+  });
+}
+
+class _MondayFirst extends DefaultGlassLocalizations {
+  const _MondayFirst();
+
+  static const delegate = _MondayFirstDelegate();
+
+  @override
+  int get firstDayOfWeek => DateTime.monday;
+}
+
+class _MondayFirstDelegate extends LocalizationsDelegate<GlassLocalizations> {
+  const _MondayFirstDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<GlassLocalizations> load(Locale locale) =>
+      SynchronousFuture(const _MondayFirst());
+
+  @override
+  bool shouldReload(_MondayFirstDelegate old) => false;
 }

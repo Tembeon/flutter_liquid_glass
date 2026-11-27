@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/fixtures.dart';
 
 const _frame = Duration(milliseconds: 16);
 
@@ -11,6 +14,7 @@ Widget _app(
   GlobalKey<NavigatorState> navigator, {
   bool reduceMotion = false,
   TextDirection direction = TextDirection.ltr,
+  GlassFormFactor? formFactor,
 }) => WidgetsApp(
   navigatorKey: navigator,
   color: const Color(0xFF000000),
@@ -20,7 +24,10 @@ Widget _app(
     data: MediaQuery.of(context).copyWith(disableAnimations: reduceMotion),
     child: Directionality(
       textDirection: direction,
-      child: GlassScope(renderer: const FlatGlassRenderer(), child: child!),
+      child: GlassEnvironmentOverride(
+        formFactor: formFactor,
+        child: GlassScope(renderer: const FlatGlassRenderer(), child: child!),
+      ),
     ),
   ),
   home: const ColoredBox(
@@ -206,6 +213,161 @@ void main() {
     await _settle(tester);
     expect(find.text('Next'), findsNothing);
     expect(_x(tester, 'Home'), 201);
+  });
+
+  group('the leading edge', () {
+    Future<void> pushed(
+      WidgetTester tester,
+      Size size,
+      GlassFormFactor formFactor,
+    ) async {
+      tester.view.physicalSize = size * 2;
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      final navigator = GlobalKey<NavigatorState>();
+      await tester.pumpWidget(_app(navigator, formFactor: formFactor));
+      unawaited(
+        navigator.currentState!.push(
+          GlassPageRoute<void>(builder: (_) => _page('Next')),
+        ),
+      );
+      await _settle(tester);
+    }
+
+    // A finger that touches at [x] and moves 25 points along after [wait]
+    // seconds: whether the page has started to follow.
+    Future<bool> follows(WidgetTester tester, double x, {int wait = 0}) async {
+      final now = _deviceTime(tester);
+      final rest = _x(tester, 'Next');
+      final gesture = await tester.createGesture();
+      await gesture.down(Offset(x, 400), timeStamp: now());
+      for (var i = 0; i < wait; i++) {
+        await tester.pump(_frame);
+        await gesture.moveBy(Offset.zero, timeStamp: now());
+      }
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(_frame);
+        await gesture.moveBy(const Offset(5, 0), timeStamp: now());
+      }
+      await tester.pump(_frame);
+      final moved = _x(tester, 'Next') > rest + 1;
+      await gesture.up(timeStamp: now());
+      await _settle(tester);
+      return moved;
+    }
+
+    testWidgets('is 9 percent of a phone and 13 points elsewhere (read from '
+        'UIKit)', (tester) async {
+      await pushed(tester, const Size(402, 874), GlassFormFactor.phone);
+      expect(await follows(tester, 20), isTrue);
+      await pushed(tester, const Size(1032, 1376), GlassFormFactor.tablet);
+      expect(await follows(tester, 10), isTrue);
+      expect(
+        await follows(tester, 20),
+        isFalse,
+        reason: 'past 13 points the content swipe waits for 30',
+      );
+    });
+
+    testWidgets('gives up a swipe that drifts along the edge before it has '
+        'gone 15 points in: 45.2 points at once, 20 from 0.28 s (read from '
+        "UIKit's code)", (tester) async {
+      Future<bool> swipe(Offset step, {int wait = 0, int moves = 6}) async {
+        final now = _deviceTime(tester);
+        final rest = _x(tester, 'Next');
+        final gesture = await tester.createGesture();
+        await gesture.down(const Offset(10, 400), timeStamp: now());
+        for (var i = 0; i < wait; i++) {
+          await tester.pump(_frame);
+          await gesture.moveBy(Offset.zero, timeStamp: now());
+        }
+        for (var i = 0; i < moves; i++) {
+          await tester.pump(_frame);
+          await gesture.moveBy(step, timeStamp: now());
+        }
+        await tester.pump(_frame);
+        final moved = _x(tester, 'Next') > rest + 1;
+        await gesture.up(timeStamp: now());
+        await _settle(tester);
+        return moved;
+      }
+
+      await pushed(tester, const Size(402, 874), GlassFormFactor.phone);
+      expect(await swipe(const Offset(4, 12)), isTrue);
+      expect(await swipe(const Offset(3, 16)), isFalse);
+      expect(await swipe(const Offset(2, 1), wait: 20, moves: 12), isTrue);
+      expect(await swipe(const Offset(2, 8), wait: 20, moves: 12), isFalse);
+    });
+
+    testWidgets('begins where an iPhone 16 Pro began its pop, 15 points in, '
+        'after a quick start and a 0.6 s rest on the edge alike, the page a '
+        'step along at once', (
+      tester,
+    ) async {
+      final fixture = jsonDecode(
+        Fixtures.read(
+          'test/fixtures/ios27-device/navigation/'
+          'release-decision.json',
+        ),
+      ) as Map<String, Object?>;
+      final edge = [
+        for (final raw in fixture['captures']! as List<Object?>)
+          if (raw
+              case {
+                'name': final String name,
+                'start': [final num x, _],
+              }
+              when name.startsWith('repeat-1/') && x < 13)
+            raw as Map<String, Object?>,
+      ];
+      expect(edge, hasLength(5));
+      await pushed(tester, const Size(402, 874), GlassFormFactor.phone);
+      for (final capture in edge) {
+        final now = _deviceTime(tester);
+        final rest = _x(tester, 'Next');
+        final points = [
+          for (final p in capture['points']! as List<Object?>)
+            [for (final v in p! as List<Object?>) (v! as num).toDouble()],
+        ];
+        final gesture = await tester.createGesture();
+        await gesture.down(const Offset(3, 655.67), timeStamp: now());
+        var last = 0.0;
+        var moved = -1;
+        var shift = 0.0;
+        for (var i = 1; i < points.length && moved < 0; i++) {
+          await tester.pump(
+            Duration(microseconds: ((points[i][0] - last) * 1e6).round()),
+          );
+          last = points[i][0];
+          await gesture.moveTo(
+            Offset(3 + points[i][1], 655.67 + points[i][2]),
+            timeStamp: now(),
+          );
+          await tester.pump();
+          if (_x(tester, 'Next') > rest + 0.5) {
+            moved = i;
+            shift = _x(tester, 'Next') - rest;
+          }
+        }
+        await gesture.cancel();
+        await _settle(tester);
+        expect(
+          moved,
+          capture['begin']! as int,
+          reason:
+              '${capture['name']}: the page moves on the move that '
+              'begins the pop',
+        );
+        expect(
+          shift,
+          moreOrLessEquals(
+            (capture['beginProgress']! as num) * 402,
+            epsilon: 0.05,
+          ),
+          reason: "${capture['name']}: by that move's step",
+        );
+      }
+    });
   });
 
   testWidgets('a pop asked for under a finger or while the page returns '

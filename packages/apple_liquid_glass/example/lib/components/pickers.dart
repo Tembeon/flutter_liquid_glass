@@ -6,6 +6,8 @@ import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+enum _DateForm { compact, inline, wheels, timer, month }
+
 class DatePickerPage extends StatefulWidget {
   const DatePickerPage({super.key});
 
@@ -16,10 +18,11 @@ class DatePickerPage extends StatefulWidget {
 class _DatePickerPageState extends State<DatePickerPage> {
   var _date = DateTime(2026, 6, 12, 8, 30);
   var _mode = GlassDatePickerMode.date;
-  var _inline = false;
+  var _form = _DateForm.compact;
   var _fives = false;
   var _brand = Brand.system;
   var _repot = DateTime(2026, 8, 3);
+  var _timer = const Duration(hours: 1, minutes: 30);
   var _alarm = DateTime(2026, 1, 1, 7, 15);
 
   @override
@@ -32,27 +35,60 @@ class _DatePickerPageState extends State<DatePickerPage> {
       name: 'GlassCompactDatePicker',
       summary:
           'A date, a time or both: a compact field that opens its calendar '
-          'or its wheels out of itself, or GlassDatePicker, the calendar in '
-          'place.',
-      stageHeight: _inline ? 360 : 120,
+          'or its wheels out of itself, GlassDatePicker, the calendar in '
+          'place, or GlassTimePicker, the time wheels in place.',
+      stageHeight: switch (_form) {
+        _DateForm.compact => 120,
+        _DateForm.inline => 360,
+        _DateForm.wheels => 240,
+        _DateForm.timer || _DateForm.month => 256,
+      },
       stage: FittedBox(
         fit: BoxFit.scaleDown,
-        child: _inline
-            ? GlassDatePicker(value: _date, style: style, onChanged: changed)
-            : GlassCompactDatePicker(
-                value: _date,
-                mode: _mode,
-                minuteInterval: _fives ? 5 : 1,
-                style: style,
-                onChanged: changed,
-              ),
+        child: switch (_form) {
+          _DateForm.inline => GlassDatePicker(
+            value: _date,
+            style: style,
+            onChanged: changed,
+          ),
+          _DateForm.wheels => GlassTimePicker(
+            value: _date,
+            minuteInterval: _fives ? 5 : 1,
+            style: style,
+            onChanged: changed,
+          ),
+          _DateForm.timer => GlassCountDownPicker(
+            value: _timer,
+            minuteInterval: _fives ? 5 : 1,
+            style: style,
+            onChanged: (timer) => setState(() => _timer = timer),
+          ),
+          _DateForm.month => GlassMonthYearPicker(
+            value: _date,
+            style: style,
+            onChanged: changed,
+          ),
+          _DateForm.compact => GlassCompactDatePicker(
+            value: _date,
+            mode: _mode,
+            minuteInterval: _fives ? 5 : 1,
+            style: style,
+            onChanged: changed,
+          ),
+        },
       ),
       knobs: [
-        ChoiceKnob<bool>(
+        ChoiceKnob<_DateForm>(
           'Form',
-          value: _inline,
-          options: const {false: 'Compact', true: 'Inline'},
-          onChanged: (inline) => setState(() => _inline = inline),
+          value: _form,
+          options: const {
+            _DateForm.compact: 'Compact',
+            _DateForm.inline: 'Calendar',
+            _DateForm.wheels: 'Wheels',
+            _DateForm.timer: 'Timer',
+            _DateForm.month: 'Month',
+          },
+          onChanged: (form) => setState(() => _form = form),
         ),
         ChoiceKnob<GlassDatePickerMode>(
           'Mode',
@@ -201,13 +237,22 @@ class TextFieldPage extends StatefulWidget {
 
 class _TextFieldPageState extends State<TextFieldPage> {
   final _email = TextEditingController();
+  final _quote = TextEditingController(
+    text: 'A fern needs shade, damp soil and patience.',
+  );
   var _enabled = true;
   var _error = false;
   var _hidden = true;
+  var _labelled = false;
+  var _readOnly = false;
+  var _centered = false;
+  var _limited = false;
+  var _looked = 'Select a word and choose Look Up';
 
   @override
   void dispose() {
     _email.dispose();
+    _quote.dispose();
     super.dispose();
   }
 
@@ -227,6 +272,11 @@ class _TextFieldPageState extends State<TextFieldPage> {
     stage: GlassTextField(
       placeholder: 'Name',
       enabled: _enabled,
+      readOnly: _readOnly,
+      textAlign: _centered ? TextAlign.center : TextAlign.start,
+      maxLength: _limited ? 12 : null,
+      labelText: _labelled ? 'Name' : null,
+      helperText: _labelled ? 'As it shows on your profile' : null,
       errorText: _error ? 'Enter your name.' : null,
     ),
     knobs: [
@@ -239,6 +289,26 @@ class _TextFieldPageState extends State<TextFieldPage> {
         'Error',
         value: _error,
         onChanged: (on) => setState(() => _error = on),
+      ),
+      ToggleKnob(
+        'Label and helper',
+        value: _labelled,
+        onChanged: (on) => setState(() => _labelled = on),
+      ),
+      ToggleKnob(
+        'Read only',
+        value: _readOnly,
+        onChanged: (on) => setState(() => _readOnly = on),
+      ),
+      ToggleKnob(
+        'Centered',
+        value: _centered,
+        onChanged: (on) => setState(() => _centered = on),
+      ),
+      ToggleKnob(
+        'At most 12 letters',
+        value: _limited,
+        onChanged: (on) => setState(() => _limited = on),
       ),
     ],
     ideas: [
@@ -273,6 +343,57 @@ class _TextFieldPageState extends State<TextFieldPage> {
                     _hidden ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
                     size: 20,
                   ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      Idea(
+        'An action of its own in the menu',
+        "The glass edit menu over a selection, with the field's own "
+            'actions and one more; on a touch screen the handles are '
+            "UIKit's lollipops.",
+        child: Stage(
+          height: null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              GlassTextField(
+                controller: _quote,
+                maxLines: 2,
+                contextMenuBuilder: (context, editable) => GlassEditMenu(
+                  anchorAbove: editable.contextMenuAnchors.primaryAnchor,
+                  anchorBelow:
+                      editable.contextMenuAnchors.secondaryAnchor ??
+                      editable.contextMenuAnchors.primaryAnchor,
+                  buttonItems: [
+                    ...editable.contextMenuButtonItems,
+                    ContextMenuButtonItem(
+                      label: 'Look Up',
+                      onPressed: () {
+                        final value = editable.textEditingValue;
+                        final word = value.selection.textInside(value.text);
+                        editable.hideToolbar();
+                        setState(
+                          () => _looked = word.trim().isEmpty
+                              ? 'Nothing selected'
+                              : 'Looked up "${word.trim()}"',
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _looked,
+                style: TextStyle(
+                  color: GlassDynamicColor.resolve(
+                    GlassColors.secondaryLabel,
+                    context,
+                  ),
+                  fontSize: 15,
                 ),
               ),
             ],

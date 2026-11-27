@@ -266,7 +266,15 @@ void main() {
       final mid = unknown.atTime(3.1);
       expect(mid.bottomRadius, closeTo(54 * (1 - mid.dock), 1e-9));
       final square = _motion([_medium, _full], docked: 1, displayRadius: 0);
-      expect(square.atTime(3).bottomRadius, 0);
+      expect(
+        square.atTime(3).bottomRadius,
+        20,
+        reason:
+            "UIKit's minimum for an edge-attached sheet's bottom corners "
+            'holds on a square display',
+      );
+      final tight = _motion([_medium, _full], docked: 1, displayRadius: 30);
+      expect(tight.atTime(3).bottomRadius, 22);
       final max = _motion([_medium, _full], docked: 1, displayRadius: 55);
       expect(max.atTime(3).bottomRadius, 47);
     });
