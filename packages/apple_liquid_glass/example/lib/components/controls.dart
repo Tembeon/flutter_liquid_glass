@@ -695,6 +695,7 @@ class _SegmentedPageState extends State<SegmentedPage> {
   var _brand = Brand.system;
   final _rooms = ['Bedroom', 'Kitchen'];
   var _room = 'Bedroom';
+  var _water = 250;
 
   @override
   Widget build(BuildContext context) {
@@ -755,6 +756,36 @@ class _SegmentedPageState extends State<SegmentedPage> {
         ),
       ],
       ideas: [
+        Idea(
+          'Segments as buttons',
+          'GlassSegmentedControl.momentary keeps no selection: a tap acts and '
+              'the lens shows on its segment for a moment.',
+          child: Stage(
+            height: 120,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('$_water ml'),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: 240,
+                  child: GlassSegmentedControl<int>.momentary(
+                    segments: const [
+                      GlassSegment(value: -50, label: Text('Less')),
+                      GlassSegment(value: 0, label: Text('Reset')),
+                      GlassSegment(value: 50, label: Text('More')),
+                    ],
+                    onChanged: (step) => setState(
+                      () => _water = step == 0
+                          ? 250
+                          : (_water + step).clamp(0, 1000),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         Idea(
           'Segments that come and go',
           'Inside withSpring a segment added or taken makes the others '

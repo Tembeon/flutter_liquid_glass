@@ -432,6 +432,13 @@ void galleryTests({bool onDevice = false}) {
     expect(find.text('Large'), findsOneWidget);
     await _back(tester);
 
+    await _open(tester, 'Segmented control');
+    await _bring(tester, find.text('More'), page);
+    await tester.tap(find.text('More'));
+    await _frames(tester, 30);
+    expect(find.text('300 ml'), findsOneWidget);
+    await _back(tester);
+
     await _open(tester, 'Progress view');
     await _bring(tester, find.text('Steep'), page);
     await tester.tap(find.text('Steep'));

@@ -2189,6 +2189,17 @@ final class GlassSegment<T>
   final T value
   final double? width
 class GlassSegmentedControl<T> extends StatelessWidget
+  const GlassSegmentedControl.momentary({
+    required List<GlassSegment<T>> segments,
+    required void Function(T)? onChanged,
+    bool proportionalWidth = ...,
+    GlassSegmentedStyle? style,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    Key? key,
+  })
   const GlassSegmentedControl({
     required List<GlassSegment<T>> segments,
     required T? groupValue,
