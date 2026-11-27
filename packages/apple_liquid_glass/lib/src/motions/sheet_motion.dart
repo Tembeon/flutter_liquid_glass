@@ -299,11 +299,18 @@ final class SheetMotion extends Motion with Presented, PredictiveBack {
   /// The radius of the bottom corners of a floating sheet, in unscaled
   /// pixels: the display's less [inset] (62 - 8 = 54 on an iPhone 16 Pro),
   /// [fallbackDisplayRadius] less it where the platform reports none, and
-  /// never under [minimumFloatingRadius].
-  double get floatingRadius => math.max(
-    minimumFloatingRadius,
-    (displayRadius ?? fallbackDisplayRadius) - inset,
-  );
+  /// never under [minimumFloatingRadius]; [preferredRadius] instead,
+  /// where the app gives one.
+  double get floatingRadius =>
+      preferredRadius ??
+      math.max(
+        minimumFloatingRadius,
+        (displayRadius ?? fallbackDisplayRadius) - inset,
+      );
+
+  /// The radius the app prefers for a floating sheet's corners, all four
+  /// (UIKit `preferredCornerRadius`), or null for the display's law.
+  double? preferredRadius;
 
   /// The least radius of a floating sheet's corners: UIKit's minimum
   /// floating radius, 32 (read from UIKit, notes private), which a display

@@ -123,6 +123,9 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
 
   SheetMotion? get _motion => widget.motion.isLaidOut ? widget.motion : null;
 
+  // The top corners' radius: the style's, else UIKit's 38.
+  double _topRadius = _SheetLook.topRadius;
+
   static double _fillOf(SheetMotion motion) =>
       motion.isLaidOut ? motion.fill : 0;
 
@@ -269,7 +272,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     final transform = Matrix4.translationValues(drawn.left, drawn.top, 0);
     transform.multiply(Matrix4.diagonal3Values(k, ky, 1));
     final bottom = Radius.circular(motion.bottomRadius);
-    const top = Radius.circular(_SheetLook.topRadius);
+    final top = Radius.circular(_topRadius);
     _frame.value = _Frame(
       height: h,
       transform: transform,
@@ -474,6 +477,8 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     final media = MediaQuery.of(context);
     final content = _contentFor(context);
     final look = _spec.lookOf(context);
+    _topRadius = look.cornerRadius ?? _SheetLook.topRadius;
+    widget.motion.preferredRadius = look.cornerRadius;
     final docked = GlassDynamicColor.resolve(
       look.backgroundColor ?? _Colors.docked,
       context,
@@ -522,12 +527,12 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
                           children: [
                             MotionVisibility(
                               visible: _glass,
-                              child: const GlassSurface(
+                              child: GlassSurface(
                                 shape: LiquidRoundedSuperellipse(
-                                  radius: _SheetLook.topRadius,
+                                  radius: _topRadius,
                                 ),
                                 role: GlassRole.panel,
-                                child: SizedBox.expand(),
+                                child: const SizedBox.expand(),
                               ),
                             ),
                             MotionVisibility(

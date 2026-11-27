@@ -791,6 +791,7 @@ class GlassCompactDatePicker extends StatefulWidget
     GlassDatePickerMode mode = ...,
     GlassDatePickerStyle? style,
     int minuteInterval = ...,
+    bool roundsToMinuteInterval = ...,
     DateTime? minimumDate,
     DateTime? maximumDate,
     bool? use24HourFormat,
@@ -805,6 +806,7 @@ class GlassCompactDatePicker extends StatefulWidget
   final int minuteInterval
   final GlassDatePickerMode mode
   final void Function(DateTime)? onChanged
+  final bool roundsToMinuteInterval
   final String? semanticLabel
   final GlassDatePickerStyle? style
   final DateTime? today
@@ -2201,8 +2203,10 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle>
     Color? backgroundColor,
     Color? dragHandleColor,
     TextStyle? textStyle,
+    double? cornerRadius,
   })
   final Color? backgroundColor
+  final double? cornerRadius
   final Color? dragHandleColor
   static GlassSheetStyle? maybeOf(BuildContext context)
   final TextStyle? textStyle
@@ -4878,6 +4882,7 @@ final class SheetMotion extends Motion with Presented, PredictiveBack
   static const double minimumFloatingRadius
   double get offset
   void pick(double t, int index)
+  double? preferredRadius
   void present(double t)
   void press(double t)
   void relayout(

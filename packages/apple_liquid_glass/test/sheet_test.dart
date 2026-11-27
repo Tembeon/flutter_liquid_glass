@@ -87,6 +87,7 @@ Future<void> _present(
   VoidCallback? onPageTap,
   Brightness brightness = Brightness.light,
   String? semanticLabel,
+  GlassSheetStyle? style,
 }) async {
   await tester.pumpWidget(
     _app(
@@ -103,6 +104,7 @@ Future<void> _present(
           semanticLabel: semanticLabel,
           onDetentChanged: onDetentChanged,
           onDismissAttempt: onDismissAttempt,
+          style: style,
         ).then((value) => onResult?.call(value)),
       ),
     ),
@@ -131,6 +133,33 @@ bool _docked(WidgetTester tester, Color color) => tester
     );
 
 void main() {
+  test('a preferred corner radius takes every corner of a floating sheet, '
+      'where the display law gave the bottom ones', () {
+    final motion = SheetMotion(
+      heights: const [400, 800],
+      width: 402,
+      initial: 0,
+    )..preferredRadius = 20;
+    expect(motion.floatingRadius, 20);
+    expect(motion.bottomRadius, 20);
+    motion.preferredRadius = null;
+    expect(motion.floatingRadius, 62 - 8);
+  });
+
+  testWidgets('a sheet presents with a corner radius of its own', (
+    tester,
+  ) async {
+    _phone(tester);
+    await _present(
+      tester,
+      _content,
+      detents: const [GlassSheetDetent.medium],
+      style: const GlassSheetStyle(cornerRadius: 20),
+    );
+    expect(find.text('sheet'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   setUp(MotionClock.debugReset);
 
   testWidgets('presents at the medium detent, floating, and docks at large', (

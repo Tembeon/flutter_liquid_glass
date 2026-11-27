@@ -14,7 +14,12 @@ const _white = Color(0xFFFFFFFF);
 const _todayFill = Color(0x1F0088FF);
 
 class _App extends StatelessWidget {
-  const _App({required this.home, this.builder, this.brightness});
+  const _App({
+    required this.home,
+    this.builder,
+    this.brightness,
+    super.key,
+  });
 
   final Widget home;
   final TransitionBuilder? builder;
@@ -1396,5 +1401,31 @@ void main() {
       await pumpIn(tester, 0);
       expect(tester.takeException(), isNull);
     });
+  });
+
+  testWidgets('a compact time between two multiples shows floored, or as it '
+      'is with roundsToMinuteInterval false', (tester) async {
+    Future<void> show({required bool rounds}) => tester.pumpWidget(
+      _App(
+        key: ValueKey(rounds),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        ),
+        home: Center(
+          child: GlassCompactDatePicker(
+            value: DateTime(2026, 11, 27, 12, 7),
+            mode: GlassDatePickerMode.time,
+            minuteInterval: 15,
+            roundsToMinuteInterval: rounds,
+            onChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+    await show(rounds: true);
+    expect(find.text('12:00'), findsOneWidget);
+    await show(rounds: false);
+    expect(find.text('12:07'), findsOneWidget);
   });
 }

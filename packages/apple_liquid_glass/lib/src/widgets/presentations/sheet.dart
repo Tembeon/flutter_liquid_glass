@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
@@ -22,6 +23,7 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
     this.backgroundColor,
     this.dragHandleColor,
     this.textStyle,
+    this.cornerRadius,
   });
 
   /// The theme's [GlassSheetStyle] at [context], or null without one: the
@@ -40,6 +42,14 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
   /// The default text of the content, over 17 points in label.
   final TextStyle? textStyle;
 
+  /// The radius of the sheet's corners, or null for UIKit's: 38 at the
+  /// top and, below the large detent, the display's less 8 at the bottom
+  /// (UIKit `preferredCornerRadius`, SwiftUI `presentationCornerRadius`).
+  /// A floating sheet takes it at all four corners, a docked one at its
+  /// top two, its bottom resting square (sheet passport; the effective
+  /// radii of the iOS 27.2 simulator's sheet at 20 and 50).
+  final double? cornerRadius;
+
   /// This style over [other].
   @override
   GlassSheetStyle merge(GlassSheetStyle? other) {
@@ -48,6 +58,7 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
       backgroundColor: backgroundColor ?? other.backgroundColor,
       dragHandleColor: dragHandleColor ?? other.dragHandleColor,
       textStyle: other.textStyle?.merge(textStyle) ?? textStyle,
+      cornerRadius: cornerRadius ?? other.cornerRadius,
     );
   }
 
@@ -64,6 +75,7 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
         other.textStyle,
         t,
       ),
+      cornerRadius: lerpDouble(cornerRadius, other.cornerRadius, t),
     );
   }
 
@@ -72,10 +84,12 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
       other is GlassSheetStyle &&
       other.backgroundColor == backgroundColor &&
       other.dragHandleColor == dragHandleColor &&
-      other.textStyle == textStyle;
+      other.textStyle == textStyle &&
+      other.cornerRadius == cornerRadius;
 
   @override
-  int get hashCode => Object.hash(backgroundColor, dragHandleColor, textStyle);
+  int get hashCode =>
+      Object.hash(backgroundColor, dragHandleColor, textStyle, cornerRadius);
 }
 
 /// Shows an iOS 27 sheet over the page and completes with the result it
