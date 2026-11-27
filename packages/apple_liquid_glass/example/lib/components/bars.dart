@@ -32,6 +32,7 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
   var _items = _Items.icons;
   var _back = GlassBackButtonDisplayMode.title;
   var _beside = false;
+  var _edge = GlassScrollEdgeEffect.automatic;
 
   @override
   Widget build(BuildContext context) => ComponentPage(
@@ -53,6 +54,7 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
           items: _items,
           back: _back,
           beside: _beside,
+          edge: _edge,
         ),
       ),
       child: const Text('Open the journal'),
@@ -103,6 +105,17 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
         value: _beside,
         onChanged: (on) => setState(() => _beside = on),
       ),
+      ChoiceKnob<GlassScrollEdgeEffect>(
+        'Edge under the bar',
+        value: _edge,
+        options: const {
+          GlassScrollEdgeEffect.automatic: 'Automatic',
+          GlassScrollEdgeEffect.soft: 'Soft',
+          GlassScrollEdgeEffect.hard: 'Hard',
+          GlassScrollEdgeEffect.hidden: 'None',
+        },
+        onChanged: (edge) => setState(() => _edge = edge),
+      ),
     ],
     ideas: [
       Idea(
@@ -139,6 +152,7 @@ class _Journal extends StatefulWidget {
     required this.items,
     required this.back,
     required this.beside,
+    required this.edge,
   });
 
   final bool large;
@@ -148,6 +162,7 @@ class _Journal extends StatefulWidget {
   final _Items items;
   final GlassBackButtonDisplayMode back;
   final bool beside;
+  final GlassScrollEdgeEffect edge;
 
   @override
   State<_Journal> createState() => _JournalState();
@@ -295,6 +310,7 @@ class _JournalState extends State<_Journal> {
     ),
     toolbar: widget.toolbar ? _toolbar() : null,
     child: GlassContentScroll(
+      edgeEffects: GlassScrollEdgeEffects(top: widget.edge),
       child: ListenableBuilder(
         listenable: _query,
         builder: (context, _) {
