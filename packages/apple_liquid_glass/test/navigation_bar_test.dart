@@ -315,6 +315,41 @@ void main() {
     expect(styleOf('Updated just now').fontSize, 12);
   });
 
+  testWidgets('a large subtitle stands 38.33 under the large title in 11 '
+      'point medium, and the bar grows to 125.33', (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(
+      _app(
+        const GlassPageScaffold(
+          navigationBar: GlassNavigationBar(
+            largeTitle: Text('Inbox'),
+            largeSubtitle: Text('3 unread'),
+          ),
+          child: SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pump();
+    final bar = tester.widget<GlassNavigationBar>(
+      find.byType(GlassNavigationBar),
+    );
+    expect(bar.preferredSize.height, moreOrLessEquals(125.33, epsilon: 0.01));
+    final title = tester.getRect(find.text('Inbox').last);
+    final subtitle = tester.getRect(find.text('3 unread'));
+    expect(subtitle.top - title.top, moreOrLessEquals(38.33, epsilon: 0.01));
+    final style = tester
+        .widget<RichText>(
+          find.descendant(
+            of: find.text('3 unread'),
+            matching: find.byType(RichText),
+          ),
+        )
+        .text
+        .style!;
+    expect(style.fontSize, 11);
+    expect(style.fontWeight, FontWeight.w500);
+  });
+
   test('the bar a page stacks a search field under keeps every field', () {
     const subtitle = Text('Updated just now');
     final leading = [GlassBarItem(icon: const SizedBox(), onPressed: () {})];

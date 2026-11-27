@@ -181,6 +181,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
     this.title,
     this.subtitle,
     this.largeTitle,
+    this.largeSubtitle,
     this.trailing = const [],
     this.automaticallyImplyLeading = true,
     this.leadingSupplementsBackButton = false,
@@ -212,6 +213,13 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
 
   /// The large title under the row, or null for an inline title only.
   final Widget? largeTitle;
+
+  /// The line under the [largeTitle], or null for none (UIKit
+  /// `UINavigationItem.largeSubtitle`): 11 points medium in the secondary
+  /// label color, its top 38.33 below the large title's, which keeps its 34
+  /// points; the bar grows by [largeSubtitleHeight] more (bars passport,
+  /// iOS 27.2 simulator, a bar of 125.33).
+  final Widget? largeSubtitle;
 
   /// The capsules at the trailing edge (UIKit `rightBarButtonItems`).
   final List<GlassBarEntry> trailing;
@@ -289,6 +297,13 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// passport).
   static const double largeTitleHeight = 52;
 
+  /// The height a [largeSubtitle] adds under a large title.
+  static const double largeSubtitleHeight = 71.33 - largeTitleHeight;
+
+  double get _large => largeTitle == null
+      ? 0
+      : largeTitleHeight + (largeSubtitle == null ? 0 : largeSubtitleHeight);
+
   /// The height a stacked search field adds under the titles: the field
   /// and the space below it.
   static const double searchFieldHeight =
@@ -306,6 +321,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
     title: title,
     subtitle: subtitle,
     largeTitle: largeTitle,
+    largeSubtitle: largeSubtitle,
     trailing: trailing,
     automaticallyImplyLeading: automaticallyImplyLeading,
     leadingSupplementsBackButton: leadingSupplementsBackButton,
@@ -319,8 +335,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// How far the content scrolls before it passes under the bar: the
   /// large title and the search field it scrolls away first.
   @internal
-  double get scrolledUnderAfter =>
-      (largeTitle == null ? 0 : largeTitleHeight) + _search;
+  double get scrolledUnderAfter => _large + _search;
 
   @override
   State<GlassNavigationBar> createState() => _GlassNavigationBarState();
@@ -699,7 +714,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                   children: [
                     if (largeTitle != null)
                       SizedBox(
-                        height: GlassNavigationBar.largeTitleHeight,
+                        height: widget._large,
                         child: _ScrollAway(
                           shift: _awayAfter(widget._search),
                           opacity: _fade,
@@ -709,23 +724,46 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                               end: _Metrics.largeTitleInset,
                               top: _Metrics.largeTitleTop,
                             ),
-                            child: Align(
-                              alignment: AlignmentDirectional.topStart,
-                              child: largeScale.apply(
-                                DefaultTextStyle(
-                                  style: largeScale.resolve(
-                                    _Metrics.largeTitle
-                                        .merge(look.largeTitleTextStyle)
-                                        .copyWith(color: color),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  child: Semantics(
-                                    header: true,
-                                    child: largeTitle,
+                            child: Stack(
+                              children: [
+                                Align(
+                                  alignment: AlignmentDirectional.topStart,
+                                  child: largeScale.apply(
+                                    DefaultTextStyle(
+                                      style: largeScale.resolve(
+                                        _Metrics.largeTitle
+                                            .merge(look.largeTitleTextStyle)
+                                            .copyWith(color: color),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      child: Semantics(
+                                        header: true,
+                                        child: largeTitle,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
+                                if (widget.largeSubtitle case final line?)
+                                  PositionedDirectional(
+                                    top: _Metrics.largeSubtitleTop,
+                                    start: 0,
+                                    end: 0,
+                                    child: DefaultTextStyle(
+                                      style: largeScale.resolve(
+                                        _Metrics.largeSubtitle.copyWith(
+                                          color: GlassDynamicColor.resolve(
+                                            GlassColors.secondaryLabel,
+                                            context,
+                                          ),
+                                        ),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      child: line,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                         ),
@@ -734,11 +772,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                       _StackedSearch(
                         field: field,
                         offset: _offset,
-                        travel:
-                            GlassNavigationBar.height +
-                            (largeTitle == null
-                                ? 0
-                                : GlassNavigationBar.largeTitleHeight),
+                        travel: GlassNavigationBar.height + widget._large,
                         lift: lift,
                         fade: _fade,
                       ),
@@ -798,6 +832,15 @@ abstract final class _Metrics {
     fontSize: 12,
     height: 14.67 / 12,
   );
+
+  /// The large subtitle: 11 points medium, 13.33 tall, its top 38.33 below
+  /// the large title's (bars passport, iOS 27.2 simulator).
+  static const largeSubtitle = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    height: 13.33 / 11,
+  );
+  static const double largeSubtitleTop = 38.33;
 
   /// The large title: 34 points bold.
   static const largeTitle = TextStyle(
