@@ -7,6 +7,8 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_field_image.dart';
 
+const _turn = math.pi / 10;
+
 LiquidGlassField _field() {
   const cols = 400;
   const rows = 200;
@@ -14,8 +16,14 @@ LiquidGlassField _field() {
   for (var j = 0; j < rows; j++) {
     for (var i = 0; i < cols; i++) {
       final at = (j * cols + i) * 4;
-      samples[at] =
-          math.sqrt(math.pow(i - 200.3, 2) + math.pow(j - 99.7, 2)) - 80;
+      final (x, y) = (i - 200.3, j - 99.7);
+      final reach = math.sqrt(x * x + y * y);
+      samples[at] = reach - 80;
+      // The gradient turned by a fifth of a right angle, as an owner turns
+      // one near a corner, so the image shows it read rather than derived.
+      final (gx, gy) = reach > 0 ? (x / reach, y / reach) : (0.0, 0.0);
+      samples[at + 1] = gx * math.cos(_turn) - gy * math.sin(_turn);
+      samples[at + 2] = gx * math.sin(_turn) + gy * math.cos(_turn);
     }
   }
   return LiquidGlassField(
@@ -32,8 +40,8 @@ LiquidGlassField _field() {
 }
 
 void main() {
-  test('every texel holds its node: the distance in red, the normal by '
-      'central differences in green and blue', () async {
+  test('every texel holds its node: the distance in red, the direction of '
+      "the field's own gradient in green and blue", () async {
     final field = _field();
     final LiquidGlassField(:samples, columns: cols, :rows) = field;
     expect(cols * rows, greaterThan(1 << 16));
@@ -48,17 +56,13 @@ void main() {
     var worst = 0;
     for (var j = 0; j < rows; j++) {
       for (var i = 0; i < cols; i++) {
-        final left = math.max(i - 1, 0);
-        final right = math.min(i + 1, cols - 1);
-        final up = math.max(j - 1, 0);
-        final down = math.min(j + 1, rows - 1);
-        final dx = (distance(right, j) - distance(left, j)) / (right - left);
-        final dy = (distance(i, down) - distance(i, up)) / (down - up);
-        final length = math.sqrt(dx * dx + dy * dy);
+        final gx = samples[(j * cols + i) * 4 + 1];
+        final gy = samples[(j * cols + i) * 4 + 2];
+        final length = math.sqrt(gx * gx + gy * gy);
         final expected = [
           ((distance(i, j) + fakeFieldInside) / span).clamp(0.0, 1.0),
-          dx / length * 0.5 + 0.5,
-          dy / length * 0.5 + 0.5,
+          gx / length * 0.5 + 0.5,
+          gy / length * 0.5 + 0.5,
           1.0,
         ];
         final at = (j * cols + i) * 4;
