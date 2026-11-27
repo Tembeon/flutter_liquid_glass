@@ -169,6 +169,8 @@ export 'src/widgets/presentations/menu_entries.dart'
         GlassMenuSection,
         GlassMenuWidget,
         GlassSubmenu;
+export 'src/widgets/presentations/pop_up_button.dart'
+    show GlassPopUpButton, GlassPopUpButtonBuilder, GlassPopUpItem;
 export 'src/widgets/presentations/popover.dart'
     show GlassPopoverStyle, showGlassPopover;
 export 'src/widgets/presentations/sheet.dart'

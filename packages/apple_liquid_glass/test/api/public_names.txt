@@ -155,6 +155,9 @@ GlassPageScaffold
 GlassPageScrollPhysics
 GlassPlainButtonStyle
 GlassPlatformScope
+GlassPopUpButton
+GlassPopUpButtonBuilder
+GlassPopUpItem
 GlassPopoverStyle
 GlassPress
 GlassProgressView

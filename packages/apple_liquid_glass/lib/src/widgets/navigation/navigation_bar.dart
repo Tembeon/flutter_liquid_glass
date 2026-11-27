@@ -2,12 +2,15 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar_room.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/search_host.dart';
+import 'package:apple_liquid_glass/src/widgets/presentations/menu_anchor.dart';
+import 'package:apple_liquid_glass/src/widgets/presentations/menu_entries.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart' show MouseTrackerAnnotation;
@@ -180,6 +183,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
     this.leading = const [],
     this.title,
     this.subtitle,
+    this.titleMenu,
     this.largeTitle,
     this.largeSubtitle,
     this.trailing = const [],
@@ -210,6 +214,15 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// centered on each other, where UIKit aligns them leading (not
   /// reproduced).
   final Widget? subtitle;
+
+  /// The menu the inline title opens, or null for none (UIKit
+  /// `titleMenuProvider`, SwiftUI `toolbarTitleMenu`): a 20 point circle
+  /// of secondarySystemFill with a chevron down in the secondary label
+  /// color stands 6 points after the title, the two centered as one block,
+  /// and a tap on either opens a [GlassMenuAnchor] menu of these entries
+  /// (bars passport and a tree dump and screenshot of the iOS 27.2
+  /// simulator: the chevron 8.67 by 5 in a 17.67 point circle).
+  final List<GlassMenuEntry>? titleMenu;
 
   /// The large title under the row, or null for an inline title only.
   final Widget? largeTitle;
@@ -320,6 +333,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
     leading: leading,
     title: title,
     subtitle: subtitle,
+    titleMenu: titleMenu,
     largeTitle: largeTitle,
     largeSubtitle: largeSubtitle,
     trailing: trailing,
@@ -551,12 +565,47 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
       overflow: TextOverflow.ellipsis,
       child: child,
     );
+    final menu = widget.titleMenu;
+    if (menu != null) {
+      final block = subtitle == null
+          ? line(
+              title,
+              _Metrics.title.merge(look.titleTextStyle).copyWith(color: color),
+            )
+          : _subtitled(title, subtitle, line, look, color, context);
+      return GlassMenuAnchor(
+        menuChildren: menu,
+        builder: (context, controller, _) => RawGlassButton(
+          onPressed: controller.open,
+          builder: (context, details) => details.label,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(child: block),
+              const SizedBox(width: _TitleMenuGlyph.gap),
+              const _TitleMenuGlyph(),
+            ],
+          ),
+        ),
+      );
+    }
     if (subtitle == null) {
       return line(
         title,
         _Metrics.title.merge(look.titleTextStyle).copyWith(color: color),
       );
     }
+    return _subtitled(title, subtitle, line, look, color, context);
+  }
+
+  Widget _subtitled(
+    Widget title,
+    Widget subtitle,
+    Widget Function(Widget, TextStyle) line,
+    GlassNavigationBarStyle look,
+    Color color,
+    BuildContext context,
+  ) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1013,4 +1062,60 @@ class _ScrollAway extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// The circle a title menu shows after the title: 20 points, a 17.67 point
+/// disc of secondarySystemFill with a chevron down 8.67 by 5 in the
+/// secondary label color, its middle half a point below the disc's
+/// (screenshot of the iOS 27.2 simulator at 3x).
+class _TitleMenuGlyph extends StatelessWidget {
+  const _TitleMenuGlyph();
+
+  static const double gap = 6;
+
+  @override
+  Widget build(BuildContext context) => ExcludeSemantics(
+    child: CustomPaint(
+      size: const Size.square(20),
+      painter: _TitleMenuPainter(
+        disc: GlassDynamicColor.resolve(
+          GlassColors.secondarySystemFill,
+          context,
+        ),
+        chevron: GlassDynamicColor.resolve(GlassColors.secondaryLabel, context),
+      ),
+    ),
+  );
+}
+
+class _TitleMenuPainter extends CustomPainter {
+  _TitleMenuPainter({required this.disc, required this.chevron});
+
+  final Color disc;
+  final Color chevron;
+
+  static const double _stroke = 1.4;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const half = _stroke / 2;
+    canvas
+      ..drawCircle(const Offset(10, 10), 17.67 / 2, Paint()..color = disc)
+      ..drawPath(
+        Path()
+          ..moveTo(5.67 + half, 8 + half)
+          ..lineTo(10, 13 - half)
+          ..lineTo(5.67 + 8.67 - half, 8 + half),
+        Paint()
+          ..color = chevron
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round,
+      );
+  }
+
+  @override
+  bool shouldRepaint(_TitleMenuPainter oldDelegate) =>
+      oldDelegate.disc != disc || oldDelegate.chevron != chevron;
 }

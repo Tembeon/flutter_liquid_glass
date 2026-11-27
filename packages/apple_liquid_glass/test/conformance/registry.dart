@@ -55,6 +55,21 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'GlassPopUpButton',
+    covers: const ['GlassPopUpButton', 'GlassPopUpItem'],
+    kind: Kind.opener,
+    marker: find.text('Second'),
+    inside: find.text('Second'),
+    build: (probe, {required enabled}) => GlassPopUpButton<int>(
+      value: 1,
+      items: const [
+        GlassPopUpItem(value: 1, title: 'First'),
+        GlassPopUpItem(value: 2, title: 'Second'),
+      ],
+      onChanged: enabled ? (value) => probe.add('chosen') : null,
+    ),
+  ),
+  Entry(
     'RawGlassButton',
     covers: const ['RawGlassButton'],
     look: Look.builder,

@@ -1613,6 +1613,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget
     List<GlassBarEntry> leading = ...,
     Widget? title,
     Widget? subtitle,
+    List<GlassMenuEntry>? titleMenu,
     Widget? largeTitle,
     Widget? largeSubtitle,
     List<GlassBarEntry> trailing = ...,
@@ -1642,6 +1643,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget
   final GlassNavigationBarStyle? style
   final Widget? subtitle
   final Widget? title
+  final List<GlassMenuEntry>? titleMenu
   final List<GlassBarEntry> trailing
   @internal GlassNavigationBar withSearchField(Widget field)
   overrides: createState, preferredSize
@@ -1808,6 +1810,33 @@ class GlassPlatformScope extends StatefulWidget
   final GlassBarColumnBehavior? barColumnBehavior
   final Widget child
   overrides: createState
+class GlassPopUpButton<T> extends StatelessWidget
+  const GlassPopUpButton({
+    required T value,
+    required List<GlassPopUpItem<T>> items,
+    required void Function(T)? onChanged,
+    Widget Function(BuildContext, void Function()?, Widget)? builder,
+    String? semanticLabel,
+    Key? key,
+  })
+  final Widget Function(BuildContext, void Function()?, Widget)? builder
+  final List<GlassPopUpItem<T>> items
+  final void Function(T)? onChanged
+  final String? semanticLabel
+  final T value
+  overrides: build
+typedef GlassPopUpButtonBuilder = Widget Function(BuildContext, void Function()?, Widget)
+class GlassPopUpItem<T>
+  const GlassPopUpItem({
+    required T value,
+    required String title,
+    Widget? icon,
+    bool enabled = ...,
+  })
+  final bool enabled
+  final Widget? icon
+  final String title
+  final T value
 class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle>
   const GlassPopoverStyle({TextStyle? textStyle, Color? backgroundColor})
   final Color? backgroundColor
@@ -5760,6 +5789,9 @@ class GlassPageRoute (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageScrollPhysics (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPlainButtonStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPopUpButton (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassPopUpButtonBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPopUpItem (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPopoverStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassProgressView (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassProgressViewStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
