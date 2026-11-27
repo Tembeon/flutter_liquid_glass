@@ -22,6 +22,8 @@ class _StoriesState extends State<_Stories> {
   late int page = widget.page;
   double? shown;
 
+  void show(int next) => setState(() => page = next);
+
   @override
   Widget build(BuildContext context) => MediaQuery(
     data: const MediaQueryData(),
@@ -172,7 +174,7 @@ void main() {
     timer.resume();
     await _run(tester, 1);
     final state = tester.state<_StoriesState>(find.byType(_Stories));
-    state.setState(() => state.page = 3);
+    state.show(3);
     await tester.pump();
     expect(timer.progress, lessThan(0.05));
     expect(timer.isRunning, isTrue);
