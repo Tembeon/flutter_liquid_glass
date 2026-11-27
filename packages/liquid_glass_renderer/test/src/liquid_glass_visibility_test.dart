@@ -1,7 +1,6 @@
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/fake_glass.dart';
 
 void main() {
   testWidgets('nested visibility scopes multiply into shape appearance', (
@@ -15,7 +14,12 @@ void main() {
             visibility: 0.4,
             child: LiquidGlassLayer(
               fake: true,
-              defaultAppearance: LiquidGlassAppearance(visibility: 0.5),
+              defaultAppearance: LiquidGlassAppearance(
+                colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
+                ),
+                visibility: 0.5,
+              ),
               child: LiquidGlass(
                 shape: LiquidOval(),
                 child: SizedBox.square(dimension: 80),
@@ -27,11 +31,13 @@ void main() {
     );
     await tester.pump();
 
-    final renderObject = tester.allRenderObjects
-        .whereType<RenderFakeGlass>()
-        .toSet();
-    expect(renderObject, hasLength(1));
-    expect(renderObject.single.appearance.visibility, closeTo(0.1, 0.0001));
+    final fade = tester.widget<Opacity>(
+      find.descendant(
+        of: find.byType(LiquidGlass),
+        matching: find.byType(Opacity),
+      ),
+    );
+    expect(fade.opacity, closeTo(0.1, 0.0001));
   });
 
   testWidgets('visibility scopes clamp before multiplying', (tester) async {

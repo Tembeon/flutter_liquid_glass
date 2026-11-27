@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/app.dart';
@@ -21,11 +21,15 @@ void main() {
       );
       expect(
         light.settings,
-        withTestFrost(LiquidGlassSettings.ios27RegularLight()),
+        withTestFrost(
+          const LiquidGlassSettings.ios27Regular(),
+        ),
       );
       expect(
         light.withBrightness(Brightness.dark).settings,
-        withTestFrost(LiquidGlassSettings.ios27RegularDark()),
+        withTestFrost(
+          const LiquidGlassSettings.ios27Regular(),
+        ),
       );
 
       final clear = GlassMaterial.preset(
@@ -38,25 +42,34 @@ void main() {
       );
     });
 
-    test('the Liquid Glass slider keeps edits and owns the blur', () {
-      for (final (style, frost) in [
-        (GlassStyle.clear, LiquidGlassSettings.ios27ClearFrost(1)),
-        (GlassStyle.regular, LiquidGlassSettings.ios27RegularFrost(1)),
-      ]) {
+    test('the Liquid Glass slider keeps edits and moves a fitted blur', () {
+      for (final style in [GlassStyle.clear, GlassStyle.regular]) {
         final preset = GlassMaterial.preset(
           style: style,
           brightness: Brightness.light,
         );
         final tinted = preset
             .withSettings(preset.settings.copyWith(refractionAmount: 12))
-            .withTintAmount(1);
+            .withSliderPosition(1);
 
         expect(tinted.edited, isTrue);
-        expect(tinted.settings.refractionAmount, 12);
-        expect(tinted.settings.tintAmount, 1);
         expect(
-          tinted.settings.frost,
-          withTestFrost(LiquidGlassSettings(frost: frost)).frost,
+          tinted.settings,
+          GlassMaterial.preset(
+            style: style,
+            brightness: Brightness.light,
+            sliderPosition: 1,
+          ).settings.copyWith(refractionAmount: 12),
+          reason: '$style',
+        );
+
+        expect(
+          preset
+              .withSettings(preset.settings.copyWith(blur: 3))
+              .withSliderPosition(1)
+              .settings
+              .blur,
+          3,
           reason: '$style',
         );
       }
@@ -68,18 +81,18 @@ void main() {
         brightness: Brightness.light,
       );
       expect(GlassStyle.loupe.followsSlider, isFalse);
-      expect(loupe.withTintAmount(1).settings, loupe.settings);
+      expect(loupe.withSliderPosition(1).settings, loupe.settings);
       final edited = loupe.withSettings(
         loupe.settings.copyWith(refractionAmount: 20),
       );
-      expect(edited.withTintAmount(1).settings, edited.settings);
+      expect(edited.withSliderPosition(1).settings, edited.settings);
     });
 
     test('reset restores the preset at the current slider position', () {
       final material = GlassMaterial.preset(
         style: GlassStyle.regular,
         brightness: Brightness.dark,
-      ).withTintAmount(0.5).withSettings(const LiquidGlassSettings());
+      ).withSliderPosition(0.5).withSettings(const LiquidGlassSettings());
 
       final reset = material.reset();
 
@@ -87,9 +100,8 @@ void main() {
       expect(
         reset.settings,
         withTestFrost(
-          LiquidGlassSettings.ios27Regular(
-            brightness: Brightness.dark,
-            tintAmount: 0.5,
+          const LiquidGlassSettings.ios27Regular(
+            sliderPosition: 0.5,
           ),
         ),
       );
@@ -110,6 +122,16 @@ void main() {
         contains('  dispersion: -0.06,\n'),
       ),
     );
+    expect(
+      settingsSource(
+        const LiquidGlassSettings.ios27Clear(
+          blur: 2,
+        ).copyWith(refractionFitsShape: true),
+      ),
+      'const LiquidGlassSettings(\n'
+      '  blur: 2.0,\n'
+      ')',
+    );
   });
 
   test('the dispersion track is fine near zero and reaches ±2', () {
@@ -125,7 +147,8 @@ void main() {
     }
   });
 
-  testWidgets('the lighting section edits the inner shadow', (tester) async {
+  testWidgets('the lighting section edits the inner shadow of a direct '
+      'appearance', (tester) async {
     tester.view
       ..physicalSize = const Size(1280, 2400)
       ..devicePixelRatio = 1;
@@ -133,7 +156,7 @@ void main() {
 
     final material = ValueNotifier(
       GlassMaterial.preset(
-        style: GlassStyle.regular,
+        style: GlassStyle.loupe,
         brightness: Brightness.light,
       ),
     );
@@ -156,7 +179,14 @@ void main() {
     );
     tester.widget<CupertinoSlider>(slider).onChanged!(0.5);
     await tester.pump();
-    expect(material.value.settings.bevelShadowStrength, 0.5);
+    expect(
+      material.value.appearance.colorModel,
+      isA<LiquidGlassDirectColorModel>().having(
+        (model) => model.bevelShadowStrength,
+        'bevelShadowStrength',
+        0.5,
+      ),
+    );
     expect(material.value.edited, isTrue);
   });
 

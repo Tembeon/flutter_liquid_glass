@@ -1,0 +1,86 @@
+import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+
+const shape = LiquidRoundedSuperellipse(borderRadius: 20);
+final key = BackdropKey();
+
+void debugGeometry() {
+  debugPaintLiquidGlassGeometry = true;
+}
+
+LiquidGlassSettings settings(BuildContext context) =>
+    LiquidGlassSettings.of(context);
+
+Widget backdropGroups() {
+  return LiquidGlassLayer(
+    useBackdropGroup: true,
+    backdropKey: key,
+    child: Column(
+      children: [
+        LiquidGlass.auto(
+          shape: shape,
+          useBackdropGroup: true,
+          backdropKey: key,
+          child: const SizedBox(),
+        ),
+        LiquidGlass.withOwnLayer(
+          shape: shape,
+          useBackdropGroup: true,
+          child: const SizedBox(),
+        ),
+        FakeGlass(shape: shape, backdropKey: key, child: const SizedBox()),
+      ],
+    ),
+  );
+}
+
+LiquidGlassSettings slider(LiquidGlassSettings base) {
+  final light = LiquidGlassSettings.ios27RegularLight(tintAmount: 0.5, frost: 3);
+  final dark = LiquidGlassSettings.ios27RegularDark();
+  final regular = LiquidGlassSettings.ios27Regular(
+    brightness: Brightness.light,
+    tintAmount: 1,
+    frost: 6,
+  );
+  final clear = LiquidGlassSettings.ios27Clear(tintAmount: 0.25, frost: 1);
+  const plain = LiquidGlassSettings(tintAmount: 0.5, frost: 4);
+  return base.copyWith(
+    frost: 2,
+    tintAmount:
+        light.tintAmount +
+        light.frost +
+        dark.tintAmount +
+        regular.tintAmount +
+        clear.tintAmount +
+        plain.tintAmount,
+  );
+}
+
+List<LiquidGlassAppearance> appearances() => [
+  LiquidGlassAppearance.ios27RegularLight(),
+  LiquidGlassAppearance.ios27RegularDark(tint: const Color(0xFF0A84FF)),
+  const LiquidGlassAppearance(
+    colorModel: LiquidGlassColorModel.ios27(brightness: Brightness.light),
+  ),
+  const LiquidGlassAppearance(tint: Color(0x33FFFFFF)),
+];
+
+List<LiquidShape> shapes(LiquidRoundedRectangle box) => [
+  LiquidRoundedSuperellipse(borderRadius: 20),
+  LiquidRoundedRectangle(borderRadius: 8),
+  box.copyWith(borderRadius: 4),
+];
+
+Future<void> warm() async {
+  await LiquidGlass.precache();
+  await Future.wait([LiquidGlass.precache()]).then((_) => LiquidGlass.precache);
+}
+
+Widget blended() => LiquidGlassBlendGroup(
+  child: Row(
+    children: [
+      LiquidGlass.grouped(shape: shape, child: const SizedBox()),
+      LiquidGlass.grouped(shape: const LiquidOval(), child: const SizedBox()),
+    ],
+  ),
+);

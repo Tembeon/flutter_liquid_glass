@@ -16,6 +16,7 @@ dependencies:
   liquid_glass_renderer_example:
     path: ../../..
 
+  material_ui: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

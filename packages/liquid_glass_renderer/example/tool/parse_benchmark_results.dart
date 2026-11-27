@@ -28,9 +28,7 @@ void main(List<String> arguments) {
       .where((scenario) => scenario.isNotEmpty)
       .toSet()
       .toList();
-  if (reports.isEmpty &&
-      failedRuns.isEmpty &&
-      expectedScenarios.isEmpty) {
+  if (reports.isEmpty && failedRuns.isEmpty && expectedScenarios.isEmpty) {
     throw StateError('No benchmark scenario reports found.');
   }
 

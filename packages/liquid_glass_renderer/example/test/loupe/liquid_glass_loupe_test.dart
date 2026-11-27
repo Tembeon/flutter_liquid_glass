@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/loupe/liquid_glass_loupe.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   Widget app(Widget child) => MediaQuery(
@@ -65,8 +65,12 @@ void main() {
         Center(
           child: LiquidGlassLoupe(
             link: LiquidGlassLoupeLink(),
-            settings: LiquidGlassLoupe.defaultSettings.copyWith(tintAmount: 1),
-            appearance: const LiquidGlassAppearance.ios27RegularLight(),
+            settings: LiquidGlassLoupe.defaultSettings.copyWith(
+              sliderPosition: 1,
+            ),
+            appearance: const LiquidGlassAppearance.ios27Regular(
+              brightness: Brightness.light,
+            ),
           ),
         ),
       ),
@@ -88,8 +92,8 @@ void main() {
     const settings = LiquidGlassLoupe.defaultSettings;
     expect(settings.refractionHeight, 8);
     expect(settings.refractionAmount, 34.5);
-    expect(settings.dispersion, -0.06);
-    expect(settings.frost, 0);
-    expect(settings.backdropShrink, 0);
+    expect(settings.lens.dispersion, -0.06);
+    expect(settings.blur, 0);
+    expect(settings.lens.shrink, 0);
   });
 }

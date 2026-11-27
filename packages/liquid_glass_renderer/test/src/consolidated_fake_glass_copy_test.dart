@@ -1,0 +1,123 @@
+@Tags(['composer'])
+library;
+
+import 'package:flutter/rendering.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
+import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/opacity_pass_seed.dart';
+import 'package:liquid_glass_renderer/src/widgets/consolidated_fake_glass_layer.dart';
+import 'package:material_ui/material_ui.dart';
+
+import 'shared.dart';
+
+const _key = ValueKey('screen');
+
+Widget _scene({double shift = 0, double opacity = 1}) => Directionality(
+  textDirection: TextDirection.ltr,
+  child: RepaintBoundary(
+    key: _key,
+    child: Stack(
+      children: [
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: const [
+                  Color(0xFF1E3A8A),
+                  Color(0xFFF59E0B),
+                  Color(0xFF10B981),
+                ],
+                begin: Alignment(-1 + shift, -1),
+                end: Alignment.bottomRight,
+                tileMode: TileMode.mirror,
+              ),
+            ),
+            child: const Center(
+              child: Text(
+                'Page under the glass',
+                style: TextStyle(color: Color(0xFFFFFFFF), fontSize: 22),
+              ),
+            ),
+          ),
+        ),
+        Positioned.fromRect(
+          rect: const Rect.fromLTWH(40, 70, 180, 60),
+          child: Opacity(
+            opacity: opacity,
+            child: LiquidGlassLayer(
+              fake: true,
+              settings: const LiquidGlassSettings.ios27Regular().copyWith(
+                blur: 6,
+              ),
+              child: const LiquidGlass(
+                shape: LiquidRoundedSuperellipse(radius: 30),
+                child: SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  ),
+);
+
+RenderConsolidatedFakeGlassLayer _glass(WidgetTester tester) =>
+    tester.renderObject<RenderConsolidatedFakeGlassLayer>(
+      find.byType(ConsolidatedFakeGlassLayer),
+    );
+
+void main() {
+  testWidgets(
+    'grouped fake glass over a copy draws what reading the '
+    'backdrop draws',
+    (tester) async {
+      tester.view.physicalSize = const Size(260, 200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.runAsync(precacheLiquidGlass);
+
+      // flutter_tester renders only a process's first backdrop filter
+      // reliably, so the reference reads the backdrop first.
+      glassReadsCopies = false;
+      await tester.pumpWidget(_scene());
+      await tester.pump();
+      final reading = await boundaryPixels(tester, find.byKey(_key));
+      expect(_glass(tester).debugDrewOverCopy, isFalse);
+
+      glassReadsCopies = true;
+      debugGlassPolicy = const PlanPolicy(shaderBlurs: false);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(_scene(shift: 0.3));
+      await tester.pumpWidget(_scene());
+      expect(_glass(tester).debugDrewOverCopy, isTrue);
+      expect(
+        tester.layers.whereType<BackdropFilterLayer>().where(
+          (layer) => layer is! OpacitySeedLayer,
+        ),
+        isEmpty,
+      );
+      final copied = await boundaryPixels(tester, find.byKey(_key));
+      // NEAR: a blur Impeller downsamples takes other taps over a copy than
+      // over the whole backdrop; at 2 px of frost the two do not differ.
+      expect(largestDifference(reading, copied), lessThanOrEqualTo(20));
+    },
+    skip: skipProperGlassTests,
+    tags: 'macos_pixels',
+  );
+
+  testWidgets('fading grouped fake glass draws over a copy', (tester) async {
+    glassReadsCopies = true;
+    await tester.pumpWidget(_scene(shift: 0.3, opacity: 0.5));
+    await tester.pumpWidget(_scene(opacity: 0.5));
+    expect(_glass(tester).debugDrewOverCopy, isTrue);
+    expect(
+      tester.layers.whereType<OpacitySeedLayer>().where(
+        (layer) => layer.seeded,
+      ),
+      isEmpty,
+    );
+  });
+}

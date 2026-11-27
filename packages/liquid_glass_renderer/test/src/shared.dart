@@ -1,10 +1,13 @@
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
+import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
+import 'package:material_ui/material_ui.dart';
 
 const expectFlutterGpuFallback = bool.fromEnvironment(
   'EXPECT_FLUTTER_GPU_FALLBACK',
@@ -19,6 +22,21 @@ bool get skipProperGlassTests =>
 /// empty variant.
 bool get skipGoldenTests => skipProperGlassTests || !Platform.isMacOS;
 
+void expectGeneratedFile(String path, String text) {
+  final file = File(path);
+  if (const bool.fromEnvironment('UPDATE_SHADER_CONSTANTS')) {
+    file.writeAsStringSync(text);
+    return;
+  }
+  expect(
+    file.readAsStringSync(),
+    text,
+    reason:
+        '$path is generated: run with '
+        '--dart-define=UPDATE_SHADER_CONSTANTS=true.',
+  );
+}
+
 /// Compares [actual] with the pixel reference at [path], on macOS only.
 ///
 /// References are rendered by `flutter test --update-goldens` on the macOS
@@ -29,14 +47,71 @@ Future<void> expectMacOSGolden(Object? actual, String path) async {
   await expectLater(actual, matchesGoldenFile(path));
 }
 
+/// The pixels of the repaint boundary [boundary] finds, drawn at
+/// [pixelRatio].
+Future<Uint8List> boundaryPixels(
+  WidgetTester tester,
+  Finder boundary, {
+  double pixelRatio = 1,
+}) async {
+  final render = tester.renderObject<RenderRepaintBoundary>(boundary);
+  final image = (await tester.runAsync(
+    () => render.toImage(pixelRatio: pixelRatio),
+  ))!;
+  final bytes = (await tester.runAsync(image.toByteData))!;
+  image.dispose();
+  return bytes.buffer.asUint8List();
+}
+
+/// The largest channel difference between two frames.
+int largestDifference(List<int> a, List<int> b) {
+  var largest = 0;
+  for (var i = 0; i < a.length; i++) {
+    final d = (a[i] - b[i]).abs();
+    if (d > largest) largest = d;
+  }
+  return largest;
+}
+
+/// The most a channel may differ between unclipped glass that holds no other
+/// glass over a held image of its copy and the same glass over the copy
+/// drawn in the frame: the two routes round apart, by one level in one
+/// channel of one pixel where the copy holds two device pixels a side
+/// (visibility_frame_test on macOS). A clip, a frost or glass held in the
+/// copy parts them further, by the bounds their own tests hold.
+const heldImageDrift = 1;
+
+/// [heldImageDrift] where the glass draws an iOS 27 dark specular: its ring
+/// darkens what each route holds under it, two levels apart over the edge
+/// of a glyph (in_frame_copy_test).
+const heldImageRingDrift = 2;
+
 final testScenarioConstraints = BoxConstraints.tight(const Size(500, 500));
 
-const settingsWithoutLighting = LiquidGlassSettings(
-  highlight: 0,
+const settingsWithoutLighting = LiquidGlassSettings(blur: 0);
+
+const unlitDirect = LiquidGlassColorModel.direct(
+  brightness: Brightness.light,
+  glintStrength: 0,
   contourStrength: 0,
   bevelShadowStrength: 0,
-  frost: 0,
 );
+
+const appearanceWithoutLighting = LiquidGlassAppearance(
+  colorModel: unlitDirect,
+);
+
+Matrix4 stretchedBy(Offset pull, Size size) {
+  final relX = pull.dx.abs() / size.width;
+  final relY = pull.dy.abs() / size.height;
+  final baseX = 1 + relX;
+  final baseY = 1 + relY;
+  final areaGrowth = 1 + math.sqrt(relX * relX + relY * relY) * 0.5;
+  final correction = math.sqrt(areaGrowth / (baseX * baseY));
+  final move = pull * 1.5;
+  return Matrix4.translationValues(move.dx, move.dy, 0)
+    ..scaleByDouble(baseX * correction, baseY * correction, 1, 1);
+}
 
 Widget buildWithGridPaper(Widget child) {
   return ColoredBox(
@@ -59,36 +134,8 @@ Widget buildWithGridPaper(Widget child) {
   );
 }
 
-/// Pins the optimization that changes what the plain backdrop path draws or
-/// how many passes it costs (the native seeds) off for the current test, so it
-/// measures that path whatever `--dart-define`s set the default to
-/// (`melos run test:defaults` runs the suite with the production one). A test
-/// that wants seeds turns them on itself, after this. Call it from `setUp`;
-/// the flag is restored after the test.
-///
-/// Also used by the tests that compare captured pixels of real glass, in
-/// flutter_tester: it renders a seeded pass of real glass wrongly there
-/// (colour and alpha, differently from run to run: the foreground painted
-/// after the pass is erased, or the whole frame comes out partly transparent),
-/// while macOS Metal renders it exactly as the plain path does. The same
-/// scenes run unpinned on a device by the `*_device_test.dart` wrappers in
-/// `example/integration_test`.
-void pinPlainBackdropPath() {
-  final override = SeededBackdropPassLayer.debugModeOverride;
-  SeededBackdropPassLayer.debugModeOverride = BackdropSeed.none;
-  addTearDown(() => SeededBackdropPassLayer.debugModeOverride = override);
+/// Draws every copy of the current test into an image, as copies asked for
+/// with a filter always are, for tests of how images are shared and held.
+void copyIntoImages() {
+  debugGlassPolicy = const PlanPolicy(maxPasses: 0);
 }
-
-/// The passes of the current frame that are natively seeded.
-///
-/// A device run uses the production defaults, so a scene with a blurred glass
-/// has some; a host run pins them off (see [pinPlainBackdropPath]).
-List<SeededBackdropPassLayer> seededPasses(WidgetTester tester) => tester
-    .binding
-    .renderViews
-    .single
-    .debugLayer!
-    .depthFirstIterateChildren()
-    .whereType<SeededBackdropPassLayer>()
-    .where((pass) => pass.nativeSeed != BackdropSeed.none)
-    .toList();
