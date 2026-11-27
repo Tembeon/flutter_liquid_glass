@@ -25,13 +25,13 @@ class _ChevronPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     double x(double v) => mirrored ? size.width - v : v;
     final path = Path();
-    path.moveTo(x(3.7), 1.8);
+    path.moveTo(x(3.64), 1.97);
     path.lineTo(x(8.7), 7);
-    path.lineTo(x(3.7), 12.2);
+    path.lineTo(x(3.64), 12.03);
     final paint = Paint();
     paint.color = color;
     paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 2;
+    paint.strokeWidth = 1.93;
     paint.strokeCap = StrokeCap.round;
     paint.strokeJoin = StrokeJoin.round;
     canvas.drawPath(path, paint);
@@ -42,8 +42,9 @@ class _ChevronPainter extends CustomPainter {
       color != oldDelegate.color || mirrored != oldDelegate.mirrored;
 }
 
-/// A checkmark or an info button in its measured box; the strokes inside
-/// are drawn by eye.
+/// A checkmark or an info button in its measured box, its ink and strokes
+/// those of UIKit's symbol in that configuration (a 30x render, list
+/// passport); where the strokes turn is drawn by eye.
 class _Glyph extends StatelessWidget {
   _Glyph.checkmark(Color color)
     : painter = _CheckPainter(color),
@@ -69,13 +70,13 @@ class _CheckPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final path = Path();
-    path.moveTo(size.width * 0.08, size.height * 0.55);
-    path.lineTo(size.width * 0.36, size.height * 0.9);
-    path.lineTo(size.width * 0.92, size.height * 0.1);
+    path.moveTo(3.15, 9.4);
+    path.lineTo(7.38, 14.85);
+    path.lineTo(15.85, 2.48);
     final paint = Paint();
     paint.color = color;
     paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 2.2;
+    paint.strokeWidth = 2.3;
     paint.strokeCap = StrokeCap.round;
     paint.strokeJoin = StrokeJoin.round;
     canvas.drawPath(path, paint);
@@ -93,23 +94,33 @@ class _InfoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
-    final radius = size.shortestSide / 2 - 0.75;
+    const ink = 21.67;
+    const line = 1.53;
+    const radius = (ink - line) / 2;
     final ring = Paint();
     ring.color = color;
     ring.style = PaintingStyle.stroke;
-    ring.strokeWidth = 1.5;
+    ring.strokeWidth = line;
     canvas.drawCircle(center, radius, ring);
-    final dot = Paint();
-    dot.color = color;
-    canvas.drawCircle(center.translate(0, -radius * 0.45), 1.3, dot);
-    final stem = Paint();
-    stem.color = color;
-    stem.strokeWidth = 2;
-    stem.strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      center.translate(0, -radius * 0.12),
-      center.translate(0, radius * 0.5),
-      stem,
+    final mark = Paint();
+    mark.color = color;
+    canvas.drawCircle(center.translate(0, -radius * 0.5), 1.3, mark);
+    const stem = 1.43;
+    const foot = 6.6;
+    const top = -2.1;
+    const bottom = top + 7.83;
+    canvas.drawRect(
+      const Rect.fromLTRB(-stem / 2, top, stem / 2, bottom).shift(center),
+      mark,
+    );
+    canvas.drawRect(
+      const Rect.fromLTRB(
+        -foot / 2,
+        bottom - stem,
+        foot / 2,
+        bottom,
+      ).shift(center),
+      mark,
     );
   }
 
