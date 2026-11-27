@@ -282,6 +282,39 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('a subtitle turns the title 15 semibold over 12 regular, the '
+      'lines touching, centered where the title alone stands', (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(
+      _app(
+        GlassPageScaffold(
+          navigationBar: const GlassNavigationBar(
+            title: Text('Inbox'),
+            subtitle: Text('Updated just now'),
+          ),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pump();
+    final title = tester.getRect(find.text('Inbox'));
+    final subtitle = tester.getRect(find.text('Updated just now'));
+    expect(title.top, moreOrLessEquals(62 + 5.67, epsilon: 0.5));
+    expect(subtitle.top, moreOrLessEquals(62 + 23.67, epsilon: 0.5));
+    expect(subtitle.top, moreOrLessEquals(title.bottom, epsilon: 0.5));
+    expect(title.center.dx, moreOrLessEquals(201, epsilon: 0.5));
+    expect(subtitle.center.dx, moreOrLessEquals(201, epsilon: 0.5));
+    final styleOf = (String text) => tester
+        .widget<RichText>(
+          find.descendant(of: find.text(text), matching: find.byType(RichText)),
+        )
+        .text
+        .style!;
+    expect(styleOf('Inbox').fontSize, 15);
+    expect(styleOf('Inbox').fontWeight, FontWeight.w600);
+    expect(styleOf('Updated just now').fontSize, 12);
+  });
+
   testWidgets('the inline title sits on the center when it fits, else from '
       'the leading side, level with the capsules', (tester) async {
     await _phone(tester);

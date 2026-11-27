@@ -178,6 +178,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   const GlassNavigationBar({
     this.leading = const [],
     this.title,
+    this.subtitle,
     this.largeTitle,
     this.trailing = const [],
     this.automaticallyImplyLeading = true,
@@ -194,6 +195,13 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
 
   /// The inline title; [largeTitle] when null.
   final Widget? title;
+
+  /// The line under the inline title, or null for none (UIKit
+  /// `UINavigationItem.subtitle`): the title turns 15 points semibold over
+  /// the subtitle in 12 points regular secondary label, the two lines
+  /// touching and centered as one block where the title alone stands
+  /// (bars passport, 27.2).
+  final Widget? subtitle;
 
   /// The large title under the row, or null for an inline title only.
   final Widget? largeTitle;
@@ -500,6 +508,48 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     );
   }
 
+  Widget _titleBlock(
+    Widget title,
+    GlassTextScale scale,
+    GlassNavigationBarStyle look,
+    Color color,
+    BuildContext context,
+  ) {
+    final subtitle = widget.title == null ? null : widget.subtitle;
+    Widget line(Widget child, TextStyle style) => DefaultTextStyle(
+      style: scale.resolve(style),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      child: child,
+    );
+    if (subtitle == null) {
+      return line(
+        title,
+        _Metrics.title.merge(look.titleTextStyle).copyWith(color: color),
+      );
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        line(
+          title,
+          _Metrics.subtitledTitle
+              .merge(look.titleTextStyle)
+              .copyWith(color: color),
+        ),
+        line(
+          subtitle,
+          _Metrics.subtitle.copyWith(
+            color: GlassDynamicColor.resolve(
+              GlassColors.secondaryLabel,
+              context,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final look = (widget.style ?? const GlassNavigationBarStyle()).merge(
@@ -592,15 +642,12 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                     child: MotionTransition(
                       pose: _titleLook,
                       child: titleScale.apply(
-                        DefaultTextStyle(
-                          style: titleScale.resolve(
-                            _Metrics.title
-                                .merge(look.titleTextStyle)
-                                .copyWith(color: color),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          child: title,
+                        _titleBlock(
+                          title,
+                          titleScale,
+                          look,
+                          color,
+                          context,
                         ),
                       ),
                     ),
@@ -723,6 +770,18 @@ abstract final class _Metrics {
     fontSize: 17,
     fontWeight: FontWeight.w600,
     height: 1.2,
+  );
+
+  /// The inline title over a subtitle: 15 points semibold, and the
+  /// subtitle 12 points regular (bars passport, 27.2).
+  static const subtitledTitle = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    height: 18.33 / 15,
+  );
+  static const subtitle = TextStyle(
+    fontSize: 12,
+    height: 14.67 / 12,
   );
 
   /// The large title: 34 points bold.

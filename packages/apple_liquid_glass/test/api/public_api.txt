@@ -1532,6 +1532,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget
   const GlassNavigationBar({
     List<GlassBarEntry> leading = ...,
     Widget? title,
+    Widget? subtitle,
     Widget? largeTitle,
     List<GlassBarEntry> trailing = ...,
     bool automaticallyImplyLeading = ...,
@@ -1554,6 +1555,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget
   static const double searchFieldHeight
   static const double sideInset
   final GlassNavigationBarStyle? style
+  final Widget? subtitle
   final Widget? title
   final List<GlassBarEntry> trailing
   @internal GlassNavigationBar withSearchField(Widget field)
