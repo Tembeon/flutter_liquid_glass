@@ -42,6 +42,9 @@ class _ButtonPageState extends State<ButtonPage> {
   var _size = _ButtonSize.standard;
   var _loading = false;
   var _rounded = false;
+  var _subtitle = false;
+  var _repeats = false;
+  var _poured = 0;
   var _sort = 'Thirst';
   var _room = 'Kitchen';
   final _lit = <int>{1};
@@ -70,7 +73,8 @@ class _ButtonPageState extends State<ButtonPage> {
 
   @override
   Widget build(BuildContext context) {
-    final onPressed = _enabled ? () {} : null;
+    final onPressed = _enabled ? () => setState(() => _poured++) : null;
+    final subtitle = _subtitle ? Text('$_poured poured') : null;
     final child = _icon
         ? const Icon(CupertinoIcons.drop_fill)
         : const Text('Water now');
@@ -95,6 +99,8 @@ class _ButtonPageState extends State<ButtonPage> {
           semanticLabel: 'Water now',
           style: style,
           loading: _loading,
+          repeats: _repeats,
+          subtitle: subtitle,
           child: child,
         ),
         _ButtonKind.prominent => GlassButton.prominent(
@@ -102,6 +108,8 @@ class _ButtonPageState extends State<ButtonPage> {
           semanticLabel: 'Water now',
           style: style,
           loading: _loading,
+          repeats: _repeats,
+          subtitle: subtitle,
           child: child,
         ),
         _ButtonKind.clear => GlassButton.clear(
@@ -109,6 +117,8 @@ class _ButtonPageState extends State<ButtonPage> {
           semanticLabel: 'Water now',
           style: style,
           loading: _loading,
+          repeats: _repeats,
+          subtitle: subtitle,
           child: child,
         ),
         _ButtonKind.tinted => GlassButton.prominentClear(
@@ -116,6 +126,8 @@ class _ButtonPageState extends State<ButtonPage> {
           semanticLabel: 'Water now',
           style: style,
           loading: _loading,
+          repeats: _repeats,
+          subtitle: subtitle,
           child: child,
         ),
       },
@@ -156,6 +168,16 @@ class _ButtonPageState extends State<ButtonPage> {
           'Corners of 10 points',
           value: _rounded,
           onChanged: (on) => setState(() => _rounded = on),
+        ),
+        ToggleKnob(
+          'Subtitle',
+          value: _subtitle,
+          onChanged: (on) => setState(() => _subtitle = on),
+        ),
+        ToggleKnob(
+          'Repeats when held',
+          value: _repeats,
+          onChanged: (on) => setState(() => _repeats = on),
         ),
         ToggleKnob(
           'Enabled',
@@ -449,6 +471,8 @@ class _SliderPageState extends State<SliderPage> {
   var _value = 0.6;
   var _ticks = 0;
   var _neutral = false;
+  var _snaps = true;
+  var _bounded = false;
   var _brand = Brand.system;
   var _light = 0.4;
 
@@ -462,6 +486,8 @@ class _SliderPageState extends State<SliderPage> {
       value: _value,
       ticks: _ticks,
       neutralValue: _neutral ? 0.5 : null,
+      snapsToTicks: _snaps,
+      enabledBounds: _bounded ? (0.2, 0.8) : null,
       style: _brand.color == null
           ? null
           : GlassSlider.styleFrom(activeTrackColor: _brand.color),
@@ -480,6 +506,16 @@ class _SliderPageState extends State<SliderPage> {
         'Fill from the middle',
         value: _neutral,
         onChanged: (on) => setState(() => _neutral = on),
+      ),
+      ToggleKnob(
+        'Snaps to ticks',
+        value: _snaps,
+        onChanged: (on) => setState(() => _snaps = on),
+      ),
+      ToggleKnob(
+        'Drag only between 0.2 and 0.8',
+        value: _bounded,
+        onChanged: (on) => setState(() => _bounded = on),
       ),
       ChoiceKnob<Brand>(
         'Colors',

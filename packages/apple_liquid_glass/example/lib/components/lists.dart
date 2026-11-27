@@ -33,6 +33,8 @@ class _ListPageState extends State<ListPage> {
   var _next = 0;
   var _size = 1;
   var _edit = _Edit.off;
+  var _tight = false;
+  var _animation = GlassListRowAnimation.automatic;
   var _picked = <Object>{};
 
   void _change(VoidCallback change) =>
@@ -115,6 +117,22 @@ class _ListPageState extends State<ListPage> {
           value: _roomy,
           onChanged: (on) => setState(() => _roomy = on),
         ),
+        ToggleKnob(
+          'Tight sections',
+          value: _tight,
+          onChanged: (on) => setState(() => _tight = on),
+        ),
+        ChoiceKnob<GlassListRowAnimation>(
+          'Row animation',
+          value: _animation,
+          options: const {
+            GlassListRowAnimation.automatic: 'Auto',
+            GlassListRowAnimation.fade: 'Fade',
+            GlassListRowAnimation.left: 'Left',
+            GlassListRowAnimation.middle: 'Middle',
+          },
+          onChanged: (animation) => setState(() => _animation = animation),
+        ),
       ],
       ideas: [
         Idea(
@@ -135,6 +153,8 @@ class _ListPageState extends State<ListPage> {
                 contentPadding: _roomy
                     ? const EdgeInsetsDirectional.fromSTEB(24, 22, 24, 22)
                     : null,
+                sectionMargin: _tight ? 8 : null,
+                sectionSpacing: _tight ? 12 : null,
               ),
               header: _headers ? const Text('Living room') : null,
               footer: _headers
@@ -211,6 +231,7 @@ class _ListPageState extends State<ListPage> {
           GlassSliverListSection(
             ids: ids,
             itemCount: ids.length,
+            rowAnimation: _animation,
             onReorderItem: (from, to) => setState(() {
               if (from >= _tasks.length) return;
               final task = _tasks.removeAt(from);
