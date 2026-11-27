@@ -115,6 +115,46 @@ Offset _thumbStart(WidgetTester tester) =>
     const Offset(37 / 2, RawGlassSlider.height / 2);
 
 void main() {
+  testWidgets('with snapsToTicks off a value between ticks rests where it '
+      "is, and enabled bounds in the slider's own range stop a drag", (
+    tester,
+  ) async {
+    var value = 45.0;
+    await tester.pumpWidget(
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) => GlassSlider(
+            value: value,
+            max: 100,
+            ticks: 4,
+            snapsToTicks: false,
+            enabledBounds: (20, 60),
+            onChanged: (next) => setState(() => value = next),
+          ),
+        ),
+      ),
+    );
+    final box = tester.getRect(find.byType(GlassSlider));
+    final thumb = Offset(
+      box.left + 18.5 + 0.45 * (box.width - 37),
+      box.center.dy,
+    );
+    final finger = await tester.startGesture(thumb);
+    await finger.moveBy(const Offset(15, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    await finger.moveBy(const Offset(15, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(value, inInclusiveRange(48.0, 56.0));
+    await finger.moveBy(const Offset(200, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(value, moreOrLessEquals(60));
+    await finger.up();
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(value, lessThanOrEqualTo(60));
+  });
+
   setUp(MotionClock.debugReset);
 
   testWidgets('a drag on the thumb moves the value without rebuilding the '

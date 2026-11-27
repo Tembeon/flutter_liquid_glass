@@ -219,40 +219,44 @@ class _GlassListRowState extends State<GlassListRow> {
   // The width of the leading slot, which moves the separator's start.
   final _leadingWidth = ValueNotifier<double>(_Metrics.leadingWidth);
 
-  // The change into and out of editing, and the controls it shows while it
-  // runs, kept until the row rests out of editing.
-  late final ListEditMotion _edit = ListEditMotion(
-    clock: MotionClockScope.of(context),
-  );
-  late final MotionSelection<double> _editProgress = _edit.select(
-    (m) => m.progress.valueAt(m.now).clamp(0.0, 1.0),
-  );
-  late final MotionSelection<bool> _editGone = _edit.select(
-    (m) => m.restsOut,
-  );
+  // The change into and out of editing, made the first time the row goes
+  // into editing, and the controls it shows while it runs, kept until the
+  // row rests out of editing.
+  ListEditMotion? _editMotion;
+  MotionSelection<double>? _editProgress;
+  MotionSelection<bool>? _editGone;
   bool? _editing;
   _EditKind? _shownEdit;
   bool _shownGrip = false;
-  bool _listening = false;
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_listening) return;
-    _listening = true;
-    _editGone.addListener(_editEnded);
+  ListEditMotion get _edit {
+    if (_editMotion case final motion?) return motion;
+    final motion = _editMotion = ListEditMotion(
+      clock: MotionClockScope.of(context),
+    );
+    _editProgress = motion.select(
+      (m) => m.progress.valueAt(m.now).clamp(0.0, 1.0),
+    );
+    _editGone = motion.select((m) => m.restsOut)..addListener(_editEnded);
+    return motion;
   }
+
+  // How far into editing the row is: 0 for a row never edited.
+  ValueListenable<double> get _progress =>
+      _editProgress ?? const AlwaysStoppedAnimation<double>(0);
 
   @override
   void dispose() {
-    _editGone.removeListener(_editEnded);
+    _editGone?.removeListener(_editEnded);
     _confirm.dispose();
     _leadingWidth.dispose();
     super.dispose();
   }
 
   void _editEnded() {
-    if (!mounted || !_editGone.value || (_editing ?? false)) return;
+    if (!mounted || !(_editGone?.value ?? false) || (_editing ?? false)) {
+      return;
+    }
     if (_shownEdit == null && !_shownGrip) return;
     setState(() {
       _shownEdit = null;
@@ -269,7 +273,9 @@ class _GlassListRowState extends State<GlassListRow> {
     if (_editing == editing) return;
     final first = _editing == null;
     _editing = editing;
-    _edit.edit(_edit.clock.now, editing: editing, animated: !first);
+    if (first && !editing) return;
+    final motion = _edit;
+    motion.edit(motion.clock.now, editing: editing, animated: !first);
   }
 
   void _measureLeading(double t, Size size) => _leadingWidth.value = size.width;
@@ -556,7 +562,7 @@ class _GlassListRowState extends State<GlassListRow> {
         editStart: editStart,
         end: restEnd,
         editEnd: editEnd,
-        progress: _editProgress,
+        progress: _progress,
         direction: Directionality.of(context),
         child: Row(
           children: [
@@ -582,7 +588,7 @@ class _GlassListRowState extends State<GlassListRow> {
             color: color(look.separatorColor),
             textStart: start,
             editTextStart: editStart,
-            edit: _editProgress,
+            edit: _progress,
             indent: look.separatorIndent,
             endIndent: look.separatorEndIndent ?? inset,
             leadingWidth: leading == null ? null : _leadingWidth,

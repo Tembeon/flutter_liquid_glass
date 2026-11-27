@@ -85,6 +85,7 @@ final class SliderMotion extends Motion {
     required this._width,
     required double value,
     this._ticks = 0,
+    this.snapsToTicks = true,
     this.onEvent,
     super.clock,
   }) : _value = value.clamp(0.0, 1.0),
@@ -226,7 +227,7 @@ final class SliderMotion extends Motion {
 
   /// Whether the value snaps to the ticks; without, they only catch it
   /// within [tickZone].
-  bool snapsToTicks = true;
+  bool snapsToTicks;
 
   /// The share of the track about each stop within which a slider that
   /// does not snap takes the stop (UIKit's 0.05).

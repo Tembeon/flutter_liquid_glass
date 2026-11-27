@@ -96,6 +96,13 @@ class _RawGlassListState extends State<RawGlassList> {
   late final MotionSelection<bool> _landed = _motion.select(
     (_) => _landing != null && _motion.itemRests(_landing!),
   );
+  late final MotionSelection<bool> _settled = _motion.select(
+    (m) => m.isSettled,
+  );
+
+  // Rows that arrived in the change that runs: drawn below the others, so
+  // a row coming down from one row up slides out from under its neighbour.
+  Set<Object> _arriving = const {};
 
   Object? _held;
   Object? _landing;
@@ -114,11 +121,27 @@ class _RawGlassListState extends State<RawGlassList> {
     if (_listening) return;
     _listening = true;
     _landed.addListener(_endLanding);
+    _settled.addListener(_endArriving);
+  }
+
+  void _endArriving() {
+    if (!_motion.isSettled || _arriving.isEmpty || !mounted) return;
+    setState(() => _arriving = const {});
   }
 
   @override
   void didUpdateWidget(RawGlassList oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final before = oldWidget.ids.toSet();
+    final arrived = [
+      for (final id in widget.ids)
+        if (!before.contains(id)) id,
+    ];
+    if (arrived.isNotEmpty) {
+      _arriving = {..._arriving, ...arrived};
+      // A change that jumped settles in the frame it is laid out in.
+      _motion.clock.schedulePublish(_endArriving);
+    }
     _motion.planner = widget.planner;
     if (_held != null &&
         (!listEquals(oldWidget.ids, widget.ids) ||
@@ -130,6 +153,7 @@ class _RawGlassListState extends State<RawGlassList> {
   @override
   void dispose() {
     _landed.removeListener(_endLanding);
+    _settled.removeListener(_endArriving);
     super.dispose();
   }
 
@@ -246,6 +270,7 @@ class _RawGlassListState extends State<RawGlassList> {
       ids: shown,
       motion: _motion,
       raised: raised,
+      lowered: _arriving,
       itemBuilder: (context, id) => _ReorderItem(
         state: this,
         id: id,

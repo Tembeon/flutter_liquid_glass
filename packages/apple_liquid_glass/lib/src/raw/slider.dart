@@ -199,6 +199,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     width: 0,
     value: _unit(widget.value),
     ticks: widget.ticks,
+    snapsToTicks: widget.snapsToTicks,
     onEvent: _deliver,
     clock: MotionClockScope.of(context),
   );

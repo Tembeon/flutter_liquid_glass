@@ -26,7 +26,8 @@ enum GlassListRowAnimation {
   /// it; an inserted one slides down from one row up.
   top,
 
-  /// A deleted row stays and the rows below slide up over it; an inserted
+  /// A deleted row stays and the rows below slide up over it, or fades
+  /// where no row is below it (the last row; not captured); an inserted
   /// one slides up from one row down (not captured; mirrors [top]).
   bottom,
 
@@ -58,12 +59,27 @@ final class ListRowPlanner extends LayoutPlanner {
   @override
   Map<Object, LayoutPlan> plan(LayoutChange change) {
     final spring = change.spring == null ? null : _table;
+    final remaining = [
+      for (final entry in change.entries.values)
+        switch (entry) {
+          LayoutStaying(:final to) || LayoutEntering(:final to) => to,
+          LayoutLeaving() => null,
+        },
+    ].nonNulls;
+    // A row that stays only because the rows below cover it fades where
+    // none is below it.
+    bool covered(Rect from) =>
+        remaining.any((to) => to.bottom > from.bottom + 0.5);
     return {
       for (final MapEntry(:key, :value) in change.entries.entries)
         key: switch (value) {
           LayoutStaying() => LayoutPlan(spring: spring),
           LayoutEntering(:final to) => _enter(to, spring),
-          LayoutLeaving(:final from) => _leave(from, spring),
+          LayoutLeaving(:final from) => _leave(
+            from,
+            spring,
+            covered: covered(from),
+          ),
         },
     };
   }
@@ -95,7 +111,11 @@ final class ListRowPlanner extends LayoutPlanner {
     };
   }
 
-  LayoutPlan _leave(Rect from, Spring? spring) => switch (animation) {
+  LayoutPlan _leave(
+    Rect from,
+    Spring? spring, {
+    required bool covered,
+  }) => switch (animation) {
     GlassListRowAnimation.none => const LayoutPlan(),
     GlassListRowAnimation.fade => LayoutPlan(spring: spring, absent: _fade),
     GlassListRowAnimation.right => LayoutPlan(
@@ -111,7 +131,10 @@ final class ListRowPlanner extends LayoutPlanner {
       destination: from.translate(0, -from.height),
     ),
     GlassListRowAnimation.bottom ||
-    GlassListRowAnimation.automatic => LayoutPlan(spring: spring),
+    GlassListRowAnimation.automatic => LayoutPlan(
+      spring: spring,
+      absent: covered ? MotionPose.identity : _fade,
+    ),
     GlassListRowAnimation.middle => LayoutPlan(
       spring: spring,
       destination: from.translate(0, -from.height / 2),

@@ -5252,6 +5252,7 @@ final class SliderMotion extends Motion
     required double width,
     required double value,
     int ticks = ...,
+    bool snapsToTicks = ...,
     void Function(SliderEvent)? onEvent,
     MotionClock? clock,
   })

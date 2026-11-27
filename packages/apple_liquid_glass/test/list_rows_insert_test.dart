@@ -307,4 +307,57 @@ void main() {
     expect(list.actions, ['flag a']);
     semantics.dispose();
   });
+
+  int? alphaOf(WidgetTester tester, String note) {
+    RenderObject? box = tester.renderObject(find.byKey(ValueKey(note)));
+    while (box != null) {
+      if (box.debugLayer case final MotionTransitionLayer layer) {
+        return layer.alpha;
+      }
+      box = box.parent;
+    }
+    return null;
+  }
+
+  int paintIndex(WidgetTester tester, String note) {
+    RenderObject? box = tester.renderObject(find.byKey(ValueKey(note)));
+    while (box != null && box.debugLayer is! MotionTransitionLayer) {
+      box = box.parent;
+    }
+    final layer = box!.debugLayer!;
+    var index = 0;
+    var sibling = layer.parent!.firstChild;
+    while (sibling != null && !identical(sibling, layer)) {
+      index++;
+      sibling = sibling.nextSibling;
+    }
+    return index;
+  }
+
+  testWidgets('an inserted row slides out from under the row above it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _Notes(notes: ['a', 'b']));
+    final list = tester.state<_NotesState>(find.byType(_Notes));
+    withSpring(_spring, () => list.change(['a', 'x', 'b']));
+    await tester.pump(_frame);
+    await tester.pump(_frame);
+    expect(paintIndex(tester, 'x'), lessThan(paintIndex(tester, 'a')));
+    await _settle(tester);
+    expect(paintIndex(tester, 'x'), greaterThan(paintIndex(tester, 'a')));
+  });
+
+  testWidgets('a deleted last row, with no row below to cover it, fades', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _Notes(notes: ['a', 'b', 'c']));
+    final list = tester.state<_NotesState>(find.byType(_Notes));
+    withSpring(_spring, () => list.change(['a', 'b']));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(_frame);
+    }
+    expect(alphaOf(tester, 'c'), lessThan(255));
+    await _settle(tester);
+    expect(find.text('c'), findsNothing);
+  });
 }

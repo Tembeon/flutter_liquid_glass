@@ -427,6 +427,25 @@ void main() {
       );
     });
 
+    testWidgets('a row with trailing actions only stays put and untinted '
+        'under a drag toward its leading edge', (tester) async {
+      await tester.pumpWidget(_app([]));
+      double at() => tester.getTopLeft(find.text('Message')).dx;
+      final rest = at();
+      final finger = await tester.startGesture(
+        tester.getCenter(find.text('Message')),
+      );
+      await finger.moveBy(const Offset(25 + 60, 0));
+      await tester.pump(_frame);
+      expect(at(), rest);
+      expect(
+        find.byType(GlassSwipeActions),
+        isNot(paints..rrect(color: const Color(0xFFE5E5EA))),
+      );
+      await finger.up();
+      await _settle(tester);
+    });
+
     testWidgets('after a release the buttons scale in, overshooting, and '
         'stand whole', (tester) async {
       await tester.pumpWidget(both([]));

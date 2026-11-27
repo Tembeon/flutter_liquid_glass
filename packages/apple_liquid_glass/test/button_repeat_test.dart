@@ -41,7 +41,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16));
     }
     await finger.up();
-    await tester.pump(const Duration(milliseconds: 16));
+    for (var i = 0; i < 200; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
     final seconds = [
       for (final t in times) (t - down).inMicroseconds / 1e6,
     ];

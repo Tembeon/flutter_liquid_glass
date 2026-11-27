@@ -189,6 +189,11 @@ final class SwipeActionsMotion extends Motion {
         value = at + (value - at) * leadingCommitResistance;
       }
     }
+    // A side without actions does not move, as UIKit's pan does not start
+    // toward it.
+    if ((leadingCount == 0 && value > 0) || (trailingCount == 0 && value < 0)) {
+      value = 0;
+    }
     if (value != previous) _direction = value < previous ? -1 : 1;
     offset.snap(t, value);
   }

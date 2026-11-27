@@ -91,7 +91,8 @@ class SwipeRevealColor extends InheritedWidget {
 /// systemGray5 with a round end toward the actions, the strip behind them
 /// shows the page's background, and each action is a button 44 points tall
 /// in its fill (systemRed for a destructive one, systemGray3 otherwise),
-/// a title in 13 point white with 12 points on each side on a rounded
+/// a title in 13 point white, which keeps its size at every text size as
+/// UIKit's does, with 12 points on each side on a rounded
 /// rectangle of radius 16, or an [GlassSwipeAction.icon] on a capsule 60
 /// points wide; the buttons of a side share the widest one's width. They
 /// grow from nothing as the strip opens, the first stretching past the
@@ -216,7 +217,7 @@ class _ActionButton extends StatelessWidget {
             action.title,
             maxLines: 1,
             softWrap: false,
-            style: GlassTextScale.of(context).resolve(
+            style: GlassTextScale.fixed(context).resolve(
               GlassSwipeActions._titleStyle.copyWith(color: foreground),
             ),
           );
