@@ -1,5 +1,7 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass/raw.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Widget _app(Widget child, {Brightness brightness = Brightness.light}) =>
@@ -86,6 +88,63 @@ void main() {
     );
     expect(find.byType(GlassButton), _fills(const Color(0xFF0088FF)));
     expect(_label(tester), 0xFFFFFFFF);
+  });
+
+  testWidgets('a shape outlines the glass of a glass button, the fill of a '
+      'filled one and the hover of a plain one in place of their defaults', (
+    tester,
+  ) async {
+    const shape = LiquidRoundedSuperellipse(radius: 8);
+    final style = GlassButton.styleFrom(shape: shape);
+    await tester.pumpWidget(
+      _app(
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GlassButton(onPressed: () {}, style: style, child: const Text('A')),
+            GlassButton.filled(
+              onPressed: () {},
+              style: style,
+              child: const Text('Go'),
+            ),
+            GlassButton.plain(
+              onPressed: () {},
+              style: style,
+              child: const Text('C'),
+            ),
+          ],
+        ),
+      ),
+    );
+    final raws = tester.widgetList<RawGlassButton>(find.byType(RawGlassButton));
+    expect(raws.map((raw) => raw.shape), everyElement(shape));
+    final filled = find.ancestor(
+      of: find.text('Go'),
+      matching: find.byType(GlassButton),
+    );
+    expect(
+      filled,
+      paints..something(
+        (method, arguments) =>
+            method == #drawRSuperellipse &&
+            (arguments.first as RSuperellipse).tlRadiusX == 8,
+      ),
+    );
+    await tester.pumpWidget(
+      _app(GlassButton.filled(onPressed: () {}, child: const Text('Go'))),
+    );
+    expect(
+      find.byType(GlassButton),
+      paints..something(
+        (method, arguments) =>
+            method == #drawRSuperellipse &&
+            (arguments.first as RSuperellipse).tlRadiusX == 31 / 2,
+      ),
+    );
+    expect(
+      tester.widget<RawGlassButton>(find.byType(RawGlassButton)).shape,
+      LiquidRoundedSuperellipse.capsule,
+    );
   });
 
   testWidgets('a disabled gray, tinted or filled button draws '

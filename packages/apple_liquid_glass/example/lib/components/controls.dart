@@ -41,6 +41,7 @@ class _ButtonPageState extends State<ButtonPage> {
   var _enabled = true;
   var _size = _ButtonSize.standard;
   var _loading = false;
+  var _rounded = false;
   var _sort = 'Thirst';
   var _room = 'Kitchen';
   final _lit = <int>{1};
@@ -73,18 +74,15 @@ class _ButtonPageState extends State<ButtonPage> {
     final child = _icon
         ? const Icon(CupertinoIcons.drop_fill)
         : const Text('Water now');
-    final style = switch (_size) {
-      _ButtonSize.standard => null,
-      _ButtonSize.small => GlassButton.styleFrom(
-        controlSize: GlassControlSize.small,
-      ),
-      _ButtonSize.medium => GlassButton.styleFrom(
-        controlSize: GlassControlSize.medium,
-      ),
-      _ButtonSize.large => GlassButton.styleFrom(
-        controlSize: GlassControlSize.large,
-      ),
-    };
+    final style = GlassButton.styleFrom(
+      controlSize: switch (_size) {
+        _ButtonSize.standard => null,
+        _ButtonSize.small => GlassControlSize.small,
+        _ButtonSize.medium => GlassControlSize.medium,
+        _ButtonSize.large => GlassControlSize.large,
+      },
+      shape: _rounded ? const LiquidRoundedSuperellipse(radius: 10) : null,
+    );
     return ComponentPage(
       name: 'GlassButton',
       summary:
@@ -153,6 +151,11 @@ class _ButtonPageState extends State<ButtonPage> {
           'Loading',
           value: _loading,
           onChanged: (on) => setState(() => _loading = on),
+        ),
+        ToggleKnob(
+          'Corners of 10 points',
+          value: _rounded,
+          onChanged: (on) => setState(() => _rounded = on),
         ),
         ToggleKnob(
           'Enabled',

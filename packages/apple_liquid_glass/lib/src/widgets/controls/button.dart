@@ -29,6 +29,7 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
     this.padding,
     this.minimumSize,
     this.iconSize,
+    this.shape,
     this.focusColor,
     this.hoverColor,
     this.builder,
@@ -60,6 +61,18 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
   /// The size of the label's icons.
   final WidgetStateProperty<double?>? iconSize;
 
+  /// The outline of the button's glass, or of its fill, as UIKit's
+  /// `cornerStyle` and SwiftUI's `buttonBorderShape` set it; null keeps a
+  /// glass button's capsule and a gray, tinted or filled button's dynamic
+  /// corner. A plain button draws no body, so it shapes only its hover
+  /// fill and focus ring with it.
+  ///
+  /// UIKit resolves its corner styles from the button's height: `capsule`
+  /// is half of it, `large` a quarter, `medium` 0.175 of it and `small` an
+  /// eighth (button passport); a [LiquidRoundedSuperellipse] of that radius
+  /// draws each of them.
+  final LiquidShape? shape;
+
   /// The ring around a button focused from the keyboard; null derives it
   /// from the glass's tint as Flutter's Cupertino button does, and a
   /// transparent color draws none.
@@ -84,6 +97,7 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
     required WidgetStateProperty<EdgeInsetsGeometry?>? padding,
     required WidgetStateProperty<Size?>? minimumSize,
     required WidgetStateProperty<double?>? iconSize,
+    required LiquidShape? shape,
     required Color? focusColor,
     required Color? hoverColor,
     required GlassButtonBuilder? builder,
@@ -95,6 +109,7 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
     padding: padding,
     minimumSize: minimumSize,
     iconSize: iconSize,
+    shape: shape,
     focusColor: focusColor,
     hoverColor: hoverColor,
     builder: builder,
@@ -118,6 +133,7 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
       padding: GlassStyle.mergeStates(padding, other.padding),
       minimumSize: GlassStyle.mergeStates(minimumSize, other.minimumSize),
       iconSize: GlassStyle.mergeStates(iconSize, other.iconSize),
+      shape: shape ?? other.shape,
       focusColor: focusColor ?? other.focusColor,
       hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
@@ -133,6 +149,7 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
     WidgetStateProperty<EdgeInsetsGeometry?>? padding,
     WidgetStateProperty<Size?>? minimumSize,
     WidgetStateProperty<double?>? iconSize,
+    LiquidShape? shape,
     Color? focusColor,
     Color? hoverColor,
     GlassButtonBuilder? builder,
@@ -144,16 +161,18 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
     padding: padding ?? this.padding,
     minimumSize: minimumSize ?? this.minimumSize,
     iconSize: iconSize ?? this.iconSize,
+    shape: shape ?? this.shape,
     focusColor: focusColor ?? this.focusColor,
     hoverColor: hoverColor ?? this.hoverColor,
     builder: builder ?? this.builder,
   );
 
-  /// The style between this one and [other] at [t]; the builder switches
-  /// at the middle.
+  /// The style between this one and [other] at [t]; the builder, and a
+  /// shape that does not lerp into the other, switch at the middle.
   @override
   GlassButtonStyle lerp(GlassButtonStyle other, double t) {
     if (identical(this, other)) return this;
+    final shape = ShapeBorder.lerp(this.shape, other.shape, t);
     return _with(
       backgroundColor: WidgetStateProperty.lerp<Color?>(
         backgroundColor,
@@ -197,6 +216,11 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
         t,
         GlassStyle.lerpNullable(lerpDouble),
       ),
+      shape: shape is LiquidShape
+          ? shape
+          : t < 0.5
+          ? this.shape
+          : other.shape,
       focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
       hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
       builder: t < 0.5 ? builder : other.builder,
@@ -214,6 +238,7 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
       other.padding == padding &&
       other.minimumSize == minimumSize &&
       other.iconSize == iconSize &&
+      other.shape == shape &&
       other.focusColor == focusColor &&
       other.hoverColor == hoverColor &&
       other.builder == builder;
@@ -227,6 +252,7 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
     padding,
     minimumSize,
     iconSize,
+    shape,
     focusColor,
     hoverColor,
     builder,
@@ -250,6 +276,7 @@ class GlassProminentButtonStyle extends GlassButtonStyle {
     super.padding,
     super.minimumSize,
     super.iconSize,
+    super.shape,
     super.focusColor,
     super.hoverColor,
     super.builder,
@@ -266,6 +293,7 @@ class GlassProminentButtonStyle extends GlassButtonStyle {
         padding: style.padding,
         minimumSize: style.minimumSize,
         iconSize: style.iconSize,
+        shape: style.shape,
         focusColor: style.focusColor,
         hoverColor: style.hoverColor,
         builder: style.builder,
@@ -289,6 +317,7 @@ class GlassProminentButtonStyle extends GlassButtonStyle {
     required WidgetStateProperty<EdgeInsetsGeometry?>? padding,
     required WidgetStateProperty<Size?>? minimumSize,
     required WidgetStateProperty<double?>? iconSize,
+    required LiquidShape? shape,
     required Color? focusColor,
     required Color? hoverColor,
     required GlassButtonBuilder? builder,
@@ -300,6 +329,7 @@ class GlassProminentButtonStyle extends GlassButtonStyle {
     padding: padding,
     minimumSize: minimumSize,
     iconSize: iconSize,
+    shape: shape,
     focusColor: focusColor,
     hoverColor: hoverColor,
     builder: builder,
@@ -323,6 +353,7 @@ class GlassPlainButtonStyle extends GlassButtonStyle {
     super.padding,
     super.minimumSize,
     super.iconSize,
+    super.shape,
     super.focusColor,
     super.hoverColor,
     super.builder,
@@ -339,6 +370,7 @@ class GlassPlainButtonStyle extends GlassButtonStyle {
         padding: style.padding,
         minimumSize: style.minimumSize,
         iconSize: style.iconSize,
+        shape: style.shape,
         focusColor: style.focusColor,
         hoverColor: style.hoverColor,
         builder: style.builder,
@@ -361,6 +393,7 @@ class GlassPlainButtonStyle extends GlassButtonStyle {
     required WidgetStateProperty<EdgeInsetsGeometry?>? padding,
     required WidgetStateProperty<Size?>? minimumSize,
     required WidgetStateProperty<double?>? iconSize,
+    required LiquidShape? shape,
     required Color? focusColor,
     required Color? hoverColor,
     required GlassButtonBuilder? builder,
@@ -372,6 +405,7 @@ class GlassPlainButtonStyle extends GlassButtonStyle {
     padding: padding,
     minimumSize: minimumSize,
     iconSize: iconSize,
+    shape: shape,
     focusColor: focusColor,
     hoverColor: hoverColor,
     builder: builder,
@@ -673,6 +707,7 @@ class GlassButton extends StatelessWidget {
     Size? minimumSize,
     double? iconSize,
     GlassControlSize? controlSize,
+    LiquidShape? shape,
     Color? focusColor,
     Color? hoverColor,
   }) => GlassButtonStyle(
@@ -691,6 +726,7 @@ class GlassButton extends StatelessWidget {
       minimumSize ?? (controlSize == null ? null : Size.zero),
     ),
     iconSize: GlassStyle.allOrNull(iconSize),
+    shape: shape,
     focusColor: focusColor,
     hoverColor: hoverColor,
   );
@@ -751,7 +787,8 @@ class GlassButton extends StatelessWidget {
   static const _transparent = Color(0x00000000);
 
   /// The button's own look at [context]: every field but
-  /// [GlassButtonStyle.iconColor] and [GlassButtonStyle.builder] is set,
+  /// [GlassButtonStyle.iconColor], [GlassButtonStyle.shape] and
+  /// [GlassButtonStyle.builder] is set,
   /// and [GlassButtonStyle.backgroundColor] only on a prominent button.
   @internal
   GlassButtonStyle defaultStyleOf(BuildContext context) {
@@ -843,6 +880,7 @@ class GlassButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final button = RawGlassButton(
       onPressed: onPressed,
+      shape: _lookOf(context).shape ?? LiquidRoundedSuperellipse.capsule,
       statesController: statesController,
       focusNode: focusNode,
       autofocus: autofocus,
@@ -900,6 +938,7 @@ class GlassButton extends StatelessWidget {
     return GlassHighlightPaint.of(
       context,
       states: details.statesListenable,
+      shape: look.shape ?? LiquidRoundedSuperellipse.capsule,
       focusColor: look.focusColor,
       hoverColor: hover ?? _transparent,
       base: StateColors(context, states)(look.foregroundColor),
@@ -909,6 +948,7 @@ class GlassButton extends StatelessWidget {
               painter: _FillPainter(
                 StateColors(context, states).maybe(look.backgroundColor),
                 dim,
+                look.shape,
               ),
               child: label,
             ),
@@ -968,14 +1008,15 @@ class GlassButton extends StatelessWidget {
   }
 }
 
-// A gray, tinted or filled button's fill: UIKit's dynamic corner, 14 on a
-// small button, 17 on a medium one and 25 on a large one, at most half the
-// height (button passport).
+// A gray, tinted or filled button's fill: the style's shape, else UIKit's
+// dynamic corner, 14 on a small button, 17 on a medium one and 25 on a
+// large one, at most half the height (button passport).
 class _FillPainter extends CustomPainter {
-  _FillPainter(this.color, this.dim);
+  _FillPainter(this.color, this.dim, this.shape);
 
   final Color? color;
   final double dim;
+  final LiquidShape? shape;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -986,16 +1027,20 @@ class _FillPainter extends CustomPainter {
         : size.height < 42
         ? 17.0
         : 25.0;
-    LiquidRoundedSuperellipse(
-      radius: math.min(corner, size.height / 2),
-    ).paintInterior(
-      canvas,
-      Offset.zero & size,
-      Paint()..color = color.withValues(alpha: color.a * dim),
-    );
+    (shape ??
+            LiquidRoundedSuperellipse(
+              radius: math.min(corner, size.height / 2),
+            ))
+        .paintInterior(
+          canvas,
+          Offset.zero & size,
+          Paint()..color = color.withValues(alpha: color.a * dim),
+        );
   }
 
   @override
   bool shouldRepaint(_FillPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.dim != dim;
+      oldDelegate.color != color ||
+      oldDelegate.dim != dim ||
+      oldDelegate.shape != shape;
 }

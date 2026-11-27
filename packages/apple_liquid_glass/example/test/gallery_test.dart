@@ -376,6 +376,7 @@ void galleryTests({bool onDevice = false}) {
     await _open(tester, 'Button');
     await choose('Large');
     await flip('Loading');
+    await flip('Corners of 10 points');
     expect(find.byType(GlassActivityIndicator), findsWidgets);
     await _bring(tester, find.text('A pop-up button'), page);
     await tester.tap(find.text('Kitchen').first);

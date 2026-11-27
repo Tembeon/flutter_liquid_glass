@@ -646,6 +646,7 @@ class GlassButton extends StatelessWidget
     Size? minimumSize,
     double? iconSize,
     GlassControlSize? controlSize,
+    LiquidShape? shape,
     Color? focusColor,
     Color? hoverColor,
   })
@@ -671,6 +672,7 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle>
     WidgetStateProperty<EdgeInsetsGeometry?>? padding,
     WidgetStateProperty<Size?>? minimumSize,
     WidgetStateProperty<double?>? iconSize,
+    LiquidShape? shape,
     Color? focusColor,
     Color? hoverColor,
     Widget Function(BuildContext, GlassButtonDetails)? builder,
@@ -685,6 +687,7 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle>
     WidgetStateProperty<EdgeInsetsGeometry?>? padding,
     WidgetStateProperty<Size?>? minimumSize,
     WidgetStateProperty<double?>? iconSize,
+    LiquidShape? shape,
     Color? focusColor,
     Color? hoverColor,
     Widget Function(BuildContext, GlassButtonDetails)? builder,
@@ -697,6 +700,7 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle>
   static GlassButtonStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<Size?>? minimumSize
   final WidgetStateProperty<EdgeInsetsGeometry?>? padding
+  final LiquidShape? shape
   final WidgetStateProperty<TextStyle?>? textStyle
   overrides: ==, hashCode, lerp, merge
 class GlassClip extends StatelessWidget
@@ -1803,6 +1807,7 @@ class GlassPlainButtonStyle extends GlassButtonStyle
     WidgetStateProperty<EdgeInsetsGeometry?>? padding,
     WidgetStateProperty<Size?>? minimumSize,
     WidgetStateProperty<double?>? iconSize,
+    LiquidShape? shape,
     Color? focusColor,
     Color? hoverColor,
     Widget Function(BuildContext, GlassButtonDetails)? builder,
@@ -1910,6 +1915,7 @@ class GlassProminentButtonStyle extends GlassButtonStyle
     WidgetStateProperty<EdgeInsetsGeometry?>? padding,
     WidgetStateProperty<Size?>? minimumSize,
     WidgetStateProperty<double?>? iconSize,
+    LiquidShape? shape,
     Color? focusColor,
     Color? hoverColor,
     Widget Function(BuildContext, GlassButtonDetails)? builder,
