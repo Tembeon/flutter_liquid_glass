@@ -2403,6 +2403,8 @@ class GlassSlider extends StatefulWidget
     double max = ...,
     int ticks = ...,
     double? neutralValue,
+    bool snapsToTicks = ...,
+    (double, double)? enabledBounds,
     double? adjustmentStep,
     bool animated = ...,
     GlassSliderStyle? style,
@@ -2416,6 +2418,7 @@ class GlassSlider extends StatefulWidget
   final double? adjustmentStep
   final bool animated
   final bool autofocus
+  final (double, double)? enabledBounds
   final FocusNode? focusNode
   final double max
   final double min
@@ -2425,6 +2428,7 @@ class GlassSlider extends StatefulWidget
   final void Function(double)? onChanged
   final String Function(double)? semanticFormatterCallback
   final String? semanticLabel
+  final bool snapsToTicks
   final WidgetStatesController? statesController
   final GlassSliderStyle? style
   static GlassSliderStyle styleFrom({
@@ -4612,6 +4616,8 @@ class RawGlassSlider extends StatefulWidget
     int ticks = ...,
     double? neutralValue,
     double? adjustmentStep,
+    bool snapsToTicks = ...,
+    (double, double)? enabledBounds,
     bool animated = ...,
     WidgetStatesController? statesController,
     FocusNode? focusNode,
@@ -4624,6 +4630,7 @@ class RawGlassSlider extends StatefulWidget
   final bool animated
   final bool autofocus
   final Widget Function(BuildContext, GlassSliderDetails) builder
+  final (double, double)? enabledBounds
   final FocusNode? focusNode
   static const double height
   final double max
@@ -4634,6 +4641,7 @@ class RawGlassSlider extends StatefulWidget
   final void Function(double)? onChanged
   final String Function(double)? semanticFormatterCallback
   final String? semanticLabel
+  final bool snapsToTicks
   final WidgetStatesController? statesController
   static const double tickSize
   final int ticks
@@ -5225,6 +5233,8 @@ final class SliderMotion extends Motion
     MotionClock? clock,
   })
   double get currentTrackHeight
+  double enabledMax
+  double enabledMin
   static const double farEdgeRatio
   double get fillEnd
   static const double fillRamp
@@ -5247,6 +5257,7 @@ final class SliderMotion extends Motion
   static const double releaseDelay
   double get reportedValue
   void setValue(double t, double value, {bool animated = ...})
+  bool snapsToTicks
   static const double squish
   double get stretch
   double get thumbCenter
@@ -5260,6 +5271,7 @@ final class SliderMotion extends Motion
   static const double tickProjection
   static const double tickProjectionThreshold
   static const double tickSize
+  static const double tickZone
   int get ticks
   set ticks(int value)
   ({double left, double right}) get trackEnds

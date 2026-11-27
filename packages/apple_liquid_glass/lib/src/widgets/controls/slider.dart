@@ -170,6 +170,8 @@ class GlassSlider extends StatefulWidget {
     this.max = 1,
     this.ticks = 0,
     this.neutralValue,
+    this.snapsToTicks = true,
+    this.enabledBounds,
     this.adjustmentStep,
     this.animated = false,
     this.style,
@@ -204,6 +206,12 @@ class GlassSlider extends StatefulWidget {
 
   /// See [RawGlassSlider.neutralValue].
   final double? neutralValue;
+
+  /// See [RawGlassSlider.snapsToTicks].
+  final bool snapsToTicks;
+
+  /// See [RawGlassSlider.enabledBounds].
+  final (double, double)? enabledBounds;
 
   /// See [RawGlassSlider.adjustmentStep].
   final double? adjustmentStep;
@@ -286,6 +294,8 @@ class _GlassSliderState extends State<GlassSlider> {
       max: widget.max,
       ticks: widget.ticks,
       neutralValue: widget.neutralValue,
+      snapsToTicks: widget.snapsToTicks,
+      enabledBounds: widget.enabledBounds,
       adjustmentStep: widget.adjustmentStep,
       animated: widget.animated,
       statesController: widget.statesController,

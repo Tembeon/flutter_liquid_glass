@@ -96,6 +96,8 @@ class RawGlassSlider extends StatefulWidget {
     this.ticks = 0,
     this.neutralValue,
     this.adjustmentStep,
+    this.snapsToTicks = true,
+    this.enabledBounds,
     this.animated = false,
     this.statesController,
     this.focusNode,
@@ -147,6 +149,16 @@ class RawGlassSlider extends StatefulWidget {
   /// UIKit's `accessibilityIncrement` set it; null for a tenth of the
   /// range. A finger still moves it freely.
   final double? adjustmentStep;
+
+  /// Whether the value snaps to [ticks]; false, UIKit's
+  /// `allowsTickValuesOnly = false`, lets it track the finger freely and
+  /// takes a tick only within 0.05 of the track from it.
+  final bool snapsToTicks;
+
+  /// The least and the most, between [min] and [max], a drag can take the
+  /// value to, as UIKit's `enabledRange` and SwiftUI's `enabledBounds`;
+  /// nothing is drawn for it.
+  final (double, double)? enabledBounds;
 
   /// Whether a new [value] from outside moves the thumb on UIKit's
   /// programmatic spring instead of jumping; a stepped slider always jumps.
@@ -218,6 +230,14 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   @override
   MotionClock get valueClock => _motion.clock;
 
+  void _bound() {
+    final bounds = widget.enabledBounds;
+    _motion
+      ..snapsToTicks = widget.snapsToTicks
+      ..enabledMin = bounds == null ? 0 : _unit(bounds.$1)
+      ..enabledMax = bounds == null ? 1 : _unit(bounds.$2);
+  }
+
   static bool _drivenBy(SliderMotion motion) =>
       motion.isDragging || motion.isGliding;
 
@@ -243,6 +263,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   void didUpdateWidget(RawGlassSlider oldWidget) {
     super.didUpdateWidget(oldWidget);
     _motion.ticks = widget.ticks;
+    _bound();
     if (oldWidget.min != widget.min || oldWidget.max != widget.max) {
       _reported = null;
     }
@@ -365,6 +386,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _bound();
     final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     if (rtl != _frames.mirrored) {
       _frames = _SliderFrames(_motion, mirrored: rtl, neutral: _neutral);
