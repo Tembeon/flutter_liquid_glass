@@ -315,24 +315,27 @@ final class _ZoomDrag extends Interaction {
         if (!_dragging) {
           if (_fromEdge) {
             final travel = _rtl ? -delta.dx : delta.dx;
-            if (travel <= NavigationPopMotion.edgeHysteresis) {
-              final drift = delta.dy.abs();
-              if (drift >
-                  NavigationPopMotion.edgeDrift(input.time - _downTime)) {
-                return _fail();
-              }
+            if (travel > NavigationPopMotion.edgeHysteresis) {
+              if (!_mayBegin) return _fail();
+              _dragging = true;
+              _zoom._edgePanStarted(input.time, _start, from: last, rtl: _rtl);
+              motion.dragUpdate(input.time, input.position);
+              return const InteractionUpdate(verdict: .recognized);
+            }
+            final drift = NavigationPopMotion.edgeDrift(input.time - _downTime);
+            if (delta.dy.abs() > drift) {
+              _fromEdge = false;
+            } else if (delta.dy.abs() < delta.dx.abs() ||
+                motion.allowsDrag(delta, rtl: _rtl) != true) {
+              // The edge pan still waits; a swipe down may take the touch.
               break;
             }
-            if (!_mayBegin) return _fail();
-            _dragging = true;
-            _zoom._edgePanStarted(input.time, _start, from: last, rtl: _rtl);
-          } else {
-            final allowed = motion.allowsDrag(delta, rtl: _rtl);
-            if (allowed == null) break;
-            if (!allowed || !_mayBegin) return _fail();
-            _dragging = true;
-            _zoom._dragStarted(input.time, _start);
           }
+          final allowed = motion.allowsDrag(delta, rtl: _rtl);
+          if (allowed == null) break;
+          if (!allowed || !_mayBegin) return _fail();
+          _dragging = true;
+          _zoom._dragStarted(input.time, _start);
           motion.dragUpdate(input.time, input.position);
           return const InteractionUpdate(verdict: .recognized);
         }
@@ -368,6 +371,7 @@ final class _ZoomPinch extends Interaction {
   final Map<int, Offset> _fingers = {};
   double _span = 0;
   Offset _focal = Offset.zero;
+  bool _refused = false;
   bool pinching = false;
 
   @override
@@ -385,6 +389,7 @@ final class _ZoomPinch extends Interaction {
     switch (input) {
       case PointerDownInput(:final pointer, :final position):
         if (_fingers.length >= 2) break;
+        if (_fingers.isEmpty) _refused = false;
         _fingers[pointer] = position;
         if (_pair case (final span, final focal)) {
           _span = span;
@@ -397,10 +402,10 @@ final class _ZoomPinch extends Interaction {
         if (_span <= 0 || span <= 0) break;
         final scale = span / _span;
         if (!pinching) {
-          if (scale >= 1 ||
-              _zoom._input.dragged ||
-              !_zoom._canPop ||
+          if (scale >= 1 || _refused || _zoom._input.dragged) break;
+          if (!_zoom._canPop ||
               !(_zoom.route.zoomDismissShouldBegin?.call() ?? true)) {
+            _refused = true;
             break;
           }
           pinching = true;

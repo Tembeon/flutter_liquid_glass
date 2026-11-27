@@ -154,6 +154,16 @@ void main() {
     );
     await edgeDrag(60);
     expect(find.byKey(_page), findsNothing, reason: '228 + 25 > 200');
+
+    navigator.currentState!.push(_route(link));
+    await _frames(tester, 90);
+    await tester.flingFrom(const Offset(5, 300), const Offset(0, 300), 1500);
+    await _frames(tester, 90);
+    expect(
+      find.byKey(_page),
+      findsNothing,
+      reason: 'a swipe down from the edge strip is the swipe down',
+    );
   });
 
   testWidgets('two fingers pinching in shrink the page about the point '

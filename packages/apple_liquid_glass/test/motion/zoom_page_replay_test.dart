@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
 import 'package:apple_liquid_glass/src/motions/zoom_page_motion.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -140,7 +141,22 @@ void main() {
         final lift = (drag['lift']! as num).toDouble() - _rowsTrail;
         final motion = _opened(-10, _card, _page);
         motion.advance(0);
-        motion.dragStart(0, Offset(touches.first[1], touches.first[2]));
+        final first = Offset(touches.first[1], touches.first[2]);
+        // A touch on the leading edge is the edge pan, measured from the
+        // touch before the one 15 points in.
+        final edge = first.dx <= NavigationPopMotion.edgeWidth(402, phone: true)
+            ? touches[touches.indexWhere((p) => p[1] - first.dx > 15) - 1]
+            : null;
+        if (edge == null) {
+          motion.dragStart(0, first);
+        } else {
+          motion.edgePanStart(
+            0,
+            first,
+            from: Offset(edge[1], edge[2]),
+            rtl: false,
+          );
+        }
         var next = 1;
         bool? dismissed;
         var dragSum = 0.0;
