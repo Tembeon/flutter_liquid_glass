@@ -544,6 +544,7 @@ class _StepperPageState extends State<StepperPage> {
   var _step = 1.0;
   var _wraps = false;
   var _repeats = true;
+  var _chevrons = false;
   var _brand = Brand.system;
   var _days = 7.0;
   var _pots = 3.0;
@@ -576,6 +577,12 @@ class _StepperPageState extends State<StepperPage> {
           step: _step,
           wraps: _wraps,
           autorepeat: _repeats,
+          decrementIcon: _chevrons
+              ? const Icon(CupertinoIcons.chevron_down)
+              : null,
+          incrementIcon: _chevrons
+              ? const Icon(CupertinoIcons.chevron_up)
+              : null,
           style: _brand.color == null
               ? null
               : GlassStepper.styleFrom(
@@ -604,6 +611,11 @@ class _StepperPageState extends State<StepperPage> {
         'Repeats when held',
         value: _repeats,
         onChanged: (on) => setState(() => _repeats = on),
+      ),
+      ToggleKnob(
+        'Chevrons for minus and plus',
+        value: _chevrons,
+        onChanged: (on) => setState(() => _chevrons = on),
       ),
       ChoiceKnob<Brand>(
         'Colors',

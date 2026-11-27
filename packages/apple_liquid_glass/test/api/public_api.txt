@@ -2450,6 +2450,8 @@ class GlassStepper extends StatelessWidget
     bool wraps = ...,
     bool autorepeat = ...,
     GlassStepperStyle? style,
+    Widget? decrementIcon,
+    Widget? incrementIcon,
     String? decrementLabel,
     String? incrementLabel,
     String Function(double)? semanticFormatterCallback,
@@ -2461,8 +2463,10 @@ class GlassStepper extends StatelessWidget
   })
   final bool autofocus
   final bool autorepeat
+  final Widget? decrementIcon
   final String? decrementLabel
   final FocusNode? focusNode
+  final Widget? incrementIcon
   final String? incrementLabel
   final double max
   final double min

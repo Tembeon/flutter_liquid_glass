@@ -153,6 +153,8 @@ class GlassStepper extends StatelessWidget {
     this.wraps = false,
     this.autorepeat = true,
     this.style,
+    this.decrementIcon,
+    this.incrementIcon,
     this.decrementLabel,
     this.incrementLabel,
     this.semanticFormatterCallback,
@@ -192,6 +194,17 @@ class GlassStepper extends StatelessWidget {
 
   /// The look, over the theme's and the stepper's defaults.
   final GlassStepperStyle? style;
+
+  /// What the decrement half shows in place of its minus, usually an
+  /// [Icon], as UIKit's `setDecrementImage` sets it; it takes the glyph's
+  /// color, tertiaryLabel at the limit, and 17 point icons.
+  ///
+  /// Fidelity. The icon size is not measured.
+  final Widget? decrementIcon;
+
+  /// What the increment half shows in place of its plus; see
+  /// [decrementIcon].
+  final Widget? incrementIcon;
 
   /// See [RawGlassStepper.decrementLabel].
   final String? decrementLabel;
@@ -259,16 +272,30 @@ class GlassStepper extends StatelessWidget {
       autofocus: autofocus,
       builder:
           look.builder ??
-          (context, details) => _StepperLook(details: details, look: look),
+          (context, details) => _StepperLook(
+            details: details,
+            look: look,
+            decrementIcon: decrementIcon,
+            incrementIcon: incrementIcon,
+          ),
     );
   }
 }
 
 class _StepperLook extends StatelessWidget {
-  const _StepperLook({required this.details, required this.look});
+  const _StepperLook({
+    required this.details,
+    required this.look,
+    required this.decrementIcon,
+    required this.incrementIcon,
+  });
 
   final GlassStepperDetails details;
   final GlassStepperStyle look;
+  final Widget? decrementIcon;
+  final Widget? incrementIcon;
+
+  static const double _iconSize = 17;
 
   @override
   Widget build(BuildContext context) {
@@ -276,20 +303,37 @@ class _StepperLook extends StatelessWidget {
     final color = StateColors(context, states);
     final scheme = GlassTheme.colorSchemeOf(context);
     final traits = GlassTraits.of(context);
+    final foreground = color(
+      look.foregroundColor,
+      scheme?.label ?? GlassColors.label,
+    );
+    final limit = GlassDynamicColor.resolve(
+      scheme?.tertiaryLabel ?? GlassColors.tertiaryLabel,
+      context,
+    );
+    Widget half(Widget? icon, {required bool can}) => Expanded(
+      child: icon == null
+          ? const SizedBox.shrink()
+          : Center(
+              child: IconTheme.merge(
+                data: IconThemeData(
+                  color: can ? foreground : limit,
+                  size: _iconSize,
+                ),
+                child: icon,
+              ),
+            ),
+    );
     final painted = CustomPaint(
       painter: _StepperPainter(
         pressed: details.pressed,
         direction: Directionality.of(context),
         bold: traits.boldText,
         background: color(look.backgroundColor, GlassStepper._background),
-        foreground: color(
-          look.foregroundColor,
-          scheme?.label ?? GlassColors.label,
-        ),
-        limit: GlassDynamicColor.resolve(
-          scheme?.tertiaryLabel ?? GlassColors.tertiaryLabel,
-          context,
-        ),
+        foreground: foreground,
+        limit: limit,
+        drawsMinus: decrementIcon == null,
+        drawsPlus: incrementIcon == null,
         divider: GlassDynamicColor.resolve(
           look.dividerColor ?? GlassColors.tertiaryLabel,
           context,
@@ -298,6 +342,14 @@ class _StepperLook extends StatelessWidget {
         canDecrement: details.canDecrement,
         canIncrement: details.canIncrement,
       ),
+      child: decrementIcon == null && incrementIcon == null
+          ? null
+          : Row(
+              children: [
+                half(decrementIcon, can: details.canDecrement),
+                half(incrementIcon, can: details.canIncrement),
+              ],
+            ),
     );
     final listenable = details.statesListenable;
     if (listenable == null) return painted;
@@ -322,6 +374,8 @@ class _StepperPainter extends CustomPainter {
     required this.background,
     required this.foreground,
     required this.limit,
+    required this.drawsMinus,
+    required this.drawsPlus,
     required this.divider,
     required this.replacesFill,
     required this.canDecrement,
@@ -334,6 +388,8 @@ class _StepperPainter extends CustomPainter {
   final Color background;
   final Color foreground;
   final Color limit;
+  final bool drawsMinus;
+  final bool drawsPlus;
   final Color divider;
   final bool replacesFill;
   final bool canDecrement;
@@ -397,25 +453,29 @@ class _StepperPainter extends CustomPainter {
 
     final minus = halves[GlassStepperHalf.decrement]!.center;
     final plus = halves[GlassStepperHalf.increment]!.center;
-    final minusArm = arm(!canDecrement);
-    glyph.color = canDecrement ? foreground : limit;
-    canvas.drawLine(
-      minus.translate(-minusArm, 0),
-      minus.translate(minusArm, 0),
-      glyph,
-    );
-    final plusArm = arm(!canIncrement);
-    glyph.color = canIncrement ? foreground : limit;
-    canvas.drawLine(
-      plus.translate(-plusArm, 0),
-      plus.translate(plusArm, 0),
-      glyph,
-    );
-    canvas.drawLine(
-      plus.translate(0, -plusArm),
-      plus.translate(0, plusArm),
-      glyph,
-    );
+    if (drawsMinus) {
+      final minusArm = arm(!canDecrement);
+      glyph.color = canDecrement ? foreground : limit;
+      canvas.drawLine(
+        minus.translate(-minusArm, 0),
+        minus.translate(minusArm, 0),
+        glyph,
+      );
+    }
+    if (drawsPlus) {
+      final plusArm = arm(!canIncrement);
+      glyph.color = canIncrement ? foreground : limit;
+      canvas.drawLine(
+        plus.translate(-plusArm, 0),
+        plus.translate(plusArm, 0),
+        glyph,
+      );
+      canvas.drawLine(
+        plus.translate(0, -plusArm),
+        plus.translate(0, plusArm),
+        glyph,
+      );
+    }
   }
 
   @override
@@ -426,6 +486,8 @@ class _StepperPainter extends CustomPainter {
       oldDelegate.background != background ||
       oldDelegate.foreground != foreground ||
       oldDelegate.limit != limit ||
+      oldDelegate.drawsMinus != drawsMinus ||
+      oldDelegate.drawsPlus != drawsPlus ||
       oldDelegate.divider != divider ||
       oldDelegate.replacesFill != replacesFill ||
       oldDelegate.canDecrement != canDecrement ||

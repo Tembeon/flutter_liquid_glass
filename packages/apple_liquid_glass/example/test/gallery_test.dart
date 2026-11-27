@@ -395,7 +395,14 @@ void galleryTests({bool onDevice = false}) {
     await _back(tester);
 
     for (final (component, knobs) in const [
-      ('Stepper', ['Wraps past 0 and 40', 'Repeats when held']),
+      (
+        'Stepper',
+        [
+          'Wraps past 0 and 40',
+          'Repeats when held',
+          'Chevrons for minus and plus',
+        ],
+      ),
       ('Slider', ['Fill from the middle']),
       ('Page control', ['Hidden with one page', 'Scrubs under a finger']),
       ('List', ['Separators']),

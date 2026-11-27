@@ -118,4 +118,34 @@ void main() {
       ),
     );
   });
+
+  testWidgets('icons take the place of the minus and plus, centered in '
+      'their halves, in tertiaryLabel at a limit', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        GlassStepper(
+          value: 10,
+          max: 10,
+          onChanged: (_) {},
+          decrementIcon: const Icon(IconData(0xe000)),
+          incrementIcon: const Icon(IconData(0xe001)),
+        ),
+      ),
+    );
+    final down = find.byIcon(const IconData(0xe000));
+    final up = find.byIcon(const IconData(0xe001));
+    expect(
+      tester.getCenter(down),
+      _half(tester, GlassStepperHalf.decrement),
+    );
+    expect(tester.getCenter(up), _half(tester, GlassStepperHalf.increment));
+    expect(tester.getSize(up), const Size.square(17));
+    Color? colorOf(Finder icon) => IconTheme.of(tester.element(icon)).color;
+    expect(colorOf(down)?.toARGB32(), 0xFF000000);
+    expect(colorOf(up)?.toARGB32(), 0x4C3C3C43);
+    expect(
+      find.byType(GlassStepper),
+      isNot(paints..line()),
+    );
+  });
 }
