@@ -708,8 +708,14 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = this.label;
     if (label == null) {
+      final empty = _header ? layout.noHeaderTop : layout.noFooterBottom;
+      final spacing = look.sectionSpacing;
       return SizedBox(
-        height: _header ? layout.noHeaderTop : layout.noFooterBottom,
+        height: spacing == null || empty == 0
+            ? empty
+            : spacing *
+                  empty /
+                  (_Metrics.noHeaderTop + _Metrics.noFooterBottom),
       );
     }
     final style = GlassTextScale.of(context).resolve(

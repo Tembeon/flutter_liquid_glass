@@ -187,10 +187,14 @@ class GlassListContextMenu extends InheritedWidget {
 // A card's margin from the list's edges, past the safe area's sides as
 // UIKit's inset grouped table keeps its cards inside the safe area: on an
 // iPhone in landscape, or beside a tab sidebar.
-EdgeInsets _sectionMargin(BuildContext context, GlassListLayout layout) {
+EdgeInsets _sectionMargin(
+  BuildContext context,
+  GlassListLayout layout,
+  GlassListStyle look,
+) {
   final safe = MediaQuery.paddingOf(context);
   final margin = layout == GlassListLayout.insetGrouped
-      ? GlassListSection.margin
+      ? look.sectionMargin ?? GlassListSection.margin
       : 0.0;
   return EdgeInsets.only(left: margin + safe.left, right: margin + safe.right);
 }
@@ -404,7 +408,7 @@ class GlassListSection extends StatelessWidget {
     final look = _sectionLook(context, style, layout);
     final section = RepaintBoundary(
       child: Padding(
-        padding: _sectionMargin(context, layout),
+        padding: _sectionMargin(context, layout, look),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -548,7 +552,7 @@ class GlassSliverListSection extends StatelessWidget {
 
     final indexOf = {for (final (i, id) in (ids ?? const []).indexed) id: i};
     final section = SliverPadding(
-      padding: _sectionMargin(context, layout),
+      padding: _sectionMargin(context, layout, look),
       sliver: SliverMainAxisGroup(
         slivers: [
           SliverToBoxAdapter(

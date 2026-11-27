@@ -1113,4 +1113,36 @@ void main() {
     expect(row.height, greaterThan(53));
     expect((row.height * 3).roundToDouble(), closeTo(row.height * 3, 1e-6));
   });
+
+  testWidgets("a style sets the cards' margin from the sides and the space "
+      "between two sections, as SwiftUI's listSectionMargins and "
+      'listSectionSpacing', (tester) async {
+    Widget sections(GlassListStyle? style) => _app(
+      Column(
+        children: [
+          GlassListSection(
+            style: style,
+            children: const [GlassListRow(title: Text('One'))],
+          ),
+          GlassListSection(
+            style: style,
+            children: const [GlassListRow(title: Text('Two'))],
+          ),
+        ],
+      ),
+    );
+    await tester.pumpWidget(sections(null));
+    final one = tester.getRect(find.byType(GlassListRow).first);
+    final two = tester.getRect(find.byType(GlassListRow).last);
+    expect(two.top - one.bottom, moreOrLessEquals(35));
+    final list = tester.getRect(find.byType(Column).first);
+    expect(one.left - list.left, 16);
+    await tester.pumpWidget(
+      sections(const GlassListStyle(sectionMargin: 24, sectionSpacing: 10)),
+    );
+    final first = tester.getRect(find.byType(GlassListRow).first);
+    final second = tester.getRect(find.byType(GlassListRow).last);
+    expect(first.left - list.left, 24);
+    expect(second.top - first.bottom, moreOrLessEquals(10));
+  });
 }

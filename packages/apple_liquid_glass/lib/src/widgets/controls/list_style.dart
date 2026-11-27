@@ -37,6 +37,8 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
     this.contentPadding,
     this.separatorIndent,
     this.separatorEndIndent,
+    this.sectionMargin,
+    this.sectionSpacing,
   });
 
   /// The theme's [GlassListStyle] at [context], or null without one: the
@@ -122,6 +124,18 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
   /// layout.
   final double? separatorEndIndent;
 
+  /// How far an inset grouped section's card stands in from the list's
+  /// sides, past the safe area, as SwiftUI's
+  /// `listSectionMargins(.horizontal, _:)` sets it; by default 16
+  /// (`GlassListSection.margin`).
+  final double? sectionMargin;
+
+  /// The space between the cards of two grouped sections where no header
+  /// or footer stands between them, as SwiftUI's `listSectionSpacing(_:)`
+  /// sets it; by default 35, of which 17.67 stands above a card without a
+  /// header and 17.33 below one without a footer, the split this keeps.
+  final double? sectionSpacing;
+
   /// This style over [other], state by state.
   @override
   GlassListStyle merge(GlassListStyle? other) {
@@ -160,6 +174,8 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
       contentPadding: contentPadding ?? other.contentPadding,
       separatorIndent: separatorIndent ?? other.separatorIndent,
       separatorEndIndent: separatorEndIndent ?? other.separatorEndIndent,
+      sectionMargin: sectionMargin ?? other.sectionMargin,
+      sectionSpacing: sectionSpacing ?? other.sectionSpacing,
     );
   }
 
@@ -200,6 +216,8 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
         other.separatorEndIndent,
         t,
       ),
+      sectionMargin: length(sectionMargin, other.sectionMargin, t),
+      sectionSpacing: length(sectionSpacing, other.sectionSpacing, t),
     );
   }
 
@@ -223,7 +241,9 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
       other.minRowHeight == minRowHeight &&
       other.contentPadding == contentPadding &&
       other.separatorIndent == separatorIndent &&
-      other.separatorEndIndent == separatorEndIndent;
+      other.separatorEndIndent == separatorEndIndent &&
+      other.sectionMargin == sectionMargin &&
+      other.sectionSpacing == sectionSpacing;
 
   @override
   int get hashCode => Object.hash(
@@ -245,5 +265,7 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
     contentPadding,
     separatorIndent,
     separatorEndIndent,
+    sectionMargin,
+    sectionSpacing,
   );
 }

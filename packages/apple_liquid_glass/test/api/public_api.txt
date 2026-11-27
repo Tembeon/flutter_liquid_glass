@@ -1445,6 +1445,8 @@ class GlassListStyle extends GlassStyle<GlassListStyle>
     EdgeInsetsGeometry? contentPadding,
     double? separatorIndent,
     double? separatorEndIndent,
+    double? sectionMargin,
+    double? sectionSpacing,
   })
   final WidgetStateProperty<Color?>? backgroundColor
   final EdgeInsetsGeometry? contentPadding
@@ -1460,6 +1462,8 @@ class GlassListStyle extends GlassStyle<GlassListStyle>
   final double? minRowHeight
   final WidgetStateProperty<Color?>? overlayColor
   final WidgetStateProperty<Color?>? secondaryColor
+  final double? sectionMargin
+  final double? sectionSpacing
   final WidgetStateProperty<Color?>? separatorColor
   final double? separatorEndIndent
   final double? separatorIndent
@@ -4233,6 +4237,8 @@ class NavigationPopMotion
   void begin(double t, {double progress = ...})
   static double contentFunnel(double along)
   static const double contentHysteresis
+  static bool edgeAngleAllows(double along, double across)
+  static const double edgeAngleWindow
   static const double edgeDefault
   static const double edgeHysteresis
   static const double edgeMaximumDuration
