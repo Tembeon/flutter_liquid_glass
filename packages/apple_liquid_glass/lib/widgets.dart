@@ -56,6 +56,8 @@ export 'src/widgets/controls/page_control.dart'
     show GlassPageControl, GlassPageControlStyle;
 export 'src/widgets/controls/progress_view.dart'
     show GlassProgressView, GlassProgressViewStyle;
+export 'src/widgets/controls/refresh_control.dart'
+    show GlassRefreshCallback, GlassSliverRefreshControl;
 export 'src/widgets/controls/search_field.dart'
     show GlassSearchField, GlassSearchFieldStyle;
 export 'src/widgets/controls/search_glyphs.dart'

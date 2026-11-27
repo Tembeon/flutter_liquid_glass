@@ -157,6 +157,7 @@ GlassProgressViewStyle
 GlassProminentButtonStyle
 GlassReadReport
 GlassReadSource
+GlassRefreshCallback
 GlassRenderer
 GlassRendererScope
 GlassRole
@@ -189,6 +190,7 @@ GlassSliderBuilder
 GlassSliderDetails
 GlassSliderStyle
 GlassSliverListSection
+GlassSliverRefreshControl
 GlassSolidBackdrop
 GlassSource
 GlassSourceContent
@@ -439,6 +441,7 @@ RawGlassTextField
 RawGlassWheel
 RawTooltipScope
 RectSprings
+RefreshMotion
 RenderListenable
 RenderListening
 RenderScrollEdge

@@ -1187,6 +1187,9 @@ const Map<String, String> nonInteractive = {
       'tells the search fields below the bar that hosts them',
   'GlassSearchIcon':
       'the magnifier of a search field; it draws and takes no input',
+  'GlassSliverRefreshControl':
+      'a sliver its scroll view pulls; refresh_control_test holds the pull, '
+      'the refresh and the end',
   'GlassSolidBackdrop': 'tells glass what is behind it',
   'GlassSource': "describes a control's body to the presentation around it",
   'GlassSourceContent':

@@ -78,6 +78,7 @@ export 'src/motions/popover_motion.dart'
     show PopoverArrowDirection, PopoverMotion, PopoverPlacement, placePopover;
 export 'src/motions/popover_shape.dart' show PopoverShape;
 export 'src/motions/progress_motion.dart' show ProgressMotion;
+export 'src/motions/refresh_motion.dart' show RefreshMotion;
 export 'src/motions/search_motion.dart'
     show
         SearchBarGeometry,

@@ -1744,6 +1744,7 @@ class GlassProminentButtonStyle extends GlassButtonStyle
   })
   static GlassButtonStyle? maybeOf(BuildContext context)
   overrides: type
+typedef GlassRefreshCallback = Future<void> Function()
 abstract class GlassRenderer
   const GlassRenderer()
   Widget buildGroup(BuildContext context, GlassGroupDetails details)
@@ -2130,6 +2131,19 @@ class GlassSliverListSection extends StatelessWidget
   final int itemCount
   final GlassListStyle? style
   overrides: build
+class GlassSliverRefreshControl extends StatefulWidget
+  const GlassSliverRefreshControl({
+    required Future<void> Function() onRefresh,
+    Color? color,
+    Widget? title,
+    Key? key,
+  })
+  final Color? color
+  static const double height
+  final Future<void> Function() onRefresh
+  final Widget? title
+  static const double titledHeight
+  overrides: createState
 class GlassSolidBackdrop extends InheritedWidget
   const GlassSolidBackdrop({
     required Color? color,
@@ -4332,6 +4346,26 @@ final class RawTooltipScope extends InheritedWidget
   static RawTooltipScope? maybeOf(BuildContext context)
   final String message
   overrides: updateShouldNotify
+final class RefreshMotion extends Motion
+  RefreshMotion({MotionClock? clock})
+  void end(double t)
+  static const double endDuration
+  double get opacity
+  void pull(double pull)
+  bool get refreshing
+  void reset()
+  static const double revealEnd
+  static double revealOf(double pull)
+  static const double revealStart
+  double get rotation
+  static const int steps
+  @internal static const Spring tailSpring
+  static const double tailStep
+  double tickOpacity(int i)
+  void trigger(double t)
+  static const double triggerPull
+  static const double turn
+  static const double windUpTurns
 class RenderScrollEdge extends RenderBox
   RenderScrollEdge({
     required GlassScrollEdgeDetails details,
@@ -5392,6 +5426,7 @@ class PopoverMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverShape (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ProgressMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RefreshMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ScrollAway (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchBarGeometry (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -5572,6 +5607,7 @@ class GlassPopoverStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassProgressView (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassProgressViewStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassProminentButtonStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassRefreshCallback (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassScrollEdgeEffect (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassScrollEdgeEffects (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSearchField (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -5586,6 +5622,7 @@ class GlassSheetStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSlider (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSliderStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSliverListSection (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSliverRefreshControl (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSplitView (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassSplitViewColumn (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSplitViewController (see package:apple_liquid_glass/apple_liquid_glass.dart)
