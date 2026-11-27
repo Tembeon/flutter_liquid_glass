@@ -539,6 +539,29 @@ class GlassButton extends StatelessWidget
     FocusNode? focusNode,
     bool autofocus = ...,
     String? semanticLabel,
+    bool loading = ...,
+    Key? key,
+  })
+  const GlassButton.filled({
+    required void Function()? onPressed,
+    required Widget child,
+    GlassButtonStyle? style,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    bool loading = ...,
+    Key? key,
+  })
+  const GlassButton.gray({
+    required void Function()? onPressed,
+    required Widget child,
+    GlassButtonStyle? style,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    bool loading = ...,
     Key? key,
   })
   const GlassButton({
@@ -549,6 +572,7 @@ class GlassButton extends StatelessWidget
     FocusNode? focusNode,
     bool autofocus = ...,
     String? semanticLabel,
+    bool loading = ...,
     Key? key,
   })
   const GlassButton.plain({
@@ -559,6 +583,7 @@ class GlassButton extends StatelessWidget
     FocusNode? focusNode,
     bool autofocus = ...,
     String? semanticLabel,
+    bool loading = ...,
     Key? key,
   })
   const GlassButton.prominent({
@@ -569,6 +594,7 @@ class GlassButton extends StatelessWidget
     FocusNode? focusNode,
     bool autofocus = ...,
     String? semanticLabel,
+    bool loading = ...,
     Key? key,
   })
   const GlassButton.prominentClear({
@@ -579,12 +605,25 @@ class GlassButton extends StatelessWidget
     FocusNode? focusNode,
     bool autofocus = ...,
     String? semanticLabel,
+    bool loading = ...,
+    Key? key,
+  })
+  const GlassButton.tinted({
+    required void Function()? onPressed,
+    required Widget child,
+    GlassButtonStyle? style,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    bool loading = ...,
     Key? key,
   })
   final bool autofocus
   final Widget child
   @internal GlassButtonStyle defaultStyleOf(BuildContext context)
   final FocusNode? focusNode
+  final bool loading
   final void Function()? onPressed
   final String? semanticLabel
   final WidgetStatesController? statesController
@@ -600,6 +639,7 @@ class GlassButton extends StatelessWidget
     EdgeInsetsGeometry? padding,
     Size? minimumSize,
     double? iconSize,
+    GlassControlSize? controlSize,
     Color? focusColor,
     Color? hoverColor,
   })
@@ -810,6 +850,10 @@ class GlassContextMenu extends StatefulWidget
   final String? semanticLabel
   final GlassMenuStyle? style
   overrides: createState
+enum GlassControlSize
+  small,
+  medium,
+  large,
 final class GlassDateBounds
   factory GlassDateBounds(DateTime? minimum, DateTime? maximum)
   DateTime clamp(DateTime value)
@@ -5645,6 +5689,7 @@ class GlassColumnDivider (see package:apple_liquid_glass/apple_liquid_glass.dart
 class GlassCompactDatePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassContentScroll (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassContextMenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassControlSize (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDatePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassDatePickerMode (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDatePickerStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)

@@ -46,6 +46,15 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'GlassButton.gray',
+    covers: const [],
+    kind: Kind.pressable,
+    build: (probe, {required enabled}) => GlassButton.gray(
+      onPressed: enabled ? () => probe.add('pressed') : null,
+      child: const Text('Save'),
+    ),
+  ),
+  Entry(
     'RawGlassButton',
     covers: const ['RawGlassButton'],
     look: Look.builder,

@@ -81,6 +81,7 @@ GlassColumnDivider
 GlassCompactDatePicker
 GlassContentScroll
 GlassContextMenu
+GlassControlSize
 GlassDateBounds
 GlassDatePicker
 GlassDatePickerArrow

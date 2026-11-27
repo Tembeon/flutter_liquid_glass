@@ -40,6 +40,7 @@ export 'src/widgets/controls/button.dart'
     show
         GlassButton,
         GlassButtonStyle,
+        GlassControlSize,
         GlassPlainButtonStyle,
         GlassProminentButtonStyle;
 export 'src/widgets/controls/date_picker.dart'

@@ -1,11 +1,15 @@
+import 'dart:math' as math;
+
 import 'dart:ui' show lerpDouble;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/activity_indicator.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// The look of a [GlassButton], like Flutter's `ButtonStyle`.
 ///
@@ -374,7 +378,35 @@ class GlassPlainButtonStyle extends GlassButtonStyle {
   );
 }
 
-enum _Variant { regular, prominent, clear, prominentClear, plain }
+enum _Variant {
+  regular,
+  prominent,
+  clear,
+  prominentClear,
+  plain,
+  gray,
+  tinted,
+  filled,
+}
+
+/// The preset sizes of a button: its text, insets and corners (UIKit
+/// `UIButton.Configuration.Size`, SwiftUI `controlSize`).
+///
+/// Measured on the iOS 27.2 simulator for every preset (button passport):
+/// small is 28 tall with 15 point text 10 in from its sides and 5 from its
+/// top and bottom, medium 34.33 with 17 point text 12 and 7 in, large
+/// 50.33 with 17 point text 20 and 15 in. UIKit's mini is small on an
+/// iPhone.
+enum GlassControlSize {
+  /// 28 points tall for one line of 15 point text.
+  small,
+
+  /// 34.33 points tall for one line of 17 point text.
+  medium,
+
+  /// 50.33 points tall for one line of 17 point text.
+  large,
+}
 
 /// An iOS 27 button: a glass capsule around a text or icon label.
 ///
@@ -431,6 +463,7 @@ class GlassButton extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.loading = false,
     super.key,
   }) : _variant = _Variant.regular;
 
@@ -447,6 +480,7 @@ class GlassButton extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.loading = false,
     super.key,
   }) : _variant = _Variant.prominent;
 
@@ -462,6 +496,7 @@ class GlassButton extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.loading = false,
     super.key,
   }) : _variant = _Variant.clear;
 
@@ -477,6 +512,7 @@ class GlassButton extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.loading = false,
     super.key,
   }) : _variant = _Variant.prominentClear;
 
@@ -510,8 +546,73 @@ class GlassButton extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.loading = false,
     super.key,
   }) : _variant = _Variant.plain;
+
+  /// Creates a gray button: its label in the label color on a gray fill,
+  /// with no glass.
+  ///
+  /// UIKit: `UIButton.Configuration.gray()`. SwiftUI:
+  /// `.buttonStyle(.bordered)`. Flutter: `FilledButton.tonal`.
+  ///
+  /// The fill is secondarySystemFill ((120, 120, 128) at 0.16 in light,
+  /// 0.32 in dark); the shape is UIKit's dynamic corner, 17 points on a
+  /// medium button (14 small, 25 large). A press dims the fill and the
+  /// label to 0.75 of their alpha at once, as a [GlassButton.plain] dims
+  /// its label; a disabled one draws tertiarySystemFill under a
+  /// tertiaryLabel label. Its theme style is a [GlassPlainButtonStyle].
+  ///
+  /// Fidelity. The fill, the label, the sizes and the corners are measured
+  /// on the iOS 27.2 simulator (button passport), as is the press of the
+  /// gray and filled presets; the tinted press is taken as theirs.
+  const GlassButton.gray({
+    required this.onPressed,
+    required this.child,
+    this.style,
+    this.statesController,
+    this.focusNode,
+    this.autofocus = false,
+    this.semanticLabel,
+    this.loading = false,
+    super.key,
+  }) : _variant = _Variant.gray;
+
+  /// Creates a tinted button: its label in the theme's primary color on a
+  /// fill of that color at 0.18 (0.25 in dark), with no glass.
+  ///
+  /// UIKit: `UIButton.Configuration.tinted()`. SwiftUI:
+  /// `.buttonStyle(.bordered)` with a tint. The shape, the press and the
+  /// disabled look are [GlassButton.gray]'s.
+  const GlassButton.tinted({
+    required this.onPressed,
+    required this.child,
+    this.style,
+    this.statesController,
+    this.focusNode,
+    this.autofocus = false,
+    this.semanticLabel,
+    this.loading = false,
+    super.key,
+  }) : _variant = _Variant.tinted;
+
+  /// Creates a filled button: its label in white, or the color that reads
+  /// on the fill, on a fill of the theme's primary color, with no glass.
+  ///
+  /// UIKit: `UIButton.Configuration.filled()`. SwiftUI:
+  /// `.buttonStyle(.borderedProminent)`. Flutter: `FilledButton`. The
+  /// shape, the press and the disabled look are [GlassButton.gray]'s.
+  const GlassButton.filled({
+    required this.onPressed,
+    required this.child,
+    this.style,
+    this.statesController,
+    this.focusNode,
+    this.autofocus = false,
+    this.semanticLabel,
+    this.loading = false,
+    super.key,
+  }) : _variant = _Variant.filled;
 
   /// Called when the button is pressed; null disables it.
   final VoidCallback? onPressed;
@@ -534,6 +635,14 @@ class GlassButton extends StatelessWidget {
   /// What accessibility reads for the button; null lets its label speak.
   final String? semanticLabel;
 
+  /// Whether a spinning [GlassActivityIndicator] shows in the label: in
+  /// place of an [Icon] label, else before the label, the button growing
+  /// by its width, as UIKit's `showsActivityIndicator` puts its spinner in
+  /// the image's place (button passport: a 75 point medium button turns 95.33
+  /// wide). The button still takes taps; set [onPressed] to null to refuse
+  /// them while the work runs.
+  final bool loading;
+
   final _Variant _variant;
 
   bool get _prominent =>
@@ -543,6 +652,11 @@ class GlassButton extends StatelessWidget {
       _variant == _Variant.clear || _variant == _Variant.prominentClear;
 
   bool get _plain => _variant == _Variant.plain;
+
+  bool get _flat => switch (_variant) {
+    _Variant.gray || _Variant.tinted || _Variant.filled => true,
+    _ => false,
+  };
 
   /// A style from plain values: each `disabled` value applies to a
   /// disabled button, the other to every other state, and a null value
@@ -558,6 +672,7 @@ class GlassButton extends StatelessWidget {
     EdgeInsetsGeometry? padding,
     Size? minimumSize,
     double? iconSize,
+    GlassControlSize? controlSize,
     Color? focusColor,
     Color? hoverColor,
   }) => GlassButtonStyle(
@@ -570,13 +685,35 @@ class GlassButton extends StatelessWidget {
       disabledForegroundColor,
     ),
     iconColor: _enabledOrDisabled(iconColor, disabledIconColor),
-    textStyle: GlassStyle.allOrNull(textStyle),
-    padding: GlassStyle.allOrNull(padding),
-    minimumSize: GlassStyle.allOrNull(minimumSize),
+    textStyle: GlassStyle.allOrNull(textStyle ?? _textOf(controlSize)),
+    padding: GlassStyle.allOrNull(padding ?? _paddingOf(controlSize)),
+    minimumSize: GlassStyle.allOrNull(
+      minimumSize ?? (controlSize == null ? null : Size.zero),
+    ),
     iconSize: GlassStyle.allOrNull(iconSize),
     focusColor: focusColor,
     hoverColor: hoverColor,
   );
+
+  static TextStyle? _textOf(GlassControlSize? size) => switch (size) {
+    null => null,
+    GlassControlSize.small => const TextStyle(fontSize: 15),
+    GlassControlSize.medium || GlassControlSize.large => _labelStyle,
+  };
+
+  static EdgeInsetsGeometry? _paddingOf(GlassControlSize? size) =>
+      switch (size) {
+        null => null,
+        GlassControlSize.small => const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 5,
+        ),
+        GlassControlSize.medium => _plainPadding,
+        GlassControlSize.large => const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 15,
+        ),
+      };
 
   static WidgetStateProperty<Color?>? _enabledOrDisabled(
     Color? enabled,
@@ -600,8 +737,16 @@ class GlassButton extends StatelessWidget {
     vertical: 7,
   );
 
-  // A pressed plain button's title alpha (button passport).
+  // A pressed plain button's title alpha, and a pressed gray or filled
+  // button's fill and title alpha (button passport).
   static const double _pressedPlain = 0.75;
+
+  // A tinted button's fill: the tint at 0.18 in light and 0.25 in dark
+  // (button passport), read from this color's alpha.
+  static const _tintedAlpha = GlassDynamicColor.withBrightness(
+    color: Color(0x2E000000),
+    darkColor: Color(0x40000000),
+  );
 
   static const _transparent = Color(0x00000000);
 
@@ -625,6 +770,38 @@ class GlassButton extends StatelessWidget {
       );
     }
     final label = GlassTheme.labelColorOf(context);
+    if (_flat) {
+      final tint = GlassDynamicColor.resolve(
+        GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
+        context,
+      );
+      final tintedFill = tint.withValues(
+        alpha: GlassDynamicColor.resolve(_tintedAlpha, context).a * tint.a,
+      );
+      final content = GlassTheme.contentColorOf(context);
+      return GlassButtonStyle(
+        backgroundColor: WidgetStateMapper<Color?>({
+          WidgetState.disabled: GlassColors.tertiarySystemFill,
+          WidgetState.any: switch (_variant) {
+            _Variant.tinted => tintedFill,
+            _Variant.filled => tint,
+            _ => GlassColors.secondarySystemFill,
+          },
+        }),
+        foregroundColor: WidgetStateMapper<Color?>({
+          WidgetState.disabled: disabledLabel,
+          WidgetState.any: switch (_variant) {
+            _Variant.tinted => tint,
+            _Variant.filled => content(tint),
+            _ => label,
+          },
+        }),
+        textStyle: const WidgetStatePropertyAll(_labelStyle),
+        padding: const WidgetStatePropertyAll(_plainPadding),
+        minimumSize: const WidgetStatePropertyAll(Size.zero),
+        iconSize: const WidgetStatePropertyAll(_iconSize),
+      );
+    }
     final fill = _prominent
         ? WidgetStateMapper<Color?>({
             WidgetState.disabled: GlassColors.systemGray4,
@@ -655,7 +832,10 @@ class GlassButton extends StatelessWidget {
   GlassButtonStyle? _themeStyleOf(BuildContext context) => switch (_variant) {
     _Variant.prominent ||
     _Variant.prominentClear => GlassProminentButtonStyle.maybeOf(context),
-    _Variant.plain => GlassPlainButtonStyle.maybeOf(context),
+    _Variant.plain ||
+    _Variant.gray ||
+    _Variant.tinted ||
+    _Variant.filled => GlassPlainButtonStyle.maybeOf(context),
     _Variant.regular || _Variant.clear => GlassButtonStyle.maybeOf(context),
   };
 
@@ -670,7 +850,7 @@ class GlassButton extends StatelessWidget {
       builder:
           style?.builder ??
           _themeStyleOf(context)?.builder ??
-          (_plain ? _plainBody : _defaultBody),
+          (_plain || _flat ? _plainBody : _defaultBody),
       child: child,
     );
     if (!GlassSource.isSourceAt(context)) return button;
@@ -716,13 +896,22 @@ class GlassButton extends StatelessWidget {
         : hover == null && states.contains(WidgetState.hovered)
         ? 1 - (1 - _pressedPlain) * GlassHighlights.hoverGain
         : 1.0;
+    final label = _label(context, look, states, details.label, dim: dim);
     return GlassHighlightPaint.of(
       context,
       states: details.statesListenable,
       focusColor: look.focusColor,
       hoverColor: hover ?? _transparent,
       base: StateColors(context, states)(look.foregroundColor),
-      child: _label(context, look, states, details.label, dim: dim),
+      child: !_flat
+          ? label
+          : CustomPaint(
+              painter: _FillPainter(
+                StateColors(context, states).maybe(look.backgroundColor),
+                dim,
+              ),
+              child: label,
+            ),
     );
   }
 
@@ -762,11 +951,51 @@ class GlassButton extends StatelessWidget {
                   look.textStyle,
                 ).copyWith(color: foreground),
               ),
-              child: label,
+              child: !loading
+                  ? label
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GlassActivityIndicator(color: foreground),
+                        if (label is! Icon) label,
+                      ],
+                    ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+// A gray, tinted or filled button's fill: UIKit's dynamic corner, 14 on a
+// small button, 17 on a medium one and 25 on a large one, at most half the
+// height (button passport).
+class _FillPainter extends CustomPainter {
+  _FillPainter(this.color, this.dim);
+
+  final Color? color;
+  final double dim;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final color = this.color;
+    if (color == null) return;
+    final corner = size.height < 31
+        ? 14.0
+        : size.height < 42
+        ? 17.0
+        : 25.0;
+    LiquidRoundedSuperellipse(
+      radius: math.min(corner, size.height / 2),
+    ).paintInterior(
+      canvas,
+      Offset.zero & size,
+      Paint()..color = color.withValues(alpha: color.a * dim),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_FillPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.dim != dim;
 }
