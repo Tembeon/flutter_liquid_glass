@@ -348,8 +348,10 @@ final class SelectorMotion extends Motion {
   }) {
     final before = size;
     _anchor += shift;
-    if (tabBar) items.planner = _TabChangePlanner(_bounds, mirrored: mirrored);
-    items.layout(
+    items.planner = tabBar
+        ? _TabChangePlanner(_bounds, mirrored: mirrored)
+        : _SegmentChangePlanner(_bounds, mirrored: mirrored);
+    final change = items.layout(
       t,
       {
         for (final MapEntry(:key, :value) in rects.entries)
@@ -391,7 +393,13 @@ final class SelectorMotion extends Motion {
         t,
         geometry.lenses,
         pending ?? lens.selected,
-        spring: tabBar && spring != null ? _TabChangePlanner.slots : spring,
+        animation: switch (change?.spring) {
+          null => spring,
+          _ when tabBar => _TabChangePlanner.slots,
+          _ when _SegmentChangePlanner.inserts(change!) =>
+            _SegmentChangePlanner.curve,
+          _ => spring,
+        },
         shift: mirrored
             ? shift.dx + geometry.size.width - before.width
             : -shift.dx,
@@ -466,6 +474,105 @@ final class SelectorMotion extends Motion {
   void _release(double t) {
     highlight.release(t);
     glow.pointerUp(t);
+  }
+}
+
+/// A segmented control's insert or remove as UIKit's
+/// `insertSegment(...animated:)` and `removeSegment(at:animated:)` run it:
+/// one UIView animation of 0.25 s, easing in and out, moves every segment,
+/// the lens and the labels; a new segment starts at its predecessor's
+/// trailing edge at its own width and fades in; a removed one fades out
+/// while it slides its center onto the new trailing edge of the segment
+/// before it, the first one half its width less 5 toward the leading side
+/// (UIKit's code and CA animations, iOS 27.2 simulator). Any other change
+/// moves on the change's spring; a change outside a transaction jumps.
+final class _SegmentChangePlanner extends LayoutPlanner {
+  const _SegmentChangePlanner(this._bounds, {required this.mirrored});
+
+  final Object _bounds;
+
+  /// Whether the segments run right to left.
+  final bool mirrored;
+
+  static const curve = TimingCurve(0.25);
+  static const _firstInset = 5.0;
+  static const _fade = MotionPose(opacity: 0);
+
+  /// Whether [change] inserts or removes a segment.
+  static bool inserts(LayoutChange change) =>
+      change.entries.values.any((entry) => entry is! LayoutStaying);
+
+  @override
+  Map<Object, LayoutPlan> plan(LayoutChange change) {
+    final spring = change.spring;
+    if (spring == null || !inserts(change)) {
+      return {
+        for (final key in change.entries.keys) key: LayoutPlan(spring: spring),
+      };
+    }
+    final kept = [
+      for (final MapEntry(:key, :value) in change.entries.entries)
+        if (key != _bounds)
+          if (value case LayoutStaying(:final from, :final to)) (from, to),
+    ];
+    double order(Rect rect) => mirrored ? -rect.center.dx : rect.center.dx;
+    double trailing(Rect rect) => mirrored ? rect.left : rect.right;
+    (Rect, Rect)? previous(Rect rect, Rect Function((Rect, Rect)) side) {
+      (Rect, Rect)? best;
+      for (final segment in kept) {
+        if (order(side(segment)) < order(rect) &&
+            (best == null || order(side(segment)) > order(side(best)))) {
+          best = segment;
+        }
+      }
+      return best;
+    }
+
+    final bounds = switch (change.entries[_bounds]) {
+      LayoutStaying(:final from) => from,
+      _ => null,
+    };
+    Rect enter(Rect to) {
+      final edge = switch (previous(to, (segment) => segment.$2)) {
+        (final from, _) => trailing(from),
+        null => mirrored ? bounds?.right ?? to.right : bounds?.left ?? to.left,
+      };
+      return Rect.fromLTWH(
+        mirrored ? edge - to.width : edge,
+        to.top,
+        to.width,
+        to.height,
+      );
+    }
+
+    Rect leave(Rect from) {
+      final center = switch (previous(from, (segment) => segment.$1)) {
+        (_, final to) => trailing(to),
+        null => mirrored ? from.right - _firstInset : from.left + _firstInset,
+      };
+      return Rect.fromCenter(
+        center: Offset(center, from.center.dy),
+        width: from.width,
+        height: from.height,
+      );
+    }
+
+    return {
+      for (final MapEntry(:key, :value) in change.entries.entries)
+        key: switch (value) {
+          LayoutStaying() => const LayoutPlan(curve: curve),
+          LayoutEntering(:final to) => LayoutPlan(
+            curve: curve,
+            origin: enter(to),
+            absent: _fade,
+          ),
+          LayoutLeaving(:final from) => LayoutPlan(
+            curve: curve,
+            destination: leave(from),
+            absent: _fade,
+          ),
+        },
+    };
   }
 }
 

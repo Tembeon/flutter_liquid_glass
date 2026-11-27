@@ -307,22 +307,21 @@ final class LensMotion extends Motion {
   /// [selected] its slot among them, at time [t].
   ///
   /// [shift] is how far the lens's coordinates moved under it along the
-  /// track: the lens keeps its place on screen through it. On [spring] it
-  /// then moves to its slot and takes the slot's width, as the items that
-  /// stay do (not measured: UIKit's animated `insertSegment` and
-  /// `setItems` were not captured); with no spring, an immediate one or a
-  /// finger on the control, it snaps there as [slots] does.
+  /// track: the lens keeps its place on screen through it. On [animation]
+  /// it then moves to its slot and takes the slot's width, as the items
+  /// that stay do; with no animation, an immediate one or a finger on the
+  /// control, it snaps there as [slots] does.
   void reslot(
     double t,
     List<LensSlot> slots,
     int selected, {
-    Spring? spring,
+    MotionAnimation? animation,
     double shift = 0,
   }) {
     advance(t);
     _selected = _index(selected, slots.length);
-    if (spring == null ||
-        spring.isImmediate ||
+    if (animation == null ||
+        animation.isImmediate ||
         _pointer != null ||
         slots.isEmpty ||
         _slots.isEmpty) {
@@ -339,8 +338,8 @@ final class LensMotion extends Motion {
       _previousVisible = _visible(t);
       _flex.reset(_visible(t));
     }
-    _travel.retarget(t, slot.center, spring: spring);
-    _width.retarget(t, slot.width, spring: spring);
+    _travel.animate(t, slot.center, animation: animation);
+    _width.animate(t, slot.width, animation: animation);
     _loop.wake(t);
   }
 

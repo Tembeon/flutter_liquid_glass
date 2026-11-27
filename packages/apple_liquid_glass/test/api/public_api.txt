@@ -3785,7 +3785,7 @@ final class LensMotion extends Motion
     double t,
     List<({double center, double width})> slots,
     int selected, {
-    Spring? spring,
+    MotionAnimation? animation,
     double shift = ...,
   })
   double get scaleX
