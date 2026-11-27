@@ -152,13 +152,13 @@ final class FakeGlassLook {
   /// The look of [settings].
   FakeGlassLook.of(LiquidGlassSettings settings)
     : blur = settings.blur,
-      sliderPosition = settings.drawnSliderPosition;
+      system = settings.drawnSystem;
 
   /// [LiquidGlassSettings.blur].
   final double? blur;
 
-  /// The drawn slider position ([DrawnSlider]).
-  final double sliderPosition;
+  /// The platform's settings as glass draws them ([DrawnSlider.drawnSystem]).
+  final GlassSystem system;
 
   /// [glassBlurSigma] of glass wearing [model] in this look.
   double blurSigmaAt(
@@ -167,7 +167,7 @@ final class FakeGlassLook {
     double? shapeShortSide,
   }) => glassBlurSigma(
     blur: blur,
-    sliderPosition: sliderPosition,
+    system: system,
     variant: model.blurredAs.variant,
     devicePixelRatio: devicePixelRatio,
     shapeShortSide: shapeShortSide,
@@ -175,12 +175,10 @@ final class FakeGlassLook {
 
   @override
   bool operator ==(Object other) =>
-      other is FakeGlassLook &&
-      other.blur == blur &&
-      other.sliderPosition == sliderPosition;
+      other is FakeGlassLook && other.blur == blur && other.system == system;
 
   @override
-  int get hashCode => Object.hash(blur, sliderPosition);
+  int get hashCode => Object.hash(blur, system);
 }
 
 /// A fake glass backdrop filter, and the frost `full` stands for when it
@@ -211,7 +209,7 @@ FakeGlassTransfer? fakeGlassTransfer(
 ) {
   final transfer = model.transfer;
   final recipe = switch (model) {
-    WornRecipe(look: final worn) => recipeOf(worn, look.sliderPosition),
+    WornRecipe(look: final worn) => recipeOf(worn, look.system),
     WornDirect() => null,
   };
   if (recipe == null &&

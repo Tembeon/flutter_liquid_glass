@@ -1,6 +1,8 @@
 import 'dart:math' as math;
+import 'dart:ui' show Brightness;
 
 import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
+import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
@@ -71,6 +73,7 @@ final class LiquidGlassSettings {
     this.lens = LiquidGlassLens.none,
     this.sliderPosition = 0,
     this.blur,
+    this.reduceTransparency = false,
   });
 
   /// The lens of iOS 27 regular glass (`Glass.regular`, which Apple also
@@ -82,11 +85,14 @@ final class LiquidGlassSettings {
   /// This is a useful starting point, not a universal Apple-material preset:
   /// platform materials vary with appearance, control role, and accessibility
   /// settings.
-  const LiquidGlassSettings.ios27Regular({this.sliderPosition = 0, this.blur})
-    : refractionHeight = _defaultRefractionHeight,
-      refractionAmount = _defaultRefractionAmount,
-      refractionFitsShape = true,
-      lens = LiquidGlassLens.none;
+  const LiquidGlassSettings.ios27Regular({
+    this.sliderPosition = 0,
+    this.blur,
+    this.reduceTransparency = false,
+  }) : refractionHeight = _defaultRefractionHeight,
+       refractionAmount = _defaultRefractionAmount,
+       refractionFitsShape = true,
+       lens = LiquidGlassLens.none;
 
   /// The lens of iOS 27 `Glass.clear` at the Liquid Glass slider position
   /// [sliderPosition]: the full 20 pt / 60 pt bevel on glass from 93 points
@@ -94,11 +100,14 @@ final class LiquidGlassSettings {
   /// [refractionFitsShape]. Pair it with [LiquidGlassAppearance.ios27Clear],
   /// whose glass the slider alone blurs unless a [blur] is given: at slider
   /// 0 it is completely clear and unblurred.
-  const LiquidGlassSettings.ios27Clear({this.sliderPosition = 0, this.blur})
-    : refractionHeight = _defaultRefractionHeight,
-      refractionAmount = _defaultRefractionAmount,
-      refractionFitsShape = false,
-      lens = LiquidGlassLens.none;
+  const LiquidGlassSettings.ios27Clear({
+    this.sliderPosition = 0,
+    this.blur,
+    this.reduceTransparency = false,
+  }) : refractionHeight = _defaultRefractionHeight,
+       refractionAmount = _defaultRefractionAmount,
+       refractionFitsShape = false,
+       lens = LiquidGlassLens.none;
 
   static const double _defaultRefractionHeight = 20;
   static const double _defaultRefractionAmount = 60;
@@ -179,6 +188,16 @@ final class LiquidGlassSettings {
   /// blur. The renderer may round the blur it applies.
   final double? blur;
 
+  /// Whether the glass draws as iOS 27 draws it under the Reduce
+  /// Transparency setting: it refracts nothing, a [blur] left null blurs what
+  /// it shows widely (35 to 50 points deep inside it, 5 at its edge) from a
+  /// coarse copy, and the iOS 27 colour models fill its face nearly flat, with
+  /// no ring shadow or veil; its rim highlight, dark edge and shadows stay.
+  ///
+  /// Apps set this themselves, as [sliderPosition]; the renderer does not read
+  /// the system value.
+  final bool reduceTransparency;
+
   /// Returns a copy with the supplied controls replaced. A [blur] given
   /// replaces this one; settings that blur as their look does are made
   /// anew.
@@ -189,6 +208,7 @@ final class LiquidGlassSettings {
     LiquidGlassLens? lens,
     double? sliderPosition,
     double? blur,
+    bool? reduceTransparency,
   }) => LiquidGlassSettings(
     refractionHeight: refractionHeight ?? this.refractionHeight,
     refractionAmount: refractionAmount ?? this.refractionAmount,
@@ -196,6 +216,7 @@ final class LiquidGlassSettings {
     lens: lens ?? this.lens,
     sliderPosition: sliderPosition ?? this.sliderPosition,
     blur: blur ?? this.blur,
+    reduceTransparency: reduceTransparency ?? this.reduceTransparency,
   );
 
   @override
@@ -207,7 +228,8 @@ final class LiquidGlassSettings {
           other.refractionFitsShape == refractionFitsShape &&
           other.lens == lens &&
           other.sliderPosition == sliderPosition &&
-          other.blur == blur;
+          other.blur == blur &&
+          other.reduceTransparency == reduceTransparency;
 
   @override
   int get hashCode => Object.hash(
@@ -217,6 +239,7 @@ final class LiquidGlassSettings {
     lens,
     sliderPosition,
     blur,
+    reduceTransparency,
   );
 
   @override
@@ -224,46 +247,71 @@ final class LiquidGlassSettings {
       'LiquidGlassSettings(refractionHeight: $refractionHeight, '
       'refractionAmount: $refractionAmount, '
       'refractionFitsShape: $refractionFitsShape, lens: $lens, '
-      'sliderPosition: $sliderPosition, blur: $blur)';
+      'sliderPosition: $sliderPosition, blur: $blur'
+      '${reduceTransparency ? ', reduceTransparency: true' : ''})';
 }
 
 /// The one blur, in logical pixels, that glass blurs what it shows by where
 /// a single blur stands in for iOS 27's: [blur] as given (a negative one as
-/// `0`), or else iOS 27's for glass of [variant] at [sliderPosition], whose
+/// `0`), or else iOS 27's for glass of [variant] under [system], whose
 /// short side is [shapeShortSide] logical pixels (toolbar size without one),
 /// on a display of [devicePixelRatio] device pixels per logical pixel.
 ///
 /// iOS 27's grows with the short side and is raised for the display; `0`
 /// stays `0`. Pass the smaller axis scale when [devicePixelRatio] is not
 /// uniform.
+///
+/// Under Reduce Transparency iOS 27's is the deep blur of its recipe, as
+/// Impeller's blur is asked for it.
 @internal
 double glassBlurSigma({
   required double? blur,
-  required double sliderPosition,
+  required GlassSystem system,
   required GlassVariant variant,
   required double devicePixelRatio,
   double? shapeShortSide,
-}) => blurSigmaOf(
-  glassBlurBase(blur: blur, sliderPosition: sliderPosition, variant: variant),
-  fitted: blur == null,
-  devicePixelRatio: devicePixelRatio,
-  shapeShortSide: shapeShortSide,
-);
+}) => blur == null && system.reduceTransparency
+    ? _transparencyBlur(variant, shapeShortSide)
+    : blurSigmaOf(
+        glassBlurBase(blur: blur, system: system, variant: variant),
+        fitted: blur == null,
+        devicePixelRatio: devicePixelRatio,
+        shapeShortSide: shapeShortSide,
+      );
 
 /// [glassBlurSigma] at toolbar size before the display raises it.
 @internal
 double glassBlurBase({
   required double? blur,
-  required double sliderPosition,
+  required GlassSystem system,
   required GlassVariant variant,
 }) => switch ((blur, variant)) {
   (final sigma?, _) => math.max(0, sigma),
-  (null, GlassVariant.regular) => ios27RegularBlur(sliderPosition),
+  _ when system.reduceTransparency => _transparencyBlur(variant, null),
+  (null, GlassVariant.regular) => ios27RegularBlur(system.slider),
   (null, GlassVariant.clear) =>
-    sliderPosition <= 0
+    system.slider <= 0
         ? 0
-        : math.max(minBlurSigma, ios27ClearBlur(sliderPosition)),
+        : math.max(minBlurSigma, ios27ClearBlur(system.slider)),
 };
+
+double _transparencyBlur(GlassVariant variant, double? shapeShortSide) {
+  final GlassRecipe(:blur) = GlassRecipe.of(
+    variant: variant,
+    brightness: Brightness.light,
+    shortSide: shapeShortSide ?? blurFitShortSides.toolbar,
+    reduceTransparency: true,
+  );
+  return blur.radius *
+      blur.stops.first.strength *
+      ios27BlurUnit /
+      ImpellerBlur.deliveredFraction;
+}
+
+/// What the platform's settings ask of iOS 27 glass, as a [GlassRecipe] reads
+/// them: the Liquid Glass slider on its steps and Reduce Transparency.
+@internal
+typedef GlassSystem = ({double slider, bool reduceTransparency});
 
 /// The slider position of [LiquidGlassSettings] as glass draws it.
 @internal
@@ -271,6 +319,12 @@ extension DrawnSlider on LiquidGlassSettings {
   /// [LiquidGlassSettings.sliderPosition] on one of the steps iOS's Liquid
   /// Glass slider takes ([snapSlider]), which every law of the slider reads.
   double get drawnSliderPosition => snapSlider(sliderPosition);
+
+  /// The slider as glass draws it and [LiquidGlassSettings.reduceTransparency].
+  GlassSystem get drawnSystem => (
+    slider: drawnSliderPosition,
+    reduceTransparency: reduceTransparency,
+  );
 }
 
 /// The blur of [LiquidGlassSettings] for glass wearing a color model.
@@ -283,7 +337,7 @@ extension SettingsBlur on LiquidGlassSettings {
     double? shapeShortSide,
   }) => glassBlurSigma(
     blur: blur,
-    sliderPosition: drawnSliderPosition,
+    system: drawnSystem,
     variant: model.blurredAs.variant,
     devicePixelRatio: devicePixelRatio,
     shapeShortSide: shapeShortSide,
@@ -292,7 +346,7 @@ extension SettingsBlur on LiquidGlassSettings {
   /// [glassBlurBase] of glass wearing [model].
   double blurBaseOf(WornColorModel model) => glassBlurBase(
     blur: blur,
-    sliderPosition: drawnSliderPosition,
+    system: drawnSystem,
     variant: model.blurredAs.variant,
   );
 }

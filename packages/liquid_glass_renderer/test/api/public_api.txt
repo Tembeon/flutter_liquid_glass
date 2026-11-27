@@ -308,12 +308,14 @@ final class LiquidGlassMaterial
   factory LiquidGlassMaterial.ios27Clear({
     double sliderPosition = ...,
     bool highContrast = ...,
+    bool reduceTransparency = ...,
     Color tint = ...,
   })
   factory LiquidGlassMaterial.ios27Regular({
     required Brightness brightness,
     double sliderPosition = ...,
     bool highContrast = ...,
+    bool reduceTransparency = ...,
     Color tint = ...,
   })
   const LiquidGlassMaterial({
@@ -347,10 +349,12 @@ final class LiquidGlassSettings
   const LiquidGlassSettings.ios27Clear({
     double sliderPosition = ...,
     double? blur,
+    bool reduceTransparency = ...,
   })
   const LiquidGlassSettings.ios27Regular({
     double sliderPosition = ...,
     double? blur,
+    bool reduceTransparency = ...,
   })
   const LiquidGlassSettings({
     double refractionHeight = ...,
@@ -359,6 +363,7 @@ final class LiquidGlassSettings
     LiquidGlassLens lens = ...,
     double sliderPosition = ...,
     double? blur,
+    bool reduceTransparency = ...,
   })
   final double? blur
   LiquidGlassSettings copyWith({
@@ -368,8 +373,10 @@ final class LiquidGlassSettings
     LiquidGlassLens? lens,
     double? sliderPosition,
     double? blur,
+    bool? reduceTransparency,
   })
   final LiquidGlassLens lens
+  final bool reduceTransparency
   final double refractionAmount
   final bool refractionFitsShape
   final double refractionHeight

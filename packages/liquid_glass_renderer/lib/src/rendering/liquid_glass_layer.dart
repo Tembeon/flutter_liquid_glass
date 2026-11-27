@@ -160,8 +160,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // in.
   ({BlurRecipe blur, BlurFillRecipe fill}) get _blurRecipes {
     final look = _blurLook;
-    final slider = settings.drawnSliderPosition;
-    final key = (settings, look, slider);
+    final system = settings.drawnSystem;
+    final key = (settings, look, system);
     final held = _heldBlurRecipes;
     if (held != null && held.key == key) return held.recipes;
     final recipes = switch (settings.blur) {
@@ -174,7 +174,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         fill: BlurFillRecipe.none,
       ),
       null => () {
-        final recipe = recipeOf(look, slider);
+        final recipe = recipeOf(look, system);
         return (blur: recipe.blur, fill: recipe.blurFill);
       }(),
     };
@@ -488,7 +488,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   ({double inward, double outward}) get _recipeEdges => recipeEdges(
     drawnRecipes(_appearances.all, defaultWornByNone),
-    settings.drawnSliderPosition,
+    settings.drawnSystem,
   );
   GeometryNeed? _encodedNeed;
 

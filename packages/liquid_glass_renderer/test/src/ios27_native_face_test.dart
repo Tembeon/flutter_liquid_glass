@@ -177,7 +177,10 @@ void main() {
       expect(model.wornAt(100), model.wornAt(100));
       expect(model.wornAt(100), isNot(model.wornAt(120)));
       expect(
-        recipeOf((model.wornAt(64) as WornRecipe).look, 0).bleed.opacity,
+        recipeOf((model.wornAt(64) as WornRecipe).look, (
+          slider: 0,
+          reduceTransparency: false,
+        )).bleed.opacity,
         0,
       );
     }
@@ -262,14 +265,17 @@ void main() {
   });
 
   test('glass between a control and a panel wears part of the veil', () {
-    final panel = recipeOf((
-      variant: GlassVariant.regular,
-      brightness: Brightness.dark,
-      shortSide: 120,
-      greyTint: false,
-      highContrast: false,
-      lift: GlassLift.resting,
-    ), 0);
+    final panel = recipeOf(
+      (
+        variant: GlassVariant.regular,
+        brightness: Brightness.dark,
+        shortSide: 120,
+        greyTint: false,
+        highContrast: false,
+        lift: GlassLift.resting,
+      ),
+      (slider: 0, reduceTransparency: false),
+    );
     expect(panel.bleed.opacity, closeTo(0.8 * 56 / 96, 1e-12));
   });
 }

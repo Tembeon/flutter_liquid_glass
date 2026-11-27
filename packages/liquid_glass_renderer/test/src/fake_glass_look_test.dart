@@ -31,6 +31,7 @@ void main() {
     for (final other in [
       settings.copyWith(blur: 4),
       settings.copyWith(sliderPosition: 0.5),
+      settings.copyWith(reduceTransparency: true),
     ]) {
       expect(FakeGlassLook.of(other), isNot(FakeGlassLook.of(settings)));
     }
@@ -41,7 +42,7 @@ void main() {
     const regular = WornColorModel.direct(brightness: Brightness.light);
     final base = glassBlurBase(
       blur: null,
-      sliderPosition: 0,
+      system: (slider: 0, reduceTransparency: false),
       variant: GlassVariant.regular,
     );
     final given = FakeGlassLook.of(settings.copyWith(blur: base));

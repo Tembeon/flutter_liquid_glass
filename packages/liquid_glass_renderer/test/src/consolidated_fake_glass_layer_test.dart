@@ -750,7 +750,7 @@ void main() {
     );
     final recipe = recipeOf(
       (model.wornAt(double.infinity) as WornRecipe).look,
-      0,
+      (slider: 0, reduceTransparency: false),
     );
     final matrix = fakeGlassFaceMatrix(
       face: recipe.face,

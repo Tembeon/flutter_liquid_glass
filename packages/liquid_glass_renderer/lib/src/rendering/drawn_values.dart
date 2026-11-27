@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 
@@ -25,11 +26,14 @@ extension DrawnLens on LiquidGlassLens {
 /// The values of [LiquidGlassSettings] the shaders take: each setting clamped
 /// to the range the renderer draws, and what the passes derive from them.
 extension DrawnSettings on LiquidGlassSettings {
-  /// The bevel width; never negative.
-  double get drawnRefractionHeight => math.max(0, refractionHeight);
+  /// The bevel width; never negative, and none under Reduce Transparency.
+  double get drawnRefractionHeight =>
+      reduceTransparency ? 0 : math.max(0, refractionHeight);
 
-  /// The edge displacement; never negative.
-  double get drawnRefractionAmount => math.max(0, refractionAmount);
+  /// The edge displacement; never negative, and none under Reduce
+  /// Transparency.
+  double get drawnRefractionAmount =>
+      reduceTransparency ? 0 : math.max(0, refractionAmount);
 }
 
 /// A [LiquidShape] as the shaders take it.
@@ -100,10 +104,9 @@ TintLaw tintLawOf(RecipeLook look) => tintLaw(
   grey: look.greyTint,
 );
 
-/// The recipe of [look] at the Liquid Glass slider position
-/// [sliderPosition].
-GlassRecipe recipeOf(RecipeLook look, double sliderPosition) {
-  final key = (look, sliderPosition);
+/// The recipe of [look] under the platform's settings [system].
+GlassRecipe recipeOf(RecipeLook look, GlassSystem system) {
+  final key = (look, system);
   final cached = _recipes[key];
   if (cached != null) return cached;
   if (_recipes.length >= 64) _recipes.clear();
@@ -111,17 +114,18 @@ GlassRecipe recipeOf(RecipeLook look, double sliderPosition) {
     variant: look.variant,
     brightness: look.brightness,
     shortSide: look.shortSide,
-    slider: sliderPosition,
+    slider: system.slider,
     highContrast: look.highContrast,
+    reduceTransparency: system.reduceTransparency,
     lift: look.lift,
   );
 }
 
-final _recipes = <(RecipeLook, double), GlassRecipe>{};
+final _recipes = <(RecipeLook, GlassSystem), GlassRecipe>{};
 
-/// The floats of one slot of the final shader's uRecipes for [look] at the
-/// slider position [sliderPosition], by [RecipeLane], its widths in device
-/// pixels at [devicePixelRatio].
+/// The floats of one slot of the final shader's uRecipes for [look] under
+/// [system], by [RecipeLane], its widths in device pixels at
+/// [devicePixelRatio].
 ///
 /// The rim highlight's line takes its full amount, 1, and its diffuse glow
 /// the diffuse amount of it; each mask is biased by one over its amount
@@ -129,15 +133,15 @@ final _recipes = <(RecipeLook, double), GlassRecipe>{};
 /// the edge to its outset past it.
 List<double> recipeLanes(
   RecipeLook look, {
-  required double sliderPosition,
+  required GlassSystem system,
   required double devicePixelRatio,
 }) {
-  final key = (look, sliderPosition, devicePixelRatio);
+  final key = (look, system, devicePixelRatio);
   final cached = _recipeLanes[key];
   if (cached != null) return cached;
   if (_recipeLanes.length >= 64) _recipeLanes.clear();
   final dpr = devicePixelRatio;
-  final recipe = recipeOf(look, sliderPosition);
+  final recipe = recipeOf(look, system);
   final face = recipe.face;
   final fill = face.fill;
   final bleed = recipe.bleed;
@@ -201,17 +205,14 @@ List<double> recipeLanes(
   return _recipeLanes[key] = lanes;
 }
 
-final _recipeLanes = <(RecipeLook, double, double), List<double>>{};
+final _recipeLanes = <(RecipeLook, GlassSystem, double), List<double>>{};
 
-/// How far glass wearing [model] at [sliderPosition] draws outside its
-/// shape, in logical pixels: the direct model's contour, or the recipe's
-/// dark specular.
-double outsideReachOf(WornColorModel model, double sliderPosition) =>
+/// How far glass wearing [model] under [system] draws outside its shape, in
+/// logical pixels: the direct model's contour, or the recipe's dark
+/// specular.
+double outsideReachOf(WornColorModel model, GlassSystem system) =>
     switch (model) {
-      WornRecipe(:final look) => recipeOf(
-        look,
-        sliderPosition,
-      ).darkSpecular.reach,
+      WornRecipe(:final look) => recipeOf(look, system).darkSpecular.reach,
       WornDirect(:final rim) => rim.contourWidth,
     };
 
@@ -221,12 +222,12 @@ double outsideReachOf(WornColorModel model, double sliderPosition) =>
 /// its dark specular band.
 ({double inward, double outward}) recipeEdges(
   List<RecipeLook> looks,
-  double sliderPosition,
+  GlassSystem system,
 ) {
   var inward = 0.0;
   var outward = 0.0;
   for (final look in looks) {
-    final recipe = recipeOf(look, sliderPosition);
+    final recipe = recipeOf(look, system);
     final ring = recipe.ringShadow;
     if (ring.draws) {
       inward = math.max(

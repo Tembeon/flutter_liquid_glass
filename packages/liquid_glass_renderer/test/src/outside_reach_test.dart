@@ -29,7 +29,10 @@ void main() {
               highContrast: false,
               lift: GlassLift.resting,
             );
-            final outward = recipeEdges([recipe], slider).outward;
+            final outward = recipeEdges(
+              [recipe],
+              (slider: slider, reduceTransparency: false),
+            ).outward;
             expect(outward, greaterThan(0));
             expect(
               fakeGlassSurfaceOutset(look, WornColorModel.recipe(recipe)),
@@ -69,7 +72,10 @@ void main() {
       ]) {
         final worn = model.wornAt(44);
         final look = (worn as WornRecipe).look;
-        final edges = recipeEdges([look], 0);
+        final edges = recipeEdges(
+          [look],
+          (slider: 0, reduceTransparency: false),
+        );
         final face = GlassFace.of(
           settings: const LiquidGlassSettings(),
           appearance: WornAppearance(
@@ -86,7 +92,13 @@ void main() {
           face[laneOffset(FaceLane.values, FaceLane.outsideReach)],
           moreOrLessEquals(edges.outward * dpr, epsilon: 1e-6),
         );
-        expect(edges.outward, recipeOf(look, 0).darkSpecular.reach);
+        expect(
+          edges.outward,
+          recipeOf(look, (
+            slider: 0,
+            reduceTransparency: false,
+          )).darkSpecular.reach,
+        );
       }
     }
   });

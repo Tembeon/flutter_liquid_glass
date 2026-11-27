@@ -19,7 +19,7 @@ import 'package:meta/meta.dart';
 /// How far past its shape fake glass wearing [model] in [look] draws, in
 /// logical pixels: a pixel past what [outsideReachOf] gives.
 double fakeGlassSurfaceOutset(FakeGlassLook look, WornColorModel model) =>
-    outsideReachOf(model, look.sliderPosition) + 1;
+    outsideReachOf(model, look.system) + 1;
 
 final _noSuperellipse = List<double>.filled(SquircleLane.values.length, 0);
 
@@ -325,7 +325,7 @@ bool _drawsLight(FakeGlassLook look, WornAppearance appearance) {
   return switch (appearance.colorModel) {
     WornRecipe(look: final worn) => recipeOf(
       worn,
-      look.sliderPosition,
+      look.system,
     ).rimHighlight.draws,
     WornDirect(:final rim) => rim.glintStrength > 0,
   };
@@ -337,7 +337,7 @@ bool _drawsLight(FakeGlassLook look, WornAppearance appearance) {
 bool fakeGlassDrawsOuterBand(FakeGlassLook look, WornAppearance appearance) =>
     switch (appearance.colorModel) {
       WornRecipe(look: final worn) =>
-        _specularOf(recipeOf(worn, look.sliderPosition)) != null,
+        _specularOf(recipeOf(worn, look.system)) != null,
       WornDirect(:final rim) => rim.contourWidth > 0,
     };
 
@@ -360,7 +360,7 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
     WornDirect(:final rim) => (rim, null),
     WornRecipe(:final look) => (DirectRim.none, look),
   };
-  final recipe = worn == null ? null : recipeOf(worn, look.sliderPosition);
+  final recipe = worn == null ? null : recipeOf(worn, look.system);
   final faceEmission = recipe?.face.fill ?? const Color(0x00000000);
   final directVisibility = recipe == null ? visibility : 0.0;
   final specular = recipe == null ? null : _specularOf(recipe);
@@ -368,7 +368,7 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
       ? null
       : recipeLanes(
           worn,
-          sliderPosition: look.sliderPosition,
+          system: look.system,
           devicePixelRatio: 1,
         );
   List<double> edge(RecipeLane lane, {double scale = 1}) {

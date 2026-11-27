@@ -12,12 +12,14 @@ GlassRecipe _of({
   double shortSide = 150,
   double slider = 0,
   bool highContrast = false,
+  bool reduceTransparency = false,
 }) => GlassRecipe.of(
   variant: variant,
   brightness: brightness,
   shortSide: shortSide,
   slider: slider,
   highContrast: highContrast,
+  reduceTransparency: reduceTransparency,
 );
 
 double _deg(double degrees) => degrees * math.pi / 180;
@@ -178,6 +180,81 @@ void main() {
       expect(r.face.fill.r, 0);
       expect(r.face.fill.a, closeTo(0.35, 1e-6));
       expect(r.rimHighlight.opacity, 0.55);
+    });
+  });
+
+  group('Reduce Transparency', () {
+    test('blurs regular glass from 35 to 50 by size, 5 at its edge, and '
+        'clear glass by 50 all through', () {
+      for (final (side, radius) in [(44.0, 35.0), (150.0, 48.4375)]) {
+        final blur = _of(shortSide: side, reduceTransparency: true).blur;
+        expect(blur.radius, _near(radius), reason: 'side $side');
+        expect(
+          [for (final stop in blur.stops) stop.strength],
+          [1, 1, 5 / radius, 5 / radius].map(_near).toList(),
+        );
+      }
+      final clear = _of(
+        variant: GlassVariant.clear,
+        reduceTransparency: true,
+      ).blur;
+      expect(clear.radius, 50);
+      expect([for (final stop in clear.stops) stop.strength], [1, 1, 1, 1]);
+    });
+
+    test('lays a nearly flat face, its fill rising to the middle tick and '
+        'falling past it', () {
+      for (final (slider, alpha) in [
+        (0.0, 0.0),
+        (0.25, 0.4),
+        (0.5, 0.8),
+        (0.75, 0.65),
+        (1.0, 0.5),
+      ]) {
+        final face = _of(slider: slider, reduceTransparency: true).face;
+        expect(
+          (face.black, face.white, face.saturation),
+          (0.9, 1.03, 0.9),
+        );
+        expect(face.fill.r, 1);
+        expect(face.fill.a, closeTo(alpha, 1e-6), reason: 'slider $slider');
+      }
+      for (final (slider, alpha) in [(0.0, 0.0), (0.5, 0.6), (1.0, 0.5)]) {
+        final face = _of(
+          brightness: Brightness.dark,
+          slider: slider,
+          reduceTransparency: true,
+        ).face;
+        expect((face.black, face.white, face.saturation), (0.2, 0.2, 0.7));
+        expect(face.fill.r, 0);
+        expect(face.fill.a, closeTo(alpha, 1e-6), reason: 'slider $slider');
+      }
+    });
+
+    test('draws no ring shadow or veil and keeps the edges iOS keeps', () {
+      final base = _of(slider: 0.5);
+      final r = _of(slider: 0.5, reduceTransparency: true);
+      expect(r.ringShadow.draws, isFalse);
+      expect(r.bleed, BleedRecipe.none);
+      expect(
+        (r.blurFill, r.darkSpecular, r.rimHighlight),
+        (base.blurFill, base.darkSpecular, base.rimHighlight),
+      );
+    });
+
+    test("lies under Increase Contrast's face", () {
+      expect(
+        _of(reduceTransparency: true, highContrast: true).face.fill.a,
+        closeTo(0.45, 1e-6),
+      );
+      expect(
+        _of(
+          slider: 0.5,
+          reduceTransparency: true,
+          highContrast: true,
+        ).face.fill.a,
+        closeTo(0.8, 1e-6),
+      );
     });
   });
 

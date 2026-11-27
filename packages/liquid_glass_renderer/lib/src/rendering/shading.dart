@@ -170,7 +170,7 @@ final class GlassFace {
           ...i < colorModels.length
               ? recipeLanes(
                   colorModels[i],
-                  sliderPosition: settings.drawnSliderPosition,
+                  system: settings.drawnSystem,
                   devicePixelRatio: dpr,
                 )
               : _noModel,

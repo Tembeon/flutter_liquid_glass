@@ -23,8 +23,8 @@ final class LiquidGlassMaterial {
   /// iOS 27 regular glass (`Glass.regular`, which Apple also uses for
   /// toolbars and `.glass` buttons) in [brightness], at the Liquid Glass
   /// slider position [sliderPosition], with the face of the Increase
-  /// Contrast setting where [highContrast] says so, and tinted with
-  /// [tint].
+  /// Contrast setting where [highContrast] says so, as Reduce Transparency
+  /// draws it where [reduceTransparency] says so, and tinted with [tint].
   ///
   /// It is [LiquidGlassSettings.ios27Regular],
   /// [LiquidGlassAppearance.ios27Regular] and
@@ -33,9 +33,13 @@ final class LiquidGlassMaterial {
     required Brightness brightness,
     double sliderPosition = 0,
     bool highContrast = false,
+    bool reduceTransparency = false,
     Color tint = const Color(0x00000000),
   }) => LiquidGlassMaterial(
-    settings: LiquidGlassSettings.ios27Regular(sliderPosition: sliderPosition),
+    settings: LiquidGlassSettings.ios27Regular(
+      sliderPosition: sliderPosition,
+      reduceTransparency: reduceTransparency,
+    ),
     appearance: LiquidGlassAppearance.ios27Regular(
       brightness: brightness,
       highContrast: highContrast,
@@ -48,17 +52,22 @@ final class LiquidGlassMaterial {
 
   /// iOS 27 clear glass (`Glass.clear`), identical in light and dark, at
   /// the Liquid Glass slider position [sliderPosition], with the face of
-  /// the Increase Contrast setting where [highContrast] says so, and
-  /// tinted with [tint].
+  /// the Increase Contrast setting where [highContrast] says so, as Reduce
+  /// Transparency draws it where [reduceTransparency] says so, and tinted
+  /// with [tint].
   ///
   /// It is [LiquidGlassSettings.ios27Clear] and
   /// [LiquidGlassAppearance.ios27Clear]; clear glass casts no shadow on iOS.
   factory LiquidGlassMaterial.ios27Clear({
     double sliderPosition = 0,
     bool highContrast = false,
+    bool reduceTransparency = false,
     Color tint = const Color(0x00000000),
   }) => LiquidGlassMaterial(
-    settings: LiquidGlassSettings.ios27Clear(sliderPosition: sliderPosition),
+    settings: LiquidGlassSettings.ios27Clear(
+      sliderPosition: sliderPosition,
+      reduceTransparency: reduceTransparency,
+    ),
     appearance: LiquidGlassAppearance.ios27Clear(
       highContrast: highContrast,
       tint: tint,

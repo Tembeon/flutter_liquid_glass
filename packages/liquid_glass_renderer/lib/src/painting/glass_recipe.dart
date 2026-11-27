@@ -70,7 +70,13 @@ final class GlassRecipe {
   /// Increase Contrast changes only the face: less saturation, a lighter
   /// floor and a more opaque white fill in light, a dark grey ceiling in
   /// dark, a black fill on clear glass with a weaker rim highlight. Reduce
-  /// Transparency is not drawn as glass at all: the widgets go flat.
+  /// Transparency ([reduceTransparency]) blurs what the glass shows widely
+  /// (35 points on a control's glass to 50 on a panel's, 5 at its edge, and
+  /// 50 all through clear glass), lays a nearly flat face over it (light
+  /// glass lifts black to 90 % under a white fill that rises to the slider's
+  /// middle tick and falls past it, dark glass keeps a fifth of white under a
+  /// black fill, clear glass a fill of a quarter in its scheme), and draws no
+  /// ring shadow or veil; Increase Contrast's face lies over it.
   ///
   /// A lifted lens ([lift]) keeps the resting glass's rim highlight and draws
   /// its own face, its own dark specular (0.5 dark, a point wide from a third
@@ -84,6 +90,7 @@ final class GlassRecipe {
     required double shortSide,
     double slider = 0,
     bool highContrast = false,
+    bool reduceTransparency = false,
     GlassLift lift = GlassLift.resting,
   }) {
     final law = _Law(
@@ -92,6 +99,7 @@ final class GlassRecipe {
       shortSide: shortSide,
       slider: snapSlider(slider),
       highContrast: highContrast,
+      reduceTransparency: reduceTransparency,
       lift: lift,
     );
     return GlassRecipe(
@@ -192,6 +200,7 @@ final class _Law {
     required this.shortSide,
     required this.slider,
     required this.highContrast,
+    required this.reduceTransparency,
     required this.lift,
   }) : grown = ios27PanelProgress(shortSide),
        split = splitAtMiddleTick(slider);
@@ -201,6 +210,7 @@ final class _Law {
   final double shortSide;
   final double slider;
   final bool highContrast;
+  final bool reduceTransparency;
   final GlassLift lift;
   final double grown;
   final ({double upTo, double past}) split;
@@ -217,6 +227,11 @@ final class _Law {
         for (var i = 0; i < 4; i++) (depth: depths[i], strength: strengths[i]),
       ],
     );
+    if (reduceTransparency) {
+      if (clear) return ramp(50, [1, 1, 1, 1]);
+      final radius = 35 + 15 * grown;
+      return ramp(radius, [1, 1, 5 / radius, 5 / radius]);
+    }
     if (clear) {
       final on = slider > 0 ? 1.0 : 0.0;
       return ramp(1.5 * split.upTo, [on, 0.5 * on, 0.5 * on, on]);
@@ -261,7 +276,8 @@ final class _Law {
           maxLuma: 0,
         );
       case GlassLift.resting:
-        final face = _restingFace();
+        final resting = _restingFace();
+        final face = reduceTransparency ? _transparencyFace(resting) : resting;
         return highContrast ? _contrastFace(face) : face;
     }
   }
@@ -303,6 +319,46 @@ final class _Law {
     );
   }
 
+  FaceRecipe _transparencyFace(FaceRecipe under) {
+    final (:upTo, :past) = split;
+    if (clear) {
+      final page = dark ? 0.0 : 1.0;
+      return FaceRecipe(
+        black: 0.125,
+        white: 0,
+        saturation: dark ? 0.7 : 0.9,
+        fill: Color.from(alpha: 0.25, red: page, green: page, blue: page),
+        maxLuma: under.maxLuma,
+      );
+    }
+    if (dark) {
+      return FaceRecipe(
+        black: 0.2,
+        white: 0.2,
+        saturation: 0.7,
+        fill: Color.from(
+          alpha: 1.2 * upTo - 0.2 * past,
+          red: 0,
+          green: 0,
+          blue: 0,
+        ),
+        maxLuma: under.maxLuma,
+      );
+    }
+    return FaceRecipe(
+      black: 0.9,
+      white: under.white,
+      saturation: 0.9,
+      fill: Color.from(
+        alpha: 1.6 * upTo - 0.6 * past,
+        red: 1,
+        green: 1,
+        blue: 1,
+      ),
+      maxLuma: under.maxLuma,
+    );
+  }
+
   FaceRecipe _contrastFace(FaceRecipe under) {
     if (clear) {
       return FaceRecipe(
@@ -337,7 +393,7 @@ final class _Law {
   }
 
   BleedRecipe bleed() {
-    if (lifted) return BleedRecipe.none;
+    if (lifted || reduceTransparency) return BleedRecipe.none;
     if (clear) {
       return const BleedRecipe(
         opacity: 0,
@@ -366,7 +422,7 @@ final class _Law {
   }
 
   RingShadowRecipe ringShadow() {
-    if (clear || lifted) return RingShadowRecipe.none;
+    if (clear || lifted || reduceTransparency) return RingShadowRecipe.none;
     return const RingShadowRecipe(
       opacity: 0.06,
       offset: 8,
