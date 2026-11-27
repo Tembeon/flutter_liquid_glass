@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -34,6 +35,7 @@ Widget _app({
   TextDirection direction = TextDirection.ltr,
   bool reduceMotion = false,
   bool landscape = false,
+  bool composited = false,
 }) => MediaQuery(
   data: landscape
       ? const MediaQueryData(
@@ -59,7 +61,14 @@ Widget _app({
           tabs: [
             for (final (i, name) in ['One', 'Two', 'Three'].indexed)
               GlassTab(
-                icon: SizedBox.square(key: Key('glyph $i'), dimension: 24),
+                icon: composited
+                    ? RepaintBoundary(
+                        child: SizedBox.square(
+                          key: Key('glyph $i'),
+                          dimension: 24,
+                        ),
+                      )
+                    : SizedBox.square(key: Key('glyph $i'), dimension: 24),
                 label: Text(name),
                 builder: (context) =>
                     _scrolling(controller: controller, rows: rows),
@@ -114,6 +123,48 @@ Rect _body(WidgetTester tester) {
 
 bool _expanded(WidgetTester tester) => _body(tester).width > 100;
 
+// The bar's own glass in the selector's box.
+Rect _localBody(WidgetTester tester) {
+  final body = find
+      .descendant(
+        of: find.byType(RawGlassSelector),
+        matching: find.byType(GlassSurface),
+      )
+      .first;
+  return tester.widget<GlassSurface>(body).frame!.value.rect ??
+      Offset.zero & tester.getSize(body);
+}
+
+// The fade, blur and transform of the bar's content mid-morph: an opacity
+// layer over a blur over a transform, or null before the morph.
+(int, double, Matrix4)? _snapshot(WidgetTester tester) {
+  (int, double, Matrix4)? found;
+  void walk(Layer layer) {
+    if (found != null) return;
+    if (layer case OpacityLayer(
+      firstChild: ImageFilterLayer(
+        :final imageFilter?,
+        firstChild: TransformLayer(:final transform?),
+      ),
+      :final alpha?,
+    )) {
+      final sigma = RegExp(r'blur\(([\d.]+)').firstMatch('$imageFilter');
+      if (sigma != null) {
+        found = (alpha, double.parse(sigma.group(1)!), transform);
+        return;
+      }
+    }
+    if (layer is ContainerLayer) {
+      for (var c = layer.firstChild; c != null; c = c.nextSibling) {
+        walk(c);
+      }
+    }
+  }
+
+  walk(tester.binding.renderViews.first.debugLayer!);
+  return found;
+}
+
 void main() {
   setUp(MotionClock.debugReset);
 
@@ -126,6 +177,41 @@ void main() {
     await _dragUp(tester, 300);
     expect(_expanded(tester), isTrue);
   });
+
+  for (final direction in TextDirection.values) {
+    testWidgets("mid-morph the bar's content fades as 1 - p, blurs to 4p and "
+        'scales toward 48 / 62 with its top left on the glass, '
+        "${direction.name} (UIKit's code)", (tester) async {
+      await _phone(tester);
+      await tester.pumpWidget(
+        _app(
+          behavior: GlassTabBarMinimizeBehavior.onScrollDown,
+          direction: direction,
+          composited: true,
+        ),
+      );
+      await tester.pump();
+      final bar = _localBody(tester);
+      final gesture = await tester.startGesture(const Offset(201, 400));
+      for (var i = 0; i < 30 && _snapshot(tester) == null; i++) {
+        await gesture.moveBy(const Offset(0, -10));
+        await tester.pump(_frame);
+      }
+      await tester.pump(_frame);
+      final (alpha, sigma, transform) = _snapshot(tester)!;
+      final p = 1 - alpha / 255;
+      expect(p, inExclusiveRange(0.05, 0.95));
+      expect(sigma, closeTo(4 * p, 0.05));
+      expect(transform.entry(0, 0), closeTo(1 + (48 / 62 - 1) * p, 0.01));
+      expect(transform.entry(1, 1), transform.entry(0, 0));
+      final body = _localBody(tester);
+      final corner = MatrixUtils.transformPoint(transform, bar.topLeft);
+      expect(corner.dx, closeTo(body.left, 0.5));
+      expect(corner.dy, closeTo(body.top, 0.5));
+      await gesture.up();
+      await _settle(tester);
+    });
+  }
 
   testWidgets('a user scroll shrinks the bar into a circle 28 points from '
       'the screen corner; a tap on it expands the bar', (tester) async {
