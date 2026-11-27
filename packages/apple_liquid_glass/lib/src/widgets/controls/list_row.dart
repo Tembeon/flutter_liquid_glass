@@ -91,6 +91,7 @@ class GlassListRow extends StatefulWidget {
     this.onLongPress,
     this.enabled = true,
     this.selected = false,
+    this.showsSeparator,
     this.style,
     this.statesController,
     this.focusNode,
@@ -146,6 +147,11 @@ class GlassListRow extends StatefulWidget {
   /// now (UIKit `isSelected` in a table that keeps its selection): it keeps
   /// its overlay fill until this turns false.
   final bool selected;
+
+  /// Whether a separator stands below the row, or null for its section's
+  /// choice ([GlassListSection.showsSeparators]); the last row of a section
+  /// has none.
+  final bool? showsSeparator;
 
   /// The look, over the section's and the theme's.
   final GlassListStyle? style;
@@ -373,7 +379,10 @@ class _GlassListRowState extends State<GlassListRow> {
         ),
       ),
     );
-    final separated = place != null && !place.last;
+    final separated =
+        place != null &&
+        !place.last &&
+        (widget.showsSeparator ?? place.separators);
     final surface = separated
         ? _RowSeparator(
             color: color(look.separatorColor),
@@ -400,11 +409,13 @@ class _GlassListRowState extends State<GlassListRow> {
 class _RowPlace extends InheritedWidget {
   const _RowPlace({
     required this.last,
+    required this.separators,
     required this.look,
     required super.child,
   });
 
   final bool last;
+  final bool separators;
   final GlassListStyle look;
 
   static _RowPlace? maybeOf(BuildContext context) =>
@@ -412,7 +423,9 @@ class _RowPlace extends InheritedWidget {
 
   @override
   bool updateShouldNotify(_RowPlace oldWidget) =>
-      last != oldWidget.last || look != oldWidget.look;
+      last != oldWidget.last ||
+      separators != oldWidget.separators ||
+      look != oldWidget.look;
 }
 
 class _SectionLabel extends StatelessWidget {

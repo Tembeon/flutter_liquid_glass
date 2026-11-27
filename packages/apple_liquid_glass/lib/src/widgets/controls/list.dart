@@ -121,6 +121,7 @@ class GlassListSection extends StatelessWidget {
     required this.children,
     this.header,
     this.footer,
+    this.showsSeparators = true,
     this.style,
     super.key,
   });
@@ -145,6 +146,11 @@ class GlassListSection extends StatelessWidget {
   /// The label below the card, usually a [Text]: 13 points in the
   /// secondary color unless it sets its own style.
   final Widget? footer;
+
+  /// Whether the rows draw the separators between them (UIKit
+  /// `showsSeparators`, SwiftUI `listRowSeparator`); a row can say
+  /// otherwise for itself ([GlassListRow.showsSeparator]).
+  final bool showsSeparators;
 
   /// The look of the section and its rows, over the theme's.
   final GlassListStyle? style;
@@ -171,6 +177,7 @@ class GlassListSection extends StatelessWidget {
                     for (var i = 0; i < children.length; i++)
                       _RowPlace(
                         last: i == children.length - 1,
+                        separators: showsSeparators,
                         look: look,
                         child: children[i],
                       ),
@@ -205,6 +212,7 @@ class GlassSliverListSection extends StatelessWidget {
     this.ids,
     this.header,
     this.footer,
+    this.showsSeparators = true,
     this.style,
     super.key,
   }) : assert(ids == null || ids.length == itemCount, 'One id per row.');
@@ -224,6 +232,9 @@ class GlassSliverListSection extends StatelessWidget {
 
   /// The label below the card; see [GlassListSection.footer].
   final Widget? footer;
+
+  /// See [GlassListSection.showsSeparators].
+  final bool showsSeparators;
 
   /// The look of the section and its rows, over the theme's.
   final GlassListStyle? style;
@@ -245,6 +256,7 @@ class GlassSliverListSection extends StatelessWidget {
             color: card,
             child: _RowPlace(
               last: last,
+              separators: showsSeparators,
               look: look,
               child: itemBuilder(context, i),
             ),

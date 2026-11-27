@@ -1202,6 +1202,7 @@ class GlassListRow extends StatefulWidget
     void Function()? onLongPress,
     bool enabled = ...,
     bool selected = ...,
+    bool? showsSeparator,
     GlassListStyle? style,
     WidgetStatesController? statesController,
     FocusNode? focusNode,
@@ -1221,6 +1222,7 @@ class GlassListRow extends StatefulWidget
   final void Function()? onLongPress
   final void Function()? onPressed
   final bool selected
+  final bool? showsSeparator
   final WidgetStatesController? statesController
   final GlassListStyle? style
   final Widget? subtitle
@@ -1242,6 +1244,7 @@ class GlassListSection extends StatelessWidget
     required List<Widget> children,
     Widget? header,
     Widget? footer,
+    bool showsSeparators = ...,
     GlassListStyle? style,
     Key? key,
   })
@@ -1250,6 +1253,7 @@ class GlassListSection extends StatelessWidget
   final Widget? footer
   final Widget? header
   static const double margin
+  final bool showsSeparators
   final GlassListStyle? style
   overrides: build
 class GlassListStyle extends GlassStyle<GlassListStyle>
@@ -2134,6 +2138,7 @@ class GlassSliverListSection extends StatelessWidget
     List<Object>? ids,
     Widget? header,
     Widget? footer,
+    bool showsSeparators = ...,
     GlassListStyle? style,
     Key? key,
   })
@@ -2142,6 +2147,7 @@ class GlassSliverListSection extends StatelessWidget
   final List<Object>? ids
   final Widget Function(BuildContext, int) itemBuilder
   final int itemCount
+  final bool showsSeparators
   final GlassListStyle? style
   overrides: build
 class GlassSliverRefreshControl extends StatefulWidget

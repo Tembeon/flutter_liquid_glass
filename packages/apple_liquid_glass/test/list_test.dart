@@ -59,6 +59,31 @@ const _highlight = Color(0xFFD1D1D6);
 void main() {
   setUp(MotionClock.debugReset);
 
+  testWidgets('a section can leave its separators out, and a row can say '
+      'otherwise for itself; the last row has none', (tester) async {
+    final separators = find.byWidgetPredicate(
+      (widget) => '${widget.runtimeType}' == '_RowSeparator',
+    );
+    Widget section({required bool shows, bool? first}) => _app(
+      GlassListSection(
+        showsSeparators: shows,
+        children: [
+          GlassListRow(title: const Text('One'), showsSeparator: first),
+          const GlassListRow(title: Text('Two')),
+          const GlassListRow(title: Text('Three')),
+        ],
+      ),
+    );
+    await tester.pumpWidget(section(shows: true));
+    expect(separators, findsNWidgets(2));
+    await tester.pumpWidget(section(shows: false));
+    expect(separators, findsNothing);
+    await tester.pumpWidget(section(shows: false, first: true));
+    expect(separators, findsOneWidget);
+    await tester.pumpWidget(section(shows: true, first: false));
+    expect(separators, findsOneWidget);
+  });
+
   testWidgets('a section lays its rows on an inset card with separators '
       'between them', (tester) async {
     await tester.pumpWidget(
