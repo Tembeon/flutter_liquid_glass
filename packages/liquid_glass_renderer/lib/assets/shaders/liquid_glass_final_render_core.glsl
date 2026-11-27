@@ -554,6 +554,16 @@ highp vec2 capsuleSourceOffset(highp vec2 fromCenter, float visibility) {
 }
 #endif
 
+// How much iOS's dark specular darkens [under], what lies under it
+// (premultiplied), against a light face: `3 - 2 B` of its brightest
+// channel, by its coverage, so nothing darkens over nothing. iOS darkens by
+// `1 + bias K (3 - 2 B)` per channel; one alpha darkens every channel alike,
+// and the brightest channel is exact over greys and lies between iOS and a
+// plain `bias K` on every channel.
+float specularDarkening(vec4 under) {
+    return 3.0 * under.a - 2.0 * max(max(under.r, under.g), under.b);
+}
+
 void main() {
     highp vec2 fragCoord = FlutterFragCoord().xy - uBackdropOrigin;
     highp vec2 screenUV = fragCoord / uSize;
@@ -670,8 +680,9 @@ void main() {
     // glass or the glass is transformed.
     vec2 displacement = vec2(0.0);
     // The bevel is never wider than the refraction height, so deeper pixels
-    // have no refraction and skip this.
-    if (signedEdgeDistance < uRefractionHeight) {
+    // have no refraction and skip this. A pixel the material does not cover
+    // reads what lies under it, unshifted, for the dark specular.
+    if (materialAlpha > 0.0 && signedEdgeDistance < uRefractionHeight) {
         vec3 surface = surfaceOf(geometryTexel);
         float magnitude = displacementMagnitude(
             signedEdgeDistance,
@@ -692,7 +703,7 @@ void main() {
     // From the copy's uv to its texture's.
     highp float copyScale = 1.0 / fragmentsPerTexel();
     highp vec2 backdropScaleOffset = vec2(0.0);
-    if (abs(uBackdropScale - 1.0) > 0.0001) {
+    if (materialAlpha > 0.0 && abs(uBackdropScale - 1.0) > 0.0001) {
         // backdropShrink is one lens over the whole face, uniform up to the
         // silhouette, about the material center. The bevel displacement adds
         // on top of it. It never enlarges: magnifiers re-render their content
@@ -707,7 +718,7 @@ void main() {
             (1.0 / magnification - 1.0) *
             appearanceVisibility;
     }
-    if (uBackdropPull.x > 0.0) {
+    if (materialAlpha > 0.0 && uBackdropPull.x > 0.0) {
         // The bevel lies over the pulled backdrop, so the pull is the one
         // of the point the bevel reads.
         backdropScaleOffset += filterDeltaFromMatteDelta(
@@ -814,14 +825,22 @@ void main() {
         refractColor = vec4(red, greenSample.g, blue, greenSample.a);
         copyUV = greenUV * copyScale;
     }
-    if (uFillInverseStride > 0.0 && uSolidBackdrop.a <= 0.5) {
+    if (
+        materialAlpha > 0.0 &&
+        uFillInverseStride > 0.0 &&
+        uSolidBackdrop.a <= 0.5
+    ) {
         refractColor.rgb = fillMix(
             refractColor.rgb,
             levelFill(uBackgroundTexture, copyUV).rgb
         );
     }
     #if ABERRATION
-    if (uBackdropAberration.x > 0.0 && uSolidBackdrop.a <= 0.5) {
+    if (
+        materialAlpha > 0.0 &&
+        uBackdropAberration.x > 0.0 &&
+        uSolidBackdrop.a <= 0.5
+    ) {
         // Seven reads of the glass a third of the amount apart along the
         // parting's way: red takes the three ahead, blue the three behind
         // and green the five in the middle, each weighted toward its far
@@ -987,6 +1006,15 @@ void main() {
     float fadeAlpha = mix(1.0, appearanceVisibility, uBlurFade);
     float visibleMaterialAlpha = materialAlpha * fadeAlpha;
     float alpha = visibleMaterialAlpha + externalContourAlpha;
+    #if COLOR_MODELS != COLOR_MODELS_DIRECT
+    if (specular > 0.0) {
+        // Outside the material the dark specular darkens what lies there,
+        // which a pixel the material does not cover reads unshifted, unfilled
+        // and unparted.
+        alpha += (1.0 - alpha) * specular * -RECIPE(recipeSpecularColorBias) *
+            specularDarkening(refractColor);
+    }
+    #endif
 #if GLOW
     // The matte coordinate is derived again, so no register holds it across
     // the shading.
@@ -1007,13 +1035,12 @@ void main() {
     vec3 premultipliedColor = finalColor * visibleMaterialAlpha;
     #if COLOR_MODELS != COLOR_MODELS_DIRECT
     if (specular > 0.0) {
-        // The dark specular darkens the band just outside the edge and the
-        // glass's fringe, the mid tones of the glass most. Outside the
-        // glass it darkens what lies there as iOS's darkens a light face
-        // over it: what glass reads past its edge is not the backdrop.
-        float bias = RECIPE(recipeSpecularColorBias);
-        premultipliedColor *= 1.0 + bias * specular * (3.0 - 2.0 * finalColor);
-        alpha += (1.0 - alpha) * specular * -bias;
+        // The dark specular darkens the glass's fringe, the mid tones of the
+        // glass most.
+        premultipliedColor *= 1.0 +
+            RECIPE(recipeSpecularColorBias) *
+                specular *
+                (3.0 - 2.0 * finalColor);
     }
     #endif
 
