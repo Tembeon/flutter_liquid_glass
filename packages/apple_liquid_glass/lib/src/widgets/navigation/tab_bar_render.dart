@@ -6,8 +6,8 @@ part of 'tab_bar.dart';
 /// Under the glyph (a compact bar): the glyph's center 24 points from the
 /// top and the title's bottom at 51, so a title in a taller script grows
 /// upward and moves nothing; the badge's leading edge 5 points inside the
-/// glyph's trailing edge and its top 6 points above the glyph's, by eye
-/// (UIKit places it 2 points below the tab button's top).
+/// glyph's trailing edge and its top 2 points below the tab button's (tab
+/// bar passport, iOS 27.2 simulator).
 ///
 /// Beside the glyph (a wide bar): the glyph, 8 points and the title
 /// centred in the button and on its middle line; the badge's leading edge
@@ -64,7 +64,7 @@ class _RenderTabItem extends RenderBox
 
   static const double _titleBottom = 51;
   static const double _badgeInset = 5;
-  static const double _badgeRise = 6;
+  static const double _badgeDrop = 2;
   static const double _besideGap = 8;
   static const double _besideBadgeOverlap = 6;
 
@@ -215,7 +215,7 @@ class _RenderTabItem extends RenderBox
         _rtl
             ? at.dx + _badgeInset - badge.size.width
             : at.dx + glyph.width - _badgeInset,
-        at.dy - _badgeRise,
+        TabBarLayout.buttonInset + _badgeDrop,
       ),
     );
   }

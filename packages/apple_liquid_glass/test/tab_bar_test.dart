@@ -531,7 +531,8 @@ void main() {
     expect(selected, isEmpty);
   });
 
-  testWidgets('a badge sits at the top trailing corner of the glyph', (
+  testWidgets('a badge sits at the top trailing corner of the glyph, 2 '
+      "points below the tab button's top (iOS 27.2 simulator)", (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -539,7 +540,7 @@ void main() {
         GlassTabBar(
           destinations: const [
             GlassTabDestination(
-              icon: SizedBox.square(dimension: 24),
+              icon: SizedBox.square(dimension: 30),
               label: Text('Mail'),
               badge: SizedBox(key: Key('badge'), width: 18, height: 18),
             ),
@@ -555,7 +556,9 @@ void main() {
     );
     final badge = tester.getTopLeft(find.byKey(const Key('badge')));
     final title = tester.getCenter(find.text('Mail'));
-    expect(badge.dx, closeTo(title.dx - 12 + 19, 0.5));
+    final bar = tester.getRect(find.byType(GlassTabBar));
+    expect(badge.dx, closeTo(title.dx - 15 + 25, 0.5));
+    expect(badge.dy, closeTo(bar.top + 4 + 2, 0.01));
   });
 
   testWidgets('the text size and Bold Text leave the titles as they are '
