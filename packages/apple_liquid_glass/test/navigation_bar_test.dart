@@ -287,12 +287,12 @@ void main() {
     await _phone(tester);
     await tester.pumpWidget(
       _app(
-        GlassPageScaffold(
-          navigationBar: const GlassNavigationBar(
+        const GlassPageScaffold(
+          navigationBar: GlassNavigationBar(
             title: Text('Inbox'),
             subtitle: Text('Updated just now'),
           ),
-          child: const SizedBox.expand(),
+          child: SizedBox.expand(),
         ),
       ),
     );
@@ -304,7 +304,7 @@ void main() {
     expect(subtitle.top, moreOrLessEquals(title.bottom, epsilon: 0.5));
     expect(title.center.dx, moreOrLessEquals(201, epsilon: 0.5));
     expect(subtitle.center.dx, moreOrLessEquals(201, epsilon: 0.5));
-    final styleOf = (String text) => tester
+    TextStyle styleOf(String text) => tester
         .widget<RichText>(
           find.descendant(of: find.text(text), matching: find.byType(RichText)),
         )
