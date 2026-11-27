@@ -125,6 +125,40 @@ final class LayoutMotion extends Motion {
     changed();
   }
 
+  /// Draws [id] at [rect] from [t] until [releaseItem], whatever the
+  /// layouts in between do: they move where it belongs, not where it is
+  /// drawn, as a row held under a finger while the rows around it make
+  /// room. Call it again to move the held item.
+  void holdItem(double t, Object id, Rect rect) {
+    advance(t);
+    final slot = _slots[id];
+    if (slot == null || slot.leaving) return;
+    slot.held = true;
+    slot.frame.snap(t, rect);
+    changed();
+  }
+
+  /// Whether [id] is held by [holdItem].
+  bool isHeld(Object id) => _slots[id]?.held ?? false;
+
+  /// Lets go of [id] at [t]: it moves from where it is drawn to where the
+  /// layout put it on [spring], or jumps there when [spring] is null.
+  void releaseItem(double t, Object id, {Spring? spring}) {
+    advance(t);
+    final slot = _slots[id];
+    if (slot == null || !slot.held) return;
+    slot.held = false;
+    final to = slot.model;
+    if (to != null) {
+      if (spring == null) {
+        slot.frame.snap(t, to);
+      } else {
+        slot.frame.retarget(t, to, springs: RectSprings.all(spring));
+      }
+    }
+    changed();
+  }
+
   /// Drops [id] at once, without a leave: for a host whose item went out
   /// of view, as a lazy list's row scrolls away.
   void forget(Object id) {
@@ -280,6 +314,7 @@ final class LayoutMotion extends Motion {
         slot.restDistance = plan.restDistance;
         if (from == to) return;
         slot.model = to;
+        if (slot.held) return;
         if (springs != null) {
           slot.frame.retarget(t, to, springs: springs, delay: delay);
         } else if (!carry || slot.frame.restsAt(t)) {
@@ -357,6 +392,7 @@ final class _Slot {
   Rect? model;
   double restDistance = MotionRest.length;
   bool leaving = false;
+  bool held = false;
 }
 
 /// What a layout host asks its motion: whether a layout animates, and

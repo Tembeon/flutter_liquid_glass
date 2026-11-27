@@ -660,7 +660,9 @@ final class LayoutMotion extends Motion
   Rect get bounds
   bool contains(Object id)
   void forget(Object id)
+  void holdItem(double t, Object id, Rect rect)
   Iterable<Object> get ids
+  bool isHeld(Object id)
   bool isLeaving(Object id)
   LayoutItem itemAt(Object id)
   bool itemRests(Object id)
@@ -675,6 +677,7 @@ final class LayoutMotion extends Motion
   LayoutPlanner planner
   double presenceAt(Object id)
   bool presenceRests(Object id)
+  void releaseItem(double t, Object id, {Spring? spring})
   overrides: didAdvance
 final class LayoutPlan
   const LayoutPlan({
@@ -1588,6 +1591,7 @@ class SliverMotionList extends StatefulWidget
     LayoutPlanner planner = ...,
     LayoutMotion? motion,
     void Function(LayoutChange)? onLayout,
+    Object? raised,
     Key? key,
   })
   final List<Object> ids
@@ -1595,6 +1599,7 @@ class SliverMotionList extends StatefulWidget
   final LayoutMotion? motion
   final void Function(LayoutChange)? onLayout
   final LayoutPlanner planner
+  final Object? raised
   overrides: createState
 final class SourceGeometry
   const SourceGeometry({required Rect rect, BorderRadius borderRadius = ...})

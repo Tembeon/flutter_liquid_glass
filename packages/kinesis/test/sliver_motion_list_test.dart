@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
@@ -10,9 +11,11 @@ class _List extends StatefulWidget {
     required this.ids,
     this.controller,
     this.planner = const LayoutPlanner.flip(),
+    this.raised,
   });
 
   final List<String> ids;
+  final String? raised;
   final ScrollController? controller;
   final LayoutPlanner planner;
 
@@ -40,6 +43,7 @@ class _ListState extends State<_List> {
             SliverMotionList(
               ids: ids,
               planner: widget.planner,
+              raised: widget.raised,
               itemBuilder: (context, id) => GestureDetector(
                 key: ValueKey(id as String),
                 behavior: HitTestBehavior.opaque,
@@ -69,6 +73,25 @@ int? _alpha(WidgetTester tester, String id) {
     box = box.parent;
   }
   fail('No MotionTransitionLayer above $id.');
+}
+
+MotionTransitionLayer _layer(WidgetTester tester, String id) {
+  RenderObject? box = tester.renderObject(find.byKey(ValueKey(id)));
+  while (box != null) {
+    if (box.debugLayer case final MotionTransitionLayer layer) return layer;
+    box = box.parent;
+  }
+  fail('No MotionTransitionLayer above $id.');
+}
+
+int _paintIndex(Layer layer) {
+  var index = 0;
+  for (Layer? sibling = layer.parent!.firstChild; sibling != null;) {
+    if (identical(sibling, layer)) return index;
+    index++;
+    sibling = sibling.nextSibling;
+  }
+  fail('Layer not under its parent.');
 }
 
 Future<void> _settle(WidgetTester tester) async {
@@ -210,5 +233,28 @@ void main() {
     await tester.pump(_frame);
     expect(_top(tester, '2'), 40);
     expect(_top(tester, '3'), 60);
+  });
+
+  testWidgets('a raised row is drawn above the rows after it, where it '
+      'stays laid out and hit', (tester) async {
+    await tester.pumpWidget(const _List(ids: ['a', 'b', 'c']));
+    expect(
+      _paintIndex(_layer(tester, 'a')),
+      lessThan(_paintIndex(_layer(tester, 'b'))),
+    );
+    await tester.pumpWidget(const _List(ids: ['a', 'b', 'c'], raised: 'a'));
+    expect(
+      _paintIndex(_layer(tester, 'a')),
+      greaterThan(_paintIndex(_layer(tester, 'c'))),
+    );
+    expect(_top(tester, 'a'), 0);
+    expect(_top(tester, 'b'), 20);
+    await tester.tapAt(const Offset(50, 10));
+    expect(tester.state<_ListState>(find.byType(_List)).taps, ['a']);
+    await tester.pumpWidget(const _List(ids: ['a', 'b', 'c']));
+    expect(
+      _paintIndex(_layer(tester, 'a')),
+      lessThan(_paintIndex(_layer(tester, 'b'))),
+    );
   });
 }

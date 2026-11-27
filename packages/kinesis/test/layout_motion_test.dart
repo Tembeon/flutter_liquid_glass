@@ -200,6 +200,33 @@ void main() {
     expect(_at(motion, 0.05, 'a').left, inExclusiveRange(drawn.left, 100));
   });
 
+  test('a held item stays where it is held through layouts that move where '
+      'it belongs, and a release springs it there', () {
+    final motion = _laidOut({'a': _a, 'b': _b});
+    final held = Rect.lerp(_a, _far, 0.5)!;
+    motion.holdItem(0, 'a', held);
+    expect(motion.isHeld('a'), isTrue);
+    expect(motion.itemAt('a').rect, held);
+    motion.layout(0.1, {'a': _b, 'b': _a}, spring: _spring);
+    expect(_at(motion, 0.2, 'a'), held);
+    expect(_at(motion, 0.2, 'b').top, inExclusiveRange(0, 20));
+    motion.holdItem(0.3, 'a', _farther);
+    expect(motion.itemAt('a').rect, _farther);
+    motion.releaseItem(0.3, 'a', spring: _spring);
+    expect(motion.isHeld('a'), isFalse);
+    expect(_at(motion, 0.35, 'a').left, inExclusiveRange(0, 200));
+    expect(_at(motion, 5, 'a'), _b);
+  });
+
+  test('a release without a spring puts the item where it belongs', () {
+    final motion = _laidOut({'a': _a});
+    motion.holdItem(0, 'a', _far);
+    motion.layout(0, {'a': _b}, spring: _spring);
+    motion.releaseItem(0, 'a');
+    expect(motion.itemAt('a').rect, _b);
+    expect(motion.isSettled, isTrue);
+  });
+
   test('without a spring an item at rest jumps', () {
     final motion = _laidOut({'a': _a});
     motion.layout(0, {'a': _far});

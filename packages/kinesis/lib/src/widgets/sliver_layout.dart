@@ -31,7 +31,8 @@ import 'package:kinesis/src/widgets/scope.dart';
 /// neither hit nor read. A row keeps its laid out size and is drawn centered
 /// on its item's rect. `MotionLayout.maybeItemOf` and
 /// `MotionLayout.adoptItemOf` work inside a row. The list grows down or
-/// right; a reversed axis is not supported.
+/// right; a reversed axis is not supported. The row of [raised] is drawn
+/// above the others, as a row lifted under a finger.
 class SliverMotionList extends StatefulWidget {
   /// Creates a list of the rows of [ids].
   const SliverMotionList({
@@ -40,6 +41,7 @@ class SliverMotionList extends StatefulWidget {
     this.planner = const LayoutPlanner.flip(),
     this.motion,
     this.onLayout,
+    this.raised,
     super.key,
   });
 
@@ -60,6 +62,10 @@ class SliverMotionList extends StatefulWidget {
   /// it, in the frame's resolve phase before paint: it must not rebuild;
   /// what it marks for layout is laid out again in that frame.
   final ValueChanged<LayoutChange>? onLayout;
+
+  /// The id of the row drawn above the others, or null to draw them in
+  /// order.
+  final Object? raised;
 
   @override
   State<SliverMotionList> createState() => _SliverMotionListState();
@@ -128,6 +134,7 @@ class _SliverMotionListState extends State<SliverMotionList>
       motion: motion,
       child: _SliverHost(
         state: this,
+        raised: widget.raised,
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
             (context, i) => _probe(context, order[i]),
@@ -177,29 +184,61 @@ class _SliverMotionListState extends State<SliverMotionList>
 }
 
 class _SliverHost extends SingleChildRenderObjectWidget {
-  const _SliverHost({required this.state, required Widget sliver})
-    : super(child: sliver);
+  const _SliverHost({
+    required this.state,
+    required this.raised,
+    required Widget sliver,
+  }) : super(child: sliver);
 
   final _SliverMotionListState state;
+  final Object? raised;
 
   @override
   _RenderSliverHost createRenderObject(BuildContext context) =>
-      _RenderSliverHost(state);
+      _RenderSliverHost(state, raised);
 
   @override
   void updateRenderObject(
     BuildContext context,
     _RenderSliverHost renderObject,
   ) {
-    renderObject.state = state;
+    renderObject
+      ..state = state
+      ..raised = raised;
   }
 }
 
 class _RenderSliverHost extends RenderProxySliver
     with MotionResolveHost, LayoutProbeHost {
-  _RenderSliverHost(this.state);
+  _RenderSliverHost(this.state, this._raised);
 
   _SliverMotionListState state;
+
+  Object? _raised;
+  Object? get raised => _raised;
+  set raised(Object? value) {
+    if (value == _raised) return;
+    _raised = value;
+    markNeedsPaint();
+  }
+
+  // The raised row is painted again after the list, which moves its layer
+  // above the rows painted after it.
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    super.paint(context, offset);
+    final raised = _raised;
+    if (raised == null) return;
+    for (final probe in probes) {
+      if (probe.id != raised || probe is! _RenderProbe || probe.ghost) {
+        continue;
+      }
+      if (!probe.hasSize || probe.layer?.attached != true) return;
+      final at = MatrixUtils.getAsTranslation(probe.getTransformTo(this));
+      if (at != null) context.paintChild(probe, offset + at);
+      return;
+    }
+  }
 
   @override
   void performLayout() {
