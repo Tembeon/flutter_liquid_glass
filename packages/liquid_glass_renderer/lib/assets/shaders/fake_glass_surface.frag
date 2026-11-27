@@ -1,7 +1,7 @@
 // Copyright 2025, Tim Lehmann for whynotmake.it
 
 #version 460 core
-precision mediump float;
+precision highp float;
 
 #include <flutter/runtime_effect.glsl>
 
@@ -111,7 +111,11 @@ vec2 shapeNormal(vec2 p) {
     halfSize.y = p.y > 0.0 ? split.below : split.above;
     cornerRadius = p.y > 0.0 ? uBottomRadius : uCornerRadius;
   }
-  float radius = clamp(cornerRadius, 0.0, min(halfSize.x, halfSize.y));
+  float radius = clamp(
+    cornerRadius * kOpticalCornerRadiusScale,
+    0.0,
+    min(halfSize.x, halfSize.y)
+  );
   vec2 q = abs(p) - halfSize + vec2(radius);
   vec2 corner = max(q, 0.0);
   if (dot(corner, corner) > 0.0001) {
