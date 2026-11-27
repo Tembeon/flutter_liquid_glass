@@ -328,6 +328,7 @@ final class SelectorMotion extends Motion {
   }) {
     final before = size;
     _anchor += shift;
+    if (tabBar) items.planner = _TabChangePlanner(_bounds, mirrored: mirrored);
     items.layout(
       t,
       {
@@ -370,7 +371,7 @@ final class SelectorMotion extends Motion {
         t,
         geometry.lenses,
         pending ?? lens.selected,
-        spring: spring,
+        spring: tabBar && spring != null ? _TabChangePlanner.slots : spring,
         shift: mirrored
             ? shift.dx + geometry.size.width - before.width
             : -shift.dx,
@@ -445,5 +446,80 @@ final class SelectorMotion extends Motion {
   void _release(double t) {
     highlight.release(t);
     glow.pointerUp(t);
+  }
+}
+
+/// A tab bar's change of tabs as UIKit's `setTabs(_:animated:)` runs it:
+/// the platter and every tab move on a critically damped 0.3 s spring; a
+/// new tab grows out of where the tab before it stood and fades in on the
+/// same progress; a removed tab fades out on a critically damped 0.2 s
+/// spring while it moves onto the place of the tab after it (fitted to
+/// UIKit's live layers, iOS 27.2 simulator: 2e-6 and 1e-5 rms). A change
+/// outside a transaction jumps.
+final class _TabChangePlanner extends LayoutPlanner {
+  const _TabChangePlanner(this._bounds, {required this.mirrored});
+
+  final Object _bounds;
+
+  /// Whether the tabs run right to left.
+  final bool mirrored;
+
+  static const slots = Spring.response(0.3);
+  static const _leave = Spring.response(0.2);
+  static const _fade = MotionPose(opacity: 0);
+
+  @override
+  Map<Object, LayoutPlan> plan(LayoutChange change) {
+    if (change.spring == null) {
+      return {for (final key in change.entries.keys) key: const LayoutPlan()};
+    }
+    final kept = [
+      for (final MapEntry(:key, :value) in change.entries.entries)
+        if (key != _bounds)
+          if (value case LayoutStaying(:final from, :final to)) (from, to),
+    ];
+    double order(Rect rect) => mirrored ? -rect.center.dx : rect.center.dx;
+    // Where the tab that now stands before [to] stood.
+    Rect? before(Rect to) {
+      (Rect, Rect)? best;
+      for (final tab in kept) {
+        if (order(tab.$2) < order(to) &&
+            (best == null || order(tab.$2) > order(best.$2))) {
+          best = tab;
+        }
+      }
+      return best?.$1;
+    }
+
+    // Where the tab that stood after [from] now stands.
+    Rect? after(Rect from) {
+      (Rect, Rect)? best;
+      for (final tab in kept) {
+        if (order(tab.$1) > order(from) &&
+            (best == null || order(tab.$1) < order(best.$1))) {
+          best = tab;
+        }
+      }
+      return best?.$2;
+    }
+
+    return {
+      for (final MapEntry(:key, :value) in change.entries.entries)
+        key: switch (value) {
+          _ when key == _bounds => const LayoutPlan(spring: slots),
+          LayoutStaying() => const LayoutPlan(spring: slots),
+          LayoutEntering(:final to) => LayoutPlan(
+            spring: slots,
+            origin: before(to),
+            absent: _fade,
+          ),
+          LayoutLeaving(:final from) => LayoutPlan(
+            spring: _leave,
+            springs: const RectSprings.all(slots),
+            destination: after(from),
+            absent: _fade,
+          ),
+        },
+    };
   }
 }

@@ -44,10 +44,13 @@ final class GlassTabDestination {
   });
 
   /// What tells the tab apart across changes of the destinations, or null
-  /// to tell it by its position: a change inside `withSpring` slides the
-  /// tabs that stay, fades new ones in and old ones out, and the lens
-  /// moves with its tab ([RawGlassSelector.itemKeys]). Not measured: UIKit's
-  /// animated setItems was not captured.
+  /// to tell it by its position. A change inside `withSpring` runs as
+  /// UIKit's `setTabs(_:animated:)` does, whatever spring it gives: the
+  /// tabs, the lens and the bar move on a critically damped 0.3 s spring, a
+  /// new tab grows out of where the tab before it stood as it fades in, and
+  /// a removed one fades on a 0.2 s spring onto the place of the tab after
+  /// it (fitted to UIKit's live layers, iOS 27.2 simulator;
+  /// [RawGlassSelector.itemKeys]).
   final Object? id;
 
   /// The tab's glyph, 24 points by default, 20 beside the title of a wide
