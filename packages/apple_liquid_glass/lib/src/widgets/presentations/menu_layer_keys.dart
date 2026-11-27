@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/foundation.dart';
@@ -8,6 +9,7 @@ import 'package:apple_liquid_glass/src/widgets/presentations/menu_layer_scroll.d
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_zone_ids.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -40,6 +42,55 @@ class MenuLayerKeys {
   // row, else a target index; null when no key changed the card.
   int? _pending;
   int? _lastFocused;
+  String _typed = '';
+  Duration? _typedAt;
+
+  /// A letter typed while the menu has the keyboard moves the focus to the
+  /// next enabled row whose title starts with what was typed within the
+  /// last second, as UIKit's type select does (`allowsTypeSelect`): one
+  /// letter again steps on to the next such row, more letters narrow the
+  /// match from the focused row.
+  KeyEventResult typeSelect(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final character = event.character;
+    final keyboard = HardwareKeyboard.instance;
+    if (character == null ||
+        character.trim().isEmpty ||
+        keyboard.isControlPressed ||
+        keyboard.isMetaPressed ||
+        keyboard.isAltPressed ||
+        !_layer.current) {
+      return KeyEventResult.ignored;
+    }
+    final at = event.timeStamp;
+    final last = _typedAt;
+    final fresh = last == null || at - last > const Duration(seconds: 1);
+    _typed = (fresh ? '' : _typed) + character.toLowerCase();
+    _typedAt = at;
+    final targets = _layer.motion.cards[_layer.built.top].layout.targets;
+    final count = targets.length;
+    if (count == 0) return KeyEventResult.handled;
+    final focused = zones.focusedZone;
+    final from = focused == null ? -1 : ids.targetOf(focused);
+    final again = _typed.length > 1 && _typed.split('').toSet().length == 1;
+    final prefix = again ? _typed.substring(0, 1) : _typed;
+    final start = _typed.length == 1 || again ? from + 1 : math.max(from, 0);
+    for (var step = 0; step < count; step++) {
+      final index = (start + step) % count;
+      final title = switch (targets[index].entry) {
+        GlassMenuItem(:final title, enabled: true) => title,
+        GlassSubmenu(:final title, enabled: true) => title,
+        _ => null,
+      };
+      if (title != null && title.toLowerCase().startsWith(prefix)) {
+        zones.requestFocus(ids.idOf(index));
+        break;
+      }
+    }
+    return KeyEventResult.handled;
+  }
 
   /// The top card is now [top]: the focus a key asked for moves onto its
   /// row, carried by the zone that has the focus.

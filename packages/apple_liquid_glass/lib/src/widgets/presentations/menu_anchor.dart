@@ -605,7 +605,9 @@ typedef GlassMenuAnchorChildBuilder = Widget Function(
 /// from. The control reads as expanded while the menu shows and a long
 /// press opens it; focus returns to the control when the menu closes. The
 /// menu shows on the root overlay without a route; Escape, Back and a tap
-/// outside close it, and the tap outside reaches nothing under it. The
+/// outside close it, and the tap outside reaches nothing under it. With
+/// the keyboard in the menu, typing a row's first letters moves the focus
+/// to it, as UIKit's type select does (`allowsTypeSelect`). The
 /// menu grows out of the control on UIKit's liquid morph springs, the
 /// control's glass and the menu one body joined by a neck while they part.
 ///

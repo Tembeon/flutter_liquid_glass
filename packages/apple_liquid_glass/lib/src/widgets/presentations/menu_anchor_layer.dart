@@ -333,6 +333,7 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
       child: Focus(
         focusNode: _host._menuFocus,
         includeSemantics: false,
+        onKeyEvent: _keys.typeSelect,
         child: _SourceFollower(host: _host, child: layer),
       ),
     );
