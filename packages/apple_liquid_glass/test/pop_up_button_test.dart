@@ -149,4 +149,39 @@ void main() {
     await _settle(tester);
     expect(find.text('Rename'), findsOneWidget);
   });
+
+  testWidgets('under a large title at rest the hidden inline title opens no '
+      'menu; once the large title scrolls away it does', (tester) async {
+    await _phone(tester);
+    final scroll = ScrollController();
+    addTearDown(scroll.dispose);
+    await tester.pumpWidget(
+      _app(
+        GlassPageScaffold(
+          navigationBar: const GlassNavigationBar(
+            largeTitle: Text('Inbox'),
+            titleMenu: [GlassMenuItem(title: 'Rename')],
+          ),
+          child: GlassContentScroll(
+            child: ListView(
+              controller: scroll,
+              children: [
+                for (var i = 0; i < 40; i++)
+                  SizedBox(height: 44, child: Text('Row $i')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    await tester.tapAt(const Offset(201, 62 + 22));
+    await _settle(tester);
+    expect(find.text('Rename'), findsNothing);
+    scroll.jumpTo(300);
+    await _settle(tester);
+    await tester.tapAt(const Offset(201, 62 + 22));
+    await _settle(tester);
+    expect(find.text('Rename'), findsOneWidget);
+  });
 }

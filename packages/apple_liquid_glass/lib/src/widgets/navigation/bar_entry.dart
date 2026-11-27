@@ -223,7 +223,9 @@ final class GlassBarButton extends GlassBarItem {
   /// Whether the button shows selected (UIKit `isSelected`): its glyph in
   /// white, or the color that reads on the tint, on a capsule of the tint
   /// 7 points past the glyph at each side and 35.33 tall (a selected heart
-  /// of 27 points draws a capsule of 41; iOS 27.2 simulator).
+  /// of 27 points draws a capsule of 41; iOS 27.2 simulator). Screen
+  /// readers do not hear the selection yet; say it in [semanticLabel] where
+  /// it matters.
   final bool selected;
 
   /// A badge on the button, usually a `GlassBadge` (UIKit

@@ -221,7 +221,9 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// color stands 6 points after the title, the two centered as one block,
   /// and a tap on either opens a [GlassMenuAnchor] menu of these entries
   /// (bars passport and a tree dump and screenshot of the iOS 27.2
-  /// simulator: the chevron 8.67 by 5 in a 17.67 point circle).
+  /// simulator: the chevron 8.67 by 5 in a 17.67 point circle). Under a
+  /// [largeTitle] it opens from the inline title once the large title has
+  /// scrolled away; a menu from the large title at rest is not built.
   final List<GlassMenuEntry>? titleMenu;
 
   /// The large title under the row, or null for an inline title only.
@@ -719,6 +721,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                   ),
                   child: _CrampedTitleDrops(
                     opensMenu: widget.titleMenu != null,
+                    shown: _title.progressListenable,
                     child: MotionTransition(
                       pose: _titleLook,
                       child: titleScale.apply(
@@ -976,27 +979,38 @@ class _TitleLayout extends SingleChildLayoutDelegate {
 /// takes input (a listener, a mouse region, an editable), so a window is
 /// dragged by a title of text as by the rest of the bar.
 class _CrampedTitleDrops extends SingleChildRenderObjectWidget {
-  const _CrampedTitleDrops({required this.opensMenu, required super.child});
+  const _CrampedTitleDrops({
+    required this.opensMenu,
+    required this.shown,
+    required super.child,
+  });
 
-  // Whether the title opens a menu, and so takes every hit on it.
+  // Whether the title opens a menu, and so takes every hit on it while it
+  // shows more than half: not under a large title at rest.
   final bool opensMenu;
+  final ValueListenable<double> shown;
 
   @override
   _RenderCrampedTitleDrops createRenderObject(BuildContext context) =>
-      _RenderCrampedTitleDrops()..opensMenu = opensMenu;
+      _RenderCrampedTitleDrops()
+        ..opensMenu = opensMenu
+        ..shown = shown;
 
   @override
   void updateRenderObject(
     BuildContext context,
     _RenderCrampedTitleDrops renderObject,
   ) {
-    renderObject.opensMenu = opensMenu;
+    renderObject
+      ..opensMenu = opensMenu
+      ..shown = shown;
   }
 }
 
 class _RenderCrampedTitleDrops extends RenderProxyBox {
   bool _dropped = false;
   bool opensMenu = false;
+  ValueListenable<double>? shown;
 
   @override
   void performLayout() {
@@ -1020,7 +1034,10 @@ class _RenderCrampedTitleDrops extends RenderProxyBox {
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
     if (_dropped) return false;
-    if (opensMenu) return super.hitTestChildren(result, position: position);
+    if (opensMenu) {
+      if ((shown?.value ?? 1) <= 0.5) return false;
+      return super.hitTestChildren(result, position: position);
+    }
     final probe = BoxHitTestResult();
     if (!super.hitTestChildren(probe, position: position)) return false;
     if (!probe.path.any((entry) => _takesInput(entry.target))) return false;

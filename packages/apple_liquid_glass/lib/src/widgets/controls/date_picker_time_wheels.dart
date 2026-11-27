@@ -481,8 +481,9 @@ abstract final class _CountDownMetrics {
 /// ```
 ///
 /// Fidelity. The wheels, their rows and their fade are measured in the
-/// calendar's overlay (date picker passport, month column 133 points, wheels
-/// 288 by 216); standing alone they keep those places.
+/// calendar's overlay (date picker passport: month column 133 points); they
+/// stand alone in that overlay's 288 by 216, where UIKit's yearAndMonth
+/// picker is 320 by 216 like its other wheels, with its columns not dumped.
 class GlassMonthYearPicker extends StatelessWidget {
   /// Creates wheels showing [value]'s month and year.
   const GlassMonthYearPicker({
