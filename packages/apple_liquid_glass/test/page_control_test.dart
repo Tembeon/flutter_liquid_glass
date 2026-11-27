@@ -674,4 +674,32 @@ void main() {
     expect(page, 3);
     expect(motion.page, 3);
   });
+
+  testWidgets('a control of 12 pages stands 8 slots wide on page 9, the '
+      "current one a progress capsule with a pager's progress", (tester) async {
+    for (final progress in [null, 9.0, 9.4]) {
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: GlassPageControl(
+              count: 12,
+              page: 9,
+              progress: progress,
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(find.byType(GlassPageControl)).width,
+        moreOrLessEquals(
+          progress == null ? 161.33 : 161.33 + 27.33 - 9.67,
+          epsilon: 0.05,
+        ),
+      );
+    }
+  });
 }
