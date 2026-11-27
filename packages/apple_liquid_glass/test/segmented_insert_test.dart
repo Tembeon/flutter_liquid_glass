@@ -45,10 +45,14 @@ class _SegmentsState extends State<_Segments> {
   );
 }
 
-Widget _app(Widget child, {double? width = 300}) => MediaQuery(
+Widget _app(
+  Widget child, {
+  double? width = 300,
+  TextDirection direction = TextDirection.ltr,
+}) => MediaQuery(
   data: const MediaQueryData(),
   child: Directionality(
-    textDirection: TextDirection.ltr,
+    textDirection: direction,
     child: GlassScope(
       renderer: const FlatGlassRenderer(),
       child: Center(
@@ -130,6 +134,8 @@ void main() {
     expect(_drawn(tester, b).center.dx - left, closeTo(150 + 37.5 * eased, 1));
     expect(_opacity(tester, x), closeTo(eased, 0.02));
     expect(probe.lens.rect!.center.dx, closeTo(250 + 12.5 * eased, 1));
+    expect(probe.lens.scaleX, closeTo(1, 0.01), reason: 'rigid, as a CA frame');
+    expect(probe.lens.scaleY, closeTo(1, 0.01));
 
     for (var i = 0; i < 8; i++) {
       await tester.pump(_frame);
@@ -186,6 +192,34 @@ void main() {
     await _settle(tester);
     expect(find.text('a'), findsNothing);
     expect(probe.lens.rect!.center.dx, closeTo(225, 0.5));
+  });
+
+  testWidgets('right to left, a new segment starts on the trailing edge '
+      'of the one before it, on its left, and a first one removed ends 5 '
+      'inside the right edge', (tester) async {
+    final probe = _Probe();
+    await tester.pumpWidget(
+      _app(
+        _Segments(values: const ['a', 'b', 'c'], probe: probe),
+        direction: TextDirection.rtl,
+      ),
+    );
+    final segments = tester.state<_SegmentsState>(find.byType(_Segments));
+    final left = tester.getTopLeft(find.byType(_Segments)).dx;
+
+    withSpring(_spring, () => segments.change(['a', 'x', 'b', 'c']));
+    await tester.pump(_frame);
+    final start = _drawn(tester, x);
+    expect(start.right - left, closeTo(200, 0.5));
+    expect(start.width, closeTo(75, 0.5));
+    await _settle(tester);
+
+    withSpring(_spring, () => segments.change(['x', 'b', 'c']));
+    await tester.pump(_frame);
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(_frame);
+    }
+    expect(_drawn(tester, a).center.dx - left, closeTo(295, 0.5));
   });
 
   testWidgets('a change outside withSpring jumps', (tester) async {

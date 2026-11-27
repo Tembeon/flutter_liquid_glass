@@ -244,6 +244,51 @@ void main() {
     expect(_glyph(tester, _tabGlyph('Four')).$1, moreOrLessEquals(four));
   });
 
+  testWidgets('on liquid glass the circle comes and goes with the bar '
+      'moving between drawn alone and drawn in a group with it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MediaQuery(
+        data: MediaQueryData(),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: GlassScope(
+            renderer: LiquidGlassRenderer(),
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: EdgeInsets.only(left: 21),
+                child: SizedBox(
+                  width: 360,
+                  child: RepaintBoundary(
+                    child: _Toggle(names: ['One', 'Two', 'Add', 'Four']),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final toggle = tester.state<_ToggleState>(find.byType(_Toggle));
+    final selector = tester.state(find.byType(RawGlassSelector));
+    for (final on in [true, false, true]) {
+      withSpring(const Spring.response(0.8), () => toggle.toggle(on: on));
+      await _frames(tester, 6);
+      expect(tester.takeException(), isNull);
+      await _frames(tester, 60);
+      expect(tester.takeException(), isNull);
+      expect(find.byType(RawGlassButton), on ? findsOneWidget : findsNothing);
+      expect(tester.state(find.byType(RawGlassSelector)), same(selector));
+    }
+    expect(
+      tester.getSize(find.byType(RawGlassSelector)).width,
+      moreOrLessEquals(290),
+    );
+  });
+
   testWidgets('a bar moved beside a new circle keeps its tabs where they '
       'were drawn and slides them to their new places; outside an '
       'animation its tabs jump while the circle still slides', (

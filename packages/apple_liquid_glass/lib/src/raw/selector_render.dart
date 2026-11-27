@@ -172,6 +172,9 @@ class _RenderSelectorRow extends RenderBox
     super.attach(owner);
     _follow.attach();
     _moved = true;
+    // Laid out again under the new parents in this frame, even where they
+    // pass the same constraints.
+    if (_resolvedAt != null) markNeedsLayout();
   }
 
   @override
