@@ -401,6 +401,7 @@ MotionVisibility
 NavigationPopMotion
 NumericRollDirection
 NumericTextTransition
+OutlineDisclosureMotion
 PageControlEvent
 PageControlMotion
 PageControlPicked

@@ -300,7 +300,8 @@ void main() {
     });
 
     testWidgets('begins where an iPhone 16 Pro began its pop, 15 points in, '
-        'after a quick start and a 0.6 s rest on the edge alike', (
+        'after a quick start and a 0.6 s rest on the edge alike, the page a '
+        'step along at once', (
       tester,
     ) async {
       final fixture = jsonDecode(
@@ -332,6 +333,7 @@ void main() {
         await gesture.down(const Offset(3, 655.67), timeStamp: now());
         var last = 0.0;
         var moved = -1;
+        var shift = 0.0;
         for (var i = 1; i < points.length && moved < 0; i++) {
           await tester.pump(
             Duration(microseconds: ((points[i][0] - last) * 1e6).round()),
@@ -342,16 +344,27 @@ void main() {
             timeStamp: now(),
           );
           await tester.pump();
-          if (_x(tester, 'Next') > rest + 0.5) moved = i;
+          if (_x(tester, 'Next') > rest + 0.5) {
+            moved = i;
+            shift = _x(tester, 'Next') - rest;
+          }
         }
         await gesture.cancel();
         await _settle(tester);
         expect(
           moved,
-          (capture['begin']! as int) + 1,
+          capture['begin']! as int,
           reason:
-              '${capture['name']}: the page follows from the move after '
-              'the one that began the pop',
+              '${capture['name']}: the page moves on the move that '
+              'begins the pop',
+        );
+        expect(
+          shift,
+          moreOrLessEquals(
+            (capture['beginProgress']! as num) * 402,
+            epsilon: 0.05,
+          ),
+          reason: "${capture['name']}: by that move's step",
         );
       }
     });

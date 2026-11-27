@@ -128,6 +128,7 @@ final class _SwipePop extends Interaction {
   bool _touching = false;
   bool _rtl = false;
   Offset _start = Offset.zero;
+  Offset _last = Offset.zero;
   double _downTime = 0;
   bool _fromEdge = false;
   bool _dragging = false;
@@ -149,6 +150,7 @@ final class _SwipePop extends Interaction {
         _touching = true;
         _rtl = input.textDirection == TextDirection.rtl;
         _start = input.position;
+        _last = input.position;
         _downTime = input.time;
         final x = (_rtl ? input.mirrored(_width) : input).position.dx;
         _fromEdge =
@@ -157,6 +159,8 @@ final class _SwipePop extends Interaction {
         _predictor = NavigationPopMotion(_width);
         _predictor.addPosition(input.time, _along(input.position));
       case PointerMoveInput() when _touching:
+        final last = _last;
+        _last = input.position;
         final along = _along(input.position);
         final predictor = _predictor;
         predictor.addPosition(input.time, along);
@@ -182,9 +186,17 @@ final class _SwipePop extends Interaction {
             if (travel < NavigationPopMotion.contentHysteresis) break;
           }
           _dragging = true;
-          _start = input.position;
+          // UIKit's edge pan takes its hysteresis out of the travel at the
+          // touch before the one that begins it, so the page starts a
+          // step along; its content swipe starts from where it begins.
+          _start = _fromEdge ? last : input.position;
           _slide._dragStarted(input.time);
           predictor.begin(input.time);
+          if (_fromEdge) {
+            final progress = (along - _along(_start)) / _width;
+            _slide.motion.drag(input.time, progress);
+            predictor.update(input.time, progress);
+          }
           return const InteractionUpdate(verdict: .recognized);
         }
         final progress = travel / _width;
