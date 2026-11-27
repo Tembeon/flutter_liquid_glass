@@ -8,6 +8,8 @@ import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
+import 'package:liquid_glass_renderer/src/rendering/recording_shaders.dart';
+import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
 /// Draws one fake glass shape that stands alone: its backdrop blurred and
 /// color filtered inside the shape, its surface drawn analytically and its
@@ -82,7 +84,8 @@ class RenderFakeGlass extends RenderProxyBox
   Size? _wornAt;
   WornAppearance? _wornByNone;
 
-  late final _surfaceShaders = FakeGlassSurfaceShaders(
+  late final _surfaceShaders = RecordingShaders(
+    ShaderProgram.fakeGlassSurface,
     onLoaded: () {
       if (attached) markNeedsPaint();
     },

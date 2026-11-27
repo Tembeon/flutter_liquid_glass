@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
+import 'package:liquid_glass_renderer/src/rendering/recording_shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
@@ -45,24 +46,22 @@ final class LiquidGlassBentContent {
   ui.Image? _image;
   ui.ImageShader? _shader;
   ui.Vertices? _vertices;
+  final _parting = RecordingShaders(ShaderProgram.bentContent);
 
-  // One shader for each of the parting's two passes: CanvasKit on the web
-  // keeps a pointer to a shader's uniforms, so two draws of one shader
-  // would both take the uniforms set last.
-  final List<ui.FragmentShader> _parting = [];
-
-  /// Releases the picture and the mesh of the last paint.
+  /// Releases the picture and the mesh of the last paint, and the parting's
+  /// shaders.
   void dispose() {
+    _releasePaint();
+    _parting.dispose();
+  }
+
+  void _releasePaint() {
     _vertices?.dispose();
     _shader?.dispose();
     _image?.dispose();
-    for (final shader in _parting) {
-      shader.dispose();
-    }
     _vertices = null;
     _shader = null;
     _image = null;
-    _parting.clear();
   }
 
   // Rings near the rim lie closer: a bend is steepest there.
@@ -114,7 +113,7 @@ final class LiquidGlassBentContent {
         devicePixelRatio <= 0) {
       return content(context, offset);
     }
-    dispose();
+    _releasePaint();
     // On the pixels of the layer the content is drawn in, so the picture
     // is read texel for pixel wherever nothing bends.
     final bounds = ViewPixels(devicePixelRatio).outward(rect);
@@ -194,14 +193,14 @@ final class LiquidGlassBentContent {
     // The shader draws the picture as it is from [still] deep on.
     _paintMiddle(canvas, image, picture.shift(-rect.topLeft), middle);
     final quad = shaderQuad(Offset.zero & rect.size, canvas);
+    _parting.begin();
     // What the content takes of what lies under it, then the content.
     for (final (pass, blend) in const [
       (0.0, BlendMode.modulate),
       (1.0, BlendMode.plus),
     ]) {
-      final shader = program.fragmentShader()
+      final shader = _parting.next()
         ..setImageSampler(0, image, filterQuality: FilterQuality.low);
-      _parting.add(shader);
       putLanes(shader, 0, BentContentLane.values, {
         BentContentLane.size: [rect.width, rect.height],
         BentContentLane.radius: [radius],

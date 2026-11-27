@@ -17,8 +17,10 @@ import 'package:liquid_glass_renderer/src/rendering/glass_frames.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
+import 'package:liquid_glass_renderer/src/rendering/recording_shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
+import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 
 enum _FakeGlassPaintStage {
@@ -51,12 +53,14 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   FragmentShader? get debugSurfaceShader => _surfaceShaders.debugFirst;
 
-  late final _surfaceShaders = FakeGlassSurfaceShaders(
+  late final _surfaceShaders = RecordingShaders(
+    ShaderProgram.fakeGlassSurface,
     onLoaded: () {
       if (attached) markNeedsPaint();
     },
   );
-  late final _fieldShaders = FakeGlassSurfaceShaders.field(
+  late final _fieldShaders = RecordingShaders(
+    ShaderProgram.fakeGlassFieldSurface,
     onLoaded: () {
       if (attached && field != null) markNeedsPaint();
     },

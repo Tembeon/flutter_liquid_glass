@@ -364,33 +364,39 @@ void main() {
     expect(bend.shownDepth(-1), -1);
   });
 
-  testWidgets('the parting draws each of its passes with a shader of its own', (
-    tester,
-  ) async {
-    final canvas = _UntransformedCanvas();
+  testWidgets('the parting draws each of its passes with a shader of its own, '
+      'kept from one paint to the next', (tester) async {
     final bent = LiquidGlassBentContent();
     addTearDown(bent.dispose);
-    bent.paint(
-      TestRecordingPaintingContext(canvas),
-      Offset.zero,
-      rect: _shape,
-      radius: _radius,
-      bends: const [LiquidGlassContentBend(amount: 4, depth: 12)],
-      devicePixelRatio: 1,
-      aberration: 3,
-      aberrationDepth: 14,
-      content: (inner, offset) =>
-          inner.canvas.drawRect(_shape.shift(offset), Paint()..color = _red),
-    );
-    final shaders = [
-      for (final call in canvas.invocations)
-        if (call.invocation.memberName == #drawRect)
-          if ((call.invocation.positionalArguments[1] as Paint).shader
-              case final FragmentShader shader)
-            shader,
-    ];
-    expect(shaders, hasLength(2));
-    expect(identical(shaders.first, shaders.last), isFalse);
+    List<FragmentShader> paint() {
+      final canvas = _UntransformedCanvas();
+      bent.paint(
+        TestRecordingPaintingContext(canvas),
+        Offset.zero,
+        rect: _shape,
+        radius: _radius,
+        bends: const [LiquidGlassContentBend(amount: 4, depth: 12)],
+        devicePixelRatio: 1,
+        aberration: 3,
+        aberrationDepth: 14,
+        content: (inner, offset) =>
+            inner.canvas.drawRect(_shape.shift(offset), Paint()..color = _red),
+      );
+      return [
+        for (final call in canvas.invocations)
+          if (call.invocation.memberName == #drawRect)
+            if ((call.invocation.positionalArguments[1] as Paint).shader
+                case final FragmentShader shader)
+              shader,
+      ];
+    }
+
+    final first = paint();
+    expect(first, hasLength(2));
+    expect(identical(first.first, first.last), isFalse);
+    final second = paint();
+    expect(identical(second.first, first.first), isTrue);
+    expect(identical(second.last, first.last), isTrue);
   });
 
   testWidgets('without a bend the content is painted as it is, into the '

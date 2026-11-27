@@ -21,6 +21,7 @@ import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/recording_shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
@@ -349,7 +350,7 @@ PictureLayer _fakeSurface(Rect bounds) {
     ..translate(bounds.left, bounds.top)
     ..save()
     ..clipPath(_fakeGlassShape.getOuterPath(local));
-  final shaders = FakeGlassSurfaceShaders()..begin();
+  final shaders = RecordingShaders(ShaderProgram.fakeGlassSurface)..begin();
   paintFakeGlassSurfaceWithLight(
     canvas,
     shaders: shaders,
@@ -382,7 +383,9 @@ PictureLayer _fakeFieldBody(Rect bounds) {
     _fakeGlassShape.getOuterPath(Offset.zero & bounds.size),
   );
   final nodes = FakeGlassFieldImage();
-  final shaders = FakeGlassSurfaceShaders.field()..begin();
+  final shaders = RecordingShaders(
+    ShaderProgram.fakeGlassFieldSurface,
+  )..begin();
   paintFakeGlassFieldBody(
     canvas,
     shaders: shaders,
