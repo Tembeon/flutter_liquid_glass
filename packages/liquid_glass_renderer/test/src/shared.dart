@@ -73,10 +73,12 @@ int largestDifference(List<int> a, List<int> b) {
   return largest;
 }
 
-/// The most a channel of glass over a held image of its copy may differ
-/// from the same glass over the copy drawn in the frame: the two routes
-/// round apart, by one level in one channel of one pixel where the copy
-/// holds two device pixels a side (visibility_frame_test on macOS).
+/// The most a channel may differ between unclipped glass that holds no other
+/// glass over a held image of its copy and the same glass over the copy
+/// drawn in the frame: the two routes round apart, by one level in one
+/// channel of one pixel where the copy holds two device pixels a side
+/// (visibility_frame_test on macOS). A clip, a frost or glass held in the
+/// copy parts them further, by the bounds their own tests hold.
 const heldImageDrift = 1;
 
 final testScenarioConstraints = BoxConstraints.tight(const Size(500, 500));
