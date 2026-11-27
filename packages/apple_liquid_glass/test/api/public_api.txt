@@ -998,6 +998,7 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle>
     Color? weekdayColor,
     Color? todayFillColor,
     Color? selectedDayTextColor,
+    Color? unavailableDayTextColor,
     Color? wheelBandColor,
     Color? focusColor,
     Color? hoverColor,
@@ -1025,6 +1026,7 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle>
   final TextStyle? selectedDayTextStyle
   final TextStyle? titleTextStyle
   final Color? todayFillColor
+  final Color? unavailableDayTextColor
   final Color? weekdayColor
   final TextStyle? weekdayTextStyle
   final Color? wheelBandColor

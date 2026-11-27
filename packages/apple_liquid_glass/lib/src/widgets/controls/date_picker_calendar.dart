@@ -66,7 +66,7 @@ class _Arrow extends StatelessWidget {
     child: Transform.translate(
       offset: Offset(details.pointsRight ? _shiftRight : _shiftLeft, 0),
       child: Opacity(
-        opacity: details.enabled ? 1 : _unavailableDayOpacity,
+        opacity: details.enabled ? 1 : _unavailableChevronOpacity,
         child: CustomPaint(
           size: _chevron,
           painter: _ChevronPainter(
@@ -92,19 +92,21 @@ Widget _day(
 }) {
   final selected = details.selected;
   final today = details.today;
-  final color = switch ((selected, today)) {
-    (true, true) => onAccent,
-    (true, false) => look.selectedDayTextColor!,
-    (false, true) => look.accentColor!,
-    (false, false) => look.labelColor!,
+  final color = switch ((details.enabled, selected, today)) {
+    (false, _, _) => look.unavailableDayTextColor!,
+    (_, true, true) => onAccent,
+    (_, true, false) => look.selectedDayTextColor!,
+    (_, false, true) => look.accentColor!,
+    (_, false, false) => look.labelColor!,
   };
-  final fill = switch ((selected, today)) {
-    (true, true) => look.accentColor!,
-    (true, false) => look.labelColor!,
-    (false, true) => look.todayFillColor!,
-    (false, false) => null,
+  final fill = switch ((details.enabled, selected, today)) {
+    (false, _, _) => null,
+    (_, true, true) => look.accentColor!,
+    (_, true, false) => look.labelColor!,
+    (_, false, true) => look.todayFillColor!,
+    (_, false, false) => null,
   };
-  final cell = _DayCell(
+  return _DayCell(
     width: details.size.width,
     disc: math.min(details.size.width, details.size.height),
     fill: fill,
@@ -116,9 +118,6 @@ Widget _day(
       style: style.copyWith(color: color),
     ),
   );
-  return details.enabled
-      ? cell
-      : Opacity(opacity: _unavailableDayOpacity, child: cell);
 }
 
 /// One day of the grid: [width] wide and as tall as its row, a [disc]

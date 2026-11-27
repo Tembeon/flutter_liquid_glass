@@ -13,6 +13,7 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
     this.weekdayColor,
     this.todayFillColor,
     this.selectedDayTextColor,
+    this.unavailableDayTextColor,
     this.wheelBandColor,
     this.focusColor,
     this.hoverColor,
@@ -64,6 +65,9 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
       selectedDayTextColor:
           resolved(look.selectedDayTextColor) ??
           GlassTheme.contentColorOf(context)(labelColor),
+      unavailableDayTextColor:
+          resolved(look.unavailableDayTextColor) ??
+          GlassDynamicColor.resolve(GlassColors.quaternaryLabel, context),
       wheelBandColor: resolved(look.wheelBandColor) ?? table.wheelBandColor,
       focusColor: resolved(look.focusColor),
       hoverColor: resolved(look.hoverColor),
@@ -125,6 +129,12 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
   /// its accent.
   final Color? selectedDayTextColor;
 
+  /// The number of a day the picker does not offer, drawn with no disc, so
+  /// that neither today's nor the chosen day's shows on it;
+  /// quaternaryLabel by default, as UIKit draws a day its delegate cannot
+  /// select (iOS 27.2 simulator).
+  final Color? unavailableDayTextColor;
+
   /// The band behind the wheels' selected row; tertiarySystemFill by
   /// default.
   final Color? wheelBandColor;
@@ -169,6 +179,8 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
       weekdayColor: weekdayColor ?? other.weekdayColor,
       todayFillColor: todayFillColor ?? other.todayFillColor,
       selectedDayTextColor: selectedDayTextColor ?? other.selectedDayTextColor,
+      unavailableDayTextColor:
+          unavailableDayTextColor ?? other.unavailableDayTextColor,
       wheelBandColor: wheelBandColor ?? other.wheelBandColor,
       focusColor: focusColor ?? other.focusColor,
       hoverColor: hoverColor ?? other.hoverColor,
@@ -204,6 +216,11 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
         other.selectedDayTextColor,
         t,
       ),
+      unavailableDayTextColor: color(
+        unavailableDayTextColor,
+        other.unavailableDayTextColor,
+        t,
+      ),
       wheelBandColor: color(wheelBandColor, other.wheelBandColor, t),
       focusColor: color(focusColor, other.focusColor, t),
       hoverColor: color(hoverColor, other.hoverColor, t),
@@ -229,6 +246,7 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
       other.weekdayColor == weekdayColor &&
       other.todayFillColor == todayFillColor &&
       other.selectedDayTextColor == selectedDayTextColor &&
+      other.unavailableDayTextColor == unavailableDayTextColor &&
       other.wheelBandColor == wheelBandColor &&
       other.focusColor == focusColor &&
       other.hoverColor == hoverColor &&
@@ -247,6 +265,7 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
     weekdayColor,
     todayFillColor,
     selectedDayTextColor,
+    unavailableDayTextColor,
     wheelBandColor,
     focusColor,
     hoverColor,
@@ -291,7 +310,7 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
     labelColor: Color(0xFFFFFFFF),
     accentColor: Color(0xFF0091FF),
     weekdayColor: Color(0x99EBEBF5),
-    todayFillColor: Color(0x330091FF),
+    todayFillColor: Color(0x1F0091FF),
     wheelBandColor: Color(0x3D767680),
   );
 
@@ -318,7 +337,7 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
     labelColor: Color(0xFFFFFFFF),
     accentColor: Color(0xFF5CB8FF),
     weekdayColor: Color(0x99EBEBF5),
-    todayFillColor: Color(0x335CB8FF),
+    todayFillColor: Color(0x1F5CB8FF),
     wheelBandColor: Color(0x52767680),
   );
 }

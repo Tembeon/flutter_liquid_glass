@@ -94,6 +94,33 @@ void main() {
 
   setUp(MotionClock.debugReset);
 
+  for (final dark in [false, true]) {
+    testWidgets("today's disc is the accent at 12 percent and a day the "
+        'picker does not offer draws in quaternaryLabel with no disc, '
+        '${dark ? 'dark' : 'light'} (iOS 27.2 simulator)', (tester) async {
+      await tester.pumpWidget(
+        _App(
+          brightness: dark ? Brightness.dark : Brightness.light,
+          home: Center(
+            child: GlassDatePicker(
+              value: DateTime(2026, 10, 20),
+              minimumDate: DateTime(2026, 10, 2),
+              today: DateTime(2026, 10, 3),
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+      final todayFill = _dayCell(tester, '3', 'fill')! as Color;
+      expect(todayFill.a, moreOrLessEquals(0x1F / 255, epsilon: 0.002));
+      expect(_dayCell(tester, '1', 'fill'), isNull);
+      expect(
+        tester.widget<Text>(find.text('1')).style!.color!,
+        isSameColorAs(dark ? const Color(0x28EBEBF5) : const Color(0x2D3C3C43)),
+      );
+    });
+  }
+
   group('GlassDatePicker', () {
     Future<void> pump(
       WidgetTester tester, {
