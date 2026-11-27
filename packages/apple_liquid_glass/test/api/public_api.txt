@@ -66,9 +66,12 @@ final class ContextHold extends Motion
 final class DatePickerCalendarMotion extends Motion
   DatePickerCalendarMotion({MotionClock? clock})
   static const Size calendarSize
+  void dragPage(double t, double distance, {required double width})
   bool Function(int)? onTurn
   double get page
   int get pageDirection
+  bool get pageDragged
+  void releasePage(double t, double velocity, {required double width})
   void showYearPicker(double t, {required bool show})
   bool get showsYearPicker
   static const double sixWeekRowHeight
@@ -5264,22 +5267,25 @@ final class StackedSearchMotion
 final class SwipeActionsMotion extends Motion
   SwipeActionsMotion({MotionClock? clock})
   double actionsWidth
+  static const double commitStep
   void drag(double t, double translation)
   bool fullSwipe
   static const double fullSwipeShare
   void grab(double t)
+  bool get isCommitted
   void moveTo(double t, double value, {double velocity = ...})
   late final MotionValue<double> offset
-  ProjectionChoice release(
-    double t,
-    double velocity, {
-    required bool canPerform,
-  })
+  SwipeRelease release(double t, double velocity, {required bool canPerform})
   double rowWidth
+  static const double slop
 class SwipeGroup extends StatefulWidget
   const SwipeGroup({required Widget child, Key? key})
   final Widget child
   overrides: createState
+enum SwipeRelease
+  closes,
+  opens,
+  performs,
 final class SwitchChanged extends SwitchEvent
   const SwitchChanged({required bool on})
   final bool on
@@ -5913,6 +5919,7 @@ class SmallLens (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SplitViewMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class StackedSearchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwipeActionsMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum SwipeRelease (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchChanged (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)

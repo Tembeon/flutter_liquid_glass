@@ -36,12 +36,16 @@ final class GlassSwipeActionDetails {
 /// `swipeActions(edge: .trailing)`. Flutter: `Slidable` of
 /// flutter_slidable.
 ///
-/// The row follows the finger on a rubber band and settles open or closed
-/// where the release projects; the actions sit against its trailing edge,
-/// the first outermost, each as wide as [actionBuilder] lays it out, all
-/// as tall as the row. With [fullSwipe] a swipe past
-/// [SwipeActionsMotion.fullSwipeShare] of the row performs the first
-/// action, as UIKit's `performsFirstActionWithFullSwipe`. In a
+/// The row follows the finger once it has gone 25 points and settles open
+/// when the finger last moved it open, closed when it last moved it back,
+/// whatever the speed ([SwipeActionsMotion]); the actions sit against its
+/// trailing edge, the first outermost, each as wide as [actionBuilder]
+/// lays it out, all as tall as the row. With [fullSwipe] the row follows
+/// the finger past its actions, and a swipe that moves it
+/// [SwipeActionsMotion.fullSwipeShare] of its width commits with a step
+/// further: released there it performs the first action, as UIKit's
+/// `performsFirstActionWithFullSwipe`, and brought back under it the row
+/// closes on release. A quick short flick only opens the row. In a
 /// right-to-left context the row swipes the other way and the actions
 /// open on the left.
 ///
@@ -158,6 +162,7 @@ class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
   late final _offset = _motion.select((m) => m.offset.valueAt(m.now));
   late final DragInteraction _drag = DragInteraction(
     axis: Axis.horizontal,
+    slop: SwipeActionsMotion.slop,
     followsTextDirection: true,
     onStart: _start,
     onUpdate: _update,
@@ -236,16 +241,16 @@ class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
       _motion.drag(details.time, details.translation.dx);
 
   void _end(DragInteractionDetails details) {
-    final choice = _motion.release(
+    switch (_motion.release(
       details.time,
       details.velocity.dx,
       canPerform: widget.actionLabels.isNotEmpty,
-    );
-    switch (choice) {
-      case ProjectionExited():
+    )) {
+      case SwipeRelease.performs:
         widget.onAction(0);
-      case ProjectionStop(:final value):
-        if (value == 0) _group?.closed(this);
+      case SwipeRelease.closes:
+        _group?.closed(this);
+      case SwipeRelease.opens:
     }
   }
 

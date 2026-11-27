@@ -502,6 +502,7 @@ Spring
 StackedSearchMotion
 SwipeActionsMotion
 SwipeGroup
+SwipeRelease
 SwitchChanged
 SwitchEvent
 SwitchMotion

@@ -53,11 +53,12 @@ final class GlassSwipeAction {
 /// `swipeActions(edge: .trailing)`. Flutter: `Slidable` of
 /// flutter_slidable.
 ///
-/// The row follows the finger on a rubber band and settles open or closed
-/// where the release projects; [trailing] sits against its trailing edge,
-/// the first action outermost. With [fullSwipe] a swipe past most of the
-/// row performs the first action, as UIKit's
-/// `performsFirstActionWithFullSwipe`. A tap on the open row closes it,
+/// The row follows the finger and settles open or closed by the finger's
+/// last movement; [trailing] sits against its trailing edge, the first
+/// action outermost. With [fullSwipe] a swipe that carries the row past
+/// three quarters of its width commits to the first action, which a
+/// release then performs, as UIKit's `performsFirstActionWithFullSwipe`;
+/// a quick short flick only opens the row. A tap on the open row closes it,
 /// and so does a scroll, or a swipe of another row of the same
 /// `GlassListSection` or `GlassSliverListSection`. Accessibility offers
 /// the actions as custom actions of the row, as UIKit does, which is also

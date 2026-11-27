@@ -204,4 +204,88 @@ void main() {
     await _settle(tester);
     expect(log, ['Delete']);
   });
+
+  group('a release, as UIKit 27.2 measured', () {
+    double shown(WidgetTester tester) =>
+        tester.getTopLeft(find.text('Message')).dx -
+        tester.getTopLeft(find.byType(GlassSwipeActions)).dx;
+
+    testWidgets('a quick short flick only opens the row', (tester) async {
+      final log = <String>[];
+      await tester.pumpWidget(_app(log));
+      final rest = shown(tester);
+      await tester.flingFrom(
+        tester.getCenter(find.text('Message')) + const Offset(120, 0),
+        const Offset(-150, 0),
+        3000,
+      );
+      await _settle(tester);
+      expect(log, isEmpty);
+      expect(find.text('Delete'), findsOneWidget);
+      expect(shown(tester), lessThan(rest - 100));
+      expect(shown(tester), greaterThan(rest - 250));
+    });
+
+    testWidgets('the row moves past the 25 point slop 1:1 and a full swipe '
+        'commits only at 0.77 of the row, with a 50 point step', (
+      tester,
+    ) async {
+      final log = <String>[];
+      await tester.pumpWidget(_app(log));
+      final rest = shown(tester);
+      final finger = await tester.startGesture(const Offset(390, 26));
+      await finger.moveBy(const Offset(-125, 0));
+      await tester.pump(_frame);
+      expect(shown(tester), moreOrLessEquals(rest - 100));
+      await finger.moveBy(const Offset(-180, 0));
+      await tester.pump(_frame);
+      expect(shown(tester), moreOrLessEquals(rest - 280));
+      await finger.moveBy(const Offset(-40, 0));
+      await tester.pump(_frame);
+      expect(shown(tester), moreOrLessEquals(rest - 320 - 50.33));
+      await finger.up();
+      await _settle(tester);
+      expect(log, ['Delete']);
+    });
+
+    testWidgets('a full swipe brought back under the commit closes the row '
+        'on release, wherever it stands', (tester) async {
+      final log = <String>[];
+      await tester.pumpWidget(_app(log));
+      final rest = shown(tester);
+      final finger = await tester.startGesture(const Offset(390, 26));
+      await finger.moveBy(const Offset(-345, 0));
+      await tester.pump(_frame);
+      await finger.moveBy(const Offset(200, 0));
+      await tester.pump(_frame);
+      await tester.pump(const Duration(milliseconds: 300));
+      await finger.up();
+      await _settle(tester);
+      expect(log, isEmpty);
+      expect(shown(tester), moreOrLessEquals(rest));
+    });
+
+    testWidgets("the finger's last movement decides: pulled open and held, "
+        'it opens even a little open; pushed back, it closes', (tester) async {
+      final log = <String>[];
+      await tester.pumpWidget(_app(log));
+      final rest = shown(tester);
+      var finger = await tester.startGesture(const Offset(390, 26));
+      await finger.moveBy(const Offset(-30, 0));
+      await tester.pump(_frame);
+      await tester.pump(const Duration(milliseconds: 300));
+      await finger.up();
+      await _settle(tester);
+      expect(shown(tester), lessThan(rest - 100));
+      finger = await tester.startGesture(const Offset(200, 26));
+      await finger.moveBy(const Offset(-60, 0));
+      await tester.pump(_frame);
+      await finger.moveBy(const Offset(10, 0));
+      await tester.pump(_frame);
+      await finger.up();
+      await _settle(tester);
+      expect(shown(tester), moreOrLessEquals(rest));
+      expect(log, isEmpty);
+    });
+  });
 }

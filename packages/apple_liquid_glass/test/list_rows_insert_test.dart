@@ -181,7 +181,7 @@ void main() {
     final a = _top(tester, 'a');
     await tester.drag(
       find.byKey(const ValueKey('a')),
-      const Offset(-600, 0),
+      const Offset(-700, 0),
       touchSlopX: 0,
     );
     await _settle(tester);
