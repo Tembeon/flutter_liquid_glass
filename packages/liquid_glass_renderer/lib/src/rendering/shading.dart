@@ -200,9 +200,6 @@ final class GlassFace {
   /// uRecipes: three slots of iOS 27 recipes.
   final List<double> colorModels;
 
-  /// How far the bevel shifts what it reads at most, in device pixels.
-  double get refractionAmount => face[_refractionAmountAt];
-
   /// 1 where the frost fades out with visibility.
   double get blurFade => face[_blurFadeAt];
 
@@ -225,7 +222,7 @@ final class GlassFace {
           listEquals(other.colorModels, colorModels);
 
   @override
-  int get hashCode => Object.hash(face[0], refractionAmount, blurFade);
+  int get hashCode => Object.hash(face[0], face[_refractionAmountAt], blurFade);
 }
 
 /// How deep inside the edge of glass its [rim] lighting and contour reach,
@@ -969,12 +966,6 @@ final class GlassShading {
       GeometryLane.refractionFits: [if (binding.fitsShape) 1 else 0],
     });
     put(layout.face, face.face);
-    if (targetShare != 1) {
-      put(
-        layout.face + GlassFace._refractionAmountAt,
-        [face.refractionAmount / targetShare],
-      );
-    }
     putLanes(shader, layout.mapping, MappingLane.values, {
       MappingLane.filterToMatteBasis: [
         toMatte.$1,

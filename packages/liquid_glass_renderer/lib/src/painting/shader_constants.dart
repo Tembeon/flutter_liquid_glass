@@ -525,8 +525,9 @@ enum FaceLane implements GlobalLane {
   /// The tint, at 8 bits a channel.
   tint(4),
 
-  /// How far the bevel shifts what it reads at most, in device pixels of a
-  /// fragment: the drawn refraction amount.
+  /// How far the bevel shifts what it reads at most, in device pixels of the
+  /// matte, as every length of the geometry: the drawn refraction amount.
+  /// The shader turns the shift into the fragments of the draw.
   refractionAmount,
   dispersion,
 

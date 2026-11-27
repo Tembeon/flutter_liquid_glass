@@ -399,6 +399,32 @@ void main() {
     }
   }, skip: skipProperGlassTests);
 
+  // The upper glass asks a refraction of 60, more than its 90 points hold:
+  // its shape caps how far the bevel shifts (half its short side). Held in
+  // the lower glass's copy at a share of 2, it shifts as far as at the
+  // screen's pixels, as far off as glass the cap leaves alone (10 levels at
+  // a refraction of 40); 45 off where the cap was in matte pixels and the
+  // amount in fragments.
+  testWidgets('glass held in a coarser copy shifts as far as the shape lets '
+      'it', (tester) async {
+    tester.view.physicalSize = const Size(260, 360) * 2;
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    GlassPlan? plan;
+    GlassComposer.debugOnPlan = (_, next) => plan = next;
+    addTearDown(() => GlassComposer.debugOnPlan = null);
+    Future<Uint8List> drawn(int share) {
+      debugGlassPolicy = PlanPolicy(maxCopyShare: share);
+      return _drawn(tester, inFrame: true, pixelRatio: 2, secondFrost: 6);
+    }
+
+    final atScreen = await drawn(1);
+    final held = await drawn(2);
+    final holding = plan!.reads.singleWhere((read) => read.nested.isNotEmpty);
+    expect(holding.layout.share, 2);
+    expect(largestDifference(atScreen, held), lessThanOrEqualTo(10));
+  }, skip: skipProperGlassTests);
+
   // Impeller weighs the cut on the layer's device pixels. Glass at 203.8
   // reads from row 408 at dpr 2.625, which 408 / 2.625 * 2.625 misses by a
   // hair, and clips from 198.2 to 198.6 cut that band by about 30 %: a layer

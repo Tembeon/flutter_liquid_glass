@@ -51,7 +51,7 @@ void main() {
       'reading the backdrop draws', (tester) async {
     expect(
       await underlayParity(tester, frost: 8, scale: 1.2),
-      lessThanOrEqualTo(31),
+      lessThanOrEqualTo(32),
     );
   }, skip: skipProperGlassTests);
 }

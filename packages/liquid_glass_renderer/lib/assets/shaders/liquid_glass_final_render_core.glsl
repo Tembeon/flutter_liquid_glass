@@ -665,6 +665,9 @@ void main() {
     // bevel, for refraction, and the rim lighting near the edge.
     vec2 surfaceNormal = vec2(0.0);
     bool hasSurfaceNormal = false;
+    // The bevel's shift as the fragments of the draw read it; the geometry
+    // gives it in the matte, which differs where a coarser copy holds the
+    // glass or the glass is transformed.
     vec2 displacement = vec2(0.0);
     // The bevel is never wider than the refraction height, so deeper pixels
     // have no refraction and skip this.
@@ -678,7 +681,10 @@ void main() {
         if (magnitude > 0.0) {
             surfaceNormal = surface.xy;
             hasSurfaceNormal = true;
-            displacement = surfaceNormal * (-magnitude) * appearanceVisibility;
+            displacement = filterDeltaFromMatteDelta(
+                surfaceNormal * (-magnitude) * appearanceVisibility,
+                uFilterToMatteBasis
+            );
         }
     }
 
