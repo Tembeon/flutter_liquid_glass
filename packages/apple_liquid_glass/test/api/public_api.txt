@@ -4040,6 +4040,7 @@ final class PageControlMotion extends Motion
   void pointerDown(double t, double x)
   void pointerMove(double t, double x)
   void pointerUp(double t, double x, {required double width})
+  double scaleOf(int index)
   void setPage(double t, int page)
   bool showsProgress
   Size get size

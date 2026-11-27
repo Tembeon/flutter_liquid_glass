@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:kinesis/motion.dart';
@@ -61,6 +62,17 @@ abstract final class PageControlTuning {
 
   /// The distance between two dot centers.
   static const double pitch = indicatorSize + spacing;
+
+  /// The most indicators a control shows: more pages scroll through a
+  /// window of this many slots, 161.33 points wide with the platter (12
+  /// pages, iOS 27.2 simulator).
+  static const int windowSlots = 8;
+
+  /// The scale of the indicator in the second and the outermost slot at an
+  /// end of the window that more pages lie beyond (tree dumps of the iOS
+  /// 27.2 simulator's control of 12 pages at pages 0, 3, 5, 6, 9 and 11).
+  static const double windowNearScale = 0.7588;
+  static const double windowFarScale = 0.4461;
 }
 
 /// The motion of an iOS 27 page control's indicators.
@@ -96,7 +108,54 @@ final class PageControlMotion extends Motion {
           ),
         ),
     ];
+    _follow();
   }
+
+  // The first page in the window of a control of more pages than it shows.
+  int _windowStart = 0;
+
+  bool get _windowed => count > PageControlTuning.windowSlots;
+
+  // Keeps the current page among the window's full-size indicators,
+  // moving the window as little as that takes, as UIKit's does from one
+  // page to the next (how it moves is not filmed: it jumps).
+  void _follow() {
+    if (!_windowed) {
+      _windowStart = 0;
+      return;
+    }
+    const slots = PageControlTuning.windowSlots;
+    final last = count - slots;
+    var start = _windowStart.clamp(0, last);
+    final low = start > 0 ? start + 2 : start;
+    final high = start < last ? start + slots - 3 : start + slots - 1;
+    if (_page < low) start = _page - 2 <= 0 ? 0 : _page - 2;
+    if (_page > high) start = math.min(_page - (slots - 3), last);
+    _windowStart = start.clamp(0, last);
+  }
+
+  /// The scale an indicator draws at: 1, smaller in the window's slots
+  /// next to pages beyond it, and 0 for a page outside it.
+  double scaleOf(int index) {
+    if (!_windowed) return 1;
+    const slots = PageControlTuning.windowSlots;
+    final slot = index - _windowStart;
+    if (slot < 0 || slot >= slots) return 0;
+    final before = _windowStart > 0;
+    final after = _windowStart + slots < count;
+    if (before && slot == 0 || after && slot == slots - 1) {
+      return PageControlTuning.windowFarScale;
+    }
+    if (before && slot == 1 || after && slot == slots - 2) {
+      return PageControlTuning.windowNearScale;
+    }
+    return 1;
+  }
+
+  // The indicators the control lays out: all of them, or its window's.
+  (int, int) get _shown => _windowed
+      ? (_windowStart, _windowStart + PageControlTuning.windowSlots)
+      : (0, count);
 
   @override
   bool get needsFullFrameRate => true;
@@ -248,6 +307,7 @@ final class PageControlMotion extends Motion {
     if (next == _page) return;
     final previous = _page;
     _page = next;
+    _follow();
     changed();
     if (!showsProgress) {
       for (var i = 0; i < count; i++) {
@@ -277,8 +337,9 @@ final class PageControlMotion extends Motion {
   /// The width of all indicators and the gaps between them.
   double get contentWidth {
     if (count == 0) return 0;
-    var w = PageControlTuning.spacing * (count - 1);
-    for (var i = 0; i < count; i++) {
+    final (first, end) = _shown;
+    var w = PageControlTuning.spacing * (end - first - 1);
+    for (var i = first; i < end; i++) {
       w += width(i);
     }
     return w;
@@ -286,14 +347,17 @@ final class PageControlMotion extends Motion {
 
   /// The size at rest of a control of [count] pages without a progress,
   /// on a platter (`sizeForNumberOfPages`).
-  static Size sizeFor(int count) => Size(
-    count <= 0
-        ? 0
-        : 2 * PageControlTuning.padding +
-              count * PageControlTuning.indicatorSize +
-              (count - 1) * PageControlTuning.spacing,
-    PageControlTuning.height,
-  );
+  static Size sizeFor(int count) {
+    final shown = math.min(count, PageControlTuning.windowSlots);
+    return Size(
+      count <= 0
+          ? 0
+          : 2 * PageControlTuning.padding +
+                shown * PageControlTuning.indicatorSize +
+                (shown - 1) * PageControlTuning.spacing,
+      PageControlTuning.height,
+    );
+  }
 
   /// The size of the control: the dots between the platter's paddings,
   /// [PageControlTuning.height] tall, or the dots alone when [platterless].
@@ -309,18 +373,17 @@ final class PageControlMotion extends Motion {
     const dot = PageControlTuning.dotSize;
     const inset = (PageControlTuning.indicatorSize - dot) / 2;
     final box = size;
-    var x = 0.0;
     final rects = <Rect>[];
     for (var i = 0; i < count; i++) {
       final w = width(i);
-      var cx = _padding + x + w / 2;
-      x += w + PageControlTuning.spacing;
+      final scale = scaleOf(i);
+      var cx = _padding + center(i);
       if (rtl) cx = box.width - cx;
       rects.add(
         Rect.fromCenter(
           center: Offset(cx, box.height / 2),
-          width: w - 2 * inset,
-          height: dot,
+          width: (w - 2 * inset) * scale,
+          height: dot * scale,
         ),
       );
     }
@@ -332,14 +395,17 @@ final class PageControlMotion extends Motion {
   double contentX(double x, {required bool rtl}) =>
       (rtl ? size.width - x : x) - _padding;
 
-  /// The center of indicator [index] from the start of the dots.
+  /// The center of indicator [index] from the start of the dots; a page
+  /// outside the window stands at the window's end nearest it.
   double center(int index) {
     if (index < 0 || index >= count) return 0;
+    final (first, end) = _shown;
+    final at = index.clamp(first, end - 1);
     var x = 0.0;
-    for (var i = 0; i < index; i++) {
+    for (var i = first; i < at; i++) {
       x += width(i) + PageControlTuning.spacing;
     }
-    return x + width(index) / 2;
+    return x + width(at) / 2;
   }
 }
 
