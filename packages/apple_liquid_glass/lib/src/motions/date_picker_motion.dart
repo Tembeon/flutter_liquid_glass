@@ -503,8 +503,12 @@ final class DatePickerCalendarMotion extends Motion {
 
   int _pageDirection = 0;
   int _queued = 0;
+  int _dragged = 0;
+  int _reverting = 0;
 
   static const _queue = #queue;
+  static const _revert = #revert;
+  static const _paging = PagingPhysics();
 
   /// Takes a page turn in the given direction as it starts, or refuses it
   /// with false: the calendar turns the month it shows.
@@ -535,6 +539,68 @@ final class DatePickerCalendarMotion extends Motion {
     _page.snap(t, 0);
     _page.animate(t, 1, animation: const TimingCurve.sineInOut());
   }
+
+  /// A finger has dragged the day grid [distance] points toward the next
+  /// month (negative toward the previous one) by time [t], on pages
+  /// [width] points wide: the month it pulls in turns in at once through
+  /// [onTurn] and follows the finger, as UIKit's calendar pages under a
+  /// finger; a month [onTurn] refuses does not move.
+  void dragPage(double t, double distance, {required double width}) {
+    advance(t);
+    _settleRevert(t);
+    if (_dragged == 0 && _page.valueAt(t) < 1) _page.snap(t, 1);
+    final direction = distance.sign.toInt();
+    if (direction != _dragged) {
+      if (_dragged != 0) onTurn?.call(-_dragged);
+      _dragged = direction != 0 && (onTurn?.call(direction) ?? true)
+          ? direction
+          : 0;
+      if (_dragged != 0) _pageDirection = _dragged;
+    }
+    _page.snap(
+      t,
+      _dragged == 0 ? 1 : (distance.abs() / width).clamp(0.0, 1.0),
+    );
+  }
+
+  /// The finger that dragged the grid lets go at time [t] moving
+  /// [velocity] points a second toward the next month: the grid turns to
+  /// the page UIKit's paging chooses ([PagingPhysics]: one page the way
+  /// the finger moves above 300 points a second, the nearest page
+  /// otherwise) and settles on its spring from the release's speed; a page
+  /// it turns back from goes back through [onTurn] once it is in place.
+  void releasePage(double t, double velocity, {required double width}) {
+    advance(t);
+    final direction = _dragged;
+    _dragged = 0;
+    if (direction == 0) return;
+    final q = _page.valueAt(t);
+    final target = _paging.targetPage(
+      offset: width * (1 + direction * q),
+      pageExtent: width,
+      velocity: velocity,
+      pageCount: 3,
+    );
+    final turns = target - 1 == direction;
+    _page.setVelocity(t, direction * velocity / width);
+    _page.retarget(t, turns ? 1 : 0, spring: _paging.spring);
+    if (turns) return;
+    _reverting = direction;
+    at(_page.restTime() ?? t, _settleRevert, slot: _revert);
+  }
+
+  // A page dragged and let go short of its turn goes back once it is in
+  // place, or as soon as a finger takes the grid again.
+  void _settleRevert(double t) {
+    final direction = _reverting;
+    if (direction == 0) return;
+    _reverting = 0;
+    onTurn?.call(-direction);
+    _page.snap(t, 1);
+  }
+
+  /// Whether a finger drags the day grid.
+  bool get pageDragged => _dragged != 0;
 
   /// How far the current page turn has gone, from 0 (the old
   /// month in place) to 1 (the new one); 1 when no turn runs.

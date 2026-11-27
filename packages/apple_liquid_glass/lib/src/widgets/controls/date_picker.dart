@@ -56,7 +56,8 @@ Widget glassDatePickerHighlight(
 /// with `.graphical`. Flutter: `CalendarDatePicker`.
 ///
 /// Its behaviour, keys and accessibility are [RawGlassDatePicker]'s: the
-/// arrows turn the month with a slide, a tap on the month title turns the
+/// arrows and a swipe on the days turn the month with a slide, a tap on
+/// the month title turns the
 /// day grid into month and year wheels (the title takes the accent color
 /// at once and its chevron turns to point down over 0.25 s, as UIKit
 /// does), and a tap on a day picks it. The picked day sits on a disc in

@@ -26,7 +26,16 @@ part 'package:apple_liquid_glass/src/raw/date_picker_views.dart';
 /// its chevron, the two month arrows, the weekday initials and the days of
 /// the shown month in weeks starting at [firstDayOfWeek]; a month of six
 /// weeks packs its rows into the five rows' height. An arrow turns the
-/// month with a slide (0.3 s on a sine ease); a tap on the
+/// month with a slide (0.3 s on a sine ease). A finger drags the day grid
+/// sideways and the next or previous month comes in beside it, as UIKit's
+/// calendar pages: let go, it turns one month the way the finger moves
+/// faster than 300 points a second, and otherwise to the nearer month, so
+/// a slow release short of half a page goes back (UIKit 27.2 on the
+/// simulator: released at a quarter and at 49 % of the page, it went
+/// back); the page settles on the paging spring ([PagingPhysics]), and the
+/// title names the month of the nearer page throughout, changing as the
+/// page passes half way, as UIKit's does. A month outside the bounds does
+/// not move in. A tap on the
 /// title fades the grid out and [monthYearBuilder]'s wheels in, and a
 /// wheel at rest moves the picked day to its month and year, keeping its
 /// day of the month where the month has it (the 31st turned to November is
@@ -136,6 +145,25 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
       onTap: (t) => _motion.turnPage(t, 1),
     ),
   ];
+  late final DragInteraction _pageDrag = DragInteraction(
+    axis: Axis.horizontal,
+    followsTextDirection: true,
+    onStart: _dragPage,
+    onUpdate: _dragPage,
+    onEnd: (details) => _releasePage(details.time, -details.velocity.dx),
+    onCancel: (t) => _releasePage(t, 0),
+  );
+  late final List<Interaction> _gridDrag = [_pageDrag];
+  // The month a finger's page drag started from: while the drag and its
+  // settle run, the title shows the month of the nearer page, as UIKit's
+  // calendar does.
+  DateTime? _swipeFrom;
+  late final MotionSelection<bool> _swipePastHalf = _motion.select(
+    (m) => m.page >= 0.5,
+  );
+  late final MotionSelection<bool> _swipeDone = _motion.select(
+    (m) => !m.pageDragged && m.page >= 1,
+  );
   late final MotionSelection<bool> _pageTurning = _motion.select(
     (m) => m.page < 1,
   );
@@ -168,6 +196,8 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
   void initState() {
     super.initState();
     _motion.onTurn = _turned;
+    _swipePastHalf.addListener(_swipeMoved);
+    _swipeDone.addListener(_swipeMoved);
     if (!_daysReady) {
       _cancelDays = _motion.clock.schedulePublish(() {
         _cancelDays = null;
@@ -193,6 +223,8 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
     _cancelDays?.call();
     _cancelFocus?.call();
     _motion.onTurn = null;
+    _swipePastHalf.removeListener(_swipeMoved);
+    _swipeDone.removeListener(_swipeMoved);
     _zones.dispose();
     _header.dispose();
     super.dispose();
@@ -207,6 +239,25 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
   bool _canTurn(int direction) => widget._bounds.offersMonth(
     DateTime(_month.year, _month.month + direction),
   );
+
+  void _dragPage(DragInteractionDetails details) {
+    if (_swipeFrom == null) setState(() => _swipeFrom = _month);
+    _motion.dragPage(
+      details.time,
+      -details.translation.dx,
+      width: _Metrics.grid,
+    );
+  }
+
+  void _releasePage(double t, double velocity) =>
+      _motion.releasePage(t, velocity, width: _Metrics.grid);
+
+  void _swipeMoved() {
+    if (_swipeFrom == null || !mounted) return;
+    setState(() {
+      if (_swipeDone.value) _swipeFrom = null;
+    });
+  }
 
   bool _turned(int direction) {
     if (!mounted || !_canTurn(direction)) return false;
@@ -436,7 +487,10 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
     final loc = GlassLocalizations.of(context);
     final years = _showsYears;
     final month = _month;
-    final titleText = loc.monthYear(month);
+    final from = _swipeFrom;
+    final titleText = loc.monthYear(
+      from == null || _motion.page >= 0.5 ? month : from,
+    );
     final canPrevious = enabled && _canTurn(-1);
     final canNext = enabled && _canTurn(1);
     Widget arrow({required bool next}) {
@@ -586,24 +640,28 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
                               _Metrics.gridInset - _Metrics.reach,
                               0,
                             ),
-                            child: _PageClip(
-                              inset: _Metrics.reach,
-                              // A page turn repaints the moving grids'
-                              // offsets only, not the weekday row above;
-                              // mounting or swapping a grid lays out only
-                              // this area.
-                              child: _ScopedRepaintBoundary(
-                                builder: (context, _) => ListenableBuilder(
-                                  listenable: _pageTurning,
-                                  builder: (context, _) => _daysReady
-                                      ? _turning(
-                                          rtl: rtl,
-                                          previous: previous,
-                                          previousGrid: previousGrid,
-                                          month: month,
-                                          monthGrid: monthGrid,
-                                        )
-                                      : const SizedBox.shrink(),
+                            child: InputRegion(
+                              interactions: _gridDrag,
+                              enabled: enabled && !years,
+                              child: _PageClip(
+                                inset: _Metrics.reach,
+                                // A page turn repaints the moving grids'
+                                // offsets only, not the weekday row above;
+                                // mounting or swapping a grid lays out only
+                                // this area.
+                                child: _ScopedRepaintBoundary(
+                                  builder: (context, _) => ListenableBuilder(
+                                    listenable: _pageTurning,
+                                    builder: (context, _) => _daysReady
+                                        ? _turning(
+                                            rtl: rtl,
+                                            previous: previous,
+                                            previousGrid: previousGrid,
+                                            month: month,
+                                            monthGrid: monthGrid,
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
                                 ),
                               ),
                             ),

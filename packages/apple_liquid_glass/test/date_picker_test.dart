@@ -417,6 +417,64 @@ void main() {
       expect(find.text('October 2026'), findsOneWidget);
     });
 
+    testWidgets('a finger pages the month: the grid follows it, a slow '
+        'release short of half a page goes back, past half turns, a quick '
+        'flick turns, and the title names the nearer page', (tester) async {
+      await pump(tester, onChanged: (_) {});
+      await tester.tap(find.byType(GlassCompactDatePicker));
+      await tester.pumpAndSettle(
+        const Duration(milliseconds: 100),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 10),
+      );
+      Future<void> settle() => tester.pumpAndSettle(
+        const Duration(milliseconds: 16),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 10),
+      );
+      final start = tester.getCenter(find.text('14'));
+      final rest = tester.getTopLeft(find.text('14')).dx;
+      var finger = await tester.startGesture(start);
+      for (var i = 0; i < 10; i++) {
+        await finger.moveBy(const Offset(-10, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(
+        tester.getTopLeft(find.text('14').first).dx,
+        moreOrLessEquals(rest - 90, epsilon: 1),
+      );
+      expect(find.text('October 2026'), findsOneWidget);
+      for (var i = 0; i < 8; i++) {
+        await finger.moveBy(const Offset(-10, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(find.text('November 2026'), findsOneWidget);
+      for (var i = 0; i < 8; i++) {
+        await finger.moveBy(const Offset(10, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(find.text('October 2026'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 300));
+      await finger.up();
+      await settle();
+      expect(find.text('October 2026'), findsOneWidget);
+      expect(tester.getTopLeft(find.text('14')).dx, rest);
+
+      finger = await tester.startGesture(start);
+      for (var i = 0; i < 20; i++) {
+        await finger.moveBy(const Offset(-9, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pump(const Duration(milliseconds: 300));
+      await finger.up();
+      await settle();
+      expect(find.text('November 2026'), findsOneWidget);
+
+      await tester.flingFrom(start, const Offset(70, 0), 1200);
+      await settle();
+      expect(find.text('October 2026'), findsOneWidget);
+    });
+
     testWidgets('Escape closes the overlay', (tester) async {
       await pump(tester, onChanged: (_) {});
       await tester.tap(find.byType(GlassCompactDatePicker));
