@@ -105,6 +105,17 @@ class NavigationPopMotion {
   /// (read from UIKit).
   static const double edgeHysteresis = 15;
 
+  /// The window of directions, in radians, an edge swipe may take as it
+  /// passes [edgeHysteresis]: 155 degrees about the inward direction, so
+  /// one steeper than 77.5 degrees from it gives up (read from UIKit; the
+  /// window's narrowing over 0.5 s that UIKit also holds is not ported).
+  static const double edgeAngleWindow = 2.705260340591211;
+
+  /// Whether an edge swipe that moved [along] the page and [across] it
+  /// stays inside [edgeAngleWindow].
+  static bool edgeAngleAllows(double along, double across) =>
+      along > 0 && math.atan2(across.abs(), along) <= edgeAngleWindow / 2;
+
   /// How far a finger away from the edge moves along the page before the
   /// pop begins, or the wrong way before it fails, in points (read from
   /// UIKit; the content swipe of `UINavigationController`).

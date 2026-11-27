@@ -39,9 +39,11 @@ abstract final class SheetTuning {
   static const double dismissVelocity = 1000;
 
   /// The spring a sheet flicked away leaves on; a sheet released still
-  /// leaves on [spring]. Fitted to three flick dismissals (0.12 - 0.5 pt
-  /// rms, response 0.349 - 0.354, damping 0.79).
-  static const flickDismissSpring = Spring.response(0.352, dampingRatio: 0.79);
+  /// leaves on [spring]. UIKit's high-speed sheet spring: [spring]'s
+  /// response 0.3441 at damping 0.8 (read from UIKit's code, notes
+  /// private; three flick dismissals on the simulator had fitted 0.349 -
+  /// 0.354 and 0.79).
+  static const flickDismissSpring = Spring.response(0.3441, dampingRatio: 0.8);
 
   /// The fraction of the finger's velocity a flicked-away sheet leaves
   /// with (0.53 and 0.65 fitted).

@@ -266,6 +266,29 @@ void main() {
       );
     });
 
+    testWidgets('takes a swipe within 77.5 degrees of inward and gives up '
+        'a steeper one (a 155 degree window, read from UIKit)', (tester) async {
+      Future<bool> swipe(Offset step) async {
+        final now = _deviceTime(tester);
+        final rest = _x(tester, 'Next');
+        final gesture = await tester.createGesture();
+        await gesture.down(const Offset(10, 400), timeStamp: now());
+        for (var i = 0; i < 6; i++) {
+          await tester.pump(_frame);
+          await gesture.moveBy(step, timeStamp: now());
+        }
+        await tester.pump(_frame);
+        final moved = _x(tester, 'Next') > rest + 1;
+        await gesture.up(timeStamp: now());
+        await _settle(tester);
+        return moved;
+      }
+
+      await pushed(tester, const Size(402, 874), GlassFormFactor.phone);
+      expect(await swipe(const Offset(4, 12)), isTrue);
+      expect(await swipe(const Offset(3, 16)), isFalse);
+    });
+
     testWidgets('gives up after 0.25 s still, leaving the touch to the '
         'content swipe (read from UIKit)', (tester) async {
       await pushed(tester, const Size(402, 874), GlassFormFactor.phone);

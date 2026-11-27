@@ -169,6 +169,13 @@ final class _SwipePop extends Interaction {
           }
           if (_fromEdge) {
             if (travel.abs() < NavigationPopMotion.edgeHysteresis) break;
+            if (!NavigationPopMotion.edgeAngleAllows(
+              travel,
+              input.position.dy - _start.dy,
+            )) {
+              _touching = false;
+              return const InteractionUpdate(fails: true);
+            }
           } else {
             final across = (input.position.dy - _start.dy).abs();
             if (across >= NavigationPopMotion.contentFunnel(travel) ||
