@@ -59,8 +59,15 @@ part 'package:apple_liquid_glass/src/widgets/navigation/page_route_zoom.dart';
 /// pops it into the source when its travel along the drag, less UIKit's
 /// 10 point slop, plus 0.099 s of its release speed (UIKit's pan
 /// velocity: the last two moves, weighed 0.2 and 0.8) passes 150 points,
-/// as UIKit's code has it; short of that it returns. The source hides
-/// while the page shows. Without an attached source the page slides.
+/// as UIKit's code has it; short of that it returns. A drag from the
+/// leading edge takes the page as the interactive pop takes a sliding
+/// one, with no cones, and pops it past 200 points measured from where it
+/// began. Two fingers that pinch in shrink the page about the point
+/// between them, rubber banded under a quarter of its size and over its
+/// full size, and pop it when released under half its size or 200 points
+/// lower (UIKit's code; its pinch also turns the page, which this does
+/// not). The source hides while the page shows. Without an attached
+/// source the page slides.
 ///
 /// To assistive technology the page is a route of its own, as a
 /// `CupertinoPageRoute`'s page is, named by [title], which screen readers
@@ -89,10 +96,10 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   /// that slides in.
   final MotionSource? source;
 
-  /// Asked as a finger's drag would start to shrink a zoomed page; false
-  /// keeps the page where it is, as UIKit's
-  /// `ZoomOptions.interactiveDismissShouldBegin` does. Null lets every such
-  /// drag begin.
+  /// Asked as a finger's drag or a pinch would start to shrink a zoomed
+  /// page; false keeps the page where it is, as UIKit's
+  /// `ZoomOptions.interactiveDismissShouldBegin` does. Null lets every
+  /// such gesture begin.
   final ValueGetter<bool>? zoomDismissShouldBegin;
 
   /// The dim over the page underneath a zoomed page at full strength, as

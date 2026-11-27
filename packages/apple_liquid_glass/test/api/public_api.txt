@@ -5619,10 +5619,19 @@ final class ZoomPageMotion extends PageMotion with Sourced
   Rect dragFrame(Rect page, Offset from, Offset delta)
   void dragStart(double t, Offset position)
   void dragUpdate(double t, Offset position)
+  void edgePanStart(
+    double t,
+    Offset position, {
+    required Offset from,
+    required bool rtl,
+  })
   double get fade
   bool get isDragging
   double get lookOpacity
   (double, Offset) get lookPlacement
+  Rect pinchFrame(Rect page, Offset from, double scale, Offset delta)
+  void pinchStart(double t, Offset focal)
+  void pinchUpdate(double t, double scale, Offset focal)
   double get radius
   double get reach
   Rect get rect

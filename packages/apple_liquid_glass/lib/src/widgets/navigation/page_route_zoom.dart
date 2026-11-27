@@ -14,7 +14,9 @@ class _Zoom extends StatefulWidget {
 /// The page's zoom out of its source and back, and its drag to dismiss.
 class _ZoomState extends State<_Zoom> {
   late final _input = _ZoomDrag(this);
-  late final List<Interaction> _interactions = [_input];
+  late final _pinch = _ZoomPinch(this);
+  late final List<Interaction> _interactions = [_input, _pinch];
+  bool _phone = true;
   late final _dim = motion.select((m) => m.coversBackdrop ? 0.0 : m.dimming);
   late final _cover = motion.select(
     (m) => m.coversBackdrop ? m.dimming : 0.0,
@@ -76,6 +78,21 @@ class _ZoomState extends State<_Zoom> {
     motion.dragStart(t, from);
   }
 
+  void _edgePanStarted(
+    double t,
+    Offset position, {
+    required Offset from,
+    required bool rtl,
+  }) {
+    route.beginInteraction();
+    motion.edgePanStart(t, position, from: from, rtl: rtl);
+  }
+
+  void _pinchStarted(double t, Offset focal) {
+    route.beginInteraction();
+    motion.pinchStart(t, focal);
+  }
+
   void _released(double t) {
     final dismisses = motion.dragEnd(t);
     route.endInteraction();
@@ -90,6 +107,7 @@ class _ZoomState extends State<_Zoom> {
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     final tuning = motion.tuning;
+    _phone = GlassEnvironment.of(context).formFactor == GlassFormFactor.phone;
     final source = route.source;
     final look = source == null ? null : _looks[source];
     final sourceSize = motion.source.size;
@@ -242,8 +260,10 @@ class _ZoomShadow extends CustomPainter {
 }
 
 /// The drag that dismisses a zoomed page: a touch that moves down or
-/// toward the trailing side past UIKit's slop takes the page, which
-/// follows the finger and, on release, pops into its source or returns.
+/// toward the trailing side past UIKit's slop takes the page, and so does
+/// one on the leading edge that moves inward as the navigation's edge pan
+/// does ([NavigationPopMotion.edgeHysteresis], no cones); the page follows
+/// the finger and, on release, pops into its source or returns.
 final class _ZoomDrag extends Interaction {
   _ZoomDrag(this._zoom) : super(role: InteractionRole.gesture);
 
@@ -251,6 +271,9 @@ final class _ZoomDrag extends Interaction {
   bool _touching = false;
   bool _rtl = false;
   Offset _start = Offset.zero;
+  Offset _last = Offset.zero;
+  double _downTime = 0;
+  bool _fromEdge = false;
   bool _dragging = false;
 
   @override
@@ -259,27 +282,57 @@ final class _ZoomDrag extends Interaction {
   @override
   bool accepts(PointerDownInput down) => super.accepts(down) && _zoom._canPop;
 
+  InteractionUpdate _fail() {
+    _touching = false;
+    return const InteractionUpdate(fails: true);
+  }
+
+  /// A pinch took the page: the finger no longer drags it, even once the
+  /// pinch ends.
+  void yieldToPinch() => _touching = false;
+
+  bool get _mayBegin => _zoom.route.zoomDismissShouldBegin?.call() ?? true;
+
   @override
   InteractionUpdate handle(InteractionInput input) {
     final motion = _zoom.motion;
     switch (input) {
       case PointerDownInput() when accepts(input):
+        final width = input.regionSize.width;
         _touching = true;
         _rtl = input.textDirection == TextDirection.rtl;
         _start = input.position;
+        _last = input.position;
+        _downTime = input.time;
+        final x = (_rtl ? input.mirrored(width) : input).position.dx;
+        _fromEdge =
+            x <= NavigationPopMotion.edgeWidth(width, phone: _zoom._phone);
         _dragging = false;
       case PointerMoveInput() when _touching:
+        final last = _last;
+        _last = input.position;
         final delta = input.position - _start;
         if (!_dragging) {
-          final allowed = motion.allowsDrag(delta, rtl: _rtl);
-          if (allowed == null) break;
-          if (!allowed ||
-              !(_zoom.route.zoomDismissShouldBegin?.call() ?? true)) {
-            _touching = false;
-            return const InteractionUpdate(fails: true);
+          if (_fromEdge) {
+            final travel = _rtl ? -delta.dx : delta.dx;
+            if (travel <= NavigationPopMotion.edgeHysteresis) {
+              final drift = delta.dy.abs();
+              if (drift >
+                  NavigationPopMotion.edgeDrift(input.time - _downTime)) {
+                return _fail();
+              }
+              break;
+            }
+            if (!_mayBegin) return _fail();
+            _dragging = true;
+            _zoom._edgePanStarted(input.time, _start, from: last, rtl: _rtl);
+          } else {
+            final allowed = motion.allowsDrag(delta, rtl: _rtl);
+            if (allowed == null) break;
+            if (!allowed || !_mayBegin) return _fail();
+            _dragging = true;
+            _zoom._dragStarted(input.time, _start);
           }
-          _dragging = true;
-          _zoom._dragStarted(input.time, _start);
           motion.dragUpdate(input.time, input.position);
           return const InteractionUpdate(verdict: .recognized);
         }
@@ -297,6 +350,72 @@ final class _ZoomDrag extends Interaction {
           _zoom._released(input.time);
         }
         return const InteractionUpdate(fails: true);
+      default:
+    }
+    return InteractionUpdate.none;
+  }
+}
+
+/// The pinch that dismisses a zoomed page: two fingers on the page that
+/// draw together take it once they stand closer than they began, and the
+/// page shrinks with them about the point between them, as UIKit's pinch
+/// does; on release it pops into its source or returns. It hears every
+/// finger beside the page's other input, which hears only the first.
+final class _ZoomPinch extends Interaction {
+  _ZoomPinch(this._zoom) : super(role: InteractionRole.observer);
+
+  final _ZoomState _zoom;
+  final Map<int, Offset> _fingers = {};
+  double _span = 0;
+  Offset _focal = Offset.zero;
+  bool pinching = false;
+
+  @override
+  bool accepts(PointerDownInput down) =>
+      super.accepts(down) && (_fingers.isNotEmpty || _zoom._canPop);
+
+  (double, Offset)? get _pair {
+    if (_fingers.length < 2) return null;
+    final [a, b, ...] = _fingers.values.toList();
+    return ((a - b).distance, (a + b) / 2);
+  }
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    switch (input) {
+      case PointerDownInput(:final pointer, :final position):
+        if (_fingers.length >= 2) break;
+        _fingers[pointer] = position;
+        if (_pair case (final span, final focal)) {
+          _span = span;
+          _focal = focal;
+        }
+      case PointerMoveInput(:final pointer, :final position)
+          when _fingers.containsKey(pointer):
+        _fingers[pointer] = position;
+        final (span, focal) = _pair ?? (0.0, Offset.zero);
+        if (_span <= 0 || span <= 0) break;
+        final scale = span / _span;
+        if (!pinching) {
+          if (scale >= 1 ||
+              _zoom._input.dragged ||
+              !_zoom._canPop ||
+              !(_zoom.route.zoomDismissShouldBegin?.call() ?? true)) {
+            break;
+          }
+          pinching = true;
+          _zoom._input.yieldToPinch();
+          _zoom._pinchStarted(input.time, _focal);
+        }
+        _zoom.motion.pinchUpdate(input.time, scale, focal);
+      case PointerUpInput(:final pointer) || PointerCancelInput(:final pointer)
+          when _fingers.containsKey(pointer):
+        _fingers.remove(pointer);
+        _span = 0;
+        if (pinching) {
+          pinching = false;
+          _zoom._released(input.time);
+        }
       default:
     }
     return InteractionUpdate.none;

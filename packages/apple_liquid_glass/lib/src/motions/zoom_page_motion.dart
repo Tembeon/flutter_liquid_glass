@@ -54,6 +54,12 @@ class ZoomPageTuning {
     this.panSlop = 10,
     this.dismissThreshold = 150,
     this.dismissProjection = 0.099,
+    this.edgeDismissThreshold = 200,
+    this.pinchDismissScale = 0.5,
+    this.pinchDismissDrop = 200,
+    this.pinchMinimumScale = 0.25,
+    this.pinchStretchBelow = 0.1,
+    this.pinchStretchAbove = 0.75,
   });
 
   /// The spring the container's center and width travel on toward the
@@ -116,7 +122,7 @@ class ZoomPageTuning {
   final double shadowOffset;
 
   /// The finger travel, in points, the page ignores before it follows
-  /// (fitted 12.5 sideways, 14.4 down).
+  /// (fitted 12.5 sideways, 14.4 down; drags from the edge included).
   final double dragSlop;
 
   /// How far, in radians, a drag may lean off straight down or straight
@@ -172,6 +178,30 @@ class ZoomPageTuning {
   /// deceleration's projection, 0.99 / (1 - 0.99) / 1000.
   final double dismissProjection;
 
+  /// The projected translation past which a pan from the leading edge
+  /// dismisses the page: 200 points, measured from where the pan began
+  /// (read from UIKit's code).
+  final double edgeDismissThreshold;
+
+  /// The pinch scale under which a released pinch dismisses the page
+  /// (read from UIKit's code).
+  final double pinchDismissScale;
+
+  /// How far down, in points, the point between the pinching fingers may
+  /// move before a released pinch dismisses the page whatever its scale
+  /// (read from UIKit's code: a pinch's threshold, at no speed).
+  final double pinchDismissDrop;
+
+  /// The scale a pinch shows at least before it resists: UIKit's minimum
+  /// pinch scale (read from its code).
+  final double pinchMinimumScale;
+
+  /// How far below [pinchMinimumScale] a pinch can ever show the page.
+  final double pinchStretchBelow;
+
+  /// How far above full size a pinch can ever show the page.
+  final double pinchStretchAbove;
+
   /// The measured tuning.
   static const standard = ZoomPageTuning();
 }
@@ -183,10 +213,12 @@ class ZoomPageTuning {
 /// height - each a spring of its own. [open] puts it on the source and
 /// [start] sends it to the page; [leave] sends it back into the source,
 /// carrying each one's velocity, so a reversal is continuous. While a
-/// finger drags the page ([dragStart], [dragUpdate]) the container is a
-/// pure function of the finger's travel ([dragFrame]); [dragEnd] either
-/// returns the page or reports a dismissal, after which the shell pops the
-/// page and [leave] starts from where the finger left the page, at rest.
+/// finger drags the page ([dragStart] or [edgePanStart], [dragUpdate]) the
+/// container is a pure function of the finger's travel ([dragFrame]), and
+/// while two fingers pinch it ([pinchStart], [pinchUpdate]) of their
+/// scale ([pinchFrame]); [dragEnd] either returns the page or reports a
+/// dismissal, after which the shell pops the page and [leave] starts from
+/// where the fingers left the page, at rest.
 ///
 /// It rests within [MotionRest.length] for the frame and
 /// [MotionRest.opacity] for the crossfade and the dimming (NEAR).
@@ -272,6 +304,10 @@ final class ZoomPageMotion extends PageMotion with Sourced {
   bool _dragMoved = false;
   // The drag's axis toward the dismissal, set as it passes the slop.
   Offset _axis = Offset.zero;
+  // Where a pan from the leading edge measures its translation from.
+  Offset? _edgeFrom;
+  // The scale of a pinch, null while a finger drags.
+  double? _pinch;
   // UIKit's pan velocity: one sample per move, its displacement over the
   // time since the move before, the last two weighed 0.2 and 0.8.
   double _lastMove = 0;
@@ -400,7 +436,7 @@ final class ZoomPageMotion extends PageMotion with Sourced {
     advance(t);
     final from = _dragFrom;
     if (from != null) {
-      _set(t, dragFrame(_page, from, _dragDelta));
+      _set(t, _heldFrame(from));
       _dragFrom = null;
     }
     _shown = false;
@@ -439,8 +475,53 @@ final class ZoomPageMotion extends PageMotion with Sourced {
     _lastAt = position;
     _sample = null;
     _earlierSample = null;
+    _edgeFrom = null;
+    _pinch = null;
     changed();
   }
+
+  /// A finger that touched the page's leading edge at [position] took it
+  /// at time [t], having moved inward to [from], the touch before the one
+  /// that began the pan, where UIKit's edge pan measures its translation
+  /// from; it drags the page toward the trailing side ([rtl] mirrors it),
+  /// as [dragUpdate] says, and [dragEnd] weighs it against
+  /// [ZoomPageTuning.edgeDismissThreshold].
+  void edgePanStart(
+    double t,
+    Offset position, {
+    required Offset from,
+    required bool rtl,
+  }) {
+    dragStart(t, position);
+    _edgeFrom = from;
+    _dragMoved = true;
+    _axis = Offset(rtl ? -1 : 1, 0);
+  }
+
+  /// Two fingers began to pinch the page in about [focal], the point
+  /// between them, at time [t].
+  void pinchStart(double t, Offset focal) {
+    dragStart(t, focal);
+    _pinch = 1;
+    _dragMoved = true;
+    _axis = const Offset(0, 1);
+  }
+
+  /// The pinching fingers stand [scale] times as far apart as when they
+  /// began, about [focal], at time [t].
+  void pinchUpdate(double t, double scale, Offset focal) {
+    advance(t);
+    final from = _dragFrom;
+    if (from == null || _pinch == null) return;
+    _pinch = scale;
+    _dragDelta = focal - from;
+    _set(t, _heldFrame(from));
+  }
+
+  Rect _heldFrame(Offset from) => switch (_pinch) {
+    final scale? => pinchFrame(_page, from, scale, _dragDelta),
+    null => dragFrame(_page, from, _dragDelta),
+  };
 
   /// The release velocity UIKit's pan reports: the last move's speed at
   /// 0.2 and the one before at 0.8; a lift adds no sample, so a finger
@@ -475,18 +556,35 @@ final class ZoomPageMotion extends PageMotion with Sourced {
     _set(t, dragFrame(_page, from, _dragDelta));
   }
 
-  /// The finger left the page at time [t]; returns whether the page zooms
-  /// back into its source (the shell then pops the page and [leave] runs)
-  /// or returns to full screen, as [ZoomPageTuning.dismissThreshold] says.
+  /// The fingers left the page at time [t]; returns whether the page
+  /// zooms back into its source (the shell then pops the page and [leave]
+  /// runs) or returns to full screen. A drag dismisses as
+  /// [ZoomPageTuning.dismissThreshold] says, a pan from the edge as
+  /// [ZoomPageTuning.edgeDismissThreshold], and a pinch as
+  /// [ZoomPageTuning.pinchDismissScale] and
+  /// [ZoomPageTuning.pinchDismissDrop] say.
   bool dragEnd(double t) {
     advance(t);
-    if (_dragFrom == null) return false;
-    final travel = _dragDelta.dx * _axis.dx + _dragDelta.dy * _axis.dy;
-    final speed = _panVelocity.dx * _axis.dx + _panVelocity.dy * _axis.dy;
-    final projected =
-        math.max(0, travel - tuning.panSlop) +
-        tuning.dismissProjection * speed;
-    if (_dragMoved && projected > tuning.dismissThreshold) return true;
+    final from = _dragFrom;
+    if (from == null) return false;
+    double along(Offset v) => v.dx * _axis.dx + v.dy * _axis.dy;
+    final pinch = _pinch;
+    final edge = _edgeFrom;
+    final dismisses = switch ((pinch, edge)) {
+      (final scale?, _) =>
+        scale < tuning.pinchDismissScale ||
+            _dragDelta.dy > tuning.pinchDismissDrop,
+      (null, final edge?) =>
+        along(from + _dragDelta - edge) +
+                tuning.dismissProjection * along(_panVelocity) >
+            tuning.edgeDismissThreshold,
+      (null, null) =>
+        _dragMoved &&
+            math.max(0, along(_dragDelta) - tuning.panSlop) +
+                    tuning.dismissProjection * along(_panVelocity) >
+                tuning.dismissThreshold,
+    };
+    if (dismisses) return true;
     stay(t);
     return false;
   }
@@ -496,6 +594,8 @@ final class ZoomPageMotion extends PageMotion with Sourced {
   void stay(double t) {
     advance(t);
     _dragFrom = null;
+    _pinch = null;
+    _edgeFrom = null;
     _zoomTo(t, _page, tuning.returnSpring);
   }
 
@@ -552,6 +652,33 @@ final class ZoomPageMotion extends PageMotion with Sourced {
       center: Offset(cx, cy),
       width: page.width * sw,
       height: page.height * sh,
+    );
+  }
+
+  /// The page pinched by fingers that began about [from] and stand [scale]
+  /// times as far apart about [from] plus [delta]: it shows the scale held
+  /// inside [ZoomPageTuning.pinchMinimumScale] and full size by UIKit's
+  /// rubber band, [ZoomPageTuning.pinchStretchBelow] and
+  /// [ZoomPageTuning.pinchStretchAbove] past them (read from UIKit's code;
+  /// its pinch also turns the page with the fingers, which this does not),
+  /// about the point between the fingers, which it follows.
+  Rect pinchFrame(Rect page, Offset from, double scale, Offset delta) {
+    final low = tuning.pinchMinimumScale;
+    final shown = scale < low
+        ? RubberBand(
+            low,
+            double.infinity,
+            dimension: tuning.pinchStretchBelow,
+          ).apply(scale)
+        : RubberBand(
+            double.negativeInfinity,
+            1,
+            dimension: tuning.pinchStretchAbove,
+          ).apply(scale);
+    return Rect.fromCenter(
+      center: from + delta + (page.center - from) * shown,
+      width: page.width * shown,
+      height: page.height * shown,
     );
   }
 
