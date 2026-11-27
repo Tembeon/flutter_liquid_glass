@@ -30,6 +30,7 @@ final class GlassSliderDetails {
     required this.ticks,
     required this.states,
     this.statesListenable,
+    this.showsThumb = true,
   });
 
   /// The frames of the track in the slider's box: it stretches toward a
@@ -55,6 +56,9 @@ final class GlassSliderDetails {
   /// the thumb, whose renderer then draws the focus ring and the hover
   /// response.
   final ValueListenable<Set<WidgetState>>? statesListenable;
+
+  /// Whether the look draws the thumb ([RawGlassSlider.showsThumb]).
+  final bool showsThumb;
 }
 
 /// A slider with the measured motion of iOS 27's `UISlider` and no look of
@@ -104,6 +108,7 @@ class RawGlassSlider extends StatefulWidget {
     this.autofocus = false,
     this.semanticLabel,
     this.semanticFormatterCallback,
+    this.showsThumb = true,
     super.key,
   }) : assert(min < max, 'min must be less than max');
 
@@ -181,6 +186,12 @@ class RawGlassSlider extends StatefulWidget {
   /// down; null reads it as a percentage of the range.
   final String Function(double value)? semanticFormatterCallback;
 
+  /// Whether the thumb shows, as UIKit's `sliderStyle` and SwiftUI's
+  /// `sliderThumbVisibility` choose; without it the track is 7 points
+  /// tall, and a finger still takes the slider where the thumb would be,
+  /// as UIKit's does (read from its code, not run with a touch).
+  final bool showsThumb;
+
   /// The height of the slider, not measured.
   static const double height = 34;
 
@@ -234,6 +245,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   void _bound() {
     final bounds = widget.enabledBounds;
     _motion
+      ..thumbless = !widget.showsThumb
       ..snapsToTicks = widget.snapsToTicks
       ..enabledMin = bounds == null ? 0 : _unit(bounds.$1)
       ..enabledMax = bounds == null ? 1 : _unit(bounds.$2);
@@ -360,7 +372,13 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     Set<WidgetState> states,
   ) {
     final frames = _frames;
-    final key = (widget.builder, width, widget.ticks, frames);
+    final key = (
+      widget.builder,
+      width,
+      widget.ticks,
+      frames,
+      widget.showsThumb,
+    );
     final visual = _visual;
     if (visual != null &&
         key == _visualKey &&
@@ -378,6 +396,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
         ticks: frames.tickCenters(width, widget.ticks),
         states: states,
         statesListenable: widgetStates,
+        showsThumb: widget.showsThumb,
       ),
     );
   }

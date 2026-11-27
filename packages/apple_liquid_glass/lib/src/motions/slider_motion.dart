@@ -366,8 +366,20 @@ final class SliderMotion extends Motion {
         : (left: n, right: width + far);
   }
 
+  /// The height of the track of a slider without a thumb: 7, UIKit's
+  /// thumbless track (radius 3.5; iOS 27.2 simulator).
+  static const double thumblessTrackHeight = 7;
+
+  /// Whether the slider draws no thumb, so its track is
+  /// [thumblessTrackHeight] tall; it still drags by the hidden thumb, as
+  /// UIKit's tracking never asks the style (read from UIKit's code, not
+  /// run with a touch).
+  bool thumbless = false;
+
   /// The track height, thinner while stretched.
-  double get currentTrackHeight => trackHeight - squish * stretch.abs();
+  double get currentTrackHeight =>
+      (thumbless ? thumblessTrackHeight : trackHeight) -
+      squish * stretch.abs();
 
   /// Whether a press at [x] grabs the thumb.
   bool hitsThumb(double x) =>

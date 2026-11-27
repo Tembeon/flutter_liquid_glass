@@ -473,6 +473,8 @@ class _SliderPageState extends State<SliderPage> {
   var _neutral = false;
   var _snaps = true;
   var _bounded = false;
+  var _labels = false;
+  var _thumb = true;
   var _brand = Brand.system;
   var _light = 0.4;
 
@@ -488,6 +490,13 @@ class _SliderPageState extends State<SliderPage> {
       neutralValue: _neutral ? 0.5 : null,
       snapsToTicks: _snaps,
       enabledBounds: _bounded ? (0.2, 0.8) : null,
+      showsThumb: _thumb,
+      minimumValueLabel: _labels
+          ? const Icon(CupertinoIcons.speaker_fill, size: 17)
+          : null,
+      maximumValueLabel: _labels
+          ? const Icon(CupertinoIcons.speaker_3_fill, size: 17)
+          : null,
       style: _brand.color == null
           ? null
           : GlassSlider.styleFrom(activeTrackColor: _brand.color),
@@ -516,6 +525,16 @@ class _SliderPageState extends State<SliderPage> {
         'Drag only between 0.2 and 0.8',
         value: _bounded,
         onChanged: (on) => setState(() => _bounded = on),
+      ),
+      ToggleKnob(
+        'Speakers at the ends',
+        value: _labels,
+        onChanged: (on) => setState(() => _labels = on),
+      ),
+      ToggleKnob(
+        'Thumb',
+        value: _thumb,
+        onChanged: (on) => setState(() => _thumb = on),
       ),
       ChoiceKnob<Brand>(
         'Colors',

@@ -239,6 +239,86 @@ void main() {
     semantics.dispose();
   });
 
+  for (final direction in TextDirection.values) {
+    testWidgets('value labels stand at the ends at their own size, the track '
+        '11 points from each, ${direction.name} (UIKit value images, iOS '
+        '27.2 simulator)', (tester) async {
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(),
+          child: Directionality(
+            textDirection: direction,
+            child: Center(
+              child: SizedBox(
+                width: 370,
+                child: GlassSlider(
+                  value: 0.5,
+                  onChanged: (_) {},
+                  minimumValueLabel: const SizedBox(
+                    key: Key('min'),
+                    width: 17,
+                    height: 17.33,
+                  ),
+                  maximumValueLabel: const SizedBox(
+                    key: Key('max'),
+                    width: 27.67,
+                    height: 19,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final box = tester.getRect(find.byType(GlassSlider));
+      final track = tester
+          .getRect(find.byType(RawGlassSlider))
+          .shift(-box.topLeft);
+      final ltr = direction == TextDirection.ltr;
+      expect(track.left, moreOrLessEquals(ltr ? 28 : 38.67, epsilon: 0.01));
+      expect(track.right, moreOrLessEquals(ltr ? 331.33 : 342, epsilon: 0.01));
+      expect(
+        tester.getSize(find.byKey(const Key('max'))),
+        const Size(27.67, 19),
+      );
+      expect(
+        tester.getCenter(find.byKey(const Key('min'))).dy,
+        moreOrLessEquals(tester.getCenter(find.byType(RawGlassSlider)).dy),
+      );
+    });
+  }
+
+  testWidgets('without its thumb the track is 7 points tall and no thumb '
+      'draws (UIKit thumbless, iOS 27.2 simulator)', (tester) async {
+    GlassSliderDetails? seen;
+    await tester.pumpWidget(
+      _app(
+        RawGlassSlider(
+          value: 0.5,
+          onChanged: (_) {},
+          showsThumb: false,
+          builder: (context, details) {
+            seen = details;
+            return const SizedBox.expand();
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(seen!.showsThumb, isFalse);
+    expect(seen!.track.value.rect!.height, 7);
+    await tester.pumpWidget(
+      _app(GlassSlider(value: 0.5, onChanged: (_) {}, showsThumb: false)),
+    );
+    await tester.pump();
+    expect(
+      tester
+          .widgetList<GlassSurface>(find.byType(GlassSurface))
+          .where((surface) => surface.role == GlassRole.lens),
+      isEmpty,
+    );
+  });
+
   testWidgets('a tap on the track does nothing', (tester) async {
     final values = <double>[];
     await tester.pumpWidget(_app(_Controlled(onChanged: values.add)));

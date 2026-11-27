@@ -2435,6 +2435,9 @@ class GlassSlider extends StatefulWidget
     bool autofocus = ...,
     String? semanticLabel,
     String Function(double)? semanticFormatterCallback,
+    Widget? minimumValueLabel,
+    Widget? maximumValueLabel,
+    bool showsThumb = ...,
     Key? key,
   })
   final double? adjustmentStep
@@ -2443,13 +2446,16 @@ class GlassSlider extends StatefulWidget
   final (double, double)? enabledBounds
   final FocusNode? focusNode
   final double max
+  final Widget? maximumValueLabel
   final double min
+  final Widget? minimumValueLabel
   final double? neutralValue
   final void Function(double)? onChangeEnd
   final void Function(double)? onChangeStart
   final void Function(double)? onChanged
   final String Function(double)? semanticFormatterCallback
   final String? semanticLabel
+  final bool showsThumb
   final bool snapsToTicks
   final WidgetStatesController? statesController
   final GlassSliderStyle? style
@@ -2471,8 +2477,10 @@ final class GlassSliderDetails
     required List<Offset> ticks,
     required Set<WidgetState> states,
     ValueListenable<Set<WidgetState>>? statesListenable,
+    bool showsThumb = ...,
   })
   final MotionSelection<GlassFrame> fill
+  final bool showsThumb
   final Set<WidgetState> states
   final ValueListenable<Set<WidgetState>>? statesListenable
   final MotionSelection<GlassFrame> thumb
@@ -4654,6 +4662,7 @@ class RawGlassSlider extends StatefulWidget
     bool autofocus = ...,
     String? semanticLabel,
     String Function(double)? semanticFormatterCallback,
+    bool showsThumb = ...,
     Key? key,
   })
   final double? adjustmentStep
@@ -4671,6 +4680,7 @@ class RawGlassSlider extends StatefulWidget
   final void Function(double)? onChanged
   final String Function(double)? semanticFormatterCallback
   final String? semanticLabel
+  final bool showsThumb
   final bool snapsToTicks
   final WidgetStatesController? statesController
   static const double tickSize
@@ -5294,6 +5304,8 @@ final class SliderMotion extends Motion
   double get thumbCenter
   static const Size thumbSize
   static const double thumbSlop
+  bool thumbless
+  static const double thumblessTrackHeight
   List<double> get tickCenters
   static List<double> tickCentersFor(double width, int ticks)
   static const double tickExponent

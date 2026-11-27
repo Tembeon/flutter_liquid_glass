@@ -135,7 +135,11 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
 /// evenly spaced stops, and [animated] moves the thumb to a new [value]
 /// from outside on a spring instead of jumping. [style], usually built
 /// with [styleFrom], changes its colors. It fills the width it is given,
-/// or takes 200 points without a bounded width.
+/// or takes 200 points without a bounded width. [minimumValueLabel] and
+/// [maximumValueLabel] stand at its ends, at their own size, in the
+/// slider's tint and 11 points from the track, which runs between them;
+/// without [showsThumb] it is a 7 point track with no thumb (UIKit's
+/// value images and thumbless style, iOS 27.2 simulator).
 ///
 /// ```dart
 /// GlassSlider(
@@ -180,6 +184,9 @@ class GlassSlider extends StatefulWidget {
     this.autofocus = false,
     this.semanticLabel,
     this.semanticFormatterCallback,
+    this.minimumValueLabel,
+    this.maximumValueLabel,
+    this.showsThumb = true,
     super.key,
   });
 
@@ -237,6 +244,18 @@ class GlassSlider extends StatefulWidget {
   /// See [RawGlassSlider.semanticFormatterCallback].
   final String Function(double value)? semanticFormatterCallback;
 
+  /// What stands at the minimum end, at its own size, usually an icon
+  /// (UIKit `minimumValueImage`, SwiftUI `minimumValueLabel`): icons take
+  /// the slider's tint, and the track ends 11 points from it. Screen
+  /// readers skip it.
+  final Widget? minimumValueLabel;
+
+  /// What stands at the maximum end, as [minimumValueLabel] does.
+  final Widget? maximumValueLabel;
+
+  /// See [RawGlassSlider.showsThumb].
+  final bool showsThumb;
+
   /// A style from plain colors; a null color leaves the field to the
   /// theme, then the default.
   static GlassSliderStyle styleFrom({
@@ -265,6 +284,10 @@ class GlassSlider extends StatefulWidget {
   State<GlassSlider> createState() => _GlassSliderState();
 }
 
+/// The space between a value label and the track, in points: UIKit's 11
+/// beside its value images (iOS 27.2 simulator).
+const double _labelGap = 11;
+
 class _GlassSliderState extends State<GlassSlider> {
   GlassSliderStyle? _look;
   late GlassSliderBuilder _builder;
@@ -285,7 +308,7 @@ class _GlassSliderState extends State<GlassSlider> {
     final look = (widget.style ?? const GlassSliderStyle()).merge(
       GlassSliderStyle.maybeOf(context),
     );
-    return RawGlassSlider(
+    final slider = RawGlassSlider(
       value: widget.value,
       onChanged: widget.onChanged,
       onChangeStart: widget.onChangeStart,
@@ -303,7 +326,39 @@ class _GlassSliderState extends State<GlassSlider> {
       autofocus: widget.autofocus,
       semanticLabel: widget.semanticLabel,
       semanticFormatterCallback: widget.semanticFormatterCallback,
+      showsThumb: widget.showsThumb,
       builder: _builderFor(look),
+    );
+    final minimum = widget.minimumValueLabel;
+    final maximum = widget.maximumValueLabel;
+    if (minimum == null && maximum == null) return slider;
+    final tint = look.activeTrackColor?.resolve(const <WidgetState>{});
+    final disabled = widget.onChanged == null;
+    Widget label(Widget child) => ExcludeSemantics(
+      child: IconTheme.merge(
+        data: IconThemeData(
+          color: GlassDynamicColor.resolve(
+            tint ??
+                GlassTheme.primaryColorOf(context) ??
+                GlassColors.systemBlue,
+            context,
+          ),
+        ),
+        child: disabled ? Opacity(opacity: 0.5, child: child) : child,
+      ),
+    );
+    return Row(
+      children: [
+        if (minimum != null) ...[
+          label(minimum),
+          const SizedBox(width: _labelGap),
+        ],
+        Expanded(child: slider),
+        if (maximum != null) ...[
+          const SizedBox(width: _labelGap),
+          label(maximum),
+        ],
+      ],
     );
   }
 }
@@ -378,13 +433,14 @@ class _SliderLook extends StatelessWidget {
                 ),
               ),
             ),
-          surface(
-            GlassRole.lens,
-            details.thumb,
-            color(look.thumbColor, const Color(0xFFFFFFFF)),
-            lens: _thumbLens,
-            ring: true,
-          ),
+          if (details.showsThumb)
+            surface(
+              GlassRole.lens,
+              details.thumb,
+              color(look.thumbColor, const Color(0xFFFFFFFF)),
+              lens: _thumbLens,
+              ring: true,
+            ),
         ],
       ),
     );
