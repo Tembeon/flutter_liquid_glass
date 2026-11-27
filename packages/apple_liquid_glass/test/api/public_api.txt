@@ -1649,6 +1649,10 @@ class GlassPageScaffold extends StatefulWidget
   final bool resizeToAvoidBottomInset
   final PreferredSizeWidget? toolbar
   overrides: createState
+class GlassPageScrollPhysics extends ScrollPhysics
+  const GlassPageScrollPhysics({ScrollPhysics? parent})
+  static const ({Cubic curve, Duration duration}) turnFromCode
+  overrides: allowImplicitScrolling, applyBoundaryConditions, applyPhysicsToUserOffset, applyTo, createBallisticSimulation, spring
 class GlassPlainButtonStyle extends GlassButtonStyle
   factory GlassPlainButtonStyle.from(GlassButtonStyle style)
   const GlassPlainButtonStyle({
@@ -5602,6 +5606,7 @@ class GlassPageControl (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageControlStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageRoute (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPageScrollPhysics (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPlainButtonStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPopoverStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassProgressView (see package:apple_liquid_glass/apple_liquid_glass.dart)

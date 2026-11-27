@@ -148,6 +148,7 @@ GlassPageControlPose
 GlassPageControlStyle
 GlassPageRoute
 GlassPageScaffold
+GlassPageScrollPhysics
 GlassPlainButtonStyle
 GlassPlatformScope
 GlassPopoverStyle

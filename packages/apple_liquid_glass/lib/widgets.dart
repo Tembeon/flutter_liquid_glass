@@ -93,6 +93,8 @@ export 'src/widgets/navigation/navigation_bar.dart'
     show GlassNavigationBar, GlassNavigationBarStyle;
 export 'src/widgets/navigation/page_route.dart'
     show GlassPageRoute, GlassZoomSource;
+export 'src/widgets/navigation/page_scroll_physics.dart'
+    show GlassPageScrollPhysics;
 export 'src/widgets/navigation/split_view.dart'
     show
         GlassSplitView,
