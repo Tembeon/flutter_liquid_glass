@@ -1,0 +1,351 @@
+import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/src/widgets/presentations/menu_entries.dart';
+import 'package:flutter/widgets.dart';
+import 'package:kinesis/kinesis.dart';
+
+/// The text of a bar's labels: 17 pt, weight 500, height 1.2 (bars
+/// passport).
+const TextStyle barLabelStyle = TextStyle(
+  fontSize: 17,
+  fontWeight: FontWeight.w500,
+  height: 1.2,
+);
+
+/// The look of a bar's items; a null field leaves it to the default.
+///
+/// The bars of a navigator are shared by its pages and their capsules
+/// change from one page's into the next's, so items take their look from
+/// the theme: `GlassNavigationBarStyle.itemStyle` and
+/// `GlassToolbarStyle.itemStyle` in `GlassThemeData.styles`.
+@immutable
+class GlassBarItemStyle {
+  /// Creates a style.
+  const GlassBarItemStyle({
+    this.foregroundColor,
+    this.prominentColor,
+    this.prominentForegroundColor,
+    this.textStyle,
+  });
+
+  /// The glyphs and labels of items, resolved against
+  /// [WidgetState.disabled] for an item without an action; label by
+  /// default, and disabled what UIKit's tertiaryLabel renders through the
+  /// bar's glass: 0x55000000 (dark 0x3CFFFFFF) on an icon, the far dimmer
+  /// 0x19000000 (dark 0x12FFFFFF) on a label.
+  final WidgetStateProperty<Color?>? foregroundColor;
+
+  /// The capsule of a prominent item; the theme's primary color, then
+  /// 0x0088FF, by default. Without an action the capsule turns
+  /// [GlassColors.systemGray4] whatever this is, as in UIKit.
+  final Color? prominentColor;
+
+  /// The glyph and label of a prominent item; by default the color that
+  /// reads on [prominentColor], as a prominent glass button's label
+  /// ([GlassThemeData.primaryContrastingColor], not measured on a bar), and
+  /// white on the gray capsule of an item without an action.
+  final Color? prominentForegroundColor;
+
+  /// The labels, over 17 points, medium (semibold when prominent).
+  final TextStyle? textStyle;
+
+  /// This style over [other].
+  GlassBarItemStyle merge(GlassBarItemStyle? other) {
+    if (other == null) return this;
+    return GlassBarItemStyle(
+      foregroundColor: GlassStyle.mergeStates(
+        foregroundColor,
+        other.foregroundColor,
+      ),
+      prominentColor: prominentColor ?? other.prominentColor,
+      prominentForegroundColor:
+          prominentForegroundColor ?? other.prominentForegroundColor,
+      textStyle: other.textStyle?.merge(textStyle) ?? textStyle,
+    );
+  }
+
+  /// The style between [a] and [b] at [t].
+  static GlassBarItemStyle? lerp(
+    GlassBarItemStyle? a,
+    GlassBarItemStyle? b,
+    double t,
+  ) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    final color = GlassStyle.lerpNullable(GlassDynamicColor.lerp);
+    return GlassBarItemStyle(
+      foregroundColor: WidgetStateProperty.lerp<Color?>(
+        a.foregroundColor,
+        b.foregroundColor,
+        t,
+        color,
+      ),
+      prominentColor: color(a.prominentColor, b.prominentColor, t),
+      prominentForegroundColor: color(
+        a.prominentForegroundColor,
+        b.prominentForegroundColor,
+        t,
+      ),
+      textStyle: GlassStyle.lerpNullable(TextStyle.lerp)(
+        a.textStyle,
+        b.textStyle,
+        t,
+      ),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassBarItemStyle &&
+      other.foregroundColor == foregroundColor &&
+      other.prominentColor == prominentColor &&
+      other.prominentForegroundColor == prominentForegroundColor &&
+      other.textStyle == textStyle;
+
+  @override
+  int get hashCode => Object.hash(
+    foregroundColor,
+    prominentColor,
+    prominentForegroundColor,
+    textStyle,
+  );
+}
+
+/// One entry of a `GlassNavigationBar` side or of a `GlassToolbar`: an item
+/// or a spacer.
+///
+/// UIKit: `UIBarButtonItem`. SwiftUI: `ToolbarItem`. Flutter: an action of
+/// `AppBar`.
+///
+/// Entries describe what the bar shows; they are not widgets, and the bar
+/// builds them. Adjacent [GlassBarItem]s share one glass capsule, as UIKit
+/// groups adjacent bar items; a [GlassBarSpacer] or a
+/// [GlassBarProminentButton] starts a capsule of its own.
+@immutable
+sealed class GlassBarEntry {
+  const GlassBarEntry();
+}
+
+/// An item of a bar: a button ([GlassBarButton]), a prominent button
+/// ([GlassBarProminentButton]) or custom content ([GlassBarCustomItem]).
+///
+/// UIKit: `UIBarButtonItem`. SwiftUI: `Button` in a `ToolbarItem`. Flutter:
+/// an `IconButton` in `AppBar.actions`.
+///
+/// Its identity keeps it across changes of the bar, so it travels to its
+/// new place instead of leaving and arriving: [key] when given; else, as
+/// UIKit derives a semantic id from an item's image and then its title, the
+/// icon of a button's icon that is an [Icon], else the text of its label
+/// that is a [Text], else its place; items that repeat an identity are told
+/// apart by their order. A key, an icon or a label's text crosses a push
+/// too: an item the next page also has stays, or travels to its new place.
+/// Items known only by their place, and custom items without a key, belong
+/// to their page.
+@immutable
+sealed class GlassBarItem extends GlassBarEntry {
+  /// Creates a button showing [icon] or [label].
+  const factory GlassBarItem({
+    LocalKey? key,
+    Widget? icon,
+    Widget? label,
+    VoidCallback? onPressed,
+    String? semanticLabel,
+    List<GlassMenuEntry>? menuChildren,
+    GlassMenuOrder menuOrder,
+    bool selected,
+    Widget? badge,
+    Color? tint,
+    MotionSource? zoomSource,
+    bool sharesBackground,
+  }) = GlassBarButton;
+
+  /// Creates a button in a capsule of its own, tinted with the theme's
+  /// primary color, its label semibold (UIKit `.prominent`).
+  const factory GlassBarItem.prominent({
+    LocalKey? key,
+    Widget? icon,
+    Widget? label,
+    VoidCallback? onPressed,
+    String? semanticLabel,
+  }) = GlassBarProminentButton;
+
+  /// Creates an item of custom content in the capsule, such as a segmented
+  /// control (UIKit `customView`); [child] handles its own input.
+  const factory GlassBarItem.custom({
+    required Widget child,
+    LocalKey? key,
+    bool sharesBackground,
+  }) = GlassBarCustomItem;
+
+  const GlassBarItem._({this.key, this.sharesBackground = true});
+
+  /// The identity of the item across changes of the bar and across pages.
+  final LocalKey? key;
+
+  /// Whether the item stands in a glass capsule, shared with the items
+  /// beside it; false stands it alone with no glass of its own, splitting
+  /// the items around it into capsules of their own, as UIKit's
+  /// `hidesSharedBackground` and SwiftUI's `sharedBackgroundVisibility`
+  /// do (read from UIKit's code). A prominent button always has its own.
+  final bool sharesBackground;
+}
+
+/// A button of a bar: an icon or a label, an action and maybe a menu; it
+/// shares a glass capsule with the items beside it.
+final class GlassBarButton extends GlassBarItem {
+  /// Creates a button showing [icon] or [label].
+  const GlassBarButton({
+    super.key,
+    this.icon,
+    this.label,
+    this.onPressed,
+    this.semanticLabel,
+    this.menuChildren,
+    this.menuOrder = GlassMenuOrder.automatic,
+    this.selected = false,
+    this.badge,
+    this.tint,
+    this.zoomSource,
+    super.sharesBackground,
+  }) : assert(icon != null || label != null, 'an icon or a label'),
+       super._();
+
+  /// The icon, drawn at the bar's icon size and color.
+  final Widget? icon;
+
+  /// The label, drawn in the bar's text style; shown when there is no
+  /// [icon].
+  final Widget? label;
+
+  /// Called on a tap; null disables the button.
+  final VoidCallback? onPressed;
+
+  /// What screen readers announce; the label's text by default.
+  final String? semanticLabel;
+
+  /// The menu of this button: a tap opens it, or a hold when [onPressed] takes
+  /// the tap.
+  ///
+  /// The whole capsule this button stands in morphs, whatever else shares it:
+  /// its glyphs ride the shrinking shape and blur out, and the menu grows from
+  /// this button and lands with its top on the capsule's top. Where it lands
+  /// does not depend on which button of the capsule opened it. This follows a
+  /// capture on an iPhone 16 Pro; the pressed glyph's dimming is left out and a
+  /// custom view in the capsule hides without riding the shape (near).
+  final List<GlassMenuEntry>? menuChildren;
+
+  /// How [menuChildren] order when the menu opens upward, as from a
+  /// toolbar (UIKit `preferredMenuElementOrder`).
+  final GlassMenuOrder menuOrder;
+
+  /// Whether the button shows selected (UIKit `isSelected`): its glyph in
+  /// white, or the color that reads on the tint, on a capsule of the tint
+  /// 7 points past the glyph at each side and 35.33 tall (a selected heart
+  /// of 27 points draws a capsule of 41; iOS 27.2 simulator). Screen
+  /// readers do not hear the selection yet; say it in [semanticLabel] where
+  /// it matters.
+  final bool selected;
+
+  /// A badge on the button, usually a `GlassBadge` (UIKit
+  /// `UIBarButtonItem.badge`): centered 2.83 points past the glyph's
+  /// trailing edge and 2.5 above its top, over the capsule's rim, where a
+  /// bell alone in its capsule draws its 18.33 point badge 6.5 in from the
+  /// capsule's corner (iOS 27.2 simulator).
+  final Widget? badge;
+
+  /// The color of the button's glyph or label, and of its capsule while
+  /// [selected], as UIKit's `tintColor` on an item and SwiftUI's `tint` on
+  /// a toolbar button; null for the bar's. A disabled button keeps the
+  /// disabled color.
+  final Color? tint;
+
+  /// The source a `GlassPageRoute` zooms out of and back into, shown by
+  /// this button as a `GlassZoomSource` around its place in the capsule,
+  /// as UIKit's `.zoom(sourceBarButtonItemProvider:)` zooms from a bar
+  /// button; null for none.
+  final MotionSource? zoomSource;
+}
+
+/// A button in a capsule of its own, tinted with the theme's primary color,
+/// its label semibold (UIKit `.prominent`).
+final class GlassBarProminentButton extends GlassBarItem {
+  /// Creates a prominent button showing [icon] or [label].
+  const GlassBarProminentButton({
+    super.key,
+    this.icon,
+    this.label,
+    this.onPressed,
+    this.semanticLabel,
+  }) : assert(icon != null || label != null, 'an icon or a label'),
+       super._();
+
+  /// The icon, drawn at the bar's icon size in the prominent foreground
+  /// color.
+  final Widget? icon;
+
+  /// The label, drawn semibold in the bar's text style; shown when there is
+  /// no [icon].
+  final Widget? label;
+
+  /// Called on a tap; null disables the button.
+  final VoidCallback? onPressed;
+
+  /// What screen readers announce; the label's text by default.
+  final String? semanticLabel;
+}
+
+/// Custom content in a bar's capsule, such as a segmented control (UIKit
+/// `customView`); its child handles its own input and speaks for itself.
+final class GlassBarCustomItem extends GlassBarItem {
+  /// Creates an item showing [child]; [child] handles its own input.
+  const GlassBarCustomItem({
+    required this.child,
+    super.key,
+    super.sharesBackground,
+  }) : super._();
+
+  /// The content.
+  final Widget child;
+}
+
+/// A break between capsules.
+///
+/// UIKit: `UIBarButtonItem.fixedSpace(_:)` and `flexibleSpace()`. SwiftUI:
+/// `ToolbarSpacer`. Flutter: [Spacer].
+final class GlassBarSpacer extends GlassBarEntry {
+  /// Creates a break between capsules.
+  const GlassBarSpacer() : flexible = false;
+
+  /// Creates a break that takes a toolbar's free room: the capsules before
+  /// the first flexible spacer stand at the leading side, those after the
+  /// last at the trailing side, and those between share the room left in
+  /// equal parts, each centered in its own. A navigation bar takes it as a
+  /// plain break.
+  const GlassBarSpacer.flexible() : flexible = true;
+
+  /// Whether the spacer takes a toolbar's free room.
+  final bool flexible;
+}
+
+/// How a back button names the page below.
+///
+/// On an iPhone UIKit 27.2 draws a 44 point circle with the chevron alone
+/// in every mode, whatever the page below is called; only a short
+/// previous page title the page gives showed beside it, on iOS 27.0 (bars
+/// passport). Which given titles fit is not measured, so a given title
+/// always shows.
+///
+/// UIKit: `UINavigationItem.BackButtonDisplayMode`.
+enum GlassBackButtonDisplayMode {
+  /// The chevron and the previous page title the page gives, else the
+  /// chevron alone; assistive technology reads that title, else the page
+  /// below's.
+  title,
+
+  /// The chevron alone, read as "Back", as UIKit 27.2 draws it on an
+  /// iPhone.
+  generic,
+
+  /// The chevron alone, read as "Back"; a given previous page title does
+  /// not show.
+  minimal,
+}

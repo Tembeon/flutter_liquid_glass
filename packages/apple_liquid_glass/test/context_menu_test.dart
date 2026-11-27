@@ -1,0 +1,581 @@
+import 'dart:ui' as ui;
+
+import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+const _held = Key('held');
+
+Widget _app({
+  required List<String> log,
+  WidgetBuilder? previewBuilder,
+  VoidCallback? onTap,
+  Widget? held,
+  Alignment alignment = const Alignment(0, -0.5),
+  GlassMenuOrder order = GlassMenuOrder.automatic,
+  VoidCallback? onOpen,
+  VoidCallback? onClose,
+}) => WidgetsApp(
+  color: const Color(0xFF000000),
+  pageRouteBuilder: <T>(settings, builder) =>
+      GlassPageRoute<T>(builder: builder, settings: settings),
+  builder: (context, child) =>
+      GlassScope(renderer: const FlatGlassRenderer(), child: child!),
+  home: ColoredBox(
+    color: const Color(0xFFF2F2F7),
+    child: Align(
+      alignment: alignment,
+      child: GlassContextMenu(
+        previewBuilder: previewBuilder,
+        order: order,
+        onOpen: onOpen,
+        onClose: onClose,
+        menuChildren: [
+          for (final title in ['Copy', 'Share', 'Delete'])
+            GlassMenuItem(title: title, onPressed: () => log.add(title)),
+        ],
+        child:
+            held ??
+            GestureDetector(
+              onTap: onTap,
+              child: const SizedBox(
+                key: _held,
+                width: 120,
+                height: 80,
+                child: ColoredBox(color: Color(0xFF3478F6)),
+              ),
+            ),
+      ),
+    ),
+  ),
+);
+
+void _phone(WidgetTester tester) {
+  tester.view.physicalSize = const Size(402, 874) * 3;
+  tester.view.devicePixelRatio = 3;
+  tester.view.padding = const FakeViewPadding(top: 62 * 3, bottom: 34 * 3);
+  addTearDown(tester.view.reset);
+}
+
+Future<void> _frames(WidgetTester tester, int count) async {
+  for (var i = 0; i < count; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+}
+
+void main() {
+  testWidgets('a list row under the menu carries its actions and the long '
+      'press that opens it on the node a screen reader reads', (tester) async {
+    _phone(tester);
+    final semantics = tester.ensureSemantics();
+    final log = <String>[];
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFF000000),
+        builder: (context, _) => GlassScope(
+          renderer: const FlatGlassRenderer(),
+          child: Center(
+            child: GlassContextMenu(
+              menuChildren: [
+                GlassMenuItem(
+                  title: 'Water',
+                  onPressed: () => log.add('Water'),
+                ),
+              ],
+              child: GlassListSection(
+                children: [
+                  GlassListRow(title: const Text('Fern'), onPressed: () {}),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final node = tester.getSemantics(find.text('Fern'));
+    final data = node.getSemanticsData();
+    final ids = data.customSemanticsActionIds ?? [];
+    expect(
+      [for (final id in ids) CustomSemanticsAction.getAction(id)!.label],
+      ['Water'],
+    );
+    expect(data.hasAction(SemanticsAction.longPress), isTrue);
+    node.owner!.performAction(node.id, SemanticsAction.customAction, ids.first);
+    await tester.pump();
+    expect(log, ['Water']);
+    semantics.dispose();
+  });
+
+  testWidgets("screen readers find the menu's items on the held widget as "
+      'custom actions that run them without opening the menu', (
+    tester,
+  ) async {
+    _phone(tester);
+    final semantics = tester.ensureSemantics();
+    final log = <String>[];
+    await tester.pumpWidget(_app(log: log));
+    final node = tester.getSemantics(find.byKey(_held));
+    final ids = node.getSemanticsData().customSemanticsActionIds ?? [];
+    final labels = [
+      for (final id in ids) CustomSemanticsAction.getAction(id)!.label,
+    ];
+    expect(labels, ['Copy', 'Share', 'Delete']);
+    node.owner!.performAction(node.id, SemanticsAction.customAction, ids[1]);
+    await tester.pump();
+    expect(log, ['Share']);
+    expect(find.text('Copy'), findsNothing);
+    semantics.dispose();
+  });
+
+  setUp(MotionClock.debugReset);
+
+  testWidgets('a hold grows the view, then opens the menu beside its lifted '
+      'preview; let go there, the menu stays open', (tester) async {
+    _phone(tester);
+    final log = <String>[];
+    await tester.pumpWidget(_app(log: log));
+    final rest = tester.getRect(find.byKey(_held));
+    final gesture = await tester.startGesture(rest.center);
+    await _frames(tester, 20);
+    expect(tester.getRect(find.byKey(_held)).width, greaterThan(rest.width));
+    expect(find.text('Copy'), findsNothing);
+    await _frames(tester, 40);
+    expect(find.text('Copy'), findsOneWidget);
+    await gesture.up();
+    await _frames(tester, 60);
+    expect(find.text('Copy'), findsOneWidget);
+    final preview = tester.getRect(find.byKey(_held).last);
+    expect(preview.width, closeTo(120 * 1.15, 0.5));
+    final copy = tester.getRect(find.text('Copy'));
+    expect(copy.top, greaterThan(preview.bottom));
+    await tester.tapAt(tester.getCenter(find.text('Share')));
+    await _frames(tester, 60);
+    expect(log, ['Share']);
+    expect(find.text('Copy'), findsNothing);
+  });
+
+  testWidgets('a menu above its preview keeps its rows in order; a '
+      'priority order puts the first next to the preview', (tester) async {
+    _phone(tester);
+    for (final (order, reversed) in [
+      (GlassMenuOrder.automatic, false),
+      (GlassMenuOrder.priority, true),
+    ]) {
+      await tester.pumpWidget(
+        _app(log: [], alignment: const Alignment(0, 0.8), order: order),
+      );
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(_held)),
+      );
+      await _frames(tester, 60);
+      await gesture.up();
+      await _frames(tester, 60);
+      final preview = tester.getRect(find.byKey(_held).last);
+      final copy = tester.getRect(find.text('Copy'));
+      final share = tester.getRect(find.text('Share'));
+      expect(copy.bottom, lessThan(preview.top));
+      expect(copy.top > share.top, reversed, reason: order.name);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await _frames(tester, 60);
+    }
+  });
+
+  testWidgets('under Reduce Motion the held view keeps its size until the '
+      'menu opens', (tester) async {
+    _phone(tester);
+    await tester.pumpWidget(
+      MotionTraitsOverride(
+        traits: const MotionTraits(reduceMotion: true),
+        child: _app(log: []),
+      ),
+    );
+    final rest = tester.getRect(find.byKey(_held));
+    final gesture = await tester.startGesture(rest.center);
+    await _frames(tester, 40);
+    expect(find.text('Copy'), findsNothing);
+    expect(tester.getRect(find.byKey(_held)), rest);
+    await _frames(tester, 20);
+    expect(find.text('Copy'), findsOneWidget);
+    await gesture.up();
+    await _frames(tester, 60);
+  });
+
+  testWidgets('onOpen and onClose bracket the menu, and a menu that goes '
+      'with its anchor reports it closed', (tester) async {
+    _phone(tester);
+    final calls = <String>[];
+    Widget app() => _app(
+      log: [],
+      onOpen: () => calls.add('open'),
+      onClose: () => calls.add('close'),
+    );
+    await tester.pumpWidget(app());
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(_held)),
+    );
+    await _frames(tester, 60);
+    await gesture.up();
+    await _frames(tester, 60);
+    expect(calls, ['open']);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _frames(tester, 60);
+    expect(calls, ['open', 'close']);
+    final again = await tester.startGesture(
+      tester.getCenter(find.byKey(_held)),
+    );
+    await _frames(tester, 60);
+    await again.up();
+    await _frames(tester, 60);
+    expect(calls, ['open', 'close', 'open']);
+    await tester.pumpWidget(const SizedBox());
+    expect(calls, ['open', 'close', 'open', 'close']);
+  });
+
+  testWidgets('a held finger slides onto a row and chooses it on release', (
+    tester,
+  ) async {
+    _phone(tester);
+    final log = <String>[];
+    await tester.pumpWidget(_app(log: log));
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(_held)),
+    );
+    await _frames(tester, 60);
+    await gesture.moveTo(tester.getCenter(find.text('Delete')));
+    await _frames(tester, 2);
+    await gesture.up();
+    await _frames(tester, 60);
+    expect(log, ['Delete']);
+  });
+
+  testWidgets('a tap reaches the view; a finger that moves before the commit '
+      'drops the hold', (tester) async {
+    _phone(tester);
+    final log = <String>[];
+    var taps = 0;
+    await tester.pumpWidget(_app(log: log, onTap: () => taps++));
+    await tester.tap(find.byKey(_held));
+    await _frames(tester, 60);
+    expect(taps, 1);
+    expect(find.text('Copy'), findsNothing);
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(_held)),
+    );
+    await _frames(tester, 10);
+    await gesture.moveBy(const Offset(0, 40));
+    await _frames(tester, 60);
+    expect(find.text('Copy'), findsNothing);
+    await gesture.up();
+  });
+
+  testWidgets('the hold drops past the touch slop and holds within it', (
+    tester,
+  ) async {
+    _phone(tester);
+    Future<bool> opensAfterMoving(double distance) async {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(_app(log: []));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(_held)),
+      );
+      await _frames(tester, 10);
+      await gesture.moveBy(Offset(0, distance));
+      await _frames(tester, 60);
+      final opened = find.text('Copy').evaluate().isNotEmpty;
+      await gesture.up();
+      await _frames(tester, 60);
+      return opened;
+    }
+
+    expect(await opensAfterMoving(24), isFalse);
+    tester.view.gestureSettings = const ui.GestureSettings(
+      physicalTouchSlop: 30 * 3,
+    );
+    expect(await opensAfterMoving(24), isTrue);
+  });
+
+  testWidgets('Escape closes the menu and the preview lands home', (
+    tester,
+  ) async {
+    _phone(tester);
+    await tester.pumpWidget(_app(log: <String>[]));
+    final rest = tester.getRect(find.byKey(_held));
+    final gesture = await tester.startGesture(rest.center);
+    await _frames(tester, 60);
+    await gesture.up();
+    await _frames(tester, 60);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _frames(tester, 90);
+    expect(find.text('Copy'), findsNothing);
+    expect(tester.getRect(find.byKey(_held)), rest);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+  });
+
+  testWidgets('a preview builder draws the open preview', (tester) async {
+    _phone(tester);
+    await tester.pumpWidget(
+      _app(
+        log: <String>[],
+        previewBuilder: (context) => const Text('Preview'),
+      ),
+    );
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(_held)),
+    );
+    await _frames(tester, 60);
+    await gesture.up();
+    await _frames(tester, 60);
+    expect(find.text('Preview'), findsOneWidget);
+  });
+
+  testWidgets('a closing menu fades its glass with the dim, gone before the '
+      'layer leaves; an open keeps it whole', (tester) async {
+    _phone(tester);
+    await tester.pumpWidget(_app(log: <String>[]));
+    final rest = tester.getRect(find.byKey(_held));
+    final gesture = await tester.startGesture(rest.center);
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      if (_menuGlass(tester) case final frame?) {
+        expect(frame.opacity, 1);
+      }
+    }
+    await gesture.up();
+    await _frames(tester, 60);
+    expect(_menuGlass(tester)!.opacity, 1);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    final closing = <double>[];
+    for (var i = 0; i < 120; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final frame = _menuGlass(tester);
+      if (frame == null) break;
+      closing.add(frame.opacity);
+    }
+    expect(_menuGlass(tester), isNull);
+    for (var i = 1; i < closing.length; i++) {
+      expect(closing[i], lessThanOrEqualTo(closing[i - 1] + 1e-9));
+    }
+    expect(closing.last, lessThan(0.02));
+  });
+
+  for (final (name, press) in <(String, Future<void> Function(WidgetTester))>[
+    (
+      'the context menu key',
+      (tester) => tester.sendKeyEvent(LogicalKeyboardKey.contextMenu),
+    ),
+    (
+      'Shift+F10',
+      (tester) async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.f10);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      },
+    ),
+  ]) {
+    testWidgets('$name on the focused view opens the menu beside its lifted '
+        'preview', (tester) async {
+      _phone(tester);
+      await tester.pumpWidget(_app(log: <String>[]));
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      await press(tester);
+      await _frames(tester, 90);
+      expect(find.text('Copy'), findsOneWidget);
+      final held = tester.getRect(find.byKey(_held).first);
+      expect(tester.getRect(find.text('Copy')).top, greaterThan(held.top));
+    });
+  }
+
+  testWidgets('a view with no Tab stop inside is the one stop', (
+    tester,
+  ) async {
+    _phone(tester);
+    await tester.pumpWidget(_app(log: <String>[]));
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    final first = FocusManager.instance.primaryFocus;
+    expect(first?.debugLabel, 'GlassContextMenu');
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(FocusManager.instance.primaryFocus, same(first));
+  });
+
+  testWidgets('a row under the menu is the one Tab stop: Enter presses it, '
+      'the menu key opens the menu, and only the row shows the focus', (
+    tester,
+  ) async {
+    _phone(tester);
+    final log = <String>[];
+    await tester.pumpWidget(
+      _app(
+        log: log,
+        held: SizedBox(
+          width: 360,
+          child: GlassListSection(
+            children: [
+              GlassListRow(
+                title: const Text('Row'),
+                onPressed: () => log.add('row'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    final first = FocusManager.instance.primaryFocus;
+    expect(first?.debugLabel, isNot('GlassContextMenu'));
+    expect(
+      find.descendant(
+        of: find.byType(GlassListRow),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is Focus && widget.focusNode == first,
+        ),
+      ),
+      findsOneWidget,
+    );
+    final anchor = tester.widget<GlassHighlightPaint>(
+      find
+          .ancestor(
+            of: find.byType(GlassListRow),
+            matching: find.byType(GlassHighlightPaint),
+          )
+          .last,
+    );
+    expect(anchor.states!.value, isNot(contains(WidgetState.focused)));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: tester.getCenter(find.text('Row')));
+    await tester.pump();
+    expect(anchor.states!.value, isNot(contains(WidgetState.hovered)));
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(FocusManager.instance.primaryFocus, same(first));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await _frames(tester, 30);
+    expect(log, ['row']);
+    expect(find.text('Copy'), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
+    await _frames(tester, 90);
+    expect(find.text('Copy'), findsOneWidget);
+  });
+
+  testWidgets('a secondary click opens the menu alone at the pointer, at '
+      'once: the view stays in place, with no preview and no dim', (
+    tester,
+  ) async {
+    _phone(tester);
+    final log = <String>[];
+    await tester.pumpWidget(_app(log: log));
+    final rest = tester.getRect(find.byKey(_held));
+    final click = rest.topLeft + const Offset(20, 10);
+    await _secondaryClick(tester, click);
+    await tester.pump();
+    expect(_heldHidden(tester), isFalse);
+    await _frames(tester, 90);
+    expect(find.text('Copy'), findsOneWidget);
+    expect(find.byKey(_held), findsOneWidget);
+    expect(tester.getRect(find.byKey(_held)), rest);
+    expect(_heldHidden(tester), isFalse);
+    expect(_dim(tester), 0);
+    final menu = _menuGlass(tester)!.rect!;
+    expect(menu.top, closeTo(click.dy + 16, 0.5));
+    expect(menu.center.dx, closeTo(click.dx, 0.5));
+
+    await tester.tap(find.text('Share'));
+    await _frames(tester, 90);
+    expect(log, ['Share']);
+    expect(find.text('Copy'), findsNothing);
+  });
+
+  testWidgets('a hold after a secondary click opens the menu beside its '
+      'preview again, and a click after a hold at the pointer', (
+    tester,
+  ) async {
+    _phone(tester);
+    await tester.pumpWidget(_app(log: <String>[]));
+    final rest = tester.getRect(find.byKey(_held));
+    await _secondaryClick(tester, rest.center);
+    await _frames(tester, 90);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _frames(tester, 90);
+    expect(find.text('Copy'), findsNothing);
+
+    final gesture = await tester.startGesture(rest.center);
+    await _frames(tester, 60);
+    await gesture.up();
+    await _frames(tester, 60);
+    expect(find.text('Copy'), findsOneWidget);
+    expect(
+      tester.getRect(find.byKey(_held).last).width,
+      closeTo(120 * 1.15, 0.5),
+    );
+    expect(_dim(tester), closeTo(0.2, 1e-6));
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _frames(tester, 90);
+
+    final click = rest.bottomRight - const Offset(10, 10);
+    await _secondaryClick(tester, click);
+    await _frames(tester, 90);
+    expect(find.byKey(_held), findsOneWidget);
+    expect(_dim(tester), 0);
+    expect(_menuGlass(tester)!.rect!.top, closeTo(click.dy + 16, 0.5));
+  });
+}
+
+Future<void> _secondaryClick(WidgetTester tester, Offset position) async {
+  final mouse = await tester.startGesture(
+    position,
+    kind: PointerDeviceKind.mouse,
+    buttons: kSecondaryButton,
+  );
+  await mouse.up();
+  await mouse.removePointer();
+}
+
+// Whether a presentation hides the held view where it rests.
+bool _heldHidden(WidgetTester tester) => tester
+    .widget<MotionSourceBox>(
+      find.ancestor(
+        of: find.byKey(_held).first,
+        matching: find.byType(MotionSourceBox),
+      ),
+    )
+    .source
+    .isHidden;
+
+// The opacity of the dim under the open menu.
+double _dim(WidgetTester tester) => tester
+    .widget<MotionTransition>(
+      find
+          .ancestor(
+            of: find.byWidgetPredicate(
+              (widget) =>
+                  widget is ColoredBox &&
+                  widget.color == const Color(0xFF000000),
+            ),
+            matching: find.byType(MotionTransition),
+          )
+          .first,
+    )
+    .opacity!
+    .value;
+
+// The menu's glass now, or null while no menu shows.
+GlassFrame? _menuGlass(WidgetTester tester) {
+  final surfaces = tester.widgetList<GlassSurface>(
+    find.byWidgetPredicate(
+      (widget) =>
+          widget is GlassSurface &&
+          widget.role == GlassRole.panel &&
+          widget.frame != null,
+    ),
+  );
+  return surfaces.isEmpty ? null : surfaces.first.frame!.value;
+}

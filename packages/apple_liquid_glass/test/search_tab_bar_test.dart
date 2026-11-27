@@ -1,0 +1,369 @@
+import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+const _frame = Duration(milliseconds: 16);
+
+class _Shell extends StatelessWidget {
+  const _Shell(
+    this.search, {
+    this.tabs = 2,
+    this.minimizes = false,
+    this.accessory = false,
+  });
+
+  final GlassSearchController search;
+  final int tabs;
+  final bool minimizes;
+  final bool accessory;
+
+  @override
+  Widget build(BuildContext context) => GlassTabScaffold(
+    searchController: search,
+    minimizeBehavior: minimizes
+        ? GlassTabBarMinimizeBehavior.onScrollDown
+        : GlassTabBarMinimizeBehavior.automatic,
+    bottomAccessory: accessory
+        ? const SizedBox.expand(key: Key('accessory'), child: _Placement())
+        : null,
+    tabs: [
+      for (final (i, name) in [
+        'Home',
+        'Library',
+        'Radio',
+        'New',
+      ].take(tabs).indexed)
+        GlassTab(
+          icon: const SizedBox.square(dimension: 24),
+          label: Text(name),
+          builder: (context) => minimizes
+              ? GlassPageScaffold(
+                  child: GlassContentScroll(
+                    child: ListView(
+                      children: [
+                        Text('Page $i'),
+                        for (var r = 0; r < 60; r++) const SizedBox(height: 50),
+                      ],
+                    ),
+                  ),
+                )
+              : Center(child: Text('Page $i')),
+        ),
+    ],
+    searchBuilder: (context) => const Center(child: Text('Results')),
+  );
+}
+
+Widget _app(
+  GlassSearchController search, {
+  double keyboard = 0,
+  int tabs = 2,
+  TextDirection direction = TextDirection.ltr,
+  bool landscape = false,
+  bool minimizes = false,
+  bool accessory = false,
+}) => MediaQuery(
+  data: MediaQueryData(
+    size: landscape ? const Size(874, 402) : const Size(402, 874),
+    devicePixelRatio: 3,
+    padding: landscape
+        ? const EdgeInsets.only(left: 62, right: 62, bottom: 20)
+        : const EdgeInsets.only(top: 62, bottom: 34),
+    viewInsets: EdgeInsets.only(bottom: keyboard),
+  ),
+  child: Directionality(
+    textDirection: direction,
+    child: GlassScope(
+      renderer: const FlatGlassRenderer(),
+      child: _Shell(
+        search,
+        tabs: tabs,
+        minimizes: minimizes,
+        accessory: accessory,
+      ),
+    ),
+  ),
+);
+
+class _Placement extends StatelessWidget {
+  const _Placement();
+
+  @override
+  Widget build(BuildContext context) =>
+      Text(GlassTabBar.accessoryPlacementOf(context).name);
+}
+
+// The bar's own glass, in screen coordinates.
+Rect _body(WidgetTester tester) {
+  final body = find
+      .descendant(
+        of: find.byType(RawGlassSelector),
+        matching: find.byType(GlassSurface),
+      )
+      .first;
+  final rect =
+      tester.widget<GlassSurface>(body).frame!.value.rect ??
+      Offset.zero & tester.getSize(body);
+  return rect.shift(tester.getTopLeft(body));
+}
+
+Future<void> _dragUp(WidgetTester tester) async {
+  final gesture = await tester.startGesture(const Offset(201, 400));
+  for (var i = 0; i < 20; i++) {
+    await gesture.moveBy(const Offset(0, -10));
+    await tester.pump(_frame);
+  }
+  await tester.pump(const Duration(milliseconds: 200));
+  await gesture.up();
+  await _settle(tester);
+}
+
+Future<void> _phone(WidgetTester tester) async {
+  tester.view.physicalSize = const Size(402 * 3, 874 * 3);
+  tester.view.devicePixelRatio = 3;
+  addTearDown(tester.view.reset);
+}
+
+Future<void> _settle(WidgetTester tester) async {
+  for (var i = 0; i < 90; i++) {
+    await tester.pump(_frame);
+  }
+}
+
+Rect _field(WidgetTester tester) =>
+    tester.getRect(find.byType(GlassSearchField));
+
+void main() {
+  setUp(MotionClock.debugReset);
+
+  testWidgets('at rest the bar and the search circle stand 21 points from '
+      'the sides and the bottom', (tester) async {
+    await _phone(tester);
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    await tester.pumpWidget(_app(search));
+    final bar = tester.getRect(find.byType(RawGlassSelector));
+    expect(bar.left, 21);
+    expect(bar.bottom, 874 - 21);
+    final circle = tester.getRect(find.bySemanticsLabel('Search'));
+    expect(circle, const Rect.fromLTWH(402 - 21 - 62, 874 - 83, 62, 62));
+    expect(find.byType(GlassSearchField), findsNothing);
+    expect(find.text('Results'), findsNothing);
+  });
+
+  testWidgets('a wide bar and its 44 point search circle stand as one group '
+      '640 wide at the middle, 20 points above the bottom (iPhone 18 Pro in '
+      'landscape, iOS 27.2 simulator)', (tester) async {
+    tester.view.physicalSize = const Size(874 * 3, 402 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    await tester.pumpWidget(_app(search, tabs: 4, landscape: true));
+    final bar = tester.getRect(find.byType(RawGlassSelector));
+    expect(bar.left, 117);
+    expect(bar.bottom, 402 - 20);
+    expect(bar.height, 44);
+    expect(
+      tester.getRect(find.bySemanticsLabel('Search')),
+      const Rect.fromLTWH(713, 338, 44, 44),
+    );
+  });
+
+  testWidgets('an accessory stands across the group above the bar at rest, '
+      'and above the tab circle while searching, 28 from the sides (iOS '
+      '27.2 simulator)', (tester) async {
+    await _phone(tester);
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    await tester.pumpWidget(_app(search, accessory: true));
+    await _settle(tester);
+    final accessory = find.byKey(const Key('accessory'));
+    expect(
+      tester.getRect(accessory),
+      const Rect.fromLTWH(21 + 16, 735 + 8, 360 - 32, 48 - 16),
+    );
+    search.openView();
+    await _settle(tester);
+    expect(
+      tester.getRect(accessory),
+      const Rect.fromLTWH(28 + 16, 742 + 8, 346 - 32, 48 - 16),
+    );
+    expect(find.text('expanded'), findsOneWidget);
+    search.closeView();
+    await _settle(tester);
+    expect(
+      tester.getRect(accessory),
+      const Rect.fromLTWH(21 + 16, 735 + 8, 360 - 32, 48 - 16),
+    );
+  });
+
+  testWidgets('a search tab bar minimizes to two 48 point circles with the '
+      'accessory between them, and a search opened from there leaves the '
+      'tab circle in place', (tester) async {
+    await _phone(tester);
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    await tester.pumpWidget(_app(search, minimizes: true, accessory: true));
+    await _settle(tester);
+    await _dragUp(tester);
+    const tab = Rect.fromLTWH(28, 798, 48, 48);
+    expect(_body(tester), tab);
+    expect(
+      tester.getRect(find.bySemanticsLabel('Search')),
+      const Rect.fromLTWH(326, 798, 48, 48),
+    );
+    expect(find.text('inline'), findsOneWidget);
+    expect(
+      tester.getRect(find.byKey(const Key('accessory'))),
+      const Rect.fromLTRB(90 + 16, 798 + 8, 312 - 16, 846 - 8),
+    );
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(_frame);
+      expect(_body(tester), tab, reason: 'frame $i');
+    }
+    await _settle(tester);
+    expect(search.isOpen, isTrue);
+    expect(find.text('expanded'), findsOneWidget);
+    expect(
+      tester.getRect(find.byKey(const Key('accessory'))),
+      const Rect.fromLTWH(28 + 16, 742 + 8, 346 - 32, 48 - 16),
+    );
+  });
+
+  testWidgets('the search circle lifts under a finger as a glass button '
+      'does', (tester) async {
+    await _phone(tester);
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    await tester.pumpWidget(_app(search));
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.bySemanticsLabel('Search')),
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(_frame);
+    }
+    final lifted = tester
+        .widgetList<GlassSurface>(
+          find.descendant(
+            of: find.bySemanticsLabel('Search'),
+            matching: find.byType(GlassSurface),
+          ),
+        )
+        .single
+        .frame!
+        .value;
+    expect(lifted.scaleX, greaterThan(1.01));
+    await gesture.up();
+    await tester.pump();
+    expect(search.isOpen, isTrue);
+    await _settle(tester);
+  });
+
+  testWidgets('four tabs narrow to fit beside the search circle', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    await tester.pumpWidget(_app(search, tabs: 4));
+    final bar = tester.getRect(find.byType(RawGlassSelector));
+    final circle = tester.getRect(find.bySemanticsLabel('Search'));
+    expect(bar.left, 21);
+    expect(bar.right, closeTo(circle.left - 8, 0.01));
+    expect(
+      tester.getRect(find.text('New')).right,
+      lessThanOrEqualTo(bar.right),
+    );
+  });
+
+  for (final direction in TextDirection.values) {
+    testWidgets('two tabs keep their own width at the leading side of the '
+        'search circle (${direction.name})', (tester) async {
+      await _phone(tester);
+      final search = GlassSearchController();
+      addTearDown(search.dispose);
+      await tester.pumpWidget(_app(search, direction: direction));
+      double x(String text) => tester.getCenter(find.text(text)).dx;
+      final rtl = direction == TextDirection.rtl;
+      final home = x('Home');
+      final library = x('Library');
+      final item = (library - home).abs() - 32;
+      expect(
+        rtl ? 402 - 21 - home : home - 21,
+        closeTo(24 + item / 2, 0.01),
+      );
+      expect(2 * 24 + 32 + 2 * item, lessThan(290));
+    });
+  }
+
+  testWidgets('the circle opens the search: the bar turns into the tab '
+      'circle and the field takes the focus and rises over the keyboard', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    await tester.pumpWidget(_app(search));
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pump();
+    expect(search.isOpen, isTrue);
+    expect(find.text('Results'), findsOneWidget);
+    expect(find.text('Page 0'), findsNothing);
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(_frame);
+    }
+    final focus = tester
+        .widget<GlassSearchField>(find.byType(GlassSearchField))
+        .focusNode!;
+    expect(focus.hasFocus, isTrue);
+    await tester.pumpWidget(_app(search, keyboard: 336));
+    await _settle(tester);
+    final field = _field(tester);
+    expect(field.left, 8);
+    expect(field.bottom, 874 - 336 - 8);
+    expect(find.bySemanticsLabel('Close'), findsOneWidget);
+
+    search.text = 'tea';
+    await tester.tap(find.bySemanticsLabel('Close'));
+    await tester.pump();
+    expect(search.text, isEmpty);
+    expect(focus.hasFocus, isFalse);
+    await tester.pumpWidget(_app(search));
+    await _settle(tester);
+    expect(
+      _field(tester),
+      const Rect.fromLTRB(88, 874 - 28 - 48, 374, 874 - 28),
+    );
+    expect(search.isOpen, isTrue);
+  });
+
+  testWidgets('the tab circle closes the search and clears the query', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    await tester.pumpWidget(_app(search));
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await _settle(tester);
+    FocusManager.instance.primaryFocus?.unfocus();
+    search.text = 'tea';
+    await _settle(tester);
+    await tester.tapAt(const Offset(28 + 24, 874 - 28 - 24));
+    await tester.pump();
+    expect(search.isOpen, isFalse);
+    await tester.pump(_frame);
+    expect(search.text, isEmpty);
+    await _settle(tester);
+    expect(find.byType(GlassSearchField), findsNothing);
+    expect(find.text('Page 0'), findsOneWidget);
+    final bar = tester.getRect(find.byType(RawGlassSelector));
+    expect(bar.left, 21);
+    await tester.tap(find.text('Library'));
+    await _settle(tester);
+    expect(find.text('Page 1'), findsOneWidget);
+  });
+}
