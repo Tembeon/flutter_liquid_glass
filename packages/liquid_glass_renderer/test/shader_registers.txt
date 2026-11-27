@@ -25,7 +25,7 @@ gpu/tile_field_only_tint_fragment.glsl 64 g52=64 spill=0
 gpu/tile_field_only_weights_fragment.glsl 64 g52=64 spill=0
 gpu/tile_field_tint_fragment.glsl 64 g52=64 spill=0
 gpu/tile_shapes_fragment.glsl 64 g52=64 spill=0
-gpu/tile_shapes_looks_fragment.glsl 64 g52=64 spill=66
+gpu/tile_shapes_looks_fragment.glsl 64 g52=64 spill=60
 gpu/tile_shapes_only_geometry_fragment.glsl 64 g52=64 spill=0
 gpu/tile_shapes_only_response_fragment.glsl 64 g52=64 spill=0
 gpu/tile_shapes_only_tint_fragment.glsl 64 g52=64 spill=0
