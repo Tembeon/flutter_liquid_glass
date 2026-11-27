@@ -148,4 +148,23 @@ void main() {
       isNot(paints..line()),
     );
   });
+
+  testWidgets('a tap on an icon steps its half', (tester) async {
+    final picked = <double>[];
+    await tester.pumpWidget(
+      _app(
+        GlassStepper(
+          value: 4,
+          onChanged: picked.add,
+          decrementIcon: const Icon(IconData(0xe000)),
+          incrementIcon: const Icon(IconData(0xe001)),
+        ),
+      ),
+    );
+    await tester.tap(find.byIcon(const IconData(0xe001)));
+    await tester.pump();
+    await tester.tap(find.byIcon(const IconData(0xe000)));
+    await tester.pump();
+    expect(picked, [5, 3]);
+  });
 }
