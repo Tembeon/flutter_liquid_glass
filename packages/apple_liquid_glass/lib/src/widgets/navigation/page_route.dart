@@ -53,8 +53,9 @@ part 'package:apple_liquid_glass/src/widgets/navigation/page_route_zoom.dart';
 /// height on one of response 0.406, damping 0.925, while the source's look
 /// crossfades into it and the page underneath dims 15 percent under the growing
 /// card's shadow; popped, it shrinks back into the source on UIKit's zoom-out
-/// spring (iPhone 16 Pro recordings, replayed). A drag down or toward the
-/// trailing side shrinks the page under the finger after 13.5 points, and a
+/// spring (iPhone 16 Pro recordings, replayed). A drag within 22.5 degrees
+/// of down or of the trailing side (UIKit's cones, read from its code)
+/// shrinks the page under the finger after 13.5 points, and a
 /// release past 132.5 points or at 1050 points a second pops it into the
 /// source; short of that it returns. The source hides while the page shows.
 /// Without an attached source the page slides.

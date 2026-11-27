@@ -198,6 +198,23 @@ void main() {
   });
 
   group('motion', () {
+    test('a drag moves the page within 22.5 degrees of down or of the '
+        'trailing edge, and one outside gives up 15 points past the slop '
+        "(read from UIKit's code)", () {
+      final motion = ZoomPageMotion(page: _page);
+      Offset at(double degreesOffDown, double distance) {
+        final a = degreesOffDown * math.pi / 180;
+        return Offset(math.sin(a), math.cos(a)) * distance;
+      }
+
+      expect(motion.allowsDrag(at(20, 20)), isTrue);
+      expect(motion.allowsDrag(at(25, 20)), isNull);
+      expect(motion.allowsDrag(at(25, 30)), isFalse);
+      expect(motion.allowsDrag(at(80, 20)), isTrue, reason: 'sideways');
+      expect(motion.allowsDrag(const Offset(0, -20)), isNull);
+      expect(motion.allowsDrag(const Offset(0, -30)), isFalse);
+    });
+
     test('a pop mid-open turns around with the velocity it had', () {
       final motion = _opened(0, _card, _page);
       final opening = _opened(0, _card, _page);

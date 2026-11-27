@@ -42,7 +42,8 @@ class ZoomPageTuning {
     this.shadowSigma = 30,
     this.shadowOffset = 4,
     this.dragSlop = 13.5,
-    this.dragAngle = math.pi / 6,
+    this.dragAngle = math.pi / 8,
+    this.dragAnglePadding = 15,
     this.downWidthRate = 0.00078,
     this.downHeightRate = 0.00154,
     this.downGain = 0.61,
@@ -117,10 +118,16 @@ class ZoomPageTuning {
   final double dragSlop;
 
   /// How far, in radians, a drag may lean off straight down or straight
-  /// toward the trailing edge and still move the page: a drag 31 degrees
-  /// off down does not, and neither do drags up or toward the leading
-  /// edge.
+  /// toward the trailing edge and still move the page: 22.5 degrees each
+  /// side, UIKit's cones (read from UIKit's code; a device drag 31 degrees
+  /// off down did not move the page). Drags up or toward the leading edge
+  /// never do.
   final double dragAngle;
+
+  /// How much farther than [dragSlop], in points, a drag outside the
+  /// [dragAngle] cones may still turn into them before it gives up: UIKit's
+  /// hysteresis padding, 15 (read from UIKit's code).
+  final double dragAnglePadding;
 
   /// The share of its width the page loses per point of downward travel
   /// past the slop (four device drags, 2.4 points rms together with the
@@ -418,13 +425,16 @@ final class ZoomPageMotion extends PageMotion with Sourced {
 
   /// Whether the page follows a finger that has travelled [delta] since
   /// the touch: null while the travel is within [ZoomPageTuning.dragSlop],
-  /// then whether it heads down or toward the trailing edge ([rtl] mirrors
-  /// it) within [ZoomPageTuning.dragAngle].
+  /// then true once it heads down or toward the trailing edge ([rtl]
+  /// mirrors it) within [ZoomPageTuning.dragAngle], and false once it has
+  /// gone [ZoomPageTuning.dragAnglePadding] farther outside those cones.
   bool? allowsDrag(Offset delta, {bool rtl = false}) {
     if (!_pastSlop(delta)) return null;
     final along = rtl ? -delta.dx : delta.dx;
     final limit = math.cos(tuning.dragAngle) * delta.distance;
-    return delta.dy >= limit || along >= limit;
+    if (delta.dy >= limit || along >= limit) return true;
+    final waits = delta.distance <= tuning.dragSlop + tuning.dragAnglePadding;
+    return waits ? null : false;
   }
 
   /// The page dragged by a finger that touched it at [from] and has
