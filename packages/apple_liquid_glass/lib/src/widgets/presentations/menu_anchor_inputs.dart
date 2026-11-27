@@ -118,8 +118,16 @@ final class _OffRows extends Interaction {
         }
       case PointerUpInput(:final pointer) when pointer == _pointer:
         _pointer = null;
-        final to = motion.areaAt(_host._local(input.globalPosition));
+        final at = _host._local(input.globalPosition);
+        final to = motion.areaAt(at);
         if (to == null) break;
+        if (_from == MenuArea.off &&
+            to == MenuArea.off &&
+            _host._pressesPreview(_start) &&
+            _host._pressesPreview(at)) {
+          _host._pressPreview(input.time);
+          break;
+        }
         if (_backs(to)) {
           _host._command(
             (motion, t) => motion.backAfterRelease(t),

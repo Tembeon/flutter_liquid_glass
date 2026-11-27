@@ -102,7 +102,11 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   late final bool _zooms = source?.geometry != null;
 
   late final PageMotion _motion = _zooms
-      ? ZoomPageMotion(page: _navigatorRect(), clock: clock)
+      ? ZoomPageMotion(
+          page: _navigatorRect(),
+          commits: _previewSources[source!] ?? false,
+          clock: clock,
+        )
       : PageSlideMotion(clock: clock);
   late final MotionSelection<double> _progress = _motion.select(
     (m) => m.progress,
@@ -299,6 +303,15 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
 // What each zoom source shows, which its page draws while the source's look
 // crossfades into the page.
 final _looks = Expando<Widget>('GlassZoomSource.look');
+
+// The sources that are a context menu's preview, which a page commits out
+// of as UIKit commits a tapped preview.
+final _previewSources = Expando<bool>('GlassZoomSource.preview');
+
+/// Marks [source] as a context menu's preview: a [GlassPageRoute] pushed
+/// with it grows out of it as UIKit commits a tapped preview.
+@internal
+void markPreviewSource(MotionSource source) => _previewSources[source] = true;
 
 /// The widget a [GlassPageRoute] with a [source] grows out of when it is
 /// pushed and lands in when it is popped.

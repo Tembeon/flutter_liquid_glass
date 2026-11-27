@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
 import 'package:apple_liquid_glass/src/motions/sheet_tuning.dart';
+import 'package:flutter/animation.dart' show Curves;
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
@@ -188,9 +189,32 @@ final class ZoomPageMotion extends PageMotion with Sourced {
   ZoomPageMotion({
     @internal this.tuning = ZoomPageTuning.standard,
     Rect page = Rect.zero,
+    this.commits = false,
     super.clock,
   }) : _origin = page.topLeft,
        _size = page.size;
+
+  /// Whether the page grows out of a context menu's preview, as UIKit
+  /// commits a tapped preview into the page it opens (read from UIKit's
+  /// code, iOS 27.2 simulator): the container's size and corners move on a
+  /// spring of 0.5 s and damping 0.7 that starts at 15 times its distance a
+  /// second, its center and the page's fade on a critically damped 0.35 s
+  /// spring; the preview fades out over the first 0.14 s, and the screen
+  /// behind gives way to the page's background from 0.105 s to 0.245 s.
+  /// Both the preview and the page fill the container, centered. Once the
+  /// page is in, it leaves as a zooming page does.
+  final bool commits;
+
+  static final _commitSize = Spring.settling(duration: 0.5, dampingRatio: 0.7);
+  static final _commitMove = Spring.settling(duration: 0.35, dampingRatio: 1);
+  static const double _commitKick = 15;
+  static const _commitLook = TimingCurve(0.14, curve: Curves.linear);
+  static const _commitBackdrop = TimingCurve(0.14, curve: Curves.linear);
+  static const double _commitBackdropDelay = 0.105;
+
+  // Whether the page is in its commit: from the start until it leaves.
+  bool get _committing => commits && !_left;
+  bool _left = false;
 
   /// The measured behavior this motion reproduces.
   @internal
@@ -230,6 +254,7 @@ final class ZoomPageMotion extends PageMotion with Sourced {
       restDistance: _opacity,
     ),
   );
+  late final _look = own(MotionValue<double>(1, restDistance: _opacity));
   final Offset _origin;
   Size _size;
   bool _shown = false;
@@ -304,6 +329,7 @@ final class ZoomPageMotion extends PageMotion with Sourced {
     _set(t, _source);
     _fade.snap(t, 0);
     _dim.snap(t, 0);
+    _look.snap(t, 1);
   }
 
   /// Zooms out of the source into the page from time [t].
@@ -311,6 +337,7 @@ final class ZoomPageMotion extends PageMotion with Sourced {
   void start(double t) {
     advance(t);
     _started = true;
+    if (commits) return _commit(t);
     _zoomTo(t, _page, tuning.openSpring, height: tuning.openHeightSpring);
     _dim.retarget(t, 1, spring: tuning.openDimmingSpring);
     _fade.retarget(
@@ -318,6 +345,24 @@ final class ZoomPageMotion extends PageMotion with Sourced {
       1,
       spring: tuning.openFadeSpring,
       delay: tuning.openFadeDelay,
+    );
+  }
+
+  void _commit(double t) {
+    final page = _page;
+    _cx.retarget(t, page.center.dx, spring: _commitMove);
+    _cy.retarget(t, page.center.dy, spring: _commitMove);
+    for (final (value, to) in [(_w, page.width), (_h, page.height)]) {
+      value.setVelocity(t, _commitKick * (to - value.valueAt(t)));
+      value.retarget(t, to, spring: _commitSize);
+    }
+    _fade.retarget(t, 1, spring: _commitMove);
+    _look.animate(t, 0, animation: _commitLook);
+    _dim.animate(
+      t,
+      1,
+      animation: _commitBackdrop,
+      delay: _commitBackdropDelay,
     );
   }
 
@@ -346,6 +391,7 @@ final class ZoomPageMotion extends PageMotion with Sourced {
     }
     _shown = false;
     _started = true;
+    _left = true;
     if (from == null) {
       _zoomTo(t, _source, tuning.closeSpring);
     } else {
@@ -501,19 +547,44 @@ final class ZoomPageMotion extends PageMotion with Sourced {
   /// by [reach] (device: 0.6 points off along four pushes).
   double get radius => lerpDouble(_sourceRadius, displayRadius, reach)!;
 
-  /// The uniform scale the page's content is drawn at in the container:
-  /// the container's width over the page's.
-  double get contentScale => _size.width <= 0 ? 1 : rect.width / _size.width;
+  /// Where the page's content is drawn in the container, as a uniform
+  /// scale and the shift of its top left: the container's width over the
+  /// page's, from the container's top; filling the container, centered,
+  /// while the page commits.
+  (double, Offset) get contentPlacement => _placed(_size);
 
-  /// The uniform scale the source's look is drawn at in the container:
-  /// the container's width over the source's.
-  double get lookScale => _source.width <= 0 ? 1 : rect.width / _source.width;
+  /// Where the source's look is drawn in the container, as
+  /// [contentPlacement] is.
+  (double, Offset) get lookPlacement => _placed(_source.size);
 
-  /// The opacity of the page's content; the source's look
-  /// shows at one minus it.
+  (double, Offset) _placed(Size size) {
+    final r = rect;
+    if (size.width <= 0 || size.height <= 0) return (1, Offset.zero);
+    if (!_committing) return (r.width / size.width, Offset.zero);
+    final scale = math.max(r.width / size.width, r.height / size.height);
+    return (
+      scale,
+      Offset(
+        (r.width - size.width * scale) / 2,
+        (r.height - size.height * scale) / 2,
+      ),
+    );
+  }
+
+  /// The opacity of the page's content.
   double get fade => _fade.valueAt(now).clamp(0.0, 1.0);
 
-  /// The fraction of the dimming and of the shadow.
+  /// The opacity of the source's look: one minus [fade], and its own fade
+  /// while the page commits.
+  double get lookOpacity =>
+      _committing ? _look.valueAt(now).clamp(0.0, 1.0) : 1 - fade;
+
+  /// Whether what lies under the container is the screen giving way to the
+  /// page's background, as while the page commits, rather than a dimming.
+  bool get coversBackdrop => _committing;
+
+  /// The fraction of the dimming and of the shadow, or of the backdrop's
+  /// cover while the page commits.
   double get dimming => _dim.valueAt(now).clamp(0.0, 1.0);
 }
 

@@ -889,6 +889,7 @@ class GlassContextMenu extends StatefulWidget
     String? semanticLabel,
     GlassMenuOrder order = ...,
     GlassMenuStyle? style,
+    void Function(MotionSource)? onPreviewPressed,
     Key? key,
   })
   final Widget child
@@ -897,6 +898,7 @@ class GlassContextMenu extends StatefulWidget
   final List<GlassMenuEntry> menuChildren
   final void Function()? onClose
   final void Function()? onOpen
+  final void Function(MotionSource)? onPreviewPressed
   final GlassMenuOrder order
   final Widget Function(BuildContext)? previewBuilder
   @internal static double previewScale(Size size)
@@ -5593,10 +5595,13 @@ final class ZoomPageMotion extends PageMotion with Sourced
   ZoomPageMotion({
     @internal ZoomPageTuning tuning = ...,
     Rect page = ...,
+    bool commits = ...,
     MotionClock? clock,
   })
   bool? allowsDrag(Offset delta, {bool rtl = ...})
-  double get contentScale
+  final bool commits
+  (double, Offset) get contentPlacement
+  bool get coversBackdrop
   double get dimming
   double displayRadius
   bool dragEnd(double t, Offset velocity)
@@ -5605,7 +5610,8 @@ final class ZoomPageMotion extends PageMotion with Sourced
   void dragUpdate(double t, Offset position)
   double get fade
   bool get isDragging
-  double get lookScale
+  double get lookOpacity
+  (double, Offset) get lookPlacement
   double get radius
   double get reach
   Rect get rect

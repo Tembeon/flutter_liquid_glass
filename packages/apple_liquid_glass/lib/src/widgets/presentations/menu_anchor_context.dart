@@ -52,6 +52,7 @@ class GlassContextMenu extends StatefulWidget {
     this.semanticLabel,
     this.order = GlassMenuOrder.automatic,
     this.style,
+    this.onPreviewPressed,
     super.key,
   });
 
@@ -64,6 +65,30 @@ class GlassContextMenu extends StatefulWidget {
   /// Builds the preview shown while the menu is open, or null for a copy
   /// of [child].
   final WidgetBuilder? previewBuilder;
+
+  /// Called with the open preview as a source when a tap lands on it, as
+  /// UIKit calls `willPerformPreviewActionForMenuWith`; null leaves a tap
+  /// there closing the menu.
+  ///
+  /// A `GlassPageRoute` pushed with the source grows out of the preview as
+  /// UIKit commits a tapped preview into the page it opens (`.pop`): the
+  /// menu and its dim go at once, the preview fills the growing page and
+  /// fades out over its first 0.14 s, the page fades in and the screen
+  /// behind gives way to the page's background (read from UIKit's code,
+  /// iOS 27.2 simulator). Popped, the page zooms back into [child]. Pushing
+  /// nothing closes the menu as usual (`.dismiss`).
+  ///
+  /// ```dart
+  /// onPreviewPressed: (preview) => Navigator.of(context).push(
+  ///   GlassPageRoute(source: preview, builder: (_) => const PlantPage()),
+  /// ),
+  /// ```
+  ///
+  /// Not reproduced: UIKit draws the page twice, live in the growing
+  /// preview and whole behind the fading screen; here it draws once, in
+  /// the preview, over the page's background color. UIKit's "popped"
+  /// haptic at the tap is not played (its kind is not read).
+  final ValueChanged<MotionSource>? onPreviewPressed;
 
   /// Opens and closes the menu from code.
   final GlassMenuController? controller;
@@ -127,6 +152,36 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
 
   late final _secondary = _SecondaryClick(onClick: _click);
 
+  // The open preview as a page's source, and the anchor once the menu has
+  // gone, so a page committed out of the preview zooms back into it.
+  final _previewSource = MotionSource(debugLabel: 'GlassContextMenu.preview');
+  final _idleSource = MotionSource();
+
+  // Whether the menu's layer shows: a committed preview takes it off.
+  final _layerVisible = ValueNotifier<bool>(true);
+
+  @override
+  void initState() {
+    super.initState();
+    markPreviewSource(_previewSource);
+  }
+
+  @override
+  ValueListenable<bool> get _layerShown => _layerVisible;
+
+  @override
+  bool _pressesPreview(Offset at) =>
+      widget.onPreviewPressed != null &&
+      _compactAt == null &&
+      _previewNow().contains(at);
+
+  @override
+  void _pressPreview(double t) {
+    widget.onPreviewPressed?.call(_previewSource);
+    if (_previewSource.isHidden) _layerVisible.value = false;
+    _close();
+  }
+
   // The press of the pointer's secondary button that opens the menu now, in
   // the anchor's coordinates, read only through that opening.
   Offset? _clicked;
@@ -144,12 +199,15 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     _shownStates.dispose();
     _claimFocus.dispose();
     _states.dispose();
+    _layerVisible.dispose();
     super.dispose();
   }
 
   @override
-  void _reportShowing(bool showing) =>
-      (showing ? widget.onOpen : widget.onClose)?.call();
+  void _reportShowing(bool showing) {
+    if (showing) _layerVisible.value = true;
+    (showing ? widget.onOpen : widget.onClose)?.call();
+  }
 
   Rect _heldRect = Rect.zero;
   Rect _previewRect = Rect.zero;
@@ -360,8 +418,14 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     final full = GlassTraits.of(context).brightness == Brightness.dark
         ? 0.48
         : 0.2;
-    return (motion) => _compactAt == null ? full * motion.dim : 0;
+    return (motion) =>
+        _compactAt == null && _layerVisible.value ? full * motion.dim : 0;
   }
+
+  // The preview a page commits out of, while the app takes taps on it.
+  Widget _committable(Widget preview) => widget.onPreviewPressed == null
+      ? preview
+      : GlassZoomSource(source: _previewSource, child: preview);
 
   @override
   List<Widget> _backdrop(_MenuLayerState layer) {
@@ -394,7 +458,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
               carried(
                 natural,
                 builder == null
-                    ? widget.child
+                    ? _committable(widget.child)
                     : menuDriven(
                         frames,
                         (_) => Opacity(opacity: 1 - shown()),
@@ -407,7 +471,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
                   menuDriven(
                     frames,
                     (_) => Opacity(opacity: shown()),
-                    child: Builder(builder: builder),
+                    child: _committable(Builder(builder: builder)),
                   ),
                 ),
             ],
@@ -454,7 +518,12 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
                 child: RawGlassListRow.heldMenu(
                   actions: enabled ? _actions : null,
                   onLongPress: enabled ? _openFromCode : null,
-                  child: widget.child,
+                  child: widget.onPreviewPressed == null
+                      ? widget.child
+                      : GlassZoomSource(
+                          source: _showing ? _idleSource : _previewSource,
+                          child: widget.child,
+                        ),
                 ),
               ),
             ),

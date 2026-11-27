@@ -15,13 +15,26 @@ class _Zoom extends StatefulWidget {
 class _ZoomState extends State<_Zoom> {
   late final _input = _ZoomDrag(this);
   late final List<Interaction> _interactions = [_input];
-  late final _dim = motion.select((m) => m.dimming);
-  late final _shadow = motion.select((m) => (m.rect, m.radius, m.dimming));
+  late final _dim = motion.select((m) => m.coversBackdrop ? 0.0 : m.dimming);
+  late final _cover = motion.select(
+    (m) => m.coversBackdrop ? m.dimming : 0.0,
+  );
+  late final _shadow = motion.select(
+    (m) => (m.rect, m.radius, m.coversBackdrop ? 0.0 : m.dimming),
+  );
   late final _frame = motion.select((m) => (m.rect, m.radius));
   late final _fade = motion.select((m) => m.fade);
-  late final _lookFade = motion.select((m) => 1 - m.fade);
-  late final _scale = motion.select((m) => m.contentScale);
-  late final _lookScale = motion.select((m) => m.lookScale);
+  late final _lookFade = motion.select((m) => m.lookOpacity);
+  late final _placement = motion.select((m) => m.contentPlacement);
+  late final _lookPlacement = motion.select((m) => m.lookPlacement);
+
+  static Matrix4 _placed((double, Offset) placement) {
+    final (scale, shift) = placement;
+    final transform = Matrix4.translationValues(shift.dx, shift.dy, 0);
+    transform.scaleByDouble(scale, scale, 1, 1);
+    return transform;
+  }
+
   bool _begun = false;
   VoidCallback? _cancelStart;
 
@@ -85,6 +98,18 @@ class _ZoomState extends State<_Zoom> {
       child: Stack(
         fit: StackFit.expand,
         children: [
+          if (motion.commits)
+            IgnorePointer(
+              child: MotionTransition(
+                opacity: _cover,
+                child: ColoredBox(
+                  color: GlassDynamicColor.resolve(
+                    GlassColors.systemBackground,
+                    context,
+                  ),
+                ),
+              ),
+            ),
           IgnorePointer(
             child: MotionTransition(
               opacity: _dim,
@@ -127,10 +152,8 @@ class _ZoomState extends State<_Zoom> {
                     minHeight: size.height,
                     maxHeight: size.height,
                     child: MotionDriven(
-                      template: () => Transform.scale(
-                        alignment: Alignment.topLeft,
-                        scale: _scale.value,
-                      ),
+                      template: () =>
+                          Transform(transform: _placed(_placement.value)),
                       child: RepaintBoundary(child: widget.child),
                     ),
                   ),
@@ -146,9 +169,8 @@ class _ZoomState extends State<_Zoom> {
                         minHeight: sourceSize.height,
                         maxHeight: sourceSize.height,
                         child: MotionDriven(
-                          template: () => Transform.scale(
-                            alignment: Alignment.topLeft,
-                            scale: _lookScale.value,
+                          template: () => Transform(
+                            transform: _placed(_lookPlacement.value),
                           ),
                           child: look,
                         ),

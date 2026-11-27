@@ -5,6 +5,8 @@ import 'dart:ui' as ui;
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/page_route.dart'
+    show GlassZoomSource, markPreviewSource;
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_anchor_look.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_appearance.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_content.dart';
@@ -312,6 +314,18 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     _reportShowing(showing);
   }
 
+  /// Whether a tap at [at], in the menu layer's box, falls on a preview
+  /// the app commits from; a tap off the rows elsewhere closes the menu.
+  bool _pressesPreview(Offset at) => false;
+
+  /// A tap fell on the preview at time [t].
+  void _pressPreview(double t) {}
+
+  /// Whether the menu's layer shows: a preview the app committed takes
+  /// the menu, its dim and its preview off the screen at once, while the
+  /// menu closes unseen.
+  ValueListenable<bool> get _layerShown => const _Shown();
+
   /// Tells the app the menu now shows or no longer does.
   void _reportShowing(bool showing) {}
 
@@ -528,7 +542,10 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     controller: _portal,
     presentation: Presentation<Object?, MenuMotion>(
       motion: (_) => _motion!,
-      builder: (context, motion) => _MenuLayer(host: this),
+      builder: (context, motion) => MotionVisibility(
+        visible: _layerShown,
+        child: _MenuLayer(host: this),
+      ),
       source: _source,
       dim: _dim(context),
       semanticsLabel:
@@ -955,4 +972,17 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
       ),
     );
   }
+}
+
+final class _Shown implements ValueListenable<bool> {
+  const _Shown();
+
+  @override
+  bool get value => true;
+
+  @override
+  void addListener(VoidCallback listener) {}
+
+  @override
+  void removeListener(VoidCallback listener) {}
 }

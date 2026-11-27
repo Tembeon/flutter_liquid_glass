@@ -198,6 +198,53 @@ void main() {
   });
 
   group('motion', () {
+    test("a committed preview grows as UIKit's commit runs: the size on "
+        '0.5 / 0.7 with a kick, the center and the page on a critically '
+        'damped 0.35, the preview out over 0.14 s, the backdrop covered from '
+        "0.105 to 0.245 s, both filling the container (read from UIKit's "
+        'code)', () {
+      final motion = ZoomPageMotion(page: _page, commits: true);
+      motion.sourceMoved(
+        0,
+        const SourceGeometry(rect: _card),
+      );
+      motion.open(0);
+      motion.start(0);
+      final center = Spring.settling(duration: 0.35, dampingRatio: 1);
+      motion.advance(0.07);
+      final mid = motion.seenAt(0.07);
+      expect(mid.lookOpacity, closeTo(0.5, 0.02));
+      expect(mid.dimming, 0);
+      final travel =
+          (mid.rect.center.dy - _card.center.dy) /
+          (_page.center.dy - _card.center.dy);
+      final w = 2 * math.pi / center.response;
+      final left = (1 + w * 0.07) * math.exp(-w * 0.07);
+      expect(travel, closeTo(1 - left, 0.03));
+      motion.advance(0.175);
+      expect(motion.seenAt(0.175).dimming, closeTo(0.5, 0.02));
+      expect(motion.seenAt(0.175).lookOpacity, 0);
+      final (scale, shift) = motion.seenAt(0.175).contentPlacement;
+      final rect = motion.seenAt(0.175).rect;
+      expect(
+        scale,
+        closeTo(math.max(rect.width / 402, rect.height / 874), 1e-9),
+      );
+      expect(shift.dx, closeTo((rect.width - 402 * scale) / 2, 1e-9));
+      var widest = 0.0;
+      for (var t = 0.0; t < 1.5; t += 1 / 120) {
+        motion.advance(t);
+        widest = math.max(widest, motion.seenAt(t).rect.width);
+      }
+      expect(widest, greaterThan(402), reason: 'the 0.7 spring overshoots');
+      expect(
+        motion.seenAt(1.5).rect,
+        rectMoreOrLessEquals(_page, epsilon: 1e-3),
+      );
+      expect(motion.seenAt(1.5).fade, closeTo(1, 1e-3));
+      expect(motion.seenAt(1.5).dimming, 1);
+    });
+
     test('a drag moves the page within 22.5 degrees of down or of the '
         'trailing edge, and one outside gives up 15 points past the slop '
         "(read from UIKit's code)", () {

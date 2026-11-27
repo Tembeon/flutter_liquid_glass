@@ -189,7 +189,8 @@ class _MenuPageState extends State<MenuPage> {
       Idea(
         'Hold anything',
         'GlassContextMenu lifts its child out of the page under a long '
-            'press and grows the menu beside it.',
+            'press and grows the menu beside it. A tap on the lifted '
+            'picture opens it: the page grows out of it (onPreviewPressed).',
         child: Stage(
           height: null,
           child: Row(
@@ -201,6 +202,23 @@ class _MenuPageState extends State<MenuPage> {
               ]) ...[
                 Expanded(
                   child: GlassContextMenu(
+                    onPreviewPressed: (preview) => Navigator.of(context).push(
+                      GlassPageRoute<void>(
+                        source: preview,
+                        title: wallpaper.title,
+                        builder: (_) => GlassPageScaffold(
+                          navigationBar: GlassNavigationBar(
+                            title: Text(wallpaper.title),
+                          ),
+                          child: SizedBox.expand(
+                            child: Image(
+                              image: wallpaper.image,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                     menuChildren: [
                       GlassMenuItem(
                         title: 'Share ${wallpaper.title}',
