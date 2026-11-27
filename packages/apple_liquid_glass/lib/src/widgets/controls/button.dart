@@ -502,6 +502,7 @@ class GlassButton extends StatelessWidget {
     this.semanticLabel,
     this.loading = false,
     this.repeats = false,
+    this.subtitle,
     super.key,
   }) : _variant = _Variant.regular;
 
@@ -520,6 +521,7 @@ class GlassButton extends StatelessWidget {
     this.semanticLabel,
     this.loading = false,
     this.repeats = false,
+    this.subtitle,
     super.key,
   }) : _variant = _Variant.prominent;
 
@@ -537,6 +539,7 @@ class GlassButton extends StatelessWidget {
     this.semanticLabel,
     this.loading = false,
     this.repeats = false,
+    this.subtitle,
     super.key,
   }) : _variant = _Variant.clear;
 
@@ -554,6 +557,7 @@ class GlassButton extends StatelessWidget {
     this.semanticLabel,
     this.loading = false,
     this.repeats = false,
+    this.subtitle,
     super.key,
   }) : _variant = _Variant.prominentClear;
 
@@ -589,6 +593,7 @@ class GlassButton extends StatelessWidget {
     this.semanticLabel,
     this.loading = false,
     this.repeats = false,
+    this.subtitle,
     super.key,
   }) : _variant = _Variant.plain;
 
@@ -618,6 +623,7 @@ class GlassButton extends StatelessWidget {
     this.semanticLabel,
     this.loading = false,
     this.repeats = false,
+    this.subtitle,
     super.key,
   }) : _variant = _Variant.gray;
 
@@ -637,6 +643,7 @@ class GlassButton extends StatelessWidget {
     this.semanticLabel,
     this.loading = false,
     this.repeats = false,
+    this.subtitle,
     super.key,
   }) : _variant = _Variant.tinted;
 
@@ -656,6 +663,7 @@ class GlassButton extends StatelessWidget {
     this.semanticLabel,
     this.loading = false,
     this.repeats = false,
+    this.subtitle,
     super.key,
   }) : _variant = _Variant.filled;
 
@@ -697,6 +705,12 @@ class GlassButton extends StatelessWidget {
   /// UIKit's autorepeat clock after, as SwiftUI's
   /// `buttonRepeatBehavior(.enabled)` ([RawGlassButton.repeats]).
   final bool repeats;
+
+  /// A second line under [child], as UIKit's `UIButton.Configuration`
+  /// `subtitle`: 13 point regular, 1 point under the title (its
+  /// `titlePadding`), centered with it (button passport: a medium button
+  /// with a subtitle is 51 tall).
+  final Widget? subtitle;
 
   final _Variant _variant;
 
@@ -784,6 +798,10 @@ class GlassButton extends StatelessWidget {
 
   // UIKit's title style, 17 regular (typography passport). The glyph size,
   // insets and minimum size are not measured (glass-button passport).
+  // A subtitle's type and its distance under the title (button passport).
+  static const _subtitleStyle = TextStyle(fontSize: 13);
+  static const double _titlePadding = 1;
+
   static const _labelStyle = TextStyle(fontSize: 17);
   static const _iconSize = 22.0;
   static const _padding = EdgeInsets.symmetric(horizontal: 20, vertical: 11);
@@ -911,7 +929,20 @@ class GlassButton extends StatelessWidget {
           style?.builder ??
           _themeStyleOf(context)?.builder ??
           (_plain || _flat ? _plainBody : _defaultBody),
-      child: child,
+      child: switch (subtitle) {
+        null => child,
+        final subtitle => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            child,
+            const SizedBox(height: _titlePadding),
+            DefaultTextStyle.merge(
+              style: GlassTextScale.of(context).resolve(_subtitleStyle),
+              child: subtitle,
+            ),
+          ],
+        ),
+      },
     );
     if (!GlassSource.isSourceAt(context)) return button;
     final states = {if (onPressed == null) WidgetState.disabled};

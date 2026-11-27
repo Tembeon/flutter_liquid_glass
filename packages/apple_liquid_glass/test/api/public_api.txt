@@ -559,6 +559,7 @@ class GlassButton extends StatelessWidget
     String? semanticLabel,
     bool loading = ...,
     bool repeats = ...,
+    Widget? subtitle,
     Key? key,
   })
   const GlassButton.filled({
@@ -571,6 +572,7 @@ class GlassButton extends StatelessWidget
     String? semanticLabel,
     bool loading = ...,
     bool repeats = ...,
+    Widget? subtitle,
     Key? key,
   })
   const GlassButton.gray({
@@ -583,6 +585,7 @@ class GlassButton extends StatelessWidget
     String? semanticLabel,
     bool loading = ...,
     bool repeats = ...,
+    Widget? subtitle,
     Key? key,
   })
   const GlassButton({
@@ -595,6 +598,7 @@ class GlassButton extends StatelessWidget
     String? semanticLabel,
     bool loading = ...,
     bool repeats = ...,
+    Widget? subtitle,
     Key? key,
   })
   const GlassButton.plain({
@@ -607,6 +611,7 @@ class GlassButton extends StatelessWidget
     String? semanticLabel,
     bool loading = ...,
     bool repeats = ...,
+    Widget? subtitle,
     Key? key,
   })
   const GlassButton.prominent({
@@ -619,6 +624,7 @@ class GlassButton extends StatelessWidget
     String? semanticLabel,
     bool loading = ...,
     bool repeats = ...,
+    Widget? subtitle,
     Key? key,
   })
   const GlassButton.prominentClear({
@@ -631,6 +637,7 @@ class GlassButton extends StatelessWidget
     String? semanticLabel,
     bool loading = ...,
     bool repeats = ...,
+    Widget? subtitle,
     Key? key,
   })
   const GlassButton.tinted({
@@ -643,6 +650,7 @@ class GlassButton extends StatelessWidget
     String? semanticLabel,
     bool loading = ...,
     bool repeats = ...,
+    Widget? subtitle,
     Key? key,
   })
   final bool autofocus
@@ -671,6 +679,7 @@ class GlassButton extends StatelessWidget
     Color? focusColor,
     Color? hoverColor,
   })
+  final Widget? subtitle
   overrides: build
 typedef GlassButtonBuilder = Widget Function(BuildContext, GlassButtonDetails)
 final class GlassButtonDetails

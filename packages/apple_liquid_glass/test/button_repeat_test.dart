@@ -67,4 +67,50 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
     expect(presses, 1);
   });
+
+  testWidgets('a subtitle stands 1 point under the title in 13 point type, '
+      "inside the medium button's 7 point insets (51 tall with UIKit's "
+      'label heights, button passport)', (tester) async {
+    tester.view.physicalSize = const Size(402 * 3, 874 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFF000000),
+        builder: (context, _) => GlassScope(
+          renderer: const FlatGlassRenderer(),
+          child: Center(
+            child: GlassButton.filled(
+              onPressed: () {},
+              subtitle: const Text('Sub'),
+              child: const Text('Title'),
+            ),
+          ),
+        ),
+      ),
+    );
+    final title = tester.getRect(find.text('Title'));
+    final subtitle = tester.getRect(find.text('Sub'));
+    expect(subtitle.top - title.bottom, moreOrLessEquals(1, epsilon: 0.5));
+    expect(
+      tester
+          .widget<RichText>(
+            find.descendant(
+              of: find.text('Sub'),
+              matching: find.byType(RichText),
+            ),
+          )
+          .text
+          .style
+          ?.fontSize,
+      13,
+    );
+    expect(
+      tester.getSize(find.byType(GlassButton)).height,
+      moreOrLessEquals(
+        7 + title.height + 1 + subtitle.height + 7,
+        epsilon: 0.5,
+      ),
+    );
+  });
 }
