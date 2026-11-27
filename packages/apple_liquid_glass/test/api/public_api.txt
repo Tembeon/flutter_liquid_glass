@@ -1296,6 +1296,10 @@ class GlassListBackground extends StatelessWidget
   final Widget? child
   final Color color
   overrides: build
+enum GlassListLayout
+  insetGrouped,
+  grouped,
+  plain,
 class GlassListRow extends StatefulWidget
   const GlassListRow({
     Widget? title,
@@ -1353,6 +1357,7 @@ class GlassListSection extends StatelessWidget
     Widget? header,
     Widget? footer,
     bool showsSeparators = ...,
+    GlassListLayout layout = ...,
     GlassListStyle? style,
     Key? key,
   })
@@ -1360,6 +1365,7 @@ class GlassListSection extends StatelessWidget
   static const double contentInset
   final Widget? footer
   final Widget? header
+  final GlassListLayout layout
   static const double margin
   final bool showsSeparators
   final GlassListStyle? style
@@ -2315,6 +2321,7 @@ class GlassSliverListSection extends StatelessWidget
     Widget? header,
     Widget? footer,
     bool showsSeparators = ...,
+    GlassListLayout layout = ...,
     GlassListStyle? style,
     Key? key,
   })
@@ -2323,6 +2330,7 @@ class GlassSliverListSection extends StatelessWidget
   final List<Object>? ids
   final Widget Function(BuildContext, int) itemBuilder
   final int itemCount
+  final GlassListLayout layout
   final bool showsSeparators
   final GlassListStyle? style
   overrides: build
@@ -5791,6 +5799,7 @@ class GlassEditMenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassFloatingTabBar (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassListAccessory (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListBackground (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassListLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListRow (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListSection (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)

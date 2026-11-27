@@ -4,12 +4,14 @@ part of 'list.dart';
 class _RowSeparator extends SingleChildRenderObjectWidget {
   const _RowSeparator({
     required this.color,
+    required this.inset,
     required this.start,
     required this.direction,
     required super.child,
   });
 
   final Color color;
+  final double inset;
   final ValueListenable<double>? start;
   final TextDirection direction;
 
@@ -17,6 +19,7 @@ class _RowSeparator extends SingleChildRenderObjectWidget {
   _RenderRowSeparator createRenderObject(BuildContext context) =>
       _RenderRowSeparator(
         color: color,
+        inset: inset,
         start: start,
         direction: direction,
         following: followsMotion(context),
@@ -28,6 +31,7 @@ class _RowSeparator extends SingleChildRenderObjectWidget {
     _RenderRowSeparator renderObject,
   ) {
     renderObject.color = color;
+    renderObject.inset = inset;
     renderObject.start = start;
     renderObject.direction = direction;
     renderObject.following = followsMotion(context);
@@ -37,6 +41,7 @@ class _RowSeparator extends SingleChildRenderObjectWidget {
 class _RenderRowSeparator extends RenderProxyBox {
   _RenderRowSeparator({
     required this._color,
+    required this._inset,
     required this._start,
     required this._direction,
     required bool following,
@@ -49,6 +54,16 @@ class _RenderRowSeparator extends RenderProxyBox {
   set color(Color value) {
     if (value == _color) return;
     _color = value;
+    markNeedsPaint();
+  }
+
+  // How far the separator ends in from the trailing edge: the row text's
+  // inset.
+  double _inset;
+  double get inset => _inset;
+  set inset(double value) {
+    if (value == _inset) return;
+    _inset = value;
     markNeedsPaint();
   }
 
@@ -93,9 +108,12 @@ class _RenderRowSeparator extends RenderProxyBox {
   @override
   void paint(PaintingContext context, Offset offset) {
     super.paint(context, offset);
-    const end = GlassListSection.contentInset;
+    final end = _inset;
     final ltr = _direction == TextDirection.ltr;
-    final start = _start?.value ?? GlassListSection.contentInset;
+    final start = math.max(
+      _start?.value ?? _inset,
+      _Metrics.separatorStart,
+    );
     final left = ltr ? start : end;
     final right = size.width - (ltr ? end : start);
     final line = Paint();

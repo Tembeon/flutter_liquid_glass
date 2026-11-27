@@ -64,12 +64,115 @@ class GlassListBackground extends StatelessWidget {
 // A card's margin from the list's edges, past the safe area's sides as
 // UIKit's inset grouped table keeps its cards inside the safe area: on an
 // iPhone in landscape, or beside a tab sidebar.
-EdgeInsets _sectionMargin(BuildContext context) {
+EdgeInsets _sectionMargin(BuildContext context, GlassListLayout layout) {
   final safe = MediaQuery.paddingOf(context);
-  return EdgeInsets.only(
-    left: GlassListSection.margin + safe.left,
-    right: GlassListSection.margin + safe.right,
-  );
+  final margin = layout == GlassListLayout.insetGrouped
+      ? GlassListSection.margin
+      : 0.0;
+  return EdgeInsets.only(left: margin + safe.left, right: margin + safe.right);
+}
+
+/// How a list section lays out its rows, as UIKit's table styles do.
+///
+/// UIKit: `UITableView.Style`. SwiftUI: `listStyle`. Flutter:
+/// `CupertinoListSection` and `CupertinoListSection.insetGrouped`.
+enum GlassListLayout {
+  /// Rows on a card [GlassListSection.margin] in from the list's sides,
+  /// with 26 point corners, their text [GlassListSection.contentInset]
+  /// into it (UIKit `.insetGrouped`).
+  insetGrouped,
+
+  /// Rows on a card as wide as the list, square, with a separator across
+  /// its whole width at its top and bottom and the text 16 points in;
+  /// headers, footers and the space between sections are the inset
+  /// grouped ones (UIKit `.grouped`).
+  grouped,
+
+  /// Rows as wide as the list on the page's own color, systemBackground,
+  /// the text 16 points in: a header stands 22 points below the rows above
+  /// it and 28 tall, a footer 28 tall, and a section without either runs
+  /// straight on from the one above; the last row keeps its separator
+  /// unless a footer follows (UIKit `.plain`).
+  plain,
+}
+
+// The metrics a layout changes (list passport, table dumps of the three
+// styles on the iOS 27.2 simulator, 402 wide).
+extension on GlassListLayout {
+  bool get _plain => this == GlassListLayout.plain;
+
+  double get contentInset =>
+      this == GlassListLayout.insetGrouped ? GlassListSection.contentInset : 16;
+
+  double get headerTop => _plain ? 22 + 4 : _Metrics.headerTop;
+
+  double get headerBottom => _plain ? 28 - 4 - 20.33 : _Metrics.headerBottom;
+
+  double get noHeaderTop => _plain ? 0 : _Metrics.noHeaderTop;
+
+  double get footerTop => _plain ? 6 : _Metrics.footerTop;
+
+  double get footerBottom => _plain ? 28 - 6 - 15.67 : _Metrics.footerBottom;
+
+  double get noFooterBottom => _plain ? 0 : _Metrics.noFooterBottom;
+}
+
+// A grouped card's separators across its whole width at its top and
+// bottom.
+class _EdgeLines extends CustomPainter {
+  _EdgeLines(this.color, {required this.top, required this.bottom});
+
+  final Color color;
+  final bool top;
+  final bool bottom;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final line = Paint();
+    line.color = color;
+    const thickness = _Metrics.separatorThickness;
+    if (top) canvas.drawRect(Rect.fromLTWH(0, 0, size.width, thickness), line);
+    if (bottom) {
+      canvas.drawRect(
+        Rect.fromLTWH(0, size.height - thickness, size.width, thickness),
+        line,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_EdgeLines oldDelegate) =>
+      oldDelegate.color != color ||
+      oldDelegate.top != top ||
+      oldDelegate.bottom != bottom;
+}
+
+// The card of a section, or a piece of it: its fill, its corners where the
+// layout rounds them and a grouped card's edge lines.
+Widget _card(
+  BuildContext context, {
+  required GlassListLayout layout,
+  required GlassListStyle look,
+  required bool separators,
+  required BorderRadius radius,
+  required bool top,
+  required bool bottom,
+  required Widget child,
+}) {
+  final color = StateColors(context, const {});
+  Widget card = ColoredBox(color: color(look.backgroundColor), child: child);
+  if (layout == GlassListLayout.grouped && separators && (top || bottom)) {
+    card = CustomPaint(
+      foregroundPainter: _EdgeLines(
+        color(look.separatorColor),
+        top: top,
+        bottom: bottom,
+      ),
+      child: card,
+    );
+  }
+  if (layout != GlassListLayout.insetGrouped) return card;
+  return ClipRRect(borderRadius: radius, child: card);
 }
 
 /// One section of an inset grouped list, as iOS 27 settings screens draw
@@ -112,9 +215,18 @@ EdgeInsets _sectionMargin(BuildContext context) {
 /// [contentInset] inside it, and it paints in a layer of its own, so a
 /// scroll moving it composites that layer instead of repainting its rows.
 ///
+/// [layout] lays the section out as UIKit's grouped and plain tables do
+/// instead: a plain list stands on [GlassColors.systemBackground], which a
+/// [GlassListBackground] of that color gives it.
+///
 /// Fidelity. The insets, corners and spacing are measured on iOS 27: the
 /// card's [margin] and the [contentInset] on 27.2, where 27.0 read 20 and
-/// 16 to the same text x 36.
+/// 16 to the same text x 36; the grouped and plain layouts on 27.2. NEAR: a
+/// grouped or plain card stops at the safe area's sides, where UIKit's
+/// rows run to the screen's edges with their content inside the safe area;
+/// a plain header scrolls with its rows, where UIKit's stays pinned at the
+/// list's top while its section scrolls under it; its label stands 0.67
+/// points shorter than UIKit's 21.
 class GlassListSection extends StatelessWidget {
   /// Creates a section.
   const GlassListSection({
@@ -122,6 +234,7 @@ class GlassListSection extends StatelessWidget {
     this.header,
     this.footer,
     this.showsSeparators = true,
+    this.layout = GlassListLayout.insetGrouped,
     this.style,
     super.key,
   });
@@ -152,40 +265,48 @@ class GlassListSection extends StatelessWidget {
   /// otherwise for itself ([GlassListRow.showsSeparator]).
   final bool showsSeparators;
 
+  /// How the section lays out its card and rows.
+  final GlassListLayout layout;
+
   /// The look of the section and its rows, over the theme's.
   final GlassListStyle? style;
 
   @override
   Widget build(BuildContext context) {
-    final look = _sectionLook(context, style);
+    final look = _sectionLook(context, style, layout);
     final section = RepaintBoundary(
       child: Padding(
-        padding: _sectionMargin(context),
+        padding: _sectionMargin(context, layout),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _SectionLabel.header(look: look, label: header),
-            ClipRRect(
-              borderRadius: const BorderRadius.all(
+            _SectionLabel.header(look: look, layout: layout, label: header),
+            _card(
+              context,
+              layout: layout,
+              look: look,
+              separators: showsSeparators,
+              radius: const BorderRadius.all(
                 Radius.circular(_Metrics.cornerRadius),
               ),
-              child: ColoredBox(
-                color: StateColors(context, const {})(look.backgroundColor),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < children.length; i++)
-                      _RowPlace(
-                        last: i == children.length - 1,
-                        separators: showsSeparators,
-                        look: look,
-                        child: children[i],
-                      ),
-                  ],
-                ),
+              top: true,
+              bottom: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < children.length; i++)
+                    _RowPlace(
+                      last: i == children.length - 1,
+                      separators: showsSeparators,
+                      layout: layout,
+                      endSeparator: _endSeparator(layout, footer),
+                      look: look,
+                      child: children[i],
+                    ),
+                ],
               ),
             ),
-            _SectionLabel.footer(look: look, label: footer),
+            _SectionLabel.footer(look: look, layout: layout, label: footer),
           ],
         ),
       ),
@@ -193,6 +314,9 @@ class GlassListSection extends StatelessWidget {
     return SwipeGroup(child: section);
   }
 }
+
+bool _endSeparator(GlassListLayout layout, Widget? footer) =>
+    layout == GlassListLayout.plain && footer == null;
 
 /// A [GlassListSection] as a sliver that builds its rows lazily, for a
 /// long list in a [CustomScrollView].
@@ -213,6 +337,7 @@ class GlassSliverListSection extends StatelessWidget {
     this.header,
     this.footer,
     this.showsSeparators = true,
+    this.layout = GlassListLayout.insetGrouped,
     this.style,
     super.key,
   }) : assert(ids == null || ids.length == itemCount, 'One id per row.');
@@ -236,30 +361,37 @@ class GlassSliverListSection extends StatelessWidget {
   /// See [GlassListSection.showsSeparators].
   final bool showsSeparators;
 
+  /// See [GlassListSection.layout].
+  final GlassListLayout layout;
+
   /// The look of the section and its rows, over the theme's.
   final GlassListStyle? style;
 
   @override
   Widget build(BuildContext context) {
-    final look = _sectionLook(context, style);
+    final look = _sectionLook(context, style, layout);
     const radius = Radius.circular(_Metrics.cornerRadius);
-    final card = StateColors(context, const {})(look.backgroundColor);
     Widget piece(BuildContext context, int i) {
       final last = i == itemCount - 1;
       return RepaintBoundary(
-        child: ClipRRect(
-          borderRadius: BorderRadius.vertical(
+        child: _card(
+          context,
+          layout: layout,
+          look: look,
+          separators: showsSeparators,
+          radius: BorderRadius.vertical(
             top: i == 0 ? radius : Radius.zero,
             bottom: last ? radius : Radius.zero,
           ),
-          child: ColoredBox(
-            color: card,
-            child: _RowPlace(
-              last: last,
-              separators: showsSeparators,
-              look: look,
-              child: itemBuilder(context, i),
-            ),
+          top: i == 0,
+          bottom: last,
+          child: _RowPlace(
+            last: last,
+            separators: showsSeparators,
+            layout: layout,
+            endSeparator: _endSeparator(layout, footer),
+            look: look,
+            child: itemBuilder(context, i),
           ),
         ),
       );
@@ -267,11 +399,15 @@ class GlassSliverListSection extends StatelessWidget {
 
     final indexOf = {for (final (i, id) in (ids ?? const []).indexed) id: i};
     final section = SliverPadding(
-      padding: _sectionMargin(context),
+      padding: _sectionMargin(context, layout),
       sliver: SliverMainAxisGroup(
         slivers: [
           SliverToBoxAdapter(
-            child: _SectionLabel.header(look: look, label: header),
+            child: _SectionLabel.header(
+              look: look,
+              layout: layout,
+              label: header,
+            ),
           ),
           if (ids case final ids?)
             RawGlassList(
@@ -281,7 +417,11 @@ class GlassSliverListSection extends StatelessWidget {
           else
             SliverList.builder(itemCount: itemCount, itemBuilder: piece),
           SliverToBoxAdapter(
-            child: _SectionLabel.footer(look: look, label: footer),
+            child: _SectionLabel.footer(
+              look: look,
+              layout: layout,
+              label: footer,
+            ),
           ),
         ],
       ),
@@ -290,15 +430,21 @@ class GlassSliverListSection extends StatelessWidget {
   }
 }
 
-GlassListStyle _sectionLook(BuildContext context, GlassListStyle? style) {
+GlassListStyle _sectionLook(
+  BuildContext context,
+  GlassListStyle? style, [
+  GlassListLayout layout = GlassListLayout.insetGrouped,
+]) {
   final label = GlassTheme.labelColorOf(context);
   final tertiary = GlassTheme.tertiaryLabelColorOf(context);
   return (style ?? const GlassListStyle())
       .merge(GlassListStyle.maybeOf(context))
       .merge(
         GlassListStyle(
-          backgroundColor: const WidgetStatePropertyAll(
-            GlassColors.secondarySystemGroupedBackground,
+          backgroundColor: WidgetStatePropertyAll(
+            layout == GlassListLayout.plain
+                ? GlassColors.systemBackground
+                : GlassColors.secondarySystemGroupedBackground,
           ),
           overlayColor: const WidgetStatePropertyAll(GlassColors.systemGray4),
           separatorColor: const WidgetStatePropertyAll(
@@ -365,6 +511,10 @@ abstract final class _Metrics {
 
   /// The thickness of a separator.
   static const double separatorThickness = 1;
+
+  /// The least start of a separator from the card's leading edge: a grouped
+  /// or plain row's text starts 16 in and its separator 20.
+  static const double separatorStart = 20;
 
   /// The space above a section header's label.
   static const double headerTop = 11.67;

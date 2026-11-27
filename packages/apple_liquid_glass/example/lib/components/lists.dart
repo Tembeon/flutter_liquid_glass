@@ -22,6 +22,7 @@ class _ListPageState extends State<ListPage> {
   var _detail = false;
   var _headers = true;
   var _separators = true;
+  var _layout = GlassListLayout.insetGrouped;
   final _tasks = ['Water the monstera', 'Repot the jade', 'Wipe the leaves'];
   var _next = 0;
   var _size = 1;
@@ -39,6 +40,16 @@ class _ListPageState extends State<ListPage> {
           'Grouped rows, as a settings page has them: a GlassListSection '
           'of GlassListRows that highlight under a press.',
       knobs: [
+        ChoiceKnob<GlassListLayout>(
+          'Layout',
+          value: _layout,
+          options: const {
+            GlassListLayout.insetGrouped: 'Inset',
+            GlassListLayout.grouped: 'Grouped',
+            GlassListLayout.plain: 'Plain',
+          },
+          onChanged: (layout) => setState(() => _layout = layout),
+        ),
         ChoiceKnob<_Accessory>(
           'Accessory',
           value: _accessory,
@@ -83,6 +94,7 @@ class _ListPageState extends State<ListPage> {
               'above.',
           flush: true,
           child: GlassListSection(
+            layout: _layout,
             showsSeparators: _separators,
             header: _headers ? const Text('Living room') : null,
             footer: _headers

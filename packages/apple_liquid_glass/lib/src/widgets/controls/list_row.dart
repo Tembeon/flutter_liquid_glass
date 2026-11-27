@@ -32,10 +32,9 @@ part of 'list.dart';
 /// edge when the text and the detail fit side by side on one line each, and 4
 /// points under the text, from its start, when they do not and at the
 /// accessibility text sizes, as UIKit's value cell stacks them; a [leading]
-/// symbol is centered 28 points from the card's edge and moves the text and the
-/// separator to 56 points; a leading image wider than the symbol's 24 point
-/// slot widens it from the card's 16 point inset and moves the text and
-/// separator along. A [trailing] control and the chevron end 20 points from the
+/// symbol takes a 24 point slot where the text would start and moves the text
+/// and the separator 40 points further in; a leading image wider than the
+/// slot widens it and moves the text and separator along. A [trailing] control and the chevron end 20 points from the
 /// card's edge, a 19 x 17.33 checkmark 22.5 and a 25.67 info button 19.17,
 /// centered in the row as UIKit centers an accessory view.
 /// A single-line row is 53 points tall, and each line of
@@ -62,7 +61,8 @@ part of 'list.dart';
 /// [GlassColors.quaternaryLabel]; its control, accessory and fill keep
 /// their look. A row without [onPressed] is not disabled and keeps its
 /// colors. Inside a section the row draws the
-/// separator below itself, except on the section's last row. Right-to-left
+/// separator below itself, except on the section's last row (a plain
+/// section's last row draws one unless a footer follows). Right-to-left
 /// text mirrors the row and the chevron.
 ///
 /// Fidelity. The sizes, insets and press timing are measured on iOS 27, the
@@ -150,7 +150,7 @@ class GlassListRow extends StatefulWidget {
 
   /// Whether a separator stands below the row, or null for its section's
   /// choice ([GlassListSection.showsSeparators]); the last row of a section
-  /// has none.
+  /// has none, but in a plain section without a footer.
   final bool? showsSeparator;
 
   /// The look, over the section's and the theme's.
@@ -175,6 +175,7 @@ class GlassListRow extends StatefulWidget {
 
 class _GlassListRowState extends State<GlassListRow> {
   final _textStart = ValueNotifier<double>(GlassListSection.contentInset);
+  double _inset = GlassListSection.contentInset;
 
   @override
   void dispose() {
@@ -182,12 +183,13 @@ class _GlassListRowState extends State<GlassListRow> {
     super.dispose();
   }
 
-  void _measureLeading(double t, Size size) => _textStart.value =
-      GlassListSection.contentInset + size.width + _Metrics.leadingGap;
+  void _measureLeading(double t, Size size) =>
+      _textStart.value = _inset + size.width + _Metrics.leadingGap;
 
   @override
   Widget build(BuildContext context) {
     final place = _RowPlace.maybeOf(context);
+    _inset = place?.layout.contentInset ?? GlassListSection.contentInset;
     final look = (widget.style ?? const GlassListStyle()).merge(
       place?.look ?? _sectionLook(context, null),
     );
@@ -356,12 +358,12 @@ class _GlassListRowState extends State<GlassListRow> {
       ),
       child: Padding(
         padding: EdgeInsetsDirectional.only(
-          start: GlassListSection.contentInset,
+          start: _inset,
           end: switch (widget.accessory) {
             GlassListAccessory.checkmark => _Metrics.checkmarkInset,
             GlassListAccessory.detailButton => _Metrics.infoInset,
             _ when accessory => _Metrics.accessoryInset,
-            _ => GlassListSection.contentInset,
+            _ => _inset,
           },
         ),
         child: Row(
@@ -381,11 +383,12 @@ class _GlassListRowState extends State<GlassListRow> {
     );
     final separated =
         place != null &&
-        !place.last &&
+        (!place.last || place.endSeparator) &&
         (widget.showsSeparator ?? place.separators);
     final surface = separated
         ? _RowSeparator(
             color: color(look.separatorColor),
+            inset: _inset,
             start: leading == null ? null : _textStart,
             direction: Directionality.of(context),
             child: row,
@@ -410,12 +413,17 @@ class _RowPlace extends InheritedWidget {
   const _RowPlace({
     required this.last,
     required this.separators,
+    required this.layout,
+    required this.endSeparator,
     required this.look,
     required super.child,
   });
 
   final bool last;
   final bool separators;
+  final GlassListLayout layout;
+  // Whether the last row draws a separator too.
+  final bool endSeparator;
   final GlassListStyle look;
 
   static _RowPlace? maybeOf(BuildContext context) =>
@@ -425,17 +433,26 @@ class _RowPlace extends InheritedWidget {
   bool updateShouldNotify(_RowPlace oldWidget) =>
       last != oldWidget.last ||
       separators != oldWidget.separators ||
+      layout != oldWidget.layout ||
+      endSeparator != oldWidget.endSeparator ||
       look != oldWidget.look;
 }
 
 class _SectionLabel extends StatelessWidget {
-  const _SectionLabel.header({required this.look, required this.label})
-    : _header = true;
+  const _SectionLabel.header({
+    required this.look,
+    required this.layout,
+    required this.label,
+  }) : _header = true;
 
-  const _SectionLabel.footer({required this.look, required this.label})
-    : _header = false;
+  const _SectionLabel.footer({
+    required this.look,
+    required this.layout,
+    required this.label,
+  }) : _header = false;
 
   final GlassListStyle look;
+  final GlassListLayout layout;
   final Widget? label;
   final bool _header;
 
@@ -444,7 +461,7 @@ class _SectionLabel extends StatelessWidget {
     final label = this.label;
     if (label == null) {
       return SizedBox(
-        height: _header ? _Metrics.noHeaderTop : _Metrics.noFooterBottom,
+        height: _header ? layout.noHeaderTop : layout.noFooterBottom,
       );
     }
     final style = GlassTextScale.of(context).resolve(
@@ -457,10 +474,10 @@ class _SectionLabel extends StatelessWidget {
     );
     return Padding(
       padding: EdgeInsetsDirectional.fromSTEB(
-        GlassListSection.contentInset,
-        _header ? _Metrics.headerTop : _Metrics.footerTop,
-        GlassListSection.contentInset,
-        _header ? _Metrics.headerBottom : _Metrics.footerBottom,
+        layout.contentInset,
+        _header ? layout.headerTop : layout.footerTop,
+        layout.contentInset,
+        _header ? layout.headerBottom : layout.footerBottom,
       ),
       child: Semantics(
         header: _header,

@@ -394,6 +394,23 @@ void galleryTests({bool onDevice = false}) {
     await leave(find.byType(ComponentPage));
     await _back(tester);
 
+    await _open(tester, 'List');
+    await choose('Plain');
+    await _bring(tester, find.text('Monstera'), page);
+    expect(
+      tester
+          .widget<GlassListSection>(
+            find.ancestor(
+              of: find.text('Monstera'),
+              matching: find.byType(GlassListSection),
+            ),
+          )
+          .layout,
+      GlassListLayout.plain,
+    );
+    await choose('Grouped');
+    await _back(tester);
+
     for (final (component, knobs) in const [
       (
         'Stepper',
