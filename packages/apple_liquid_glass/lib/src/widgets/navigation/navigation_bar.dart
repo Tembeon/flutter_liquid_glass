@@ -165,8 +165,9 @@ class GlassNavigationBarStyle extends GlassStyle<GlassNavigationBarStyle> {
 /// below also has lean halfway toward their places there at most. The
 /// titles belong to the page and move with it. A page with a glass page
 /// below gets a back button, named after that page's title, as the first
-/// leading capsule; [leading] replaces it and [automaticallyImplyLeading]
-/// false removes it. Elsewhere, the bar draws its capsules for its page
+/// leading capsule; [leading] replaces it, or follows it with
+/// [leadingSupplementsBackButton], and [automaticallyImplyLeading] false
+/// removes it. Elsewhere, the bar draws its capsules for its page
 /// alone.
 ///
 /// Fidelity. The row's layout is measured on iOS 27: 46 bars match within
@@ -182,6 +183,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
     this.largeTitle,
     this.trailing = const [],
     this.automaticallyImplyLeading = true,
+    this.leadingSupplementsBackButton = false,
     this.previousPageTitle,
     this.backButtonDisplayMode = GlassBackButtonDisplayMode.title,
     this.searchField,
@@ -212,6 +214,11 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// Whether the page gets a back button when [leading] is empty and a
   /// glass page lies below (UIKit `hidesBackButton` false).
   final bool automaticallyImplyLeading;
+
+  /// Whether [leading] stands after the back button, in capsules of its
+  /// own, rather than in its place (UIKit
+  /// `leftItemsSupplementBackButton`, false by default).
+  final bool leadingSupplementsBackButton;
 
   /// The back button's name for the page below, shown beside its chevron
   /// in the [GlassBackButtonDisplayMode.title] mode; without it the chevron
@@ -295,6 +302,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
     largeTitle: largeTitle,
     trailing: trailing,
     automaticallyImplyLeading: automaticallyImplyLeading,
+    leadingSupplementsBackButton: leadingSupplementsBackButton,
     previousPageTitle: previousPageTitle,
     backButtonDisplayMode: backButtonDisplayMode,
     searchField: field,
@@ -587,6 +595,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
             ],
           ],
           automaticallyImplyLeading: widget.automaticallyImplyLeading,
+          leadingSupplementsBack: widget.leadingSupplementsBackButton,
           previousPageTitle: widget.previousPageTitle,
           backButtonDisplayMode: widget.backButtonDisplayMode,
           back: supplement?.back,

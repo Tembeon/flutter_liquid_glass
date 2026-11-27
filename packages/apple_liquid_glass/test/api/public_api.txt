@@ -276,10 +276,12 @@ final class GlassBarButton extends GlassBarItem
     void Function()? onPressed,
     String? semanticLabel,
     List<GlassMenuEntry>? menuChildren,
+    GlassMenuOrder menuOrder = ...,
   })
   final Widget? icon
   final Widget? label
   final List<GlassMenuEntry>? menuChildren
+  final GlassMenuOrder menuOrder
   final void Function()? onPressed
   final String? semanticLabel
 enum GlassBarButtonKind
@@ -356,6 +358,7 @@ sealed class GlassBarItem extends GlassBarEntry
     void Function()? onPressed,
     String? semanticLabel,
     List<GlassMenuEntry>? menuChildren,
+    GlassMenuOrder menuOrder,
   })
   const factory GlassBarItem.prominent({
     LocalKey? key,
@@ -1536,6 +1539,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget
     Widget? largeTitle,
     List<GlassBarEntry> trailing = ...,
     bool automaticallyImplyLeading = ...,
+    bool leadingSupplementsBackButton = ...,
     String? previousPageTitle,
     GlassBackButtonDisplayMode backButtonDisplayMode = ...,
     Widget? searchField,
@@ -1549,6 +1553,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget
   final Widget? largeTitle
   static const double largeTitleHeight
   final List<GlassBarEntry> leading
+  final bool leadingSupplementsBackButton
   final String? previousPageTitle
   @internal double get scrolledUnderAfter
   final Widget? searchField

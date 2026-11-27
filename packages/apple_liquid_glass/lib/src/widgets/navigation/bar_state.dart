@@ -389,9 +389,9 @@ final class _Bar {
     final leading = [
       if (declaration.beforeBack case final item?)
         ..._capsules(page, [item], seen),
-      ...declaration.leading.isEmpty
-          ? _back(page, declaration)
-          : _capsules(page, declaration.leading, seen),
+      if (declaration.leading.isEmpty || declaration.leadingSupplementsBack)
+        ..._back(page, declaration),
+      ..._capsules(page, declaration.leading, seen),
     ];
     return [leading, _capsules(page, declaration.trailing, seen)];
   }

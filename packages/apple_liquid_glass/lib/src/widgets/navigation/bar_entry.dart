@@ -149,6 +149,7 @@ sealed class GlassBarItem extends GlassBarEntry {
     VoidCallback? onPressed,
     String? semanticLabel,
     List<GlassMenuEntry>? menuChildren,
+    GlassMenuOrder menuOrder,
   }) = GlassBarButton;
 
   /// Creates a button in a capsule of its own, tinted with the theme's
@@ -183,6 +184,7 @@ final class GlassBarButton extends GlassBarItem {
     this.onPressed,
     this.semanticLabel,
     this.menuChildren,
+    this.menuOrder = GlassMenuOrder.automatic,
   }) : assert(icon != null || label != null, 'an icon or a label'),
        super._();
 
@@ -209,6 +211,10 @@ final class GlassBarButton extends GlassBarItem {
   /// capture on an iPhone 16 Pro; the pressed glyph's dimming is left out and a
   /// custom view in the capsule hides without riding the shape (near).
   final List<GlassMenuEntry>? menuChildren;
+
+  /// How [menuChildren] order when the menu opens upward, as from a
+  /// toolbar (UIKit `preferredMenuElementOrder`).
+  final GlassMenuOrder menuOrder;
 }
 
 /// A button in a capsule of its own, tinted with the theme's primary color,

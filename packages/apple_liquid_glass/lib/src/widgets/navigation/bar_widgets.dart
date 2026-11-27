@@ -490,6 +490,7 @@ class _BarItem extends StatelessWidget {
         child: ExcludeFocusTraversal(
           child: GlassMenuAnchor(
             menuChildren: menu,
+            order: action.order,
             semanticLabel: _BandState._labelOf(item!),
             controller: bar.inputOf(id).menu,
             scalesOnPress: false,

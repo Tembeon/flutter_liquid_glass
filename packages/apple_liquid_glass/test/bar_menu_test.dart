@@ -128,6 +128,44 @@ void main() {
     await tester.pump();
   }
 
+  testWidgets("a toolbar item's menu opens upward with its first entry "
+      'next to the item, or in its order with menuOrder fixed', (tester) async {
+    tester.view.physicalSize = const Size(402 * 3, 874 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    Future<double> firstOverSecond(GlassMenuOrder order) async {
+      await tester.pumpWidget(
+        _app(
+          GlassPageScaffold(
+            key: ValueKey(order),
+            toolbar: GlassToolbar(
+              items: [
+                GlassBarItem(
+                  icon: const SizedBox.square(key: Key('more'), dimension: 22),
+                  semanticLabel: 'More',
+                  menuOrder: order,
+                  menuChildren: const [
+                    GlassMenuItem(title: 'First'),
+                    GlassMenuItem(title: 'Second'),
+                  ],
+                ),
+              ],
+            ),
+            child: const SizedBox.expand(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('more')));
+      await _settle(tester);
+      return tester.getCenter(find.text('Second')).dy -
+          tester.getCenter(find.text('First')).dy;
+    }
+
+    expect(await firstOverSecond(GlassMenuOrder.automatic), lessThan(0));
+    expect(await firstOverSecond(GlassMenuOrder.fixed), greaterThan(0));
+  });
+
   testWidgets('a bar item with a menu shares a capsule with its neighbours', (
     tester,
   ) async {

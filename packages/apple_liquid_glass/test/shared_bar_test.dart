@@ -87,6 +87,53 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('leading items replace the back button, or follow it in a '
+      'capsule of their own with leadingSupplementsBackButton', (tester) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    Future<void> show({required bool supplements}) async {
+      await tester.pumpWidget(
+        WidgetsApp(
+          key: ValueKey(supplements),
+          color: const Color(0xFF000000),
+          builder: (context, child) => GlassScope(
+            renderer: const FlatGlassRenderer(),
+            child: Navigator(
+              onGenerateInitialRoutes: (navigator, name) => [
+                GlassPageRoute<void>(builder: (_) => _page('Home')),
+                GlassPageRoute<void>(
+                  builder: (_) => GlassPageScaffold(
+                    navigationBar: GlassNavigationBar(
+                      title: const Text('Next'),
+                      leading: [_icon('edit')],
+                      leadingSupplementsBackButton: supplements,
+                    ),
+                    child: const ColoredBox(color: Color(0xFFFFFFFF)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await _settle(tester);
+    }
+
+    await show(supplements: false);
+    expect(find.bySemanticsLabel('Home'), findsNothing);
+    final alone = tester.getCenter(find.byKey(const Key('edit'))).dx;
+
+    await show(supplements: true);
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Home')),
+      isSemantics(isButton: true),
+    );
+    final back = tester.getSemantics(find.bySemanticsLabel('Home')).rect;
+    final edit = tester.getCenter(find.byKey(const Key('edit'))).dx;
+    expect(edit, greaterThan(alone + back.width));
+    semantics.dispose();
+  });
+
   testWidgets("a page-based navigator shows the top page's bar with a back "
       'button to the page under it, from its first pages and after pages it '
       'adds or removes in one update', (tester) async {
