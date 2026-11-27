@@ -44,7 +44,11 @@ export 'src/widgets/controls/button.dart'
         GlassPlainButtonStyle,
         GlassProminentButtonStyle;
 export 'src/widgets/controls/date_picker.dart'
-    show GlassDatePicker, GlassDatePickerStyle, GlassTimePicker;
+    show
+        GlassDatePicker,
+        GlassDatePickerStyle,
+        GlassMonthYearPicker,
+        GlassTimePicker;
 export 'src/widgets/controls/list.dart'
     show
         GlassListBackground,

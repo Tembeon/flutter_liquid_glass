@@ -1575,6 +1575,22 @@ final class GlassMerge
   const GlassMerge.spacing(double spacing)
   final double? spacing
   overrides: ==, hashCode
+class GlassMonthYearPicker extends StatelessWidget
+  const GlassMonthYearPicker({
+    required DateTime value,
+    required void Function(DateTime)? onChanged,
+    DateTime? minimumDate,
+    DateTime? maximumDate,
+    GlassDatePickerStyle? style,
+    Key? key,
+  })
+  final DateTime? maximumDate
+  final DateTime? minimumDate
+  final void Function(DateTime)? onChanged
+  static const Size size
+  final GlassDatePickerStyle? style
+  final DateTime value
+  overrides: build
 class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget
   const GlassNavigationBar({
     List<GlassBarEntry> leading = ...,
@@ -5717,6 +5733,7 @@ enum GlassMenuOrder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassMenuSection (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassMenuStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassMenuWidget (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassMonthYearPicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassNavigationBar (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassNavigationBarStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageControl (see package:apple_liquid_glass/apple_liquid_glass.dart)

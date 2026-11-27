@@ -212,6 +212,99 @@ class _TimeWheelsState extends State<GlassTimePicker> {
   }
 }
 
+/// A month and a year on two wheels in place.
+///
+/// UIKit: `UIDatePicker` with `datePickerMode = .yearAndMonth` and the
+/// wheels style. Flutter: `CupertinoDatePicker` in
+/// `CupertinoDatePickerMode.monthYear`.
+///
+/// The wheels are the calendar's own, those a tap on its month title
+/// shows: the month wheel loops and the year wheel runs from 1 to 9999. A
+/// wheel coming to rest on a new row calls [onChanged] once with the first
+/// day of that month, at midnight, moved into [minimumDate] and
+/// [maximumDate] by month; a new [value] turns the wheels to it, so an app
+/// that sets the value it gets turns a wheel back from a month out of
+/// bounds, as UIKit's roll back.
+///
+/// ```dart
+/// GlassMonthYearPicker(
+///   value: month,
+///   onChanged: (picked) => setState(() => month = picked),
+/// )
+/// ```
+///
+/// Fidelity. The wheels, their rows and their fade are measured in the
+/// calendar's overlay (date picker passport, month column 133 points, wheels
+/// 288 by 216); standing alone they keep those places.
+class GlassMonthYearPicker extends StatelessWidget {
+  /// Creates wheels showing [value]'s month and year.
+  const GlassMonthYearPicker({
+    required this.value,
+    required this.onChanged,
+    this.minimumDate,
+    this.maximumDate,
+    this.style,
+    super.key,
+  });
+
+  /// The month shown; its day and time are not read.
+  final DateTime value;
+
+  /// Called with the first day of the month a wheel comes to rest on;
+  /// null disables the wheels.
+  final ValueChanged<DateTime>? onChanged;
+
+  /// The earliest month that can be picked; null for no limit.
+  final DateTime? minimumDate;
+
+  /// The latest month that can be picked; null for no limit.
+  final DateTime? maximumDate;
+
+  /// The look, over the theme's and the picker's defaults.
+  final GlassDatePickerStyle? style;
+
+  /// The size of the wheels.
+  static const Size size = Size(288, 216);
+
+  DateTime _bounded(int year, int month) {
+    final picked = DateTime(year, month);
+    if (minimumDate case final first?
+        when picked.isBefore(DateTime(first.year, first.month))) {
+      return DateTime(first.year, first.month);
+    }
+    if (maximumDate case final last?
+        when picked.isAfter(DateTime(last.year, last.month))) {
+      return DateTime(last.year, last.month);
+    }
+    return picked;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final look = GlassDatePickerStyle.resolve(context, style);
+    final onChanged = this.onChanged;
+    final wheels = _MonthYearWheels(
+      look: look,
+      enabled: onChanged != null,
+      details: GlassDatePickerMonthYear(
+        month: DateTime(value.year, value.month),
+        firstDate: minimumDate,
+        lastDate: maximumDate,
+        onChanged: (year, month) => onChanged?.call(_bounded(year, month)),
+      ),
+    );
+    return DefaultTextStyle(
+      style: GlassTextScale.fixed(
+        context,
+      ).resolve(TextStyle(fontSize: 17, color: look.labelColor)),
+      child: SizedBox.fromSize(
+        size: size,
+        child: wheels,
+      ),
+    );
+  }
+}
+
 /// The calendar's month and year wheels, shown in place of the day grid
 /// after a tap on the month title.
 ///
@@ -221,10 +314,15 @@ class _TimeWheelsState extends State<GlassTimePicker> {
 /// settles; a month outside the bounds comes back clamped, and the wheels
 /// turn to it.
 class _MonthYearWheels extends StatefulWidget {
-  const _MonthYearWheels({required this.details, required this.look});
+  const _MonthYearWheels({
+    required this.details,
+    required this.look,
+    this.enabled = true,
+  });
 
   final GlassDatePickerMonthYear details;
   final GlassDatePickerStyle look;
+  final bool enabled;
 
   @override
   State<_MonthYearWheels> createState() => _MonthYearWheelsState();
@@ -305,7 +403,9 @@ class _MonthYearWheelsState extends State<_MonthYearWheels> {
                       padding: const EdgeInsetsDirectional.only(
                         start: _MonthYearMetrics.monthStart,
                       ),
-                      onChanged: (int row) => setState(() => _month = row + 1),
+                      onChanged: !widget.enabled
+                          ? null
+                          : (int row) => setState(() => _month = row + 1),
                       context: context,
                     ),
                   ),
@@ -323,7 +423,9 @@ class _MonthYearWheelsState extends State<_MonthYearWheels> {
                       text: (int i) => '${i + 1}',
                       value: _year - 1,
                       label: loc.yearLabel,
-                      onChanged: (int row) => setState(() => _year = row + 1),
+                      onChanged: !widget.enabled
+                          ? null
+                          : (int row) => setState(() => _year = row + 1),
                       context: context,
                     ),
                   ),

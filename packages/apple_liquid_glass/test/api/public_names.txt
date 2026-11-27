@@ -139,6 +139,7 @@ GlassMenuSection
 GlassMenuStyle
 GlassMenuWidget
 GlassMerge
+GlassMonthYearPicker
 GlassNavigationBar
 GlassNavigationBarStyle
 GlassOutline

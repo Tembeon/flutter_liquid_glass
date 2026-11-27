@@ -837,6 +837,21 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'GlassMonthYearPicker',
+    covers: const ['GlassMonthYearPicker'],
+    kind: Kind.value,
+    wheel: true,
+    focusStops: 2,
+    build: (probe, {required enabled}) => Held<DateTime>(
+      probe: probe,
+      initial: DateTime(2026, 10),
+      builder: (context, value, set) => GlassMonthYearPicker(
+        value: value,
+        onChanged: enabled ? set : null,
+      ),
+    ),
+  ),
+  Entry(
     'RawGlassWheel',
     covers: const ['RawGlassWheel'],
     look: Look.builder,
