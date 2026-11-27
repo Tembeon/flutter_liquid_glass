@@ -2060,12 +2060,14 @@ class GlassSlider extends StatefulWidget
     double min = ...,
     double max = ...,
     int ticks = ...,
+    double? neutralValue,
     bool animated = ...,
     GlassSliderStyle? style,
     WidgetStatesController? statesController,
     FocusNode? focusNode,
     bool autofocus = ...,
     String? semanticLabel,
+    String Function(double)? semanticFormatterCallback,
     Key? key,
   })
   final bool animated
@@ -2073,9 +2075,11 @@ class GlassSlider extends StatefulWidget
   final FocusNode? focusNode
   final double max
   final double min
+  final double? neutralValue
   final void Function(double)? onChangeEnd
   final void Function(double)? onChangeStart
   final void Function(double)? onChanged
+  final String Function(double)? semanticFormatterCallback
   final String? semanticLabel
   final WidgetStatesController? statesController
   final GlassSliderStyle? style
@@ -4158,11 +4162,13 @@ class RawGlassSlider extends StatefulWidget
     double min = ...,
     double max = ...,
     int ticks = ...,
+    double? neutralValue,
     bool animated = ...,
     WidgetStatesController? statesController,
     FocusNode? focusNode,
     bool autofocus = ...,
     String? semanticLabel,
+    String Function(double)? semanticFormatterCallback,
     Key? key,
   })
   final bool animated
@@ -4172,9 +4178,11 @@ class RawGlassSlider extends StatefulWidget
   static const double height
   final double max
   final double min
+  final double? neutralValue
   final void Function(double)? onChangeEnd
   final void Function(double)? onChangeStart
   final void Function(double)? onChanged
+  final String Function(double)? semanticFormatterCallback
   final String? semanticLabel
   final WidgetStatesController? statesController
   static const double tickSize

@@ -169,12 +169,14 @@ class GlassSlider extends StatefulWidget {
     this.min = 0,
     this.max = 1,
     this.ticks = 0,
+    this.neutralValue,
     this.animated = false,
     this.style,
     this.statesController,
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.semanticFormatterCallback,
     super.key,
   });
 
@@ -199,6 +201,9 @@ class GlassSlider extends StatefulWidget {
   /// See [RawGlassSlider.ticks].
   final int ticks;
 
+  /// See [RawGlassSlider.neutralValue].
+  final double? neutralValue;
+
   /// See [RawGlassSlider.animated].
   final bool animated;
 
@@ -216,6 +221,9 @@ class GlassSlider extends StatefulWidget {
 
   /// What accessibility reads for the slider.
   final String? semanticLabel;
+
+  /// See [RawGlassSlider.semanticFormatterCallback].
+  final String Function(double value)? semanticFormatterCallback;
 
   /// A style from plain colors; a null color leaves the field to the
   /// theme, then the default.
@@ -273,11 +281,13 @@ class _GlassSliderState extends State<GlassSlider> {
       min: widget.min,
       max: widget.max,
       ticks: widget.ticks,
+      neutralValue: widget.neutralValue,
       animated: widget.animated,
       statesController: widget.statesController,
       focusNode: widget.focusNode,
       autofocus: widget.autofocus,
       semanticLabel: widget.semanticLabel,
+      semanticFormatterCallback: widget.semanticFormatterCallback,
       builder: _builderFor(look),
     );
   }

@@ -147,6 +147,58 @@ void main() {
     expect(probe.thumb!.value.lift, 0);
   });
 
+  testWidgets('with a neutral value the fill runs from it to the thumb, on '
+      'either side (slider passport, 300 wide)', (tester) async {
+    for (final (value, left, right) in [
+      (0.2, 71.1, 150.0),
+      (0.8, 150.0, 228.9),
+    ]) {
+      final probe = _Probe();
+      await tester.pumpWidget(
+        _app(
+          RawGlassSlider(
+            value: value,
+            neutralValue: 0.5,
+            onChanged: (_) {},
+            builder: probe.build,
+          ),
+        ),
+      );
+      await tester.pump();
+      final fill = probe.fill!.value.rect!;
+      expect(fill.left, moreOrLessEquals(left, epsilon: 0.5), reason: '$value');
+      expect(
+        fill.right,
+        moreOrLessEquals(right, epsilon: 0.5),
+        reason: '$value',
+      );
+    }
+  });
+
+  testWidgets('screen readers read the value through its formatter', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        GlassSlider(
+          value: 30,
+          max: 100,
+          semanticLabel: 'Volume',
+          semanticFormatterCallback: (value) => '${value.round()} dB',
+          onChanged: (_) {},
+        ),
+      ),
+    );
+    expect(
+      find.semantics.byPredicate(
+        (node) => node.label == 'Volume' && node.value == '30 dB',
+      ),
+      findsOne,
+    );
+    semantics.dispose();
+  });
+
   testWidgets('a tap on the track does nothing', (tester) async {
     final values = <double>[];
     await tester.pumpWidget(_app(_Controlled(onChanged: values.add)));

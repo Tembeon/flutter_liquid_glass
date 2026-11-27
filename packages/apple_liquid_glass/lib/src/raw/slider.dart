@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/raw/mirror.dart';
@@ -92,11 +94,13 @@ class RawGlassSlider extends StatefulWidget {
     this.min = 0,
     this.max = 1,
     this.ticks = 0,
+    this.neutralValue,
     this.animated = false,
     this.statesController,
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.semanticFormatterCallback,
     super.key,
   }) : assert(min < max, 'min must be less than max');
 
@@ -132,6 +136,11 @@ class RawGlassSlider extends StatefulWidget {
   /// one, without calling [onChanged], as UIKit snaps at rest.
   final int ticks;
 
+  /// The value the fill starts from, toward the thumb on either side, or
+  /// null for [min]: a balance or a pitch reads from its middle
+  /// (`neutralValue`; slider passport, recheck 27.2).
+  final double? neutralValue;
+
   /// Whether a new [value] from outside moves the thumb on UIKit's
   /// programmatic spring instead of jumping; a stepped slider always jumps.
   final bool animated;
@@ -148,6 +157,10 @@ class RawGlassSlider extends StatefulWidget {
 
   /// What accessibility reads for the slider.
   final String? semanticLabel;
+
+  /// Formats the value screen readers read, and the values one step up and
+  /// down; null reads it as a percentage of the range.
+  final String Function(double value)? semanticFormatterCallback;
 
   /// The height of the slider, not measured.
   static const double height = 34;
@@ -178,7 +191,11 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   );
   late final List<Interaction> _interactions = [_input];
   late final MotionSelection<bool> _driving = _motion.select(_drivenBy);
-  late _SliderFrames _frames = _SliderFrames(_motion, mirrored: false);
+  late _SliderFrames _frames = _SliderFrames(
+    _motion,
+    mirrored: false,
+    neutral: _neutral,
+  );
   Widget? _visual;
   Object? _visualKey;
   Set<WidgetState>? _visualStates;
@@ -222,7 +239,19 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     if (oldWidget.min != widget.min || oldWidget.max != widget.max) {
       _reported = null;
     }
+    if (_neutral != _frames.neutral) {
+      _frames = _SliderFrames(
+        _motion,
+        mirrored: _frames.mirrored,
+        neutral: _neutral,
+      );
+    }
   }
+
+  double? get _neutral => switch (widget.neutralValue) {
+    final value? => _unit(value),
+    null => null,
+  };
 
   double _unit(double value) => Ramp.fraction(value, widget.min, widget.max);
 
@@ -327,14 +356,17 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     super.didChangeDependencies();
     final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     if (rtl != _frames.mirrored) {
-      _frames = _SliderFrames(_motion, mirrored: rtl);
+      _frames = _SliderFrames(_motion, mirrored: rtl, neutral: _neutral);
     }
   }
 
   @override
   Widget buildControl(BuildContext context) {
     final value = _unit(widget.value);
-    final percent = GlassLocalizations.of(context).percentValue;
+    final formatter = widget.semanticFormatterCallback;
+    final percentValue = GlassLocalizations.of(context).percentValue;
+    String percent(double unit) =>
+        formatter?.call(_out(unit)) ?? percentValue(unit);
     return MotionScope(
       motion: _motion,
       child: InputRegion(
@@ -378,10 +410,13 @@ class _RawGlassSliderState extends State<RawGlassSlider>
 /// What a slider shows of its motion: the frames of its track, fill and
 /// thumb, laid out left to right or mirrored.
 final class _SliderFrames {
-  _SliderFrames(this._motion, {required this.mirrored});
+  _SliderFrames(this._motion, {required this.mirrored, this.neutral});
 
   final SliderMotion _motion;
   final bool mirrored;
+
+  /// Where the fill starts, 0 to 1, or null for the track's start.
+  final double? neutral;
 
   static const double _y = RawGlassSlider.height / 2;
 
@@ -398,6 +433,29 @@ final class _SliderFrames {
   late final MotionSelection<GlassFrame> fill = _motion.select((motion) {
     final ends = motion.trackEnds;
     final height = _trackHeight(motion);
+    final neutral = this.neutral;
+    if (neutral != null) {
+      // From the thumb's center at the neutral value to its center now.
+      final width = motion.width;
+      double at(double u) => width <= 0
+          ? ends.left
+          : ends.left +
+                (SliderMotion.thumbSize.width / 2 + u * motion.travel) *
+                    (ends.right - ends.left) /
+                    width;
+      final from = at(neutral);
+      final to = at(motion.position);
+      return GlassFrame(
+        rect: _shown(
+          Rect.fromLTRB(
+            math.min(from, to),
+            _y - height / 2,
+            math.max(from, to),
+            _y + height / 2,
+          ),
+        ),
+      );
+    }
     final end = motion.fillEnd.clamp(ends.left, double.infinity);
     return GlassFrame(
       rect: _shown(
