@@ -98,7 +98,14 @@ class DatePickerPlacement
 class DefaultGlassLocalizations extends GlassLocalizations
   const DefaultGlassLocalizations()
   static const LocalizationsDelegate<GlassLocalizations> delegate
-  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, columnDividerLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, hideSidebarLabel, hideYearPickerLabel, hourLabel, incrementLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showSidebarLabel, showYearPickerLabel, weekdayAbbreviation, yearLabel
+  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, columnDividerLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, editMenuMoreLabel, hideSidebarLabel, hideYearPickerLabel, hourLabel, incrementLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showSidebarLabel, showYearPickerLabel, weekdayAbbreviation, yearLabel
+final class EditMenuMotion
+  EditMenuMotion({required MotionClock clock})
+  static const double hiddenScale
+  late final MotionSelection<double> opacity
+  void present({required bool reduceMotion})
+  static const Spring presentSpring
+  late final MotionSelection<double> scale
 final class FakeGlassRenderer extends LiquidGlassRenderer
   const FakeGlassRenderer()
   overrides: fake
@@ -915,6 +922,23 @@ final class GlassDynamicColor implements Color
   static Color resolveWith(Color color, GlassTraits traits)
   GlassDynamicColor resolvedWith(GlassTraits traits)
   overrides: ==, a, alpha, b, blue, colorSpace, computeLuminance, g, green, hashCode, opacity, r, red, toARGB32, toString, value, withAlpha, withBlue, withGreen, withOpacity, withRed, withValues
+class GlassEditMenu extends StatefulWidget
+  GlassEditMenu.editableText({
+    required EditableTextState editableTextState,
+    Key? key,
+  })
+  const GlassEditMenu({
+    required Offset anchorAbove,
+    required Offset anchorBelow,
+    required List<ContextMenuButtonItem> buttonItems,
+    Key? key,
+  })
+  final Offset anchorAbove
+  final Offset anchorBelow
+  final List<ContextMenuButtonItem> buttonItems
+  static const double gap
+  static const double height
+  overrides: createState
 final class GlassEnvironment
   const GlassEnvironment({
     GlassFormFactor formFactor = ...,
@@ -1251,6 +1275,7 @@ abstract class GlassLocalizations
   abstract String dayLabel(DateTime date, {required bool today})
   abstract String get dayPeriodLabel
   abstract String get decrementLabel
+  abstract String get editMenuMoreLabel
   abstract String get hideSidebarLabel
   abstract String get hideYearPickerLabel
   abstract String get hourLabel
@@ -2819,6 +2844,7 @@ class GlassTextField extends StatelessWidget
     int? maxLength,
     TextAlign textAlign = ...,
     ScrollPhysics? scrollPhysics,
+    Widget Function(BuildContext, EditableTextState)? contextMenuBuilder = ...,
     TextInputType? keyboardType,
     TextInputAction? textInputAction,
     TextCapitalization textCapitalization = ...,
@@ -2841,6 +2867,7 @@ class GlassTextField extends StatelessWidget
   final bool autocorrect
   final Iterable<String>? autofillHints
   final bool autofocus
+  final Widget Function(BuildContext, EditableTextState)? contextMenuBuilder
   final TextEditingController? controller
   static const GlassDynamicColor disabledFill
   final bool enableSuggestions
@@ -4144,6 +4171,7 @@ class RawGlassTextField extends StatefulWidget
     int? maxLength,
     TextAlign textAlign = ...,
     ScrollPhysics? scrollPhysics,
+    Widget Function(BuildContext, EditableTextState)? contextMenuBuilder,
     TextInputType? keyboardType,
     TextInputAction? textInputAction,
     TextCapitalization textCapitalization = ...,
@@ -4161,6 +4189,7 @@ class RawGlassTextField extends StatefulWidget
   final Iterable<String>? autofillHints
   final bool autofocus
   final Widget Function(BuildContext, GlassTextFieldDetails) builder
+  final Widget Function(BuildContext, EditableTextState)? contextMenuBuilder
   final TextEditingController? controller
   final bool enableSuggestions
   final bool enabled
@@ -5242,6 +5271,7 @@ class DatePickerCalendarMotion (see package:apple_liquid_glass/apple_liquid_glas
 class DatePickerLabelMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class DatePickerMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class DatePickerPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class EditMenuMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class FlexLaw (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef FlexValues (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassBarButtonKind (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -5445,6 +5475,7 @@ class GlassContextMenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDatePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassDatePickerMode (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDatePickerStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassEditMenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassFloatingTabBar (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassListAccessory (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListBackground (see package:apple_liquid_glass/apple_liquid_glass.dart)

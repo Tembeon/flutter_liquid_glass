@@ -554,6 +554,15 @@ final List<Entry> registry = [
             'UITextField draws no hover: the pointer over it turns to the '
             'text cursor, which the field declares',
       ),
+      'motion-clock': Exemption(
+        'after the finger lifts it asks the binding for frames its clock '
+        'does not run',
+        because:
+            "Flutter's selection overlay fades the edit menu in on a "
+            '150 ms ticker of its own (_SelectionToolbarWrapper) around '
+            'what contextMenuBuilder builds; GlassEditMenu itself opens on '
+            'the motion clock',
+      ),
     },
     kind: Kind.textInput,
     build: (probe, {required enabled}) => SizedBox(
@@ -1136,6 +1145,10 @@ const Map<String, String> nonInteractive = {
       'reports scroll edges to the bars; the scrollable '
       'inside it takes the input',
   'GlassDefaultTextStyle': 'provides a text style to its subtree',
+  'GlassEditMenu':
+      'the edit menu a text input shows for its selection, in the '
+      "input's selection overlay; edit_menu_test holds its taps and "
+      'GlassTextField runs it here',
   'GlassEnvironmentOverride':
       'gives its subtree what the app knows about the window',
   'GlassGroup': 'merges the glass of its children',

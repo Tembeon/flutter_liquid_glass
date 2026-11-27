@@ -37,6 +37,7 @@ export 'src/motions/date_picker_motion.dart'
         DatePickerMotion,
         DatePickerPlacement,
         placeDatePicker;
+export 'src/motions/edit_menu_motion.dart' show EditMenuMotion;
 export 'src/motions/flex_interaction.dart' show FlexValues;
 export 'src/motions/glass_press.dart' show FlexLaw, GlassPress;
 export 'src/motions/large_title_snap.dart' show LargeTitleSnap;

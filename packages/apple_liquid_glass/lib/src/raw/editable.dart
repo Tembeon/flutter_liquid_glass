@@ -92,8 +92,8 @@ mixin GlassEditable<T extends StatefulWidget> on State<T>
 
   /// The editable text in [style], with its selection gestures while the
   /// field takes input, read by accessibility as [semanticLabel] with
-  /// [semanticHint]; on iOS a long press shows the system edit menu, and
-  /// other platforms show none.
+  /// [semanticHint]; its edit menu is [contextMenuBuilder]'s, or the
+  /// system's on iOS and none elsewhere when that is null.
   Widget editableText({
     required TextStyle style,
     required GlassTextScale textScale,
@@ -121,6 +121,7 @@ mixin GlassEditable<T extends StatefulWidget> on State<T>
     TextAlign textAlign = TextAlign.start,
     ScrollPhysics? scrollPhysics,
     Color? handleColor,
+    EditableTextContextMenuBuilder? contextMenuBuilder,
   }) {
     final touch = switch (defaultTargetPlatform) {
       TargetPlatform.iOS ||
@@ -155,10 +156,12 @@ mixin GlassEditable<T extends StatefulWidget> on State<T>
       autofillHints: autofillHints,
       inputFormatters: inputFormatters,
       rendererIgnoresPointer: true,
-      contextMenuBuilder: SystemContextMenu.isSupported(context)
-          ? (context, state) =>
-                SystemContextMenu.editableText(editableTextState: state)
-          : null,
+      contextMenuBuilder:
+          contextMenuBuilder ??
+          (SystemContextMenu.isSupported(context)
+              ? (context, state) =>
+                    SystemContextMenu.editableText(editableTextState: state)
+              : null),
       onChanged: onChanged,
       onEditingComplete: onEditingComplete,
       onSubmitted: onSubmitted,

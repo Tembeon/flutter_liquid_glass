@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
+import 'package:apple_liquid_glass/src/widgets/presentations/edit_menu.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -193,6 +194,7 @@ class GlassTextField extends StatelessWidget {
     this.maxLength,
     this.textAlign = TextAlign.start,
     this.scrollPhysics,
+    this.contextMenuBuilder = _editMenu,
     this.keyboardType,
     this.textInputAction,
     this.textCapitalization = TextCapitalization.sentences,
@@ -263,6 +265,15 @@ class GlassTextField extends StatelessWidget {
 
   /// How the text scrolls past [maxLines], or null for the platform's.
   final ScrollPhysics? scrollPhysics;
+
+  /// Builds the edit menu of the field's selection: by default
+  /// [GlassEditMenu.editableText], UIKit's own menu on iOS where Flutter
+  /// can show it and the glass one elsewhere; null for UIKit's own on iOS
+  /// and none elsewhere.
+  final EditableTextContextMenuBuilder? contextMenuBuilder;
+
+  static Widget _editMenu(BuildContext context, EditableTextState state) =>
+      GlassEditMenu.editableText(editableTextState: state);
 
   /// The keyboard, or null for text on one line and multiline text on more.
   final TextInputType? keyboardType;
@@ -387,6 +398,7 @@ class GlassTextField extends StatelessWidget {
       maxLength: maxLength,
       textAlign: textAlign,
       scrollPhysics: scrollPhysics,
+      contextMenuBuilder: contextMenuBuilder,
       keyboardType: keyboardType,
       textInputAction: textInputAction,
       textCapitalization: textCapitalization,

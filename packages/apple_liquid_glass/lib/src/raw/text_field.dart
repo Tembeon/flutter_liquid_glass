@@ -71,8 +71,9 @@ final class GlassTextFieldDetails {
 /// A tap anywhere on the field focuses it; on the text it also places the
 /// caret. The field is one Tab stop, shows the text cursor to a mouse, and
 /// says focused while its text has the focus. The keyboard capitalizes
-/// sentences by default, as UIKit's does. On iOS a long press shows the
-/// system edit menu; other platforms show none.
+/// sentences by default, as UIKit's does. A touch's selection shows
+/// UIKit's handles; the edit menu is [contextMenuBuilder]'s, by default
+/// UIKit's own on iOS and none elsewhere.
 class RawGlassTextField extends StatefulWidget {
   /// Creates a text field.
   const RawGlassTextField({
@@ -92,6 +93,7 @@ class RawGlassTextField extends StatefulWidget {
     this.maxLength,
     this.textAlign = TextAlign.start,
     this.scrollPhysics,
+    this.contextMenuBuilder,
     this.keyboardType,
     this.textInputAction,
     this.textCapitalization = TextCapitalization.sentences,
@@ -168,6 +170,10 @@ class RawGlassTextField extends StatefulWidget {
 
   /// How the text scrolls past [maxLines], or null for the platform's.
   final ScrollPhysics? scrollPhysics;
+
+  /// Builds the edit menu of the field's selection, or null for UIKit's
+  /// own on iOS where Flutter can show it and none elsewhere.
+  final EditableTextContextMenuBuilder? contextMenuBuilder;
 
   /// The keyboard, or null for text on one line and multiline text on more.
   final TextInputType? keyboardType;
@@ -278,6 +284,7 @@ class _RawGlassTextFieldState extends State<RawGlassTextField>
       textAlign: widget.textAlign,
       scrollPhysics: widget.scrollPhysics,
       handleColor: handle,
+      contextMenuBuilder: widget.contextMenuBuilder,
     );
   }
 

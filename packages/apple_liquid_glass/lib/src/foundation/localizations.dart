@@ -80,6 +80,10 @@ abstract class GlassLocalizations {
   /// The label of a row's button that shows more about it.
   String get moreInfoLabel;
 
+  /// The label of an edit menu's button that shows the items that do not
+  /// fit.
+  String get editMenuMoreLabel;
+
   /// The value of a page control: [page] of [count], counting from 1.
   String pageValue(int page, int count);
 
@@ -227,6 +231,9 @@ class DefaultGlassLocalizations extends GlassLocalizations {
 
   @override
   String get moreInfoLabel => 'More info';
+
+  @override
+  String get editMenuMoreLabel => 'More';
 
   @override
   String pageValue(int page, int count) => 'page $page of $count';
