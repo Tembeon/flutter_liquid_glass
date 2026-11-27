@@ -333,8 +333,9 @@ final class TabBarMinimizeMotion extends Motion {
 
   /// The blur, in points, the bar's content reaches as the bar turns into
   /// its circle. UIKit morphs a snapshot of the bar's tabs, titles and
-  /// unselected glyphs with the glass: carried with the shape, scaled from
-  /// 1 to the circle's height over the bar's, its opacity 1 - p and its
+  /// unselected glyphs with the glass: its top left edge on the shape's,
+  /// scaled from 1 to the circle's height over the bar's (clipped by the
+  /// shape), its opacity 1 - p and its
   /// blur radius this times p at the morph's progress p, and back the same
   /// way; the selected glyph travels on its own (read from UIKit's code
   /// and live morph layers, iOS 27.2 simulator).

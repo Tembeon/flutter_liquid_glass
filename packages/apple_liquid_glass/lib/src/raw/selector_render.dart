@@ -467,8 +467,9 @@ class _RenderSelectorRow extends RenderBox
   }
 
   // The tabs, the selected one's regular look among them, go as one
-  // snapshot carried and scaled with the glass, fading and blurring as
-  // the morph runs ([TabBarMinimizeMotion.contentBlur]).
+  // snapshot whose top left rides the glass's, in right to left too, and
+  // which scales, fades and blurs as the morph runs
+  // ([TabBarMinimizeMotion.contentBlur]).
   void _paintDissolving(
     PaintingContext context,
     Offset offset,
@@ -481,12 +482,8 @@ class _RenderSelectorRow extends RenderBox
     final body = _frames.body.value.bodyIn(size).drawnRect;
     final metrics = _tabBarMetrics;
     final scale = 1 + (metrics.minimizedSize / metrics.height - 1) * progress;
-    final from = _motion.bar.center;
-    final transform = Matrix4.translationValues(
-      body.center.dx,
-      body.center.dy,
-      0,
-    );
+    final from = _motion.bar.topLeft;
+    final transform = Matrix4.translationValues(body.left, body.top, 0);
     transform.scaleByDouble(scale, scale, 1, 1);
     transform.translateByDouble(-from.dx, -from.dy, 0, 1);
     void items(PaintingContext context, Offset offset) => context.pushTransform(
