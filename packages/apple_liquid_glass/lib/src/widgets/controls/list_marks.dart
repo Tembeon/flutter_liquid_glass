@@ -42,6 +42,54 @@ class _ChevronPainter extends CustomPainter {
       color != oldDelegate.color || mirrored != oldDelegate.mirrored;
 }
 
+/// The chevron of an outline row's disclosure button, centered in the
+/// button and turned a quarter toward pointing down by [turn].
+class _OutlineChevron extends StatelessWidget {
+  const _OutlineChevron({required this.turn, required this.color});
+
+  final ValueListenable<double> turn;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    size: const Size.square(_Metrics.outlineSize),
+    painter: _OutlineChevronPainter(
+      turn: turn,
+      color: color,
+      mirrored: Directionality.of(context) == TextDirection.rtl,
+    ),
+  );
+}
+
+class _OutlineChevronPainter extends CustomPainter {
+  _OutlineChevronPainter({
+    required this.turn,
+    required this.color,
+    required this.mirrored,
+  }) : super(repaint: turn);
+
+  final ValueListenable<double> turn;
+  final Color color;
+  final bool mirrored;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const box = _Metrics.chevronSize;
+    canvas.save();
+    canvas.translate(size.width / 2, size.height / 2);
+    canvas.rotate((mirrored ? -1 : 1) * turn.value * math.pi / 2);
+    canvas.translate(-box.width / 2, -box.height / 2);
+    _ChevronPainter(color: color, mirrored: mirrored).paint(canvas, box);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_OutlineChevronPainter oldDelegate) =>
+      turn != oldDelegate.turn ||
+      color != oldDelegate.color ||
+      mirrored != oldDelegate.mirrored;
+}
+
 /// A checkmark or an info button in its measured box, its ink and strokes
 /// those of UIKit's symbol in that configuration (a 30x render, list
 /// passport); where the strokes turn is drawn by eye.

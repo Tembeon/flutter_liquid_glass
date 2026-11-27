@@ -108,8 +108,11 @@ class GlassListRow extends StatefulWidget {
     this.onInsert,
     this.value,
     this.showsReorderControl = true,
+    this.expanded = false,
+    this.indentationLevel = 0,
     super.key,
-  }) : assert(
+  }) : assert(indentationLevel >= 0, 'A level is 0 or more.'),
+       assert(
          title != null || child != null,
          'A row needs a title or a child.',
        );
@@ -137,8 +140,22 @@ class GlassListRow extends StatefulWidget {
 
   /// Called when the info button of a [GlassListAccessory.detailButton] or
   /// [GlassListAccessory.detailDisclosureButton] is pressed (UIKit
-  /// `accessoryButtonTappedForRowWith`).
+  /// `accessoryButtonTappedForRowWith`), or the button of a
+  /// [GlassListAccessory.outlineDisclosure].
   final VoidCallback? onAccessoryPressed;
+
+  /// Whether an outline row shows its children: its
+  /// [GlassListAccessory.outlineDisclosure] chevron points down, turning
+  /// there and back on the critically damped 0.25 s spring of UIKit's
+  /// collection view lists. The child rows themselves come and go as the
+  /// list's rows do, on its table spring.
+  final bool expanded;
+
+  /// How deep in an outline the row stands: each level moves its content,
+  /// separator and edit control 10 points in, and an indented row's
+  /// content inset drops from 20 to 16 points, as UIKit's
+  /// `indentationLevel` does (iOS 27.2 simulator).
+  final int indentationLevel;
 
   /// Content that fills the text area instead of [title] and [subtitle].
   final Widget? child;
@@ -241,6 +258,22 @@ class _GlassListRowState extends State<GlassListRow> {
     return motion;
   }
 
+  // The turn of an outline row's chevron, made the first time the row
+  // shows one, following [GlassListRow.expanded] from then on.
+  OutlineDisclosureMotion? _outline;
+  MotionSelection<double>? _outlineTurnValue;
+
+  ValueListenable<double> get _outlineTurn {
+    final motion = _outline ??= OutlineDisclosureMotion(
+      expanded: widget.expanded,
+      clock: MotionClockScope.of(context),
+    );
+    motion.expand(motion.clock.now, expanded: widget.expanded);
+    return _outlineTurnValue ??= motion.select(
+      (m) => m.turn.valueAt(m.now),
+    );
+  }
+
   // How far into editing the row is: 0 for a row never edited.
   ValueListenable<double> get _progress =>
       _editProgress ?? const AlwaysStoppedAnimation<double>(0);
@@ -294,6 +327,8 @@ class _GlassListRowState extends State<GlassListRow> {
         kind == GlassListAccessory.detailButton ||
         kind == GlassListAccessory.detailDisclosureButton;
     final check = kind == GlassListAccessory.checkmark;
+    final outline = kind == GlassListAccessory.outlineDisclosure;
+    final turn = outline ? _outlineTurn : null;
     final editing = GlassListEditing.maybeOf(context);
     final value = widget.value;
     final edit = editing == null || !editing.editing
@@ -335,15 +370,36 @@ class _GlassListRowState extends State<GlassListRow> {
       focusNode: widget.focusNode,
       autofocus: widget.autofocus,
       onInfoPressed: widget.onAccessoryPressed,
-      infoSemanticLabel: widget.accessorySemanticLabel,
-      infoCenterInset:
-          (chevron
-              ? _Metrics.accessoryInset +
-                    _Metrics.chevronSize.width +
-                    _Metrics.gap
-              : _Metrics.infoInset) +
-          _Metrics.infoSize / 2,
-      infoBuilder: info
+      infoSemanticLabel:
+          widget.accessorySemanticLabel ??
+          (outline
+              ? (widget.expanded
+                    ? GlassLocalizations.of(context).collapseLabel
+                    : GlassLocalizations.of(context).expandLabel)
+              : null),
+      infoCenterInset: outline
+          ? _Metrics.outlineEndInset + _Metrics.outlineSize / 2
+          : (chevron
+                    ? _Metrics.accessoryInset +
+                          _Metrics.chevronSize.width +
+                          _Metrics.gap
+                    : _Metrics.infoInset) +
+                _Metrics.infoSize / 2,
+      infoBuilder: turn != null && !edits
+          ? (context, details) => GlassHighlightPaint.of(
+              context,
+              states: details.statesListenable,
+              focusColor: look.focusColor,
+              hoverColor: _hover(look, details.states, context),
+              shape: const LiquidOval(),
+              child: _OutlineChevron(
+                turn: turn,
+                color: StateColors(context, details.states)(
+                  look.secondaryColor,
+                ),
+              ),
+            )
+          : info
           ? (context, details) => GlassHighlightPaint.of(
               context,
               states: details.statesListenable,
@@ -365,6 +421,7 @@ class _GlassListRowState extends State<GlassListRow> {
         chevron: !edits && chevron,
         info: !edits && info,
         check: !edits && check,
+        outline: !edits && outline,
         edit: edit,
         grip: grip,
         picked: picked,
@@ -433,6 +490,7 @@ class _GlassListRowState extends State<GlassListRow> {
     required bool chevron,
     required bool info,
     required bool check,
+    required bool outline,
     required _EditKind? edit,
     required bool grip,
     required bool picked,
@@ -461,13 +519,18 @@ class _GlassListRowState extends State<GlassListRow> {
     );
     final inset = place?.layout.contentInset ?? GlassListSection.contentInset;
     final padding = look.contentPadding?.resolve(Directionality.of(context));
-    final start = switch (padding) {
-      null => inset,
-      final padding =>
-        Directionality.of(context) == TextDirection.ltr
-            ? padding.left
-            : padding.right,
-    };
+    final level = widget.indentationLevel;
+    final indent = _Metrics.indentationWidth * level;
+    final start =
+        indent +
+        switch (padding) {
+          null when level > 0 => _Metrics.indentedInset,
+          null => inset,
+          final padding =>
+            Directionality.of(context) == TextDirection.ltr
+                ? padding.left
+                : padding.right,
+        };
     final end = switch (padding) {
       null => inset,
       final padding =>
@@ -479,16 +542,20 @@ class _GlassListRowState extends State<GlassListRow> {
     final subtitle = widget.subtitle;
     final detail = widget.detail;
     final trailing = edit == null && !grip ? widget.trailing : null;
-    final mark = chevron || info || check;
+    final mark = chevron || info || check || outline;
     final accessory = trailing != null || mark;
-    final restEnd = check
+    final restEnd = outline
+        ? _Metrics.outlineEndInset
+        : check
         ? _Metrics.checkmarkInset
         : info && !chevron
         ? _Metrics.infoInset
         : accessory
         ? _Metrics.accessoryInset
         : end;
-    final editStart = _shownEdit != null ? _Metrics.editingInset : start;
+    final editStart = _shownEdit != null
+        ? _Metrics.editingInset + indent
+        : start;
     final editEnd = _shownGrip
         ? _Metrics.gripEndInset + _Metrics.gripWidth + _Metrics.gripGap
         : restEnd;
@@ -575,6 +642,7 @@ class _GlassListRowState extends State<GlassListRow> {
             if (info) const SizedBox.square(dimension: _Metrics.infoSize),
             if (info && chevron) const SizedBox(width: _Metrics.gap),
             if (chevron) _Chevron(color: color(look.disclosureColor)),
+            if (outline) const SizedBox.square(dimension: _Metrics.outlineSize),
           ],
         ),
       ),

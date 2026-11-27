@@ -795,6 +795,21 @@ abstract final class _Metrics {
   /// The diameter of an info button's circle.
   static const double infoSize = 25.67;
 
+  /// How far each outline level moves a row's content in (UIKit's
+  /// `indentationWidth`).
+  static const double indentationWidth = 10;
+
+  /// The content inset of an indented row, before its levels: UIKit drops
+  /// the 20 point margin to 16 once a row is indented, so text stands at
+  /// 36, 42 and 52 on a card at 16 for levels 0, 1 and 2.
+  static const double indentedInset = 16;
+
+  /// The side of an outline row's disclosure button.
+  static const double outlineSize = 44;
+
+  /// How far an outline row's disclosure button ends from the row's end.
+  static const double outlineEndInset = 5;
+
   /// A row's title and detail.
   static const body = TextStyle(fontSize: 17, fontWeight: FontWeight.w400);
 

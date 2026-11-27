@@ -80,6 +80,12 @@ abstract class GlassLocalizations {
   /// The label of a row's button that shows more about it.
   String get moreInfoLabel;
 
+  /// The label of an outline row's button that shows its children.
+  String get expandLabel;
+
+  /// The label of an outline row's button that hides its children.
+  String get collapseLabel;
+
   /// The label of an edit menu's button that shows the items that do not
   /// fit.
   String get editMenuMoreLabel;
@@ -263,6 +269,12 @@ class DefaultGlassLocalizations extends GlassLocalizations {
 
   @override
   String get moreInfoLabel => 'More info';
+
+  @override
+  String get expandLabel => 'Expand';
+
+  @override
+  String get collapseLabel => 'Collapse';
 
   @override
   String get editMenuMoreLabel => 'More';

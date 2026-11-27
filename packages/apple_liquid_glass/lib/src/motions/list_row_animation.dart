@@ -179,3 +179,28 @@ final class ListEditMotion extends Motion {
   bool get restsOut =>
       progress.target == 0 && progress.valueAt(now) <= MotionRest.opacity;
 }
+
+/// The turn of an outline row's disclosure chevron: 0 pointing forward, 1
+/// pointing down, a quarter turn on the critically damped 0.25 s spring a
+/// UIKit collection view list moves on (UIKit's CA animations, iOS 27.2
+/// simulator), not the 0.3 s table spring of the rows (`ListEditMotion`).
+final class OutlineDisclosureMotion extends Motion {
+  /// Creates the turn of a row that is expanded or not.
+  OutlineDisclosureMotion({required this._expanded, super.clock});
+
+  static const _list = Spring.response(0.25);
+
+  bool _expanded;
+
+  /// How far the chevron has turned toward pointing down.
+  late final turn = own(MotionValue<double>(_expanded ? 1 : 0));
+
+  /// The row expands or collapses at time [t].
+  void expand(double t, {required bool expanded}) {
+    advance(t);
+    if (expanded == _expanded) return;
+    final turn = this.turn;
+    _expanded = expanded;
+    turn.retarget(t, expanded ? 1 : 0, spring: _list);
+  }
+}

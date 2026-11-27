@@ -108,7 +108,7 @@ class DatePickerPlacement
 class DefaultGlassLocalizations extends GlassLocalizations
   const DefaultGlassLocalizations()
   static const LocalizationsDelegate<GlassLocalizations> delegate
-  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, columnDividerLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, countDownHoursUnit, countDownMinutesUnit, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, deleteLabel, editMenuMoreLabel, firstDayOfWeek, formatDecimal, hideSidebarLabel, hideYearPickerLabel, hourLabel, incrementLabel, insertLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, moveDownLabel, moveUpLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, reorderLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showSidebarLabel, showYearPickerLabel, weekdayAbbreviation, yearLabel
+  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, collapseLabel, columnDividerLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, countDownHoursUnit, countDownMinutesUnit, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, deleteLabel, editMenuMoreLabel, expandLabel, firstDayOfWeek, formatDecimal, hideSidebarLabel, hideYearPickerLabel, hourLabel, incrementLabel, insertLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, moveDownLabel, moveUpLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, reorderLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showSidebarLabel, showYearPickerLabel, weekdayAbbreviation, yearLabel
 final class EditMenuMotion
   EditMenuMotion({required MotionClock clock})
   static const double hiddenScale
@@ -1334,6 +1334,7 @@ enum GlassListAccessory
   checkmark,
   detailButton,
   detailDisclosureButton,
+  outlineDisclosure,
 class GlassListBackground extends StatelessWidget
   const GlassListBackground({Color color = ..., Widget? child, Key? key})
   final Widget? child
@@ -1393,6 +1394,8 @@ class GlassListRow extends StatefulWidget
     void Function()? onInsert,
     Object? value,
     bool showsReorderControl = ...,
+    bool expanded = ...,
+    int indentationLevel = ...,
     Key? key,
   })
   final GlassListAccessory? accessory
@@ -1401,7 +1404,9 @@ class GlassListRow extends StatefulWidget
   final Widget? child
   final Widget? detail
   final bool enabled
+  final bool expanded
   final FocusNode? focusNode
+  final int indentationLevel
   final Widget? leading
   final void Function()? onAccessoryPressed
   final void Function()? onDelete
@@ -1509,6 +1514,7 @@ abstract class GlassLocalizations
   abstract String get backButtonLabel
   abstract String get clearTextLabel
   abstract String get closeButtonLabel
+  abstract String get collapseLabel
   abstract String get columnDividerLabel
   abstract String compactDate(DateTime date)
   abstract String get compactDatePickerHint
@@ -1522,6 +1528,7 @@ abstract class GlassLocalizations
   abstract String get decrementLabel
   abstract String get deleteLabel
   abstract String get editMenuMoreLabel
+  abstract String get expandLabel
   abstract int get firstDayOfWeek
   abstract String formatDecimal(int number)
   abstract String get hideSidebarLabel
@@ -4307,6 +4314,10 @@ class NavigationPopMotion
   void update(double t, double progress, {bool ending = ...})
   double get velocity
   final double width
+final class OutlineDisclosureMotion extends Motion
+  OutlineDisclosureMotion({required bool expanded, MotionClock? clock})
+  void expand(double t, {required bool expanded})
+  late final MotionValue<double> turn
 sealed class PageControlEvent
   const PageControlEvent()
 final class PageControlMotion extends Motion
@@ -6015,6 +6026,7 @@ class MenuTarget (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum MenuTargetKind (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class MenuWidgetSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class NavigationPopMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class OutlineDisclosureMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PageControlEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PageControlMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PageControlPicked (see package:apple_liquid_glass/apple_liquid_glass.dart)

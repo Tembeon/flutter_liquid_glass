@@ -36,6 +36,7 @@ class _ListPageState extends State<ListPage> {
   var _tight = false;
   var _animation = GlassListRowAnimation.automatic;
   var _picked = <Object>{};
+  var _open = false;
 
   void _change(VoidCallback change) =>
       withSpring(Spring.smooth, () => setState(change));
@@ -192,6 +193,28 @@ class _ListPageState extends State<ListPage> {
                   ),
               ],
             ),
+          ),
+        ),
+        Idea(
+          'Outline rows',
+          'A row with GlassListAccessory.outlineDisclosure turns its chevron '
+              'as it opens; its children stand 10 points in per '
+              'indentationLevel.',
+          flush: true,
+          child: GlassListSection(
+            children: [
+              GlassListRow(
+                title: const Text('Shelves'),
+                accessory: GlassListAccessory.outlineDisclosure,
+                expanded: _open,
+                onAccessoryPressed: () => _change(() => _open = !_open),
+              ),
+              if (_open) ...const [
+                GlassListRow(title: Text('Top shelf'), indentationLevel: 1),
+                GlassListRow(title: Text('Pothos'), indentationLevel: 2),
+                GlassListRow(title: Text('Bottom shelf'), indentationLevel: 1),
+              ],
+            ],
           ),
         ),
         Idea(
