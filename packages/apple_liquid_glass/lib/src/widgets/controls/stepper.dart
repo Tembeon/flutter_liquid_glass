@@ -15,6 +15,7 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
   const GlassStepperStyle({
     this.backgroundColor,
     this.foregroundColor,
+    this.dividerColor,
     this.focusColor,
     this.hoverColor,
     this.builder,
@@ -32,6 +33,10 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
   /// The minus and plus glyphs; label by default. A half that cannot step
   /// further draws its glyph in tertiaryLabel.
   final WidgetStateProperty<Color?>? foregroundColor;
+
+  /// The line between the halves; tertiaryLabel by default (stepper
+  /// passport).
+  final Color? dividerColor;
 
   /// The ring around a stepper focused from the keyboard; null derives it
   /// from systemBlue as Flutter's Cupertino controls do, and a transparent
@@ -60,6 +65,7 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
         foregroundColor,
         other.foregroundColor,
       ),
+      dividerColor: dividerColor ?? other.dividerColor,
       focusColor: focusColor ?? other.focusColor,
       hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
@@ -75,6 +81,7 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
     return GlassStepperStyle(
       backgroundColor: color(backgroundColor, other.backgroundColor),
       foregroundColor: color(foregroundColor, other.foregroundColor),
+      dividerColor: GlassDynamicColor.lerp(dividerColor, other.dividerColor, t),
       focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
       hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
       builder: t < 0.5 ? builder : other.builder,
@@ -86,6 +93,7 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
       other is GlassStepperStyle &&
       other.backgroundColor == backgroundColor &&
       other.foregroundColor == foregroundColor &&
+      other.dividerColor == dividerColor &&
       other.focusColor == focusColor &&
       other.hoverColor == hoverColor &&
       other.builder == builder;
@@ -94,6 +102,7 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
   int get hashCode => Object.hash(
     backgroundColor,
     foregroundColor,
+    dividerColor,
     focusColor,
     hoverColor,
     builder,
@@ -136,9 +145,13 @@ class GlassStepper extends StatelessWidget {
   const GlassStepper({
     required this.value,
     required this.onChanged,
+    this.onChangeStart,
+    this.onChangeEnd,
     this.min = 0,
     this.max = 100,
     this.step = 1,
+    this.wraps = false,
+    this.autorepeat = true,
     this.style,
     this.decrementLabel,
     this.incrementLabel,
@@ -155,6 +168,18 @@ class GlassStepper extends StatelessWidget {
 
   /// See [RawGlassStepper.onChanged].
   final ValueChanged<double>? onChanged;
+
+  /// See [RawGlassStepper.onChangeStart].
+  final ValueChanged<double>? onChangeStart;
+
+  /// See [RawGlassStepper.onChangeEnd].
+  final ValueChanged<double>? onChangeEnd;
+
+  /// See [RawGlassStepper.wraps].
+  final bool wraps;
+
+  /// See [RawGlassStepper.autorepeat].
+  final bool autorepeat;
 
   /// See [RawGlassStepper.min].
   final double min;
@@ -194,9 +219,11 @@ class GlassStepper extends StatelessWidget {
   static GlassStepperStyle styleFrom({
     Color? backgroundColor,
     Color? foregroundColor,
+    Color? dividerColor,
   }) => GlassStepperStyle(
     backgroundColor: GlassStyle.allOrNull(backgroundColor),
     foregroundColor: GlassStyle.allOrNull(foregroundColor),
+    dividerColor: dividerColor,
   );
 
   // Stepper passport: the device fills; under Increase Contrast the 27.2
@@ -216,9 +243,13 @@ class GlassStepper extends StatelessWidget {
     return RawGlassStepper(
       value: value,
       onChanged: onChanged,
+      onChangeStart: onChangeStart,
+      onChangeEnd: onChangeEnd,
       min: min,
       max: max,
       step: step,
+      wraps: wraps,
+      autorepeat: autorepeat,
       decrementLabel: decrementLabel,
       incrementLabel: incrementLabel,
       semanticFormatterCallback: semanticFormatterCallback,
@@ -259,7 +290,10 @@ class _StepperLook extends StatelessWidget {
           scheme?.tertiaryLabel ?? GlassColors.tertiaryLabel,
           context,
         ),
-        divider: GlassDynamicColor.resolve(GlassColors.tertiaryLabel, context),
+        divider: GlassDynamicColor.resolve(
+          look.dividerColor ?? GlassColors.tertiaryLabel,
+          context,
+        ),
         replacesFill: traits.brightness == Brightness.dark,
         canDecrement: details.canDecrement,
         canIncrement: details.canIncrement,

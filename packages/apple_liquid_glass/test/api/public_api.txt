@@ -2251,9 +2251,13 @@ class GlassStepper extends StatelessWidget
   const GlassStepper({
     required double value,
     required void Function(double)? onChanged,
+    void Function(double)? onChangeStart,
+    void Function(double)? onChangeEnd,
     double min = ...,
     double max = ...,
     double step = ...,
+    bool wraps = ...,
+    bool autorepeat = ...,
     GlassStepperStyle? style,
     String? decrementLabel,
     String? incrementLabel,
@@ -2265,11 +2269,14 @@ class GlassStepper extends StatelessWidget
     Key? key,
   })
   final bool autofocus
+  final bool autorepeat
   final String? decrementLabel
   final FocusNode? focusNode
   final String? incrementLabel
   final double max
   final double min
+  final void Function(double)? onChangeEnd
+  final void Function(double)? onChangeStart
   final void Function(double)? onChanged
   final String Function(double)? semanticFormatterCallback
   final String? semanticLabel
@@ -2279,8 +2286,10 @@ class GlassStepper extends StatelessWidget
   static GlassStepperStyle styleFrom({
     Color? backgroundColor,
     Color? foregroundColor,
+    Color? dividerColor,
   })
   final double value
+  final bool wraps
   overrides: build
 typedef GlassStepperBuilder = Widget Function(BuildContext, GlassStepperDetails)
 final class GlassStepperDetails
@@ -2304,12 +2313,14 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle>
   const GlassStepperStyle({
     WidgetStateProperty<Color?>? backgroundColor,
     WidgetStateProperty<Color?>? foregroundColor,
+    Color? dividerColor,
     Color? focusColor,
     Color? hoverColor,
     Widget Function(BuildContext, GlassStepperDetails)? builder,
   })
   final WidgetStateProperty<Color?>? backgroundColor
   final Widget Function(BuildContext, GlassStepperDetails)? builder
+  final Color? dividerColor
   final Color? focusColor
   final WidgetStateProperty<Color?>? foregroundColor
   final Color? hoverColor
@@ -4167,9 +4178,13 @@ class RawGlassStepper extends StatefulWidget
     required double value,
     required void Function(double)? onChanged,
     required Widget Function(BuildContext, GlassStepperDetails) builder,
+    void Function(double)? onChangeStart,
+    void Function(double)? onChangeEnd,
     double min = ...,
     double max = ...,
     double step = ...,
+    bool wraps = ...,
+    bool autorepeat = ...,
     String? decrementLabel,
     String? incrementLabel,
     String Function(double)? semanticFormatterCallback,
@@ -4180,12 +4195,15 @@ class RawGlassStepper extends StatefulWidget
     Key? key,
   })
   final bool autofocus
+  final bool autorepeat
   final Widget Function(BuildContext, GlassStepperDetails) builder
   final String? decrementLabel
   final FocusNode? focusNode
   final String? incrementLabel
   final double max
   final double min
+  final void Function(double)? onChangeEnd
+  final void Function(double)? onChangeStart
   final void Function(double)? onChanged
   final String Function(double)? semanticFormatterCallback
   final String? semanticLabel
@@ -4193,6 +4211,7 @@ class RawGlassStepper extends StatefulWidget
   final WidgetStatesController? statesController
   final double step
   final double value
+  final bool wraps
   overrides: createState
 class RawGlassSwipeActions extends StatefulWidget
   const RawGlassSwipeActions({
