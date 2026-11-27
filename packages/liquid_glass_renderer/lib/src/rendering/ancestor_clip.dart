@@ -3,23 +3,16 @@ import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/rendering/clip_shape.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 
-/// The clip [ancestor] applies to [child], in [ancestor]'s coordinates, or
-/// `null` when it does not clip. Impeller derives a backdrop pass's coverage
-/// from these clips, so glass and captures use the same list to predict the
-/// pass origin their filters see.
-Rect? clipOfAncestor(RenderObject ancestor, RenderObject child) =>
-    ancestor is RenderViewportBase
-    ? _approximateClip(ancestor, child)
-    : paintClipOfAncestor(ancestor, child);
-
 Rect? _approximateClip(RenderObject ancestor, RenderObject child) =>
     ancestor.describeApproximatePaintClip(child);
 
-/// The clip [ancestor] paints around [child], in [ancestor]'s coordinates.
+/// The clip [ancestor] paints around [child], in [ancestor]'s coordinates,
+/// or `null` when it does not clip: the clip layers the framework pushes,
+/// which Impeller derives a pass's coverage from.
 ///
-/// Unlike [clipOfAncestor], a viewport only counts while its content
-/// overflows, mirroring [RenderViewportBase.paint]; its approximate clip API
-/// reports per-sliver semantics instead.
+/// A viewport counts only while its content overflows, mirroring
+/// [RenderViewportBase.paint]; its approximate clip API reports per-sliver
+/// semantics instead.
 Rect? paintClipOfAncestor(RenderObject ancestor, RenderObject child) =>
     switch (clipShapeOf(ancestor)) {
       (_, Clip.none) => null,
@@ -171,7 +164,7 @@ Rect? screenClipAbove(RenderObject node) {
   for (var i = path.length - 1; i > 0; i--) {
     final ancestor = path[i];
     final child = path[i - 1];
-    final clip = clipOfAncestor(ancestor, child);
+    final clip = paintClipOfAncestor(ancestor, child);
     if (clip != null) {
       final screenClip = MatrixUtils.transformRect(toScreen, clip);
       result = result?.intersect(screenClip) ?? screenClip;

@@ -14,7 +14,7 @@ Rect? _reference(RenderObject node) {
     ancestor != null;
     child = ancestor, ancestor = ancestor.parent
   ) {
-    final clip = clipOfAncestor(ancestor, child);
+    final clip = paintClipOfAncestor(ancestor, child);
     if (clip == null) continue;
     final screenClip = MatrixUtils.transformRect(
       ancestor.getTransformTo(null),
