@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,6 +38,11 @@ class _PagesState extends State<_Pages> {
     },
   );
 }
+
+const _pitch = Offset(9.67 + 8, 0);
+
+Offset _dot(Rect box, int index) =>
+    box.centerLeft + const Offset(14 + 9.67 / 2, 0) + _pitch * index.toDouble();
 
 Widget _keyApp(Widget child, {TextDirection direction = TextDirection.ltr}) =>
     WidgetsApp(
@@ -83,8 +89,8 @@ void main() {
     expect(picks, [3, 2, 1]);
   });
 
-  testWidgets('a scrub follows the nearest dot and plays a selection haptic '
-      'per page', (tester) async {
+  testWidgets('a finger that rests 0.15 s scrubs: it follows the nearest dot '
+      'and plays a selection haptic per page', (tester) async {
     final haptics = <String>[];
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
@@ -105,6 +111,7 @@ void main() {
     await tester.pumpWidget(_app(_Pages(picks: picks)));
     final box = tester.getRect(find.byType(GlassPageControl));
     final gesture = await tester.startGesture(box.center);
+    await tester.pump(const Duration(milliseconds: 200));
     for (var i = 0; i < 10; i++) {
       await gesture.moveBy(const Offset(5, 0));
       await tester.pump(const Duration(milliseconds: 25));
@@ -113,6 +120,49 @@ void main() {
     await tester.pump();
     expect(picks, [3, 4]);
     expect(haptics, hasLength(2));
+  });
+
+  testWidgets("a finger resting on another page's dot keeps the page, and a "
+      'slide lifted within 0.15 s taps', (tester) async {
+    final picks = <int>[];
+    await tester.pumpWidget(_app(_Pages(picks: picks)));
+    final box = tester.getRect(find.byType(GlassPageControl));
+    final resting = await tester.startGesture(box.center + _pitch * 2);
+    await tester.pump(const Duration(milliseconds: 300));
+    await resting.up();
+    await tester.pump();
+    expect(picks, isEmpty);
+
+    final sliding = await tester.startGesture(box.center);
+    await sliding.moveBy(_pitch * 2);
+    await tester.pump(const Duration(milliseconds: 50));
+    await sliding.up();
+    await tester.pump();
+    expect(picks, [3]);
+  });
+
+  testWidgets('a tap steps toward the side of the current dot it lands on, '
+      'two pages toggle, and a mouse picks the dot under it', (tester) async {
+    final picks = <int>[];
+    await tester.pumpWidget(
+      _app(GlassPageControl(count: 5, page: 0, onChanged: picks.add)),
+    );
+    final box = tester.getRect(find.byType(GlassPageControl));
+    await tester.tapAt(_dot(box, 1));
+    await tester.pump();
+    expect(picks, [1]);
+
+    await tester.tapAt(_dot(box, 3), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(picks, [1, 3]);
+
+    await tester.pumpWidget(
+      _app(GlassPageControl(count: 2, page: 0, onChanged: picks.add)),
+    );
+    final two = tester.getRect(find.byType(GlassPageControl));
+    await tester.tapAt(two.centerLeft + const Offset(2, 0));
+    await tester.pump();
+    expect(picks, [1, 3, 1]);
   });
 
   testWidgets('without continuous interaction a moving finger only taps, '
@@ -320,11 +370,10 @@ void main() {
     );
     final box = tester.getRect(find.byType(GlassPageControl));
     final finger = await tester.startGesture(box.center);
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 140));
     expect(states.value, contains(WidgetState.pressed));
     expect(states.value, isNot(contains(WidgetState.dragged)));
-    await finger.moveBy(const Offset(30, 0));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 20));
     expect(
       states.value,
       containsAll([WidgetState.pressed, WidgetState.dragged]),
@@ -763,7 +812,7 @@ void main() {
               builder: (context, constraints) {
                 if (raise) {
                   raise = false;
-                  motion.pointerUp(motion.clock.now, 1000, width: 10);
+                  motion.pointerUp(motion.clock.now, 1000);
                 }
                 return RawGlassPageControl(
                   count: 5,

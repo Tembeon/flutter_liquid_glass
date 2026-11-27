@@ -93,10 +93,8 @@ void main() {
     ),
   ]) {
     group('PageControlMotion touches, replayed against $source', () {
-      /// The first dot's center in the probe's window, and the control's
-      /// width (5 pages).
+      /// The first dot's center in the probe's window.
       const firstDot = 166.0;
-      const width = 5 * 9.67 + 4 * 8 + 28;
 
       ({List<int> model, List<int> recorded, double platter}) replay(
         String name,
@@ -130,7 +128,7 @@ void main() {
               case 0:
                 motion.pointerDown(t, x);
               case 3:
-                motion.pointerUp(t, x, width: width);
+                motion.pointerUp(t, x);
               default:
                 motion.pointerMove(t, x);
             }

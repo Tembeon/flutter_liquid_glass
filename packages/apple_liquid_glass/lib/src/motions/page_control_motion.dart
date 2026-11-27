@@ -52,8 +52,11 @@ abstract final class PageControlTuning {
   /// (0.03 - 0.035 s on the device; 0.02 on the simulator).
   static const double platterOutDelay = 0.032;
 
-  /// How far a touch travels before it scrubs instead of tapping.
-  static const double scrubSlop = 10;
+  /// Seconds a finger rests on the control before it scrubs, moved or
+  /// not: UIKit's scrub is a long press of this minimum duration with no
+  /// limit on movement, and a finger lifted sooner taps (read from UIKit's
+  /// code, iOS 27.2 simulator).
+  static const double scrubDelay = 0.15;
 
   /// How far past the midpoint between two dots a scrubbing finger goes
   /// before the page changes, either way (1 - 2 points measured, a frame
@@ -94,6 +97,7 @@ final class PageControlMotion extends Motion {
     required int count,
     required int page,
     this.showsProgress = false,
+    this.scrubs = true,
     this._platterless = false,
     this.onEvent,
     super.clock,
@@ -169,6 +173,10 @@ final class PageControlMotion extends Motion {
   /// Whether the current indicator shows a progress.
   bool showsProgress;
 
+  /// Whether a finger resting on the control scrubs through the pages
+  /// (UIKit's `allowsContinuousInteraction`); without, a touch only taps.
+  bool scrubs;
+
   /// Hears each page a touch picks.
   final void Function(PageControlEvent event)? onEvent;
 
@@ -201,10 +209,12 @@ final class PageControlMotion extends Motion {
     ),
   );
   int _fading = -1;
-  double? _downX;
+  bool _touched = false;
+  bool _precise = false;
   bool _scrubbing = false;
-  bool _stepped = false;
+  double? _scrubsAt;
   static const _platterSlot = #platter;
+  static const _scrubSlot = #scrub;
 
   late final _timer = own(MotionValue<double>(0));
   double _timerDuration = 0;
@@ -272,36 +282,48 @@ final class PageControlMotion extends Motion {
   int get page => _page;
 
   /// Whether a finger is on the control.
-  bool get isTouched => _downX != null;
+  bool get isTouched => _touched;
 
-  /// Whether a finger scrubs through the pages: it moved past the slop.
+  /// Whether a finger scrubs through the pages: it has rested
+  /// [PageControlTuning.scrubDelay] on a control that [scrubs].
   bool get isScrubbing => _scrubbing;
 
+  /// When the finger on the control starts to scrub, or null when it
+  /// scrubs already or never will.
+  double? get scrubsAt => _scrubsAt;
+
   /// A finger touched the control at [x], measured from the start of the
-  /// dots.
-  void pointerDown(double t, double x) {
+  /// dots; a [precise] pointer (a mouse or a trackpad) picks the indicator
+  /// it lifts over, as UIKit's pointer touches do.
+  void pointerDown(double t, double x, {bool precise = false}) {
     advance(t);
     if (count == 0) return;
-    _downX = x;
-    changed();
+    _touched = true;
+    _precise = precise;
     _scrubbing = false;
-    _stepped = false;
+    changed();
     at(
       t + PageControlTuning.platterDelay,
       (s) => _platter.retarget(s, 1, spring: PageControlTuning.platterInSpring),
       slot: _platterSlot,
     );
+    if (!scrubs) return;
+    final due = t + PageControlTuning.scrubDelay;
+    _scrubsAt = due;
+    at(due, (_) {
+      _scrubsAt = null;
+      _scrubbing = true;
+      changed();
+    }, slot: _scrubSlot);
   }
 
-  /// The finger moved to [x].
+  /// The finger moved to [x]. Once it scrubs, it picks the page whose dot
+  /// it nears; the long press that starts the scrub picks nothing by
+  /// itself (a finger resting on another page's dot keeps the page:
+  /// recorded on an iPhone 16 Pro).
   void pointerMove(double t, double x) {
     advance(t);
-    final from = _downX;
-    if (from == null || count == 0) return;
-    if (!_scrubbing && (x - from).abs() <= PageControlTuning.scrubSlop) {
-      return;
-    }
-    _scrubbing = true;
+    if (!_scrubbing || count == 0) return;
     const pitch = PageControlTuning.pitch;
     const h = PageControlTuning.scrubHysteresis;
     final ahead = x - center(_page);
@@ -313,39 +335,51 @@ final class PageControlMotion extends Motion {
     }
     next = next.clamp(0, count - 1);
     if (next != _page) {
-      _stepped = true;
       setPage(t, next);
       onEvent?.call(PageControlPicked(next, scrubbed: true));
     }
   }
 
-  /// The finger lifted at [x]; a tap on the trailing half of a control
-  /// [width] wide (dots and padding) steps forward, on the leading half
-  /// back, unless the touch scrubbed.
-  void pointerUp(double t, double x, {required double width}) {
+  /// The finger lifted at [x]. Unless it scrubbed, it taps: a step toward
+  /// the side of the current page's dot it lifted on, a toggle between
+  /// two pages, or the indicator under a precise pointer (read from
+  /// UIKit's code).
+  void pointerUp(double t, double x) {
     advance(t);
-    final from = _downX;
-    _downX = null;
-    changed();
-    _hidePlatter(t);
-    if (count == 0 || from == null || _scrubbing || _stepped) {
-      _scrubbing = false;
-      return;
-    }
-    final mid = width / 2 - _padding;
-    final next = (_page + (x > mid ? 1 : -1)).clamp(0, count - 1);
+    final touched = _touched;
+    final scrubbed = _scrubbing;
+    _end(t);
+    if (count == 0 || !touched || scrubbed) return;
+    final next = _tapped(x);
     if (next != _page) {
       setPage(t, next);
       onEvent?.call(PageControlPicked(next, scrubbed: false));
     }
   }
 
+  int _tapped(double x) {
+    if (_precise) {
+      final (first, end) = _shown;
+      for (var i = first; i < end; i++) {
+        if ((x - center(i)).abs() <= PageControlTuning.pitch / 2) return i;
+      }
+    }
+    if (count == 2) return 1 - _page;
+    return (_page + (x > center(_page) ? 1 : -1)).clamp(0, count - 1);
+  }
+
   /// The touch was cancelled.
   void pointerCancel(double t) {
     advance(t);
-    _downX = null;
-    changed();
+    _end(t);
+  }
+
+  void _end(double t) {
+    _touched = false;
     _scrubbing = false;
+    _scrubsAt = null;
+    unschedule(_scrubSlot);
+    changed();
     _hidePlatter(t);
   }
 

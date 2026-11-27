@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
@@ -240,12 +241,13 @@ class GlassPageControlTimer extends ChangeNotifier {
 /// UIKit: `UIPageControl`. SwiftUI: the page style of a `TabView`.
 /// Flutter: none.
 ///
-/// It has an indicator for each of [count] pages. A tap on the trailing
-/// half moves to the next page and one on the leading half to the
-/// previous page, on the lift, as UIKit's does; a finger that moves more
-/// than 10 points scrubs to the nearest indicator and plays a selection
-/// haptic each time it changes the page (read from UIKit, notes private);
-/// a `MotionHapticScope` turns that off. A finger takes it within a 44 point
+/// It has an indicator for each of [count] pages. A tap moves a page
+/// toward the side of the current page's indicator it lands on, on the
+/// lift; with two pages it toggles, and a mouse picks the indicator under
+/// it. A finger that rests 0.15 s scrubs, moved or not: from then on it
+/// picks the indicator it nears and plays a selection haptic each time it
+/// changes the page (read from UIKit's code, notes private); a
+/// `MotionHapticScope` turns that off. A finger takes it within a 44 point
 /// tall area around its box, 25.67 points tall with the platter's padding
 /// around the dots and 9.67 under [GlassPageControlBackground.minimal],
 /// where its parent leaves that room.
@@ -313,8 +315,9 @@ class RawGlassPageControl extends StatefulWidget {
   /// the reading direction.
   final AxisDirection? direction;
 
-  /// Whether a finger that moves scrubs through the pages; without, a
-  /// touch only taps, a page back or forward at its release.
+  /// Whether a finger that rests 0.15 s on the control scrubs through the
+  /// pages, moved or not, as UIKit's long press does; without, a touch only
+  /// taps, a page back or forward at its release.
   final bool allowsContinuousInteraction;
 
   /// What accessibility reads for the control.
@@ -361,6 +364,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
     count: _count,
     page: _page,
     showsProgress: _showsProgress(widget),
+    scrubs: widget.allowsContinuousInteraction,
     platterless: _platterless,
     onEvent: _deliver,
     clock: MotionClockScope.of(context),
@@ -480,6 +484,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
       _follow(_directionIn(context));
       return;
     }
+    _motion.scrubs = widget.allowsContinuousInteraction;
     if (!identical(widget.timer, oldWidget.timer)) _takeTimer();
     if ((widget.timer == null) != (oldWidget.timer == null)) {
       _pose = _poseOf();
@@ -598,6 +603,15 @@ final class _PageControlInput extends Interaction {
   bool get dragged => _touching && state._motion.isScrubbing;
 
   @override
+  double? get nextDue => _touching ? state._motion.scrubsAt : null;
+
+  @override
+  InteractionUpdate advance(double time) {
+    state._motion.advance(time);
+    return InteractionUpdate.none;
+  }
+
+  @override
   Set<InputKind> get takes => const {InputKind.pointer, InputKind.adjustment};
 
   void feel(int page) => _felt.add(
@@ -629,17 +643,19 @@ final class _PageControlInput extends Interaction {
         state._command(command);
       case PointerDownInput() when accepts(input):
         _touching = true;
-        motion.pointerDown(input.time, _x(input.position));
+        motion.pointerDown(
+          input.time,
+          _x(input.position),
+          precise:
+              input.kind == PointerDeviceKind.mouse ||
+              input.kind == PointerDeviceKind.trackpad,
+        );
         return const InteractionUpdate(verdict: .claimed);
-      case PointerMoveInput() when state.widget.allowsContinuousInteraction:
+      case PointerMoveInput():
         motion.pointerMove(input.time, _x(input.position));
       case PointerUpInput():
         _touching = false;
-        motion.pointerUp(
-          input.time,
-          _x(input.position),
-          width: state._motion.size.width,
-        );
+        motion.pointerUp(input.time, _x(input.position));
         return const InteractionUpdate(verdict: .recognized);
       case PointerCancelInput():
         _touching = false;
