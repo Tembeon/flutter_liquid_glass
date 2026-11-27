@@ -2032,6 +2032,8 @@ class GlassSearchController extends TextEditingController
   GlassSearchController({String? text})
   void closeView()
   bool get isOpen
+  static GlassSearchController? maybeOf(BuildContext context)
+  static GlassSearchController of(BuildContext context)
   void openView()
 class GlassSearchField extends StatelessWidget
   const GlassSearchField({
@@ -2124,6 +2126,12 @@ class GlassSearchIcon extends StatelessWidget
   static const Size defaultSize
   final Size size
   overrides: build
+class GlassSearchScope extends InheritedNotifier<GlassSearchController>
+  const GlassSearchScope({
+    required GlassSearchController controller,
+    required Widget child,
+    Key? key,
+  })
 final class GlassSegment<T>
   const GlassSegment({
     required T value,
@@ -5763,6 +5771,7 @@ class GlassSearchController (see package:apple_liquid_glass/apple_liquid_glass.d
 typedef GlassSearchFieldBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSearchFieldDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSearchFieldHost (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSearchScope (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassSelectorBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSelectorCollapse (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSelectorDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)

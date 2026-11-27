@@ -183,6 +183,7 @@ GlassSearchFieldDetails
 GlassSearchFieldHost
 GlassSearchFieldStyle
 GlassSearchIcon
+GlassSearchScope
 GlassSegment
 GlassSegmentedControl
 GlassSegmentedStyle

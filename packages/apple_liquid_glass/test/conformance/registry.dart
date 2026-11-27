@@ -1227,6 +1227,8 @@ const Map<String, String> nonInteractive = {
       'a bar entry holding custom content, which takes its own input',
   'GlassBarEntry': 'the sealed base of GlassBarItem and GlassBarSpacer',
   'GlassClip': 'clips its child to a glass shape',
+  'GlassSearchScope':
+      'gives the widgets below a search controller; draws nothing',
   'GlassContentScroll':
       'reports scroll edges to the bars; the scrollable '
       'inside it takes the input',

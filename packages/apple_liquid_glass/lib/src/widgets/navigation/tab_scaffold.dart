@@ -97,7 +97,9 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// page gives the first page of each tab a back button to the page under
 /// it. While the search of a
 /// [searchController] is open, [searchBuilder]'s page shows instead of the
-/// selected tab, kept the same way once built.
+/// selected tab, kept the same way once built. Every page below reads the
+/// search with [GlassSearchController.of], as SwiftUI's `isSearching` and
+/// `dismissSearch`.
 ///
 /// The scaffold draws no glass of its own: it fills the background with
 /// [backgroundColor] on every renderer. The bar draws as [GlassTabBar]
@@ -681,7 +683,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         ),
       ),
     );
-    return ColoredBox(
+    final scaffold = ColoredBox(
       color: background,
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -715,6 +717,9 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         },
       ),
     );
+    final search = widget.searchController;
+    if (search == null) return scaffold;
+    return GlassSearchScope(controller: search, child: scaffold);
   }
 
   Widget _regular({
