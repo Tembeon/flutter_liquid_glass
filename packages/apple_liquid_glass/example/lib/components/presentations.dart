@@ -8,7 +8,9 @@ import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
-enum _AlertKind { two, destructive, three, sheet }
+enum _AlertKind { two, destructive, three, field, sheet }
+
+enum _Sides { any, aboveOrBelow, beside }
 
 class AlertPage extends StatefulWidget {
   const AlertPage({super.key});
@@ -22,6 +24,21 @@ class _AlertPageState extends State<AlertPage> {
   var _message = true;
   var _brand = Brand.system;
   var _answer = 'Nothing answered yet';
+  final _name = TextEditingController(text: 'Fern');
+  final _named = ValueNotifier(true);
+
+  @override
+  void initState() {
+    super.initState();
+    _name.addListener(() => _named.value = _name.text.trim().isNotEmpty);
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _named.dispose();
+    super.dispose();
+  }
 
   Future<void> _show() async {
     final keep = GlassAlertAction(
@@ -45,6 +62,27 @@ class _AlertPageState extends State<AlertPage> {
     final message = _message
         ? const Text('It has had no water for three weeks.')
         : null;
+    if (_kind == _AlertKind.field) {
+      await showGlassAlert(
+        context,
+        title: const Text('Rename the plant'),
+        message: _message ? const Text('The name shows on its pot.') : null,
+        textFields: [
+          GlassAlertTextField(controller: _name, placeholder: 'Name'),
+        ],
+        actions: [
+          cancel,
+          GlassAlertAction(
+            isDefaultAction: true,
+            enabledListenable: _named,
+            child: const Text('Save'),
+            onPressed: () =>
+                setState(() => _answer = 'Renamed ${_name.text.trim()}'),
+          ),
+        ],
+      );
+      return;
+    }
     if (_kind == _AlertKind.sheet) {
       await showGlassActionSheet(
         context,
@@ -100,6 +138,7 @@ class _AlertPageState extends State<AlertPage> {
           _AlertKind.two: 'Two',
           _AlertKind.destructive: 'Destructive',
           _AlertKind.three: 'Three',
+          _AlertKind.field: 'Field',
           _AlertKind.sheet: 'Sheet',
         },
         onChanged: (kind) => setState(() => _kind = kind),
@@ -302,11 +341,29 @@ class PopoverPage extends StatefulWidget {
 
 class _PopoverPageState extends State<PopoverPage> {
   var _adapts = false;
+  var _tinted = false;
+  var _sides = _Sides.any;
 
   Future<void> _show(BuildContext anchor) => showGlassPopover<void>(
     context,
     anchor: anchor,
     adaptsToSheet: _adapts,
+    style: _tinted
+        ? GlassPopoverStyle(
+            backgroundColor: GlassColors.systemGreen.withValues(alpha: 0.3),
+          )
+        : null,
+    permittedArrowDirections: switch (_sides) {
+      _Sides.any => PopoverArrowDirection.any,
+      _Sides.aboveOrBelow => const {
+        PopoverArrowDirection.up,
+        PopoverArrowDirection.down,
+      },
+      _Sides.beside => const {
+        PopoverArrowDirection.left,
+        PopoverArrowDirection.right,
+      },
+    },
     builder: (context) => Padding(
       padding: const EdgeInsets.all(20),
       child: SizedBox(
@@ -381,6 +438,21 @@ class _PopoverPageState extends State<PopoverPage> {
         'Becomes a sheet on a phone',
         value: _adapts,
         onChanged: (on) => setState(() => _adapts = on),
+      ),
+      ToggleKnob(
+        'Tinted glass',
+        value: _tinted,
+        onChanged: (on) => setState(() => _tinted = on),
+      ),
+      ChoiceKnob<_Sides>(
+        'Arrow on',
+        value: _sides,
+        options: const {
+          _Sides.any: 'Any side',
+          _Sides.aboveOrBelow: 'Above or below',
+          _Sides.beside: 'Beside',
+        },
+        onChanged: (sides) => setState(() => _sides = sides),
       ),
     ],
   );
@@ -502,6 +574,59 @@ class _ToastPageState extends State<ToastPage> {
             ),
           ),
         ),
+      ),
+    ],
+  );
+}
+
+class TooltipPage extends StatefulWidget {
+  const TooltipPage({super.key});
+
+  @override
+  State<TooltipPage> createState() => _TooltipPageState();
+}
+
+class _TooltipPageState extends State<TooltipPage> {
+  var _shortcut = true;
+  var _enabled = true;
+
+  @override
+  Widget build(BuildContext context) => ComponentPage(
+    name: 'GlassTooltip',
+    summary:
+        'A hint on a small glass panel under a control, once a mouse has '
+        'rested on it half a second; screen readers read it as the name of '
+        'a glyph button. A touch shows nothing.',
+    backdrop: Wallpaper.alpine,
+    stageHeight: 150,
+    stage: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final (icon, message, keys) in const [
+          (CupertinoIcons.square_pencil, 'New note', 'Cmd N'),
+          (CupertinoIcons.share, 'Share', 'Cmd Shift S'),
+          (CupertinoIcons.trash, 'Delete', 'Cmd Delete'),
+        ]) ...[
+          GlassTooltip(
+            message: message,
+            enabled: _enabled,
+            shortcut: _shortcut ? Text(keys) : null,
+            child: GlassButton(onPressed: () {}, child: Icon(icon)),
+          ),
+          const SizedBox(width: 12),
+        ],
+      ],
+    ),
+    knobs: [
+      ToggleKnob(
+        'Shortcut after the message',
+        value: _shortcut,
+        onChanged: (on) => setState(() => _shortcut = on),
+      ),
+      ToggleKnob(
+        'Shows under a resting mouse',
+        value: _enabled,
+        onChanged: (on) => setState(() => _enabled = on),
       ),
     ],
   );

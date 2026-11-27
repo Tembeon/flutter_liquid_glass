@@ -26,10 +26,12 @@ class NavigationBarPage extends StatefulWidget {
 
 class _NavigationBarPageState extends State<NavigationBarPage> {
   var _large = true;
+  var _subtitle = false;
   var _search = false;
   var _toolbar = true;
   var _items = _Items.icons;
   var _back = GlassBackButtonDisplayMode.title;
+  var _beside = false;
 
   @override
   Widget build(BuildContext context) => ComponentPage(
@@ -45,10 +47,12 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
         context,
         _Journal(
           large: _large,
+          subtitle: _subtitle,
           search: _search,
           toolbar: _toolbar,
           items: _items,
           back: _back,
+          beside: _beside,
         ),
       ),
       child: const Text('Open the journal'),
@@ -58,6 +62,11 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
         'Large title',
         value: _large,
         onChanged: (on) => setState(() => _large = on),
+      ),
+      ToggleKnob(
+        'Subtitle under the inline title',
+        value: _subtitle,
+        onChanged: (on) => setState(() => _subtitle = on),
       ),
       ToggleKnob(
         'Search field under the title',
@@ -89,6 +98,11 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
         },
         onChanged: (back) => setState(() => _back = back),
       ),
+      ToggleKnob(
+        'Edit beside the back button',
+        value: _beside,
+        onChanged: (on) => setState(() => _beside = on),
+      ),
     ],
     ideas: [
       Idea(
@@ -119,17 +133,21 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
 class _Journal extends StatefulWidget {
   const _Journal({
     required this.large,
+    required this.subtitle,
     required this.search,
     required this.toolbar,
     required this.items,
     required this.back,
+    required this.beside,
   });
 
   final bool large;
+  final bool subtitle;
   final bool search;
   final bool toolbar;
   final _Items items;
   final GlassBackButtonDisplayMode back;
+  final bool beside;
 
   @override
   State<_Journal> createState() => _JournalState();
@@ -229,7 +247,18 @@ class _JournalState extends State<_Journal> {
             GlassBarItem(
               icon: const Icon(CupertinoIcons.camera),
               semanticLabel: 'Add a photo',
-              onPressed: () {},
+              menuChildren: [
+                GlassMenuItem(
+                  title: 'Take a photo',
+                  icon: const Icon(CupertinoIcons.camera),
+                  onPressed: () {},
+                ),
+                GlassMenuItem(
+                  title: 'Choose from the library',
+                  icon: const Icon(CupertinoIcons.photo),
+                  onPressed: () {},
+                ),
+              ],
             ),
             const GlassBarSpacer.flexible(),
             _status('${_entries.length} entries'),
@@ -247,8 +276,15 @@ class _JournalState extends State<_Journal> {
     navigationBar: GlassNavigationBar(
       title: widget.large ? null : const Text('Journal'),
       largeTitle: widget.large ? const Text('Journal') : null,
+      subtitle: widget.subtitle
+          ? Text('${_entries.length} entries since spring')
+          : null,
       previousPageTitle: 'Bar',
       backButtonDisplayMode: widget.back,
+      leading: widget.beside
+          ? [GlassBarItem(label: const Text('Edit'), onPressed: _select)]
+          : const [],
+      leadingSupplementsBackButton: widget.beside,
       trailing: _trailing(),
       searchField: widget.search
           ? GlassSearchField(

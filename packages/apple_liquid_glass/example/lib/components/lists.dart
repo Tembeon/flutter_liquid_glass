@@ -21,6 +21,7 @@ class _ListPageState extends State<ListPage> {
   var _subtitle = true;
   var _detail = false;
   var _headers = true;
+  var _separators = true;
   final _tasks = ['Water the monstera', 'Repot the jade', 'Wipe the leaves'];
   var _next = 0;
   var _size = 1;
@@ -69,6 +70,11 @@ class _ListPageState extends State<ListPage> {
           value: _headers,
           onChanged: (on) => setState(() => _headers = on),
         ),
+        ToggleKnob(
+          'Separators',
+          value: _separators,
+          onChanged: (on) => setState(() => _separators = on),
+        ),
       ],
       ideas: [
         Idea(
@@ -77,6 +83,7 @@ class _ListPageState extends State<ListPage> {
               'above.',
           flush: true,
           child: GlassListSection(
+            showsSeparators: _separators,
             header: _headers ? const Text('Living room') : null,
             footer: _headers
                 ? const Text('Three plants by the east window.')

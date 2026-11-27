@@ -320,6 +320,7 @@ class SliderPage extends StatefulWidget {
 class _SliderPageState extends State<SliderPage> {
   var _value = 0.6;
   var _ticks = 0;
+  var _neutral = false;
   var _brand = Brand.system;
   var _light = 0.4;
 
@@ -332,6 +333,7 @@ class _SliderPageState extends State<SliderPage> {
     stage: GlassSlider(
       value: _value,
       ticks: _ticks,
+      neutralValue: _neutral ? 0.5 : null,
       style: _brand.color == null
           ? null
           : GlassSlider.styleFrom(activeTrackColor: _brand.color),
@@ -345,6 +347,11 @@ class _SliderPageState extends State<SliderPage> {
         value: _ticks,
         options: const {0: 'None', 3: '3', 5: '5', 9: '9'},
         onChanged: (ticks) => setState(() => _ticks = ticks),
+      ),
+      ToggleKnob(
+        'Fill from the middle',
+        value: _neutral,
+        onChanged: (on) => setState(() => _neutral = on),
       ),
       ChoiceKnob<Brand>(
         'Colors',
@@ -407,6 +414,8 @@ class StepperPage extends StatefulWidget {
 class _StepperPageState extends State<StepperPage> {
   var _value = 4.0;
   var _step = 1.0;
+  var _wraps = false;
+  var _repeats = true;
   var _brand = Brand.system;
   var _days = 7.0;
   var _pots = 3.0;
@@ -416,7 +425,8 @@ class _StepperPageState extends State<StepperPage> {
     name: 'GlassStepper',
     summary:
         'Two halves that count down and up. A held half repeats, faster '
-        'the longer it is held.',
+        'the longer it is held; with wraps the count runs on past an end '
+        'from the other.',
     stage: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -436,11 +446,14 @@ class _StepperPageState extends State<StepperPage> {
           value: _value,
           max: 40,
           step: _step,
+          wraps: _wraps,
+          autorepeat: _repeats,
           style: _brand.color == null
               ? null
               : GlassStepper.styleFrom(
                   backgroundColor: _brand.color!.withValues(alpha: 0.22),
                   foregroundColor: _brand.color,
+                  dividerColor: _brand.color!.withValues(alpha: 0.5),
                 ),
           onChanged: (value) => setState(() => _value = value),
         ),
@@ -453,6 +466,16 @@ class _StepperPageState extends State<StepperPage> {
         value: _step,
         options: {1.0: '1', 2.0: '2', 5.0: '5'},
         onChanged: (step) => setState(() => _step = step),
+      ),
+      ToggleKnob(
+        'Wraps past 0 and 40',
+        value: _wraps,
+        onChanged: (on) => setState(() => _wraps = on),
+      ),
+      ToggleKnob(
+        'Repeats when held',
+        value: _repeats,
+        onChanged: (on) => setState(() => _repeats = on),
       ),
       ChoiceKnob<Brand>(
         'Colors',
@@ -666,6 +689,8 @@ class _PageControlPageState extends State<PageControlPage> {
   var _count = 6.0;
   var _page = 0;
   var _background = GlassPageControlBackground.prominent;
+  var _hidesSingle = true;
+  var _scrubs = true;
 
   @override
   void dispose() {
@@ -685,9 +710,9 @@ class _PageControlPageState extends State<PageControlPage> {
         AmountKnob(
           'Pages',
           value: _count,
-          min: 2,
+          min: 1,
           max: 6,
-          ticks: 5,
+          ticks: 6,
           onChanged: (count) => setState(() {
             _count = count;
             _page = _page.clamp(0, count.round() - 1);
@@ -702,6 +727,16 @@ class _PageControlPageState extends State<PageControlPage> {
             GlassPageControlBackground.minimal: 'Minimal',
           },
           onChanged: (background) => setState(() => _background = background),
+        ),
+        ToggleKnob(
+          'Hidden with one page',
+          value: _hidesSingle,
+          onChanged: (on) => setState(() => _hidesSingle = on),
+        ),
+        ToggleKnob(
+          'Scrubs under a finger',
+          value: _scrubs,
+          onChanged: (on) => setState(() => _scrubs = on),
         ),
       ],
       ideas: [
@@ -733,6 +768,8 @@ class _PageControlPageState extends State<PageControlPage> {
                         page: _page,
                         progress: _pages.hasClients ? _pages.page : null,
                         backgroundStyle: _background,
+                        hidesForSinglePage: _hidesSingle,
+                        allowsContinuousInteraction: _scrubs,
                         onChanged: (page) => _pages.animateToPage(
                           page,
                           duration: const Duration(milliseconds: 450),
