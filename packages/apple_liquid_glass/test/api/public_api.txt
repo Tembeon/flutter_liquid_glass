@@ -1387,6 +1387,15 @@ class GlassListRow extends StatefulWidget
   final Widget? trailing
   final Object? value
   overrides: createState
+enum GlassListRowAnimation
+  automatic,
+  fade,
+  right,
+  left,
+  top,
+  bottom,
+  middle,
+  none,
 typedef GlassListRowBuilder = Widget Function(BuildContext, GlassListRowDetails)
 final class GlassListRowDetails
   const GlassListRowDetails({
@@ -2463,6 +2472,7 @@ class GlassSliverListSection extends StatelessWidget
     required Widget Function(BuildContext, int) itemBuilder,
     required int itemCount,
     List<Object>? ids,
+    GlassListRowAnimation rowAnimation = ...,
     void Function(int, int)? onReorderItem,
     Widget? header,
     Widget? footer,
@@ -2478,6 +2488,7 @@ class GlassSliverListSection extends StatelessWidget
   final int itemCount
   final GlassListLayout layout
   final void Function(int, int)? onReorderItem
+  final GlassListRowAnimation rowAnimation
   final bool showsSeparators
   final GlassListStyle? style
   overrides: build
@@ -3761,6 +3772,10 @@ final class ListRowHighlight extends Motion implements PointerFollower
   void setSelected(double t, {required bool selected})
   static const double touchDelay
   overrides: cancel, down, hover, move, up
+final class ListRowPlanner extends LayoutPlanner
+  const ListRowPlanner({GlassListRowAnimation animation = ...})
+  final GlassListRowAnimation animation
+  overrides: ==, hashCode, plan
 final class MenuActivated extends MenuEvent
   const MenuActivated(
     double time,
@@ -5880,6 +5895,7 @@ class GlassBarMetrics (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassBarSegment (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarTransitionSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassListRowAnimation (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPress (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassSelectorMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSheetDetent (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -5891,6 +5907,7 @@ class LensSelected (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef LensSlot (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ListReorder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ListRowHighlight (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class ListRowPlanner (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class MenuActivated (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum MenuArea (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class MenuAttachment (see package:apple_liquid_glass/apple_liquid_glass.dart)

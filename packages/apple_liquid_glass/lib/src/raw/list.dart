@@ -19,7 +19,11 @@ import 'package:kinesis/widgets.dart';
 /// `SliverReorderableList`.
 ///
 /// It has no look of its own: `GlassSliverListSection` gives rows its
-/// card. Rows are built lazily by id ([SliverMotionList]).
+/// card. Rows are built lazily by id ([SliverMotionList]). By default a
+/// change moves the rows as UIKit's table does ([ListRowPlanner]): on one
+/// critically damped spring of response 0.3 whatever the transaction's
+/// spring, a deleted row staying while the rows below slide over it and an
+/// inserted one coming down from one row up.
 ///
 /// With [onReorderItem], a [RawGlassReorderHandle] inside a row drags it:
 /// the row lifts at the touch, before any movement, and follows the finger
@@ -36,15 +40,13 @@ import 'package:kinesis/widgets.dart';
 /// Fidelity. The lift, the swap rule and both springs are UIKit 27.2's
 /// ([ListReorder]; list API passport, a reorder drag on the simulator); upward
 /// swaps mirror the downward ones, which were the ones captured. Not built:
-/// UIKit's scroll at the list's edges while a row is held. The other rows
-/// move on the app's spring with [planner]'s insert and remove poses, as
-/// UIKit's row animations were not captured.
+/// UIKit's scroll at the list's edges while a row is held.
 class RawGlassList extends StatefulWidget {
   /// Creates a list of the rows [itemBuilder] builds for [ids].
   const RawGlassList({
     required this.ids,
     required this.itemBuilder,
-    this.planner = const LayoutPlanner.flip(),
+    this.planner = const ListRowPlanner(),
     this.onReorderItem,
     super.key,
   });

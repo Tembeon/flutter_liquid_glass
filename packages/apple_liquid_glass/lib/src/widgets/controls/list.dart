@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/list_accessory.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/list_style.dart';
@@ -453,8 +454,10 @@ bool _endSeparator(GlassListLayout layout, Widget? footer) =>
 ///
 /// It looks like [GlassListSection]: [header], the [itemCount] rows that
 /// [itemBuilder] builds on one rounded card, [footer]. Rows are built only
-/// while they are in view, each in a layer of its own. With [ids], rows
-/// insert, delete and reorder on the app's `withSpring` ([RawGlassList]).
+/// while they are in view, each in a layer of its own. With [ids], a
+/// change of the rows inside a `withSpring` animates as UIKit's table
+/// animates `deleteRows`, `insertRows` and `moveRow` ([rowAnimation],
+/// [RawGlassList]).
 ///
 /// With [onReorderItem], rows reorder by hand in editing: below a
 /// [GlassListEditing] that is editing, each [GlassListRow] shows UIKit's
@@ -473,6 +476,7 @@ class GlassSliverListSection extends StatelessWidget {
     required this.itemBuilder,
     required this.itemCount,
     this.ids,
+    this.rowAnimation = GlassListRowAnimation.automatic,
     this.onReorderItem,
     this.header,
     this.footer,
@@ -495,6 +499,12 @@ class GlassSliverListSection extends StatelessWidget {
   /// What identifies each row across changes of the rows, or null to
   /// identify them by position, which animates nothing.
   final List<Object>? ids;
+
+  /// How a deleted row leaves and an inserted one arrives when [ids]
+  /// change inside a `withSpring`, as UIKit's `UITableView.RowAnimation`;
+  /// every row moves on UIKit's table spring (critically damped, 0.3)
+  /// whatever spring the change came with.
+  final GlassListRowAnimation rowAnimation;
 
   /// Called when a row dragged by its reorder control is dropped somewhere
   /// else, with the index it had and the index it takes once moved; null
@@ -544,6 +554,7 @@ class GlassSliverListSection extends StatelessWidget {
           if (ids case final ids?)
             RawGlassList(
               ids: ids,
+              planner: ListRowPlanner(animation: rowAnimation),
               onReorderItem: onReorderItem,
               itemBuilder: (context, id) => piece(context, indexOf[id]!),
             )

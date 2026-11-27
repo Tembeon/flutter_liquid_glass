@@ -1,0 +1,128 @@
+import 'dart:ui';
+
+import 'package:kinesis/motion.dart';
+import 'package:meta/meta.dart';
+
+/// How a list row that is deleted leaves, and one that is inserted
+/// arrives, while the rows around them make room.
+///
+/// UIKit: `UITableView.RowAnimation`. SwiftUI: a `List`'s default
+/// transitions. Flutter: `SliverAnimatedList`'s builders.
+enum GlassListRowAnimation {
+  /// [bottom] for a deleted row and [top] for an inserted one, as UIKit's
+  /// `.automatic`.
+  automatic,
+
+  /// The row fades out, or in, where it stands.
+  fade,
+
+  /// The row slides off to the right edge, or in from it, and fades.
+  right,
+
+  /// The row slides off to the left edge, or in from it, and fades.
+  left,
+
+  /// A deleted row slides up one row with the rows below it, which cover
+  /// it; an inserted one slides down from one row up.
+  top,
+
+  /// A deleted row stays and the rows below slide up over it; an inserted
+  /// one slides up from one row down (not captured; mirrors [top]).
+  bottom,
+
+  /// The row moves half a row up and fades, or comes from half a row up
+  /// and fades in.
+  middle,
+
+  /// The row goes or comes at once; the others still move.
+  none,
+}
+
+/// Plans a list change as UIKit's table animates it (list API passport,
+/// "Table animations", iOS 27.2 simulator): every row moves on one
+/// critically damped spring of response 0.3 (stiffness 438.65, damping
+/// 41.89), whatever spring the change came with, and a row that leaves or
+/// arrives wears [animation]'s pose. A change outside a transaction jumps,
+/// as a `reloadData` does.
+@immutable
+final class ListRowPlanner extends LayoutPlanner {
+  /// Plans changes with [animation].
+  const ListRowPlanner({this.animation = GlassListRowAnimation.automatic});
+
+  /// How rows leave and arrive.
+  final GlassListRowAnimation animation;
+
+  static const _table = Spring.response(0.3, dampingRatio: 1);
+  static const _fade = MotionPose(opacity: 0);
+
+  @override
+  Map<Object, LayoutPlan> plan(LayoutChange change) {
+    final spring = change.spring == null ? null : _table;
+    return {
+      for (final MapEntry(:key, :value) in change.entries.entries)
+        key: switch (value) {
+          LayoutStaying() => LayoutPlan(spring: spring),
+          LayoutEntering(:final to) => _enter(to, spring),
+          LayoutLeaving(:final from) => _leave(from, spring),
+        },
+    };
+  }
+
+  LayoutPlan _enter(Rect to, Spring? spring) {
+    final up = to.translate(0, -to.height);
+    return switch (animation) {
+      GlassListRowAnimation.none => const LayoutPlan(),
+      GlassListRowAnimation.fade => LayoutPlan(spring: spring, absent: _fade),
+      GlassListRowAnimation.right => LayoutPlan(
+        spring: spring,
+        absent: const MotionPose(offsetFraction: Offset(1, 0), opacity: 0),
+      ),
+      GlassListRowAnimation.left => LayoutPlan(
+        spring: spring,
+        absent: const MotionPose(offsetFraction: Offset(-1, 0), opacity: 0),
+      ),
+      GlassListRowAnimation.top ||
+      GlassListRowAnimation.automatic => LayoutPlan(spring: spring, origin: up),
+      GlassListRowAnimation.bottom => LayoutPlan(
+        spring: spring,
+        origin: to.translate(0, to.height),
+      ),
+      GlassListRowAnimation.middle => LayoutPlan(
+        spring: spring,
+        origin: to.translate(0, -to.height / 2),
+        absent: _fade,
+      ),
+    };
+  }
+
+  LayoutPlan _leave(Rect from, Spring? spring) => switch (animation) {
+    GlassListRowAnimation.none => const LayoutPlan(),
+    GlassListRowAnimation.fade => LayoutPlan(spring: spring, absent: _fade),
+    GlassListRowAnimation.right => LayoutPlan(
+      spring: spring,
+      absent: const MotionPose(offsetFraction: Offset(1, 0), opacity: 0),
+    ),
+    GlassListRowAnimation.left => LayoutPlan(
+      spring: spring,
+      absent: const MotionPose(offsetFraction: Offset(-1, 0), opacity: 0),
+    ),
+    GlassListRowAnimation.top => LayoutPlan(
+      spring: spring,
+      destination: from.translate(0, -from.height),
+    ),
+    GlassListRowAnimation.bottom ||
+    GlassListRowAnimation.automatic => LayoutPlan(spring: spring),
+    GlassListRowAnimation.middle => LayoutPlan(
+      spring: spring,
+      destination: from.translate(0, -from.height / 2),
+      absent: _fade,
+    ),
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is ListRowPlanner && other.animation == animation;
+
+  @override
+  int get hashCode => animation.hashCode;
+}

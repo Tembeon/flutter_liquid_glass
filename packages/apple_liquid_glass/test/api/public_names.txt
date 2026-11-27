@@ -123,6 +123,7 @@ GlassListContextMenu
 GlassListEditing
 GlassListLayout
 GlassListRow
+GlassListRowAnimation
 GlassListRowBuilder
 GlassListRowDetails
 GlassListSection
@@ -325,6 +326,7 @@ LiquidRoundedSuperellipse
 LiquidShape
 ListReorder
 ListRowHighlight
+ListRowPlanner
 LongPressArmEvent
 LongPressInteraction
 LongPressStartEvent
