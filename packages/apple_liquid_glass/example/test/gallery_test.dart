@@ -324,6 +324,12 @@ void galleryTests({bool onDevice = false}) {
     expect(find.text('14 entries since spring'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await leave(find.text('Edit'));
+    await flip('Large title');
+    await flip('Large title in the bar');
+    await press(find.text('Open the journal'));
+    expect(find.text('Journal'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await leave(find.text('Journal'));
     await _back(tester);
 
     await _open(tester, 'Alert');

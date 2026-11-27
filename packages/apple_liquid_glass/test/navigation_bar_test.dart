@@ -315,6 +315,51 @@ void main() {
     expect(styleOf('Updated just now').fontSize, 12);
   });
 
+  testWidgets('a large title in the bar stands in the row at 34 points bold '
+      'from the leading side, 11.67 down, with no area under the row', (
+    tester,
+  ) async {
+    await _phone(tester);
+    await tester.pumpWidget(
+      _app(
+        GlassPageScaffold(
+          navigationBar: GlassNavigationBar(
+            largeTitle: const Text('Library'),
+            largeTitleInBar: true,
+            trailing: [
+              GlassBarItem(
+                icon: const SizedBox.square(dimension: 22),
+                semanticLabel: 'Add',
+                onPressed: () {},
+              ),
+            ],
+          ),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pump();
+    final bar = tester.widget<GlassNavigationBar>(
+      find.byType(GlassNavigationBar),
+    );
+    expect(bar.preferredSize.height, GlassNavigationBar.height);
+    expect(find.text('Library'), findsOneWidget);
+    final title = tester.getRect(find.text('Library'));
+    expect(title.left, moreOrLessEquals(16, epsilon: 0.01));
+    expect(title.top, moreOrLessEquals(62 + 11.67, epsilon: 0.01));
+    final style = tester
+        .widget<RichText>(
+          find.descendant(
+            of: find.text('Library'),
+            matching: find.byType(RichText),
+          ),
+        )
+        .text
+        .style!;
+    expect(style.fontSize, 34);
+    expect(style.fontWeight, FontWeight.w700);
+  });
+
   testWidgets('a large subtitle stands 38.33 under the large title in 11 '
       'point medium, and the bar grows to 125.33', (tester) async {
     await _phone(tester);

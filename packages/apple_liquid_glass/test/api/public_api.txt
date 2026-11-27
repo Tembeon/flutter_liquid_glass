@@ -1647,6 +1647,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget
     Widget? subtitle,
     List<GlassMenuEntry>? titleMenu,
     Widget? largeTitle,
+    bool largeTitleInBar = ...,
     Widget? largeSubtitle,
     List<GlassBarEntry> trailing = ...,
     bool automaticallyImplyLeading = ...,
@@ -1665,6 +1666,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget
   static const double largeSubtitleHeight
   final Widget? largeTitle
   static const double largeTitleHeight
+  final bool largeTitleInBar
   final List<GlassBarEntry> leading
   final bool leadingSupplementsBackButton
   final String? previousPageTitle

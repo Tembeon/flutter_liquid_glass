@@ -185,6 +185,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
     this.subtitle,
     this.titleMenu,
     this.largeTitle,
+    this.largeTitleInBar = false,
     this.largeSubtitle,
     this.trailing = const [],
     this.automaticallyImplyLeading = true,
@@ -228,6 +229,15 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
 
   /// The large title under the row, or null for an inline title only.
   final Widget? largeTitle;
+
+  /// Whether the [largeTitle] stands in the row itself, as UIKit's
+  /// `largeTitleDisplayMode = .inline` draws it: 34 points bold from the
+  /// leading side, past the leading items, its top 11.67 below the row's,
+  /// with no large title area under the row and nothing that scrolls away;
+  /// at the accessibility text sizes it grows to 38 points at most (bars
+  /// passport, iOS 27.2 simulator). [largeSubtitle] and [titleMenu] do not
+  /// show with it.
+  final bool largeTitleInBar;
 
   /// The line under the [largeTitle], or null for none (UIKit
   /// `UINavigationItem.largeSubtitle`): 11 points medium in the secondary
@@ -315,7 +325,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// The height a [largeSubtitle] adds under a large title.
   static const double largeSubtitleHeight = 71.33 - largeTitleHeight;
 
-  double get _large => largeTitle == null
+  double get _large => largeTitle == null || largeTitleInBar
       ? 0
       : largeTitleHeight + (largeSubtitle == null ? 0 : largeSubtitleHeight);
 
@@ -337,6 +347,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
     subtitle: subtitle,
     titleMenu: titleMenu,
     largeTitle: largeTitle,
+    largeTitleInBar: largeTitleInBar,
     largeSubtitle: largeSubtitle,
     trailing: trailing,
     automaticallyImplyLeading: automaticallyImplyLeading,
@@ -553,6 +564,30 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     );
   }
 
+  Widget _inBarTitle(
+    Widget title,
+    GlassNavigationBarStyle look,
+    Color color,
+    BuildContext context,
+  ) {
+    final scale = GlassTextScale.of(
+      context,
+      max: _Metrics.inBarTitleMax / _Metrics.largeTitle.fontSize!,
+    );
+    return scale.apply(
+      DefaultTextStyle(
+        style: scale.resolve(
+          _Metrics.largeTitle
+              .merge(look.largeTitleTextStyle)
+              .copyWith(color: color),
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        child: Semantics(header: true, child: title),
+      ),
+    );
+  }
+
   Widget _titleBlock(
     Widget title,
     GlassTextScale scale,
@@ -639,8 +674,9 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
       look.foregroundColor ?? GlassTheme.labelColorOf(context),
       context,
     );
+    final inBar = widget.largeTitleInBar ? widget.largeTitle : null;
     final title = widget.title ?? widget.largeTitle;
-    final largeTitle = widget.largeTitle;
+    final largeTitle = inBar == null ? widget.largeTitle : null;
     final titleScale = GlassTextScale.of(context, max: _Metrics.maxTextScale);
     final largeScale = GlassTextScale.of(context, max: 1);
     final background = look.backgroundColor;
@@ -707,7 +743,21 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                 sides: sides,
               ),
             ),
-          if (title != null)
+          if (inBar != null)
+            MotionTransition(
+              opacity: _fade,
+              child: CustomSingleChildLayout(
+                delegate: _TitleLayout(
+                  link.titleRoom,
+                  Directionality.of(context),
+                  sides: sides,
+                  covered: GlassBarInset.of(context),
+                  leading: true,
+                ),
+                child: _inBarTitle(inBar, look, color, context),
+              ),
+            )
+          else if (title != null)
             MotionScope(
               motion: _title,
               child: MotionTransition(
@@ -850,6 +900,11 @@ abstract final class _Metrics {
   /// The space between the top of the large title area and its text.
   static const double largeTitleTop = 3.67;
 
+  // A large title in the bar (UIKit `.inline`, bars passport recheck): its
+  // top below the row's top, and its size at the accessibility sizes.
+  static const double inBarTitleTop = 11.67;
+  static const double inBarTitleMax = 38;
+
   /// The largest text scale the inline title follows.
   static const double maxTextScale = 1.25;
 
@@ -913,7 +968,13 @@ class _TitleLayout extends SingleChildLayoutDelegate {
     this.direction, {
     required this.sides,
     required this.covered,
+    this.leading = false,
   }) : super(relayout: room);
+
+  /// Whether the title stands at the leading side, its top
+  /// [_Metrics.inBarTitleTop] below the row's, as a large title in the bar
+  /// does, rather than centered.
+  final bool leading;
 
   final ValueListenable<GlassTitleRoom?> room;
   final TextDirection direction;
@@ -950,6 +1011,14 @@ class _TitleLayout extends SingleChildLayoutDelegate {
   @override
   Offset getPositionForChild(Size size, Size childSize) {
     final room = _roomIn(size);
+    if (leading) {
+      return Offset(
+        direction == TextDirection.rtl
+            ? room.end - childSize.width
+            : room.start,
+        _Metrics.inBarTitleTop,
+      );
+    }
     final box = _boxIn(size);
     final center = (box.left + box.right) / 2;
     final half = childSize.width / 2;
@@ -965,6 +1034,7 @@ class _TitleLayout extends SingleChildLayoutDelegate {
 
   @override
   bool shouldRelayout(_TitleLayout oldDelegate) =>
+      leading != oldDelegate.leading ||
       !identical(room, oldDelegate.room) ||
       direction != oldDelegate.direction ||
       sides != oldDelegate.sides ||

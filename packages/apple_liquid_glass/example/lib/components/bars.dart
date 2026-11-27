@@ -35,6 +35,7 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
   var _edge = GlassScrollEdgeEffect.automatic;
   var _titleMenu = false;
   var _largeSubtitle = false;
+  var _inBar = false;
   var _filtering = false;
 
   @override
@@ -60,6 +61,7 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
           edge: _edge,
           titleMenu: _titleMenu,
           largeSubtitle: _largeSubtitle,
+          inBar: _inBar,
           filtering: _filtering,
         ),
       ),
@@ -70,6 +72,11 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
         'Large title',
         value: _large,
         onChanged: (on) => setState(() => _large = on),
+      ),
+      ToggleKnob(
+        'Large title in the bar',
+        value: _inBar,
+        onChanged: (on) => setState(() => _inBar = on),
       ),
       ToggleKnob(
         'Subtitle under the inline title',
@@ -176,6 +183,7 @@ class _Journal extends StatefulWidget {
     required this.edge,
     required this.titleMenu,
     required this.largeSubtitle,
+    required this.inBar,
     required this.filtering,
   });
 
@@ -189,6 +197,7 @@ class _Journal extends StatefulWidget {
   final GlassScrollEdgeEffect edge;
   final bool titleMenu;
   final bool largeSubtitle;
+  final bool inBar;
   final bool filtering;
 
   @override
@@ -321,6 +330,7 @@ class _JournalState extends State<_Journal> {
     navigationBar: GlassNavigationBar(
       title: widget.large ? null : const Text('Journal'),
       largeTitle: widget.large ? const Text('Journal') : null,
+      largeTitleInBar: widget.inBar,
       subtitle: widget.subtitle
           ? Text('${_entries.length} entries since spring')
           : null,
