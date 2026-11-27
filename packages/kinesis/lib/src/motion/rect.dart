@@ -1,0 +1,226 @@
+import 'dart:math' as math;
+import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
+import 'package:kinesis/src/motion/animation.dart';
+import 'package:kinesis/src/motion/part.dart';
+import 'package:kinesis/src/motion/rest.dart';
+import 'package:kinesis/src/motion/value.dart';
+
+/// The springs of a rect, per axis: the center on one, the width and the
+/// height on their own (a bar's capsule pulse, a zoomed page's measured
+/// height spring).
+@immutable
+final class RectSprings {
+  /// Creates springs for the [center], the [width] and the [height]; an
+  /// axis without a spring moves on the center's.
+  const RectSprings({
+    required this.center,
+    this._width,
+    this._height,
+  });
+
+  /// One [spring] for every axis.
+  const RectSprings.all(Spring spring) : this(center: spring);
+
+  /// The spring of the center.
+  final Spring center;
+
+  final Spring? _width;
+  final Spring? _height;
+
+  /// The spring of the width.
+  Spring get width => _width ?? center;
+
+  /// The spring of the height.
+  Spring get height => _height ?? center;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RectSprings &&
+      other.center == center &&
+      other.width == width &&
+      other.height == height;
+
+  @override
+  int get hashCode => Object.hash(center, width, height);
+}
+
+/// A rect on [RectSprings]: its center, width and height each on their own
+/// spring. With one spring for all three it moves as a `MotionValue<Rect>`
+/// would.
+///
+/// ```dart
+/// late final frame = own(MotionRect(Rect.zero, springs: .all(.snappy)));
+/// frame.retarget(t, measured);
+/// ```
+final class MotionRect extends MotionPart {
+  /// Creates a rect resting at [value] on [springs].
+  ///
+  /// [restDistance] answers how far its center, width and height may still
+  /// swing before the rect counts as at rest, asked each time rest is;
+  /// [MotionRest.length] when it is null.
+  MotionRect(
+    Rect value, {
+    required this.springs,
+    ValueGetter<double>? restDistance,
+  }) : _rest = restDistance,
+       _center = MotionValue<Offset>(value.center, spring: springs.center),
+       _width = MotionValue<double>(
+         value.width,
+         spring: springs.width,
+         restDistance: _length,
+       ),
+       _height = MotionValue<double>(
+         value.height,
+         spring: springs.height,
+         restDistance: _length,
+       );
+
+  static double _length() => MotionRest.length;
+
+  /// The springs a retarget without its own moves on.
+  final RectSprings springs;
+
+  final ValueGetter<double>? _rest;
+
+  final MotionValue<Offset> _center;
+  final MotionValue<double> _width;
+  final MotionValue<double> _height;
+
+  /// Where the rect is heading.
+  Rect get target => Rect.fromCenter(
+    center: _center.target,
+    width: _width.target,
+    height: _height.target,
+  );
+
+  /// Sends the rect toward [to] from its state at [t], on [springs] when
+  /// given, at `t + delay`.
+  void retarget(
+    double t,
+    Rect to, {
+    RectSprings? springs,
+    bool tracking = false,
+    double delay = 0,
+  }) {
+    final s = springs ?? this.springs;
+    _center.retarget(
+      t,
+      to.center,
+      spring: s.center,
+      tracking: tracking,
+      delay: delay,
+    );
+    _width.retarget(
+      t,
+      to.width,
+      spring: s.width,
+      tracking: tracking,
+      delay: delay,
+    );
+    _height.retarget(
+      t,
+      to.height,
+      spring: s.height,
+      tracking: tracking,
+      delay: delay,
+    );
+    changed();
+  }
+
+  /// Sends the rect toward [to] from its state at [t] on [animation], every
+  /// axis alike, at `t + delay`: a [TimingCurve] moves it as a UIView
+  /// animation of a duration moves a layer's frame.
+  void animate(
+    double t,
+    Rect to, {
+    required MotionAnimation animation,
+    double delay = 0,
+  }) {
+    _center.animate(t, to.center, animation: animation, delay: delay);
+    _width.animate(t, to.width, animation: animation, delay: delay);
+    _height.animate(t, to.height, animation: animation, delay: delay);
+    changed();
+  }
+
+  void _shift(Rect from, Rect to) {
+    _center.shift(from.center, to.center);
+    _width.shift(from.width, to.width);
+    _height.shift(from.height, to.height);
+    changed();
+  }
+
+  /// Puts the rect at [value] at [t], keeping its target and the velocity
+  /// each axis had there: a drawn offset baked into the springs.
+  void setPresentation(double t, Rect value) {
+    _center.setPresentation(t, value.center, velocity: _center.velocityAt(t));
+    _width.setPresentation(t, value.width, velocity: _width.velocityAt(t));
+    _height.setPresentation(t, value.height, velocity: _height.velocityAt(t));
+    changed();
+  }
+
+  /// Puts the rect at rest on [value] at [t].
+  void snap(double t, Rect value) {
+    _center.snap(t, value.center);
+    _width.snap(t, value.width);
+    _height.snap(t, value.height);
+    changed();
+  }
+
+  /// The rect at [t].
+  Rect valueAt(double t) => Rect.fromCenter(
+    center: _center.valueAt(t),
+    width: _width.valueAt(t),
+    height: _height.valueAt(t),
+  );
+
+  /// A bound on how far any edge still swings from the target from [t] on.
+  double reach(double t) => math.max(
+    _center.reach(t),
+    math.max(_width.reach(t), _height.reach(t)) / 2,
+  );
+
+  @override
+  double? restTime([double? tolerance]) {
+    final within = tolerance ?? _rest?.call();
+    final c = _center.restTime(within);
+    final w = _width.restTime(within);
+    final h = _height.restTime(within);
+    if (c == null || w == null || h == null) return null;
+    return math.max(c, math.max(w, h));
+  }
+
+  @override
+  bool restsAt(double t, [double? tolerance]) {
+    final within = tolerance ?? _rest?.call();
+    return _center.restsAt(t, within) &&
+        _width.restsAt(t, within) &&
+        _height.restsAt(t, within);
+  }
+
+  @override
+  void restFrom(double t) {
+    _center.restFrom(t);
+    _width.restFrom(t);
+    _height.restFrom(t);
+  }
+
+  @override
+  double? dueAfter(double t) {
+    final c = _center.dueAfter(t);
+    final w = _width.dueAfter(t);
+    final h = _height.dueAfter(t);
+    double? due;
+    if (c != null) due = c;
+    if (w != null && (due == null || w < due)) due = w;
+    if (h != null && (due == null || h < due)) due = h;
+    return due;
+  }
+}
+
+/// Internal layout-carry helper for [MotionRect] within the package.
+@internal
+extension MotionRectInternal on MotionRect {
+  void shift(Rect from, Rect to) => _shift(from, to);
+}

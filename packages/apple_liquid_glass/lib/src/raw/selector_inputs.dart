@@ -1,0 +1,71 @@
+part of 'selector.dart';
+
+/// An item's press: it holds no touch, so the selector's lens drag takes a
+/// finger that moves, and a key or a screen reader activates the item.
+final class _ItemPress extends PressInteraction {
+  _ItemPress(this.onActivate) : super(role: InteractionRole.content);
+
+  final VoidCallback onActivate;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is ActivateInput) onActivate();
+    return super.handle(input);
+  }
+}
+
+/// A selector's touch: the lens follows it from its first event, and it
+/// takes the touch from the items once it moves, which holds it against a
+/// scroll.
+final class _SelectorInput extends Interaction {
+  _SelectorInput(this._owner) : super(role: InteractionRole.control);
+
+  final _RawGlassSelectorState _owner;
+  int? _following;
+  bool _claimed = false;
+
+  /// Whether a finger is on the selector.
+  final ValueNotifier<bool> active = ValueNotifier(false);
+
+  int? get _pointer => _following;
+  set _pointer(int? pointer) {
+    _following = pointer;
+    active.value = pointer != null;
+  }
+
+  @override
+  bool accepts(PointerDownInput down) =>
+      _owner.widget.itemCount > 0 && super.accepts(down);
+
+  @override
+  bool get pressed => _pointer != null;
+
+  @override
+  bool get dragged => _pointer != null && _owner._motion.isDragging;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    switch (input) {
+      case PointerDownInput() when _pointer == null && accepts(input):
+        _pointer = input.pointer;
+        _claimed = false;
+        _owner._down(input);
+      case PointerMoveInput() when input.pointer == _pointer:
+        _owner._move(input);
+        if (!_claimed) {
+          _claimed = true;
+          return const InteractionUpdate(verdict: .claimed);
+        }
+      case PointerUpInput() when input.pointer == _pointer:
+        _pointer = null;
+        _owner._up(input);
+        return const InteractionUpdate(verdict: .recognized);
+      case PointerCancelInput() when input.pointer == _pointer:
+        _pointer = null;
+        _owner._cancel(input.time);
+        return const InteractionUpdate(fails: true);
+      default:
+    }
+    return InteractionUpdate.none;
+  }
+}

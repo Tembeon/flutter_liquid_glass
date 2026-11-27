@@ -7,4 +7,12 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    - lib/src/foundation/platform.g.dart
+    - lib/src/foundation/uikit.g.dart
 include: package:lintervention/analysis_options.yaml
+
+linter:
+  rules:
+    # Cascades read as a second statement glued onto the first; this package
+    # writes one statement per line instead.
+    cascade_invocations: false

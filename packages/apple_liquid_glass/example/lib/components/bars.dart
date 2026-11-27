@@ -1,0 +1,807 @@
+import 'dart:async';
+
+import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass_example/backdrop.dart';
+import 'package:apple_liquid_glass_example/components/component_page.dart';
+import 'package:apple_liquid_glass_example/stand/video_page.dart';
+import 'package:apple_liquid_glass_example/widgets.dart';
+import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
+import 'package:flutter/widgets.dart';
+
+void _open(BuildContext context, Widget page) => unawaited(
+  Navigator.of(
+    context,
+    rootNavigator: true,
+  ).push(GlassPageRoute<void>(builder: (context) => page)),
+);
+
+enum _Items { icons, labels, prominent }
+
+class NavigationBarPage extends StatefulWidget {
+  const NavigationBarPage({super.key});
+
+  @override
+  State<NavigationBarPage> createState() => _NavigationBarPageState();
+}
+
+class _NavigationBarPageState extends State<NavigationBarPage> {
+  var _large = true;
+  var _subtitle = false;
+  var _search = false;
+  var _toolbar = true;
+  var _items = _Items.icons;
+  var _back = GlassBackButtonDisplayMode.title;
+  var _beside = false;
+  var _edge = GlassScrollEdgeEffect.automatic;
+  var _titleMenu = false;
+  var _largeSubtitle = false;
+  var _inBar = false;
+  var _filtering = false;
+
+  @override
+  Widget build(BuildContext context) => ComponentPage(
+    name: 'GlassNavigationBar',
+    summary:
+        'The bar at the top of this page, and GlassToolbar at the bottom '
+        'of one: capsules of glass whose items travel when they change, '
+        'and a large title that folds into the bar as the page scrolls.',
+    backdrop: Wallpaper.dunes,
+    stageHeight: 130,
+    stage: GlassButton.prominent(
+      onPressed: () => _open(
+        context,
+        _Journal(
+          large: _large,
+          subtitle: _subtitle,
+          search: _search,
+          toolbar: _toolbar,
+          items: _items,
+          back: _back,
+          beside: _beside,
+          edge: _edge,
+          titleMenu: _titleMenu,
+          largeSubtitle: _largeSubtitle,
+          inBar: _inBar,
+          filtering: _filtering,
+        ),
+      ),
+      child: const Text('Open the journal'),
+    ),
+    knobs: [
+      ToggleKnob(
+        'Large title',
+        value: _large,
+        onChanged: (on) => setState(() => _large = on),
+      ),
+      ToggleKnob(
+        'Large title in the bar',
+        value: _inBar,
+        onChanged: (on) => setState(() => _inBar = on),
+      ),
+      ToggleKnob(
+        'Subtitle under the inline title',
+        value: _subtitle,
+        onChanged: (on) => setState(() => _subtitle = on),
+      ),
+      ToggleKnob(
+        'Subtitle under the large title',
+        value: _largeSubtitle,
+        onChanged: (on) => setState(() => _largeSubtitle = on),
+      ),
+      ToggleKnob(
+        'A menu from the title',
+        value: _titleMenu,
+        onChanged: (on) => setState(() => _titleMenu = on),
+      ),
+      ToggleKnob(
+        'Filter on, with a badge',
+        value: _filtering,
+        onChanged: (on) => setState(() => _filtering = on),
+      ),
+      ToggleKnob(
+        'Search field under the title',
+        value: _search,
+        onChanged: (on) => setState(() => _search = on),
+      ),
+      ToggleKnob(
+        'Toolbar at the bottom',
+        value: _toolbar,
+        onChanged: (on) => setState(() => _toolbar = on),
+      ),
+      ChoiceKnob<_Items>(
+        'Items',
+        value: _items,
+        options: const {
+          _Items.icons: 'Icons',
+          _Items.labels: 'Labels',
+          _Items.prominent: 'Prominent',
+        },
+        onChanged: (items) => setState(() => _items = items),
+      ),
+      ChoiceKnob<GlassBackButtonDisplayMode>(
+        'Back button',
+        value: _back,
+        options: const {
+          GlassBackButtonDisplayMode.title: 'Title',
+          GlassBackButtonDisplayMode.generic: 'Generic',
+          GlassBackButtonDisplayMode.minimal: 'Minimal',
+        },
+        onChanged: (back) => setState(() => _back = back),
+      ),
+      ToggleKnob(
+        'Edit beside the back button',
+        value: _beside,
+        onChanged: (on) => setState(() => _beside = on),
+      ),
+      ChoiceKnob<GlassScrollEdgeEffect>(
+        'Edge under the bar',
+        value: _edge,
+        options: const {
+          GlassScrollEdgeEffect.automatic: 'Automatic',
+          GlassScrollEdgeEffect.soft: 'Soft',
+          GlassScrollEdgeEffect.hard: 'Hard',
+          GlassScrollEdgeEffect.hidden: 'None',
+        },
+        onChanged: (edge) => setState(() => _edge = edge),
+      ),
+    ],
+    ideas: [
+      Idea(
+        'Bars over a film',
+        'The same bars and buttons over a playing picture: the glass '
+            'reads what moves under it every frame.',
+        flush: true,
+        child: GlassListSection(
+          children: [
+            GlassListRow(
+              leading: const SettingsIcon(
+                icon: CupertinoIcons.play_rectangle_fill,
+                color: GlassColors.systemGray,
+              ),
+              title: const Text('A film'),
+              accessory: GlassListAccessory.disclosureIndicator,
+              onPressed: () => _open(context, const VideoPage()),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+/// A page that is all bars: what the knobs chose, and a Select item that
+/// swaps the items of both bars where they stand.
+class _Journal extends StatefulWidget {
+  const _Journal({
+    required this.large,
+    required this.subtitle,
+    required this.search,
+    required this.toolbar,
+    required this.items,
+    required this.back,
+    required this.beside,
+    required this.edge,
+    required this.titleMenu,
+    required this.largeSubtitle,
+    required this.inBar,
+    required this.filtering,
+  });
+
+  final bool large;
+  final bool subtitle;
+  final bool search;
+  final bool toolbar;
+  final _Items items;
+  final GlassBackButtonDisplayMode back;
+  final bool beside;
+  final GlassScrollEdgeEffect edge;
+  final bool titleMenu;
+  final bool largeSubtitle;
+  final bool inBar;
+  final bool filtering;
+
+  @override
+  State<_Journal> createState() => _JournalState();
+}
+
+class _JournalState extends State<_Journal> {
+  static const _entries = [
+    ('Repotted the monstera', 'Its roots had circled the pot twice.'),
+    ('First flower on the lily', 'White, and gone by Thursday.'),
+    ('Moved the fern', 'Away from the radiator, toward the bath.'),
+    ('Cuttings in water', 'Four of pothos, one of jade.'),
+    ('Aphids', 'On the new leaves. Soap and patience.'),
+    ('A new pot', 'Glazed, blue, a little too big.'),
+    ('The fig dropped a leaf', 'It does this when it is moved.'),
+    ('Fed everything', 'Half strength, as the bottle says.'),
+    ('Roots on the cuttings', 'The pothos first, as always.'),
+    ('Turned the pots', 'A quarter each, toward the window.'),
+    ('The aloe has pups', 'Three, at the foot of it.'),
+    ('Dusted the leaves', 'The rubber plant shines again.'),
+    ('Rain water', 'A bucket of it, for the calathea.'),
+    ('Nothing happened', 'Which is how plants like it.'),
+  ];
+
+  final _query = TextEditingController();
+  final _write = MotionSource();
+  final _picked = <int>{};
+  var _selecting = false;
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
+
+  void _select() => setState(() => _selecting = true);
+
+  void _done() => setState(() {
+    _selecting = false;
+    _picked.clear();
+  });
+
+  GlassBarItem _selectIcon() => GlassBarItem(
+    icon: const Icon(CupertinoIcons.checkmark_circle),
+    semanticLabel: 'Select',
+    onPressed: _select,
+  );
+
+  List<GlassBarEntry> _trailing() => _selecting
+      ? [GlassBarItem.prominent(label: const Text('Done'), onPressed: _done)]
+      : switch (widget.items) {
+          _Items.icons => [
+            GlassBarItem(
+              icon: const Icon(CupertinoIcons.line_horizontal_3_decrease),
+              semanticLabel: 'Filter',
+              selected: widget.filtering,
+              badge: widget.filtering ? const GlassBadge.count(2) : null,
+              onPressed: () {},
+            ),
+            _selectIcon(),
+          ],
+          _Items.labels => [
+            GlassBarItem(label: const Text('Select'), onPressed: _select),
+          ],
+          _Items.prominent => [
+            _selectIcon(),
+            const GlassBarSpacer(),
+            GlassBarItem.prominent(
+              icon: const Icon(CupertinoIcons.plus),
+              semanticLabel: 'Add',
+              onPressed: () {},
+            ),
+          ],
+        };
+
+  GlassBarItem _status(String text) => GlassBarItem.custom(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
+    ),
+  );
+
+  GlassToolbar _toolbar() => GlassToolbar(
+    items: _selecting
+        ? [
+            GlassBarItem(
+              icon: const Icon(CupertinoIcons.share),
+              semanticLabel: 'Share',
+              onPressed: () {},
+            ),
+            const GlassBarSpacer.flexible(),
+            _status('${_picked.length} picked'),
+            const GlassBarSpacer.flexible(),
+            GlassBarItem(
+              icon: const Icon(CupertinoIcons.trash),
+              semanticLabel: 'Delete',
+              tint: GlassColors.systemRed,
+              onPressed: () {},
+            ),
+          ]
+        : [
+            GlassBarItem(
+              icon: const Icon(CupertinoIcons.camera),
+              semanticLabel: 'Add a photo',
+              menuChildren: [
+                GlassMenuItem(
+                  title: 'Take a photo',
+                  icon: const Icon(CupertinoIcons.camera),
+                  onPressed: () {},
+                ),
+                GlassMenuItem(
+                  title: 'Choose from the library',
+                  icon: const Icon(CupertinoIcons.photo),
+                  onPressed: () {},
+                ),
+              ],
+            ),
+            const GlassBarSpacer.flexible(),
+            _status('${_entries.length} entries'),
+            const GlassBarSpacer.flexible(),
+            GlassBarItem(
+              icon: const Icon(CupertinoIcons.square_pencil),
+              semanticLabel: 'Write',
+              zoomSource: _write,
+              onPressed: () => Navigator.of(context).push(
+                GlassPageRoute<void>(
+                  source: _write,
+                  title: 'New entry',
+                  builder: (context) => const GlassPageScaffold(
+                    navigationBar: GlassNavigationBar(title: Text('New entry')),
+                    child: Center(child: Text('Today the fern...')),
+                  ),
+                ),
+              ),
+            ),
+          ],
+  );
+
+  @override
+  Widget build(BuildContext context) => GlassPageScaffold(
+    navigationBar: GlassNavigationBar(
+      title: widget.large ? null : const Text('Journal'),
+      largeTitle: widget.large ? const Text('Journal') : null,
+      largeTitleInBar: widget.inBar,
+      subtitle: widget.subtitle
+          ? Text('${_entries.length} entries since spring')
+          : null,
+      largeSubtitle: widget.large && widget.largeSubtitle
+          ? const Text('Kept since spring')
+          : null,
+      titleMenu: widget.titleMenu
+          ? [
+              GlassMenuItem(
+                title: 'Rename',
+                icon: const Icon(CupertinoIcons.pencil),
+                onPressed: () {},
+              ),
+              GlassMenuItem(
+                title: 'Export',
+                icon: const Icon(CupertinoIcons.share),
+                onPressed: () {},
+              ),
+            ]
+          : null,
+      previousPageTitle: 'Bar',
+      backButtonDisplayMode: widget.back,
+      leading: widget.beside
+          ? [GlassBarItem(label: const Text('Edit'), onPressed: _select)]
+          : const [],
+      leadingSupplementsBackButton: widget.beside,
+      trailing: _trailing(),
+      searchField: widget.search
+          ? GlassSearchField(
+              controller: _query,
+              placeholder: const Text('Search the journal'),
+            )
+          : null,
+    ),
+    toolbar: widget.toolbar ? _toolbar() : null,
+    child: GlassContentScroll(
+      edgeEffects: GlassScrollEdgeEffects(top: widget.edge),
+      child: ListenableBuilder(
+        listenable: _query,
+        builder: (context, _) {
+          final query = _query.text.trim().toLowerCase();
+          return ListView(
+            children: [
+              for (final (index, (title, note)) in _entries.indexed)
+                if ('$title $note'.toLowerCase().contains(query))
+                  GlassListRow(
+                    leading: _selecting
+                        ? Icon(
+                            _picked.contains(index)
+                                ? CupertinoIcons.checkmark_circle_fill
+                                : CupertinoIcons.circle,
+                            color: GlassDynamicColor.resolve(
+                              _picked.contains(index)
+                                  ? GlassColors.systemBlue
+                                  : GlassColors.tertiaryLabel,
+                              context,
+                            ),
+                          )
+                        : null,
+                    title: Text(title),
+                    subtitle: Text(note),
+                    detail: Text('${index + 1} d'),
+                    onPressed: () {
+                      if (!_selecting) return;
+                      setState(() {
+                        if (!_picked.remove(index)) _picked.add(index);
+                      });
+                    },
+                  ),
+            ],
+          );
+        },
+      ),
+    ),
+  );
+}
+
+class TabBarPage extends StatefulWidget {
+  const TabBarPage({super.key});
+
+  @override
+  State<TabBarPage> createState() => _TabBarPageState();
+}
+
+class _TabBarPageState extends State<TabBarPage> {
+  var _tabs = 4.0;
+  var _badges = true;
+  var _minimizes = true;
+  var _accessory = false;
+  var _search = false;
+  var _prominent = false;
+
+  @override
+  Widget build(BuildContext context) => ComponentPage(
+    name: 'GlassTabBar',
+    summary:
+        'The bar at the bottom of an app: a lens of glass that slides '
+        'between two to five tabs and follows the finger. In a '
+        'GlassTabScaffold it tucks away as the page scrolls, carries an '
+        'accessory, or opens into a search.',
+    backdrop: Wallpaper.aurora,
+    stageHeight: 130,
+    stage: GlassButton.prominent(
+      onPressed: () => _open(
+        context,
+        _Greenhouse(
+          tabs: _tabs.round(),
+          badges: _badges,
+          minimizes: _minimizes && !_prominent,
+          accessory: _accessory && !_prominent,
+          search: _search && !_prominent,
+          prominent: _prominent,
+        ),
+      ),
+      child: const Text('Open the greenhouse'),
+    ),
+    knobs: [
+      AmountKnob(
+        'Tabs',
+        value: _tabs,
+        min: 2,
+        max: 5,
+        ticks: 4,
+        shows: (tabs) => '${tabs.round()}',
+        onChanged: (tabs) => setState(() => _tabs = tabs.roundToDouble()),
+      ),
+      ToggleKnob(
+        'Badges',
+        value: _badges,
+        onChanged: (on) => setState(() => _badges = on),
+      ),
+      ToggleKnob(
+        'A search tab',
+        value: _search,
+        onChanged: (on) => setState(() => _search = on),
+      ),
+      ToggleKnob(
+        'Tucks away on a scroll down',
+        value: _minimizes,
+        onChanged: (on) => setState(() => _minimizes = on),
+      ),
+      ToggleKnob(
+        'An accessory above it',
+        value: _accessory,
+        onChanged: (on) => setState(() => _accessory = on),
+      ),
+      ToggleKnob(
+        'The last tab prominent, in a circle (no search, accessory or '
+        'tucking away)',
+        value: _prominent,
+        onChanged: (on) => setState(() => _prominent = on),
+      ),
+    ],
+  );
+}
+
+/// An app of its own under the tab bar the knobs chose.
+class _Greenhouse extends StatefulWidget {
+  const _Greenhouse({
+    required this.tabs,
+    required this.badges,
+    required this.minimizes,
+    required this.accessory,
+    required this.search,
+    required this.prominent,
+  });
+
+  final int tabs;
+  final bool badges;
+  final bool minimizes;
+  final bool accessory;
+  final bool search;
+  final bool prominent;
+
+  @override
+  State<_Greenhouse> createState() => _GreenhouseState();
+}
+
+class _GreenhouseState extends State<_Greenhouse> {
+  static const _tabs = [
+    ('Plants', CupertinoIcons.tree, null),
+    ('Rooms', CupertinoIcons.house, CupertinoIcons.house_fill),
+    ('Journal', CupertinoIcons.book, CupertinoIcons.book_fill),
+    ('Wishes', CupertinoIcons.heart, CupertinoIcons.heart_fill),
+    ('Shop', CupertinoIcons.cart, CupertinoIcons.cart_fill),
+  ];
+
+  static const _rows = [
+    'Monstera',
+    'Jade plant',
+    'Peace lily',
+    'Boston fern',
+    'Pothos',
+    'Snake plant',
+    'Calathea',
+    'Fiddle-leaf fig',
+    'String of pearls',
+    'Aloe',
+    'Rubber plant',
+    'Spider plant',
+    'Olive tree',
+    'Maidenhair',
+    'Hoya',
+    'Begonia',
+  ];
+
+  final _search = GlassSearchController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Widget _page(String title, Iterable<String> rows) => GlassPageScaffold(
+    backgroundColor: GlassColors.systemGroupedBackground,
+    navigationBar: GlassNavigationBar(
+      largeTitle: Text(title),
+      previousPageTitle: 'Tab bar',
+    ),
+    child: GlassContentScroll(
+      child: ListView(
+        children: [
+          GlassListSection(
+            children: [
+              for (final row in rows)
+                GlassListRow(
+                  leading: const SettingsIcon(
+                    icon: CupertinoIcons.tree,
+                    color: GlassColors.systemGreen,
+                  ),
+                  title: Text(row),
+                  subtitle: Text(title),
+                  onPressed: () {},
+                ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) => GlassTabScaffold(
+    backgroundColor: GlassColors.systemGroupedBackground,
+    minimizeBehavior: widget.minimizes
+        ? GlassTabBarMinimizeBehavior.onScrollDown
+        : GlassTabBarMinimizeBehavior.automatic,
+    bottomAccessory: widget.accessory ? const _Reminder() : null,
+    searchController: widget.search ? _search : null,
+    tabs: [
+      for (final (index, (name, icon, selected)) in _tabs.indexed.take(
+        widget.tabs,
+      ))
+        GlassTab(
+          icon: Icon(icon),
+          selectedIcon: selected == null ? null : Icon(selected),
+          label: Text(name),
+          prominent: widget.prominent && index == widget.tabs - 1,
+          badge: switch (index) {
+            _ when !widget.badges => null,
+            1 => const GlassBadge.indicator(),
+            2 => const GlassBadge.count(3),
+            _ => null,
+          },
+          builder: (context) => _page(name, _rows),
+        ),
+    ],
+    searchBuilder: widget.search
+        ? (context) => ListenableBuilder(
+            listenable: _search,
+            builder: (context, _) {
+              final query = _search.text.trim().toLowerCase();
+              return _page('Search', [
+                for (final row in _rows)
+                  if (row.toLowerCase().contains(query)) row,
+              ]);
+            },
+          )
+        : null,
+  );
+}
+
+class _Reminder extends StatelessWidget {
+  const _Reminder();
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(horizontal: 14),
+    child: Row(
+      children: [
+        Icon(CupertinoIcons.drop_fill, size: 18),
+        SizedBox(width: 10),
+        Expanded(
+          child: GlassDefaultTextStyle(
+            role: GlassTextRole.subheadline,
+            child: Text(
+              'The fern is thirsty',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class SplitViewPage extends StatefulWidget {
+  const SplitViewPage({super.key});
+
+  @override
+  State<SplitViewPage> createState() => _SplitViewPageState();
+}
+
+class _SplitViewPageState extends State<SplitViewPage> {
+  var _resizable = true;
+  var _half = false;
+
+  @override
+  Widget build(BuildContext context) => ComponentPage(
+    name: 'GlassSplitView',
+    summary:
+        'A sidebar beside its content, each column with bars of its own; '
+        'the sidebar button slides the sidebar away and back.',
+    backdrop: Wallpaper.dunes,
+    stageHeight: 130,
+    stage: GlassButton.prominent(
+      onPressed: () =>
+          _open(context, _Mail(resizable: _resizable, half: _half)),
+      child: const Text('Open the mail'),
+    ),
+    knobs: [
+      ToggleKnob(
+        'A divider resizes the columns',
+        value: _resizable,
+        onChanged: (on) => setState(() => _resizable = on),
+      ),
+      ToggleKnob(
+        'Half and half',
+        value: _half,
+        onChanged: (on) => setState(() => _half = on),
+      ),
+    ],
+  );
+}
+
+const _mailboxes = {
+  'Inbox': CupertinoIcons.tray_fill,
+  'Drafts': CupertinoIcons.doc_fill,
+  'Sent': CupertinoIcons.paperplane_fill,
+  'Archive': CupertinoIcons.archivebox_fill,
+};
+
+/// A mail app on a split view: mailboxes in the sidebar, the letters of
+/// the chosen one beside it, and a letter pushed over them in its column.
+class _Mail extends StatefulWidget {
+  const _Mail({required this.resizable, required this.half});
+
+  final bool resizable;
+  final bool half;
+
+  @override
+  State<_Mail> createState() => _MailState();
+}
+
+class _MailState extends State<_Mail> {
+  final _controller = GlassSplitViewController();
+  final _letters = GlobalKey<NavigatorState>();
+  var _mailbox = 'Inbox';
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _choose(String mailbox) {
+    _letters.currentState?.popUntil((route) => route.isFirst);
+    setState(() => _mailbox = mailbox);
+    _controller.show(GlassSplitViewColumn.secondary);
+  }
+
+  @override
+  Widget build(BuildContext context) => GlassSplitView(
+    controller: _controller,
+    resizable: widget.resizable,
+    preferredPrimaryWidthFraction: widget.half ? 0.5 : null,
+    minimumPrimaryWidth: 220,
+    minimumSecondaryWidth: widget.half
+        ? 220
+        : GlassSplitView.defaultMinimumSecondaryWidth,
+    primary: GlassPageScaffold(
+      navigationBar: const GlassNavigationBar(
+        largeTitle: Text('Mailboxes'),
+      ),
+      child: GlassContentScroll(
+        child: ListView(
+          children: [
+            GlassListSection(
+              children: [
+                for (final MapEntry(key: name, value: icon)
+                    in _mailboxes.entries)
+                  GlassListRow(
+                    leading: Icon(icon),
+                    title: Text(name),
+                    accessory: name == _mailbox
+                        ? GlassListAccessory.checkmark
+                        : null,
+                    onPressed: () => _choose(name),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+    secondary: Navigator(
+      key: _letters,
+      onGenerateRoute: (settings) => GlassPageRoute<void>(
+        builder: (context) => _Letters(mailbox: _mailbox),
+      ),
+    ),
+  );
+}
+
+class _Letters extends StatelessWidget {
+  const _Letters({required this.mailbox});
+
+  final String mailbox;
+
+  @override
+  Widget build(BuildContext context) => GlassPageScaffold(
+    navigationBar: GlassNavigationBar(title: Text(mailbox)),
+    child: GlassContentScroll(
+      child: ListView(
+        children: [
+          GlassListSection(
+            children: [
+              for (var i = 1; i <= 12; i++)
+                GlassListRow(
+                  title: Text('Letter $i'),
+                  subtitle: Text('In $mailbox'),
+                  accessory: GlassListAccessory.disclosureIndicator,
+                  onPressed: () => Navigator.of(context).push(
+                    GlassPageRoute<void>(
+                      builder: (context) => GlassPageScaffold(
+                        navigationBar: GlassNavigationBar(
+                          title: Text('Letter $i'),
+                        ),
+                        child: const Center(child: Text('Dear reader,')),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}

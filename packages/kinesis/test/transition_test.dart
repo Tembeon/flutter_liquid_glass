@@ -1,0 +1,402 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/kinesis.dart';
+
+class _Counted extends LeafRenderObjectWidget {
+  const _Counted();
+
+  @override
+  _RenderCounted createRenderObject(BuildContext context) => _RenderCounted();
+}
+
+class _RenderCounted extends RenderBox {
+  int layouts = 0;
+  int paints = 0;
+
+  @override
+  void performLayout() {
+    layouts++;
+    size = constraints.biggest.isFinite
+        ? constraints.biggest
+        : constraints.constrain(const Size(50, 50));
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) => paints++;
+}
+
+Widget _app(Widget child) =>
+    Directionality(textDirection: TextDirection.ltr, child: child);
+
+MotionTransitionLayer _layer(WidgetTester tester) =>
+    tester.renderObject(find.byType(MotionTransition)).debugLayer!
+        as MotionTransitionLayer;
+
+List<String> _labels(WidgetTester tester) {
+  final labels = <String>[];
+  bool visit(SemanticsNode node) {
+    labels.add(node.label);
+    node.visitChildren(visit);
+    return true;
+  }
+
+  final owner = tester.renderObject(find.byType(MotionTransition)).owner;
+  final root = owner?.semanticsOwner?.rootSemanticsNode;
+  if (root != null) visit(root);
+  return labels;
+}
+
+void main() {
+  setUp(MotionClock.debugReset);
+
+  testWidgets('moving values reach the layer without building, laying out '
+      'or repainting the child', (tester) async {
+    final offset = MotionValue(Offset.zero);
+    final opacity = MotionValue<double>(1);
+    final scale = MotionValue<double>(1);
+    await tester.pumpWidget(
+      _app(
+        Center(
+          child: SizedBox.square(
+            dimension: 100,
+            child: MotionTransition(
+              offset: offset,
+              opacity: opacity,
+              scale: scale,
+              child: const _Counted(),
+            ),
+          ),
+        ),
+      ),
+    );
+    final child = tester.renderObject<_RenderCounted>(find.byType(_Counted));
+    expect(child.paints, 1);
+    final rebuilt = <Widget>[];
+    debugOnRebuildDirtyWidget = (element, _) => rebuilt.add(element.widget);
+    addTearDown(() => debugOnRebuildDirtyWidget = null);
+    withSpring(const Spring.response(0.4), () {
+      offset.target = const Offset(80, 0);
+      opacity.target = 0.2;
+      scale.target = 1.5;
+    });
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(_layer(tester).alpha, isNotNull);
+    withSpring(const Spring.response(0.4), () {
+      offset.target = Offset.zero;
+      opacity.target = 1;
+      scale.target = 1;
+    });
+    await tester.pumpAndSettle();
+    debugOnRebuildDirtyWidget = null;
+    expect(rebuilt, isEmpty);
+    expect(child.layouts, 1);
+    expect(child.paints, 1);
+    expect(_layer(tester).alpha, isNull);
+    expect(_layer(tester).debugAddsTransform, isFalse);
+  });
+
+  testWidgets('a transparent child is left out of the scene, blur and '
+      'all', (tester) async {
+    final opacity = MotionValue<double>(0);
+    await tester.pumpWidget(
+      _app(
+        Center(
+          child: SizedBox.square(
+            dimension: 100,
+            child: MotionTransition(
+              opacity: opacity,
+              blur: const AlwaysStoppedAnimation(6),
+              child: const _Counted(),
+            ),
+          ),
+        ),
+      ),
+    );
+    // ignore: invalid_use_of_protected_member
+    expect(_layer(tester).engineLayer, isNull);
+    opacity.target = 0.5;
+    await tester.pump();
+    // ignore: invalid_use_of_protected_member
+    expect(_layer(tester).engineLayer, isNotNull);
+  });
+
+  testWidgets('a height takes part in the layout at its presented value '
+      'while the child keeps the model', (tester) async {
+    final height = MotionValue<double>(100);
+    await tester.pumpWidget(
+      _app(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MotionTransition(height: height, child: const _Counted()),
+            const SizedBox(key: ValueKey('below'), width: 10, height: 10),
+          ],
+        ),
+      ),
+    );
+    withSpring(const Spring.response(0.4), () => height.target = 200);
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 50));
+    final presented = height.value;
+    expect(presented, greaterThan(100));
+    expect(presented, lessThan(200));
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('below'))).dy,
+      closeTo(presented, 1e-6),
+    );
+    expect(tester.getSize(find.byType(_Counted)).height, 200);
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.byKey(const ValueKey('below'))).dy, 200);
+  });
+
+  testWidgets('a moved child is hit where it is drawn', (tester) async {
+    final offset = MotionValue(const Offset(200, 0));
+    var taps = 0;
+    await tester.pumpWidget(
+      _app(
+        Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 300,
+            height: 50,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  width: 50,
+                  height: 50,
+                  child: MotionTransition(
+                    offset: offset,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => taps++,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tapAt(const Offset(225, 25));
+    expect(taps, 1);
+    await tester.tapAt(const Offset(25, 25));
+    expect(taps, 1);
+  });
+
+  testWidgets('under a muted TickerMode it stops following, and catches up '
+      'when the same ticker runs again', (tester) async {
+    final offset = MotionValue(Offset.zero);
+    await tester.pumpWidget(
+      _app(
+        TickerMode(
+          enabled: false,
+          child: MotionTransition(offset: offset, child: const _Counted()),
+        ),
+      ),
+    );
+    offset.snap(offset.clock.now, const Offset(30, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(_layer(tester).debugAddsTransform, isFalse);
+    await tester.pumpWidget(
+      _app(
+        TickerMode(
+          enabled: true,
+          child: MotionTransition(offset: offset, child: const _Counted()),
+        ),
+      ),
+    );
+    expect(_layer(tester).debugAddsTransform, isTrue);
+  });
+
+  testWidgets('at opacity 0 the child has no semantics and takes no hits, '
+      'with no build', (tester) async {
+    final opacity = MotionValue<double>(1);
+    var taps = 0;
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox.square(
+            dimension: 50,
+            child: MotionTransition(
+              opacity: opacity,
+              child: Semantics(
+                label: 'faded',
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => taps++,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(_labels(tester), contains('faded'));
+    await tester.tapAt(const Offset(25, 25));
+    expect(taps, 1);
+
+    final rebuilt = <Widget>[];
+    debugOnRebuildDirtyWidget = (element, _) => rebuilt.add(element.widget);
+    addTearDown(() => debugOnRebuildDirtyWidget = null);
+    withSpring(const Spring.response(0.3), () => opacity.target = 0);
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(opacity.value, greaterThan(0));
+    expect(_labels(tester), contains('faded'));
+    await tester.pumpAndSettle();
+    expect(_labels(tester), isNot(contains('faded')));
+    await tester.tapAt(const Offset(25, 25));
+    expect(taps, 1);
+
+    withSpring(const Spring.response(0.3), () => opacity.target = 1);
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(opacity.value, lessThan(1));
+    expect(_labels(tester), contains('faded'));
+    await tester.tapAt(const Offset(25, 25));
+    expect(taps, 2);
+    debugOnRebuildDirtyWidget = null;
+    expect(rebuilt, isEmpty);
+    semantics.dispose();
+  });
+
+  testWidgets('the child semantics move with the values in the frame they '
+      'come to rest', (tester) async {
+    final translateX = MotionValue<double>(0);
+    final semantics = tester.ensureSemantics();
+    double left() {
+      final node = tester.getSemantics(find.bySemanticsLabel('moved'));
+      var rect = node.rect;
+      for (SemanticsNode? n = node; n != null; n = n.parent) {
+        if (n.transform case final transform?) {
+          rect = MatrixUtils.transformRect(transform, rect);
+        }
+      }
+      return rect.left / tester.view.devicePixelRatio;
+    }
+
+    await tester.pumpWidget(
+      _app(
+        Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox.square(
+            dimension: 50,
+            child: MotionTransition(
+              translateX: translateX,
+              child: Semantics(
+                label: 'moved',
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(left(), 0);
+    withSpring(const Spring.response(0.3), () => translateX.target = 80);
+    for (var frame = 0; translateX.value != 80; frame++) {
+      expect(frame, lessThan(240));
+      await tester.pump(const Duration(milliseconds: 8));
+    }
+    expect(left(), 80);
+    semantics.dispose();
+  });
+
+  testWidgets('a pose adds to the single values and moves by a fraction of '
+      'the size', (tester) async {
+    final pose = ValueNotifier(
+      const MotionPose(offsetFraction: Offset(0.5, 0), opacity: 0.5, blur: 3),
+    );
+    addTearDown(pose.dispose);
+    final opacity = MotionValue<double>(0.5);
+    final blur = MotionValue<double>(4);
+    await tester.pumpWidget(
+      _app(
+        Align(
+          alignment: Alignment.topLeft,
+          child: MotionTransition(
+            pose: pose,
+            opacity: opacity,
+            blur: blur,
+            child: const SizedBox(width: 40, height: 20),
+          ),
+        ),
+      ),
+    );
+    final layer = _layer(tester);
+    expect(layer.total.getTranslation().x, 20);
+    expect(layer.alpha, 64);
+    expect(layer.blur, 5);
+
+    pose.value = const MotionPose(offsetFraction: Offset(0, -1));
+    await tester.pump();
+    expect(layer.total.getTranslation().x, 0);
+    expect(layer.total.getTranslation().y, -20);
+    expect(layer.alpha, 128);
+    expect(layer.blur, 4);
+  });
+
+  testWidgets("below input's opacity threshold the child takes no hits but "
+      'keeps its semantics', (tester) async {
+    final opacity = MotionValue<double>(InputZoneFrame.minimumOpacity / 2);
+    var taps = 0;
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox.square(
+            dimension: 50,
+            child: MotionTransition(
+              opacity: opacity,
+              child: Semantics(
+                label: 'faint',
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => taps++,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(_labels(tester), contains('faint'));
+    await tester.tapAt(const Offset(25, 25));
+    expect(taps, 0);
+    opacity.target = InputZoneFrame.minimumOpacity;
+    await tester.pump();
+    await tester.tapAt(const Offset(25, 25));
+    expect(taps, 1);
+    semantics.dispose();
+  });
+
+  test('a layer adds no opacity at full, is not added again for a change '
+      'under half an alpha step, and is transparent below zero', () {
+    final layer = MotionTransitionLayer();
+    addTearDown(layer.dispose);
+    void look(double opacity) =>
+        layer.update(transform: null, clip: null, opacity: opacity, blur: 0);
+
+    look(0.999);
+    expect(layer.alpha, isNull);
+    look(0.5);
+    expect(layer.alpha, 128);
+    layer.buildScene(ui.SceneBuilder()).dispose();
+    look(0.5 + 0.4 / 255);
+    expect(layer.debugSubtreeNeedsAddToScene, isFalse);
+    look(0.6);
+    expect(layer.debugSubtreeNeedsAddToScene, isTrue);
+    look(-0.2);
+    expect(layer.alpha, 0);
+  });
+}

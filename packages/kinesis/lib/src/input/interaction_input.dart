@@ -1,0 +1,451 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/painting.dart';
+import 'package:kinesis/src/input/interaction.dart';
+import 'package:kinesis/src/input/interaction_values.dart';
+import 'package:kinesis/src/input/pan_velocity.dart';
+import 'package:kinesis/src/input/press_reach.dart';
+
+/// One stamped input to an [InteractionSession], at [time] on the motion
+/// clock.
+@immutable
+sealed class InteractionInput {
+  /// Creates an input at [time].
+  const InteractionInput({required this.time});
+
+  /// The motion time of the input, in seconds.
+  final double time;
+}
+
+/// An input of one touch, from its [PointerDownInput] to its
+/// [PointerUpInput] or [PointerCancelInput]: the touch of [pointer].
+sealed class TouchInput extends InteractionInput {
+  /// Creates an input of the touch of [pointer] at [time].
+  const TouchInput({required super.time, required this.pointer});
+
+  /// The pointer.
+  final int pointer;
+}
+
+/// A pointer touched the region.
+final class PointerDownInput extends TouchInput {
+  /// Creates a down input.
+  const PointerDownInput({
+    required super.time,
+    required super.pointer,
+    required this.position,
+    required this.regionSize,
+    double? contactTime,
+    this.reach = PressReach.box,
+    this._globalPosition,
+    this.kind = PointerDeviceKind.touch,
+    this.buttons = kPrimaryButton,
+    this.scrollAxes = const {},
+    this.contested = false,
+    this.gestureSettings,
+    this.textDirection = TextDirection.ltr,
+  }) : contactTime = contactTime ?? time;
+
+  /// Where it touched, in the region's coordinates.
+  final Offset position;
+
+  final Offset? _globalPosition;
+
+  /// Where it touched, in global coordinates; [position] when the input
+  /// did not say, as a replay recorded in the region's coordinates.
+  Offset get globalPosition => _globalPosition ?? position;
+
+  /// Whether an interaction around the region takes touches from the
+  /// controls inside it ([Interaction.contendsWithControls]), such as a
+  /// sheet's pan: the claims of a control then do not hold the touch, so
+  /// the pan takes it once the finger travels far enough, and a release
+  /// before that still activates the control. A control that recognizes
+  /// its gesture first, as a slider's pan along its track does, holds the
+  /// touch all the same.
+  final bool contested;
+
+  /// The size of the region.
+  final Size regionSize;
+
+  /// Where the region takes pointers and where a press on it holds the
+  /// finger.
+  final PressReach reach;
+
+  /// The device's gesture settings where the region sits, or null where
+  /// the platform gives none.
+  final DeviceGestureSettings? gestureSettings;
+
+  /// How far a tap's finger may stray and still tap: the device's touch
+  /// slop, Flutter's `kTouchSlop` where the platform gives none.
+  double get tapSlop => gestureSettings?.touchSlop ?? kTouchSlop;
+
+  /// How far a finger travels before the scroll views around the region
+  /// take it: the hit slop of Flutter's drag recognizers for the touch's
+  /// [kind] (`computeHitSlop`), the touch slop for a finger and a pixel for
+  /// a mouse.
+  double get arenaSlop => computeHitSlop(kind, gestureSettings);
+
+  /// When it touched; differs from [time] when the delivery was held back.
+  final double contactTime;
+
+  /// What touched.
+  final PointerDeviceKind kind;
+
+  /// The buttons it pressed.
+  final int buttons;
+
+  /// The axes of the scroll views around the region.
+  final Set<Axis> scrollAxes;
+
+  /// The reading direction around the region where it touched; a
+  /// right-to-left touch is heard [mirrored] where travel follows it.
+  final TextDirection textDirection;
+
+  /// This input as a right-to-left layout of the region hears it:
+  /// [position] reflected about the middle of a [width] wide box, the
+  /// region's at the touch-down ([regionSize]); [globalPosition] stays.
+  PointerDownInput mirrored(double width) =>
+      copyWith(position: _mirroredIn(position, width));
+}
+
+Offset _mirroredIn(Offset position, double width) =>
+    Offset(width - position.dx, position.dy);
+
+Rect _boxMirroredIn(Rect box, double width) =>
+    Rect.fromLTRB(width - box.right, box.top, width - box.left, box.bottom);
+
+/// A tracked pointer moved.
+final class PointerMoveInput extends TouchInput {
+  /// Creates a move input.
+  const PointerMoveInput({
+    required super.time,
+    required super.pointer,
+    required this.position,
+    required this.regionBox,
+    this._globalPosition,
+  });
+
+  /// Where it is, in the region's coordinates.
+  final Offset position;
+
+  /// The region's box as it is at this input, in the coordinates of
+  /// [position]: those of the region at the touch-down.
+  final Rect regionBox;
+
+  final Offset? _globalPosition;
+
+  /// Where it is, in global coordinates; [position] when the input did not
+  /// say.
+  Offset get globalPosition => _globalPosition ?? position;
+
+  /// This input as a right-to-left layout of the region hears it:
+  /// [position] and [regionBox] reflected about the middle of a [width]
+  /// wide box, the region's at the touch-down; [globalPosition] stays.
+  PointerMoveInput mirrored(double width) => copyWith(
+    position: _mirroredIn(position, width),
+    regionBox: _boxMirroredIn(regionBox, width),
+  );
+}
+
+/// A tracked pointer lifted.
+final class PointerUpInput extends TouchInput {
+  /// Creates an up input.
+  const PointerUpInput({
+    required super.time,
+    required super.pointer,
+    required this.position,
+    required this.regionBox,
+    this.velocity = Offset.zero,
+    this.heldStill = false,
+    this._globalPosition,
+    this._globalVelocity,
+  });
+
+  /// Where it lifted, in the region's coordinates.
+  final Offset position;
+
+  /// The region's box as it is at this input, in the coordinates of
+  /// [position] (see [PointerMoveInput.regionBox]).
+  final Rect regionBox;
+
+  /// Its velocity at the lift, in logical pixels per second, as a pan
+  /// reports it ([PanVelocityTracker]): a finger that stopped before it
+  /// lifted releases at the speed it last moved at.
+  final Offset velocity;
+
+  /// Whether the finger stayed still before it lifted
+  /// ([PanVelocityTracker.heldStillAt]).
+  ///
+  /// A scroll view lets such a touch go at rest: UIKit hands
+  /// `scrollViewWillEndDragging(_:withVelocity:targetContentOffset:)` zero
+  /// while the pan still reports [velocity].
+  final bool heldStill;
+
+  final Offset? _globalPosition;
+  final Offset? _globalVelocity;
+
+  /// Where it lifted, in global coordinates; [position] when the input did
+  /// not say.
+  Offset get globalPosition => _globalPosition ?? position;
+
+  /// [velocity] in global coordinates; [velocity] when the input did not
+  /// say.
+  Offset get globalVelocity => _globalVelocity ?? velocity;
+
+  /// This input as a right-to-left layout of the region hears it:
+  /// [position], [regionBox] and [velocity] reflected about the middle of
+  /// a [width] wide box, the region's at the touch-down; [globalPosition]
+  /// and [globalVelocity] stay.
+  PointerUpInput mirrored(double width) => copyWith(
+    position: _mirroredIn(position, width),
+    velocity: Offset(-velocity.dx, velocity.dy),
+    regionBox: _boxMirroredIn(regionBox, width),
+  );
+}
+
+/// The gesture arena gave the region the touch of [pointer]: no other
+/// gesture competes for it any more.
+///
+/// Flutter: `GestureArenaMember.acceptGesture`. An input host sends it when
+/// the region is alone in the arena at the touch, when every other gesture
+/// gave the touch up, or when the region's own claim took it.
+final class PointerAcceptedInput extends TouchInput {
+  /// Creates an acceptance of [pointer].
+  const PointerAcceptedInput({required super.time, required super.pointer});
+}
+
+/// A tracked pointer ended without a release.
+final class PointerCancelInput extends TouchInput {
+  /// Creates a cancel input.
+  const PointerCancelInput({
+    required super.time,
+    required super.pointer,
+    required this.reason,
+  });
+
+  /// Why it ended.
+  final PointerCancelReason reason;
+}
+
+/// The mouse moved over the region, or left it.
+final class PointerHoverInput extends InteractionInput {
+  /// Creates a hover input.
+  const PointerHoverInput({
+    required super.time,
+    required this.position,
+    required this.inside,
+  });
+
+  /// Where the mouse is, in the region's coordinates.
+  final Offset position;
+
+  /// Whether the mouse is over the region.
+  final bool inside;
+}
+
+/// A scroll wheel or a trackpad scrolled over the region.
+///
+/// It reaches a region's interactions only when one of them
+/// takes [InputKind.wheel]; the region then keeps the scroll from the
+/// scroll views around it.
+final class PointerScrollInput extends InteractionInput {
+  /// Creates a scroll input.
+  const PointerScrollInput({
+    required super.time,
+    required this.position,
+    required this.scrollDelta,
+    this.kind = PointerDeviceKind.mouse,
+  });
+
+  /// Where the pointer is, in the region's coordinates.
+  final Offset position;
+
+  /// How far the content would scroll, in logical pixels: positive `dy`
+  /// scrolls down, toward the end.
+  final Offset scrollDelta;
+
+  /// What scrolled.
+  final PointerDeviceKind kind;
+}
+
+/// The region was activated without a touch.
+final class ActivateInput extends InteractionInput {
+  /// Creates an activation.
+  const ActivateInput({
+    required super.time,
+    this.source = ActivationSource.keyboard,
+  });
+
+  /// Where it came from.
+  final ActivationSource source;
+}
+
+/// The region's value was asked to step without a touch: by a key or an
+/// accessibility action.
+final class AdjustInput extends InteractionInput {
+  /// Creates a value command.
+  const AdjustInput({
+    required super.time,
+    required this.command,
+    this.source = ActivationSource.keyboard,
+  });
+
+  /// The step asked for.
+  final ValueCommand command;
+
+  /// Where it came from: the keyboard or accessibility.
+  final ActivationSource source;
+}
+
+/// The region was asked for its context menu without a pointer: a key of
+/// `ContextMenuIntent.defaultShortcuts` or an app's own key for it.
+///
+/// UIKit: the context menu a hardware keyboard opens on the focused view.
+/// Flutter: none; `ContextMenuIntent` in `package:kinesis/widgets.dart`
+/// is the intent an input host turns into this input.
+final class ContextMenuInput extends InteractionInput {
+  /// Creates a request at [position].
+  const ContextMenuInput({required super.time, required this.position});
+
+  /// Where a menu opened for it anchors, in the region's coordinates: the
+  /// centre of the region an input host was asked through.
+  final Offset position;
+}
+
+/// Package-internal moves of an [InteractionInput] into other coordinates.
+@internal
+extension InteractionInputInternal on InteractionInput {
+  /// This input in coordinates whose origin lies at -[offset]: its position
+  /// and a move's or a lift's region box move by [offset]; its global
+  /// coordinates stay.
+  InteractionInput shifted(Offset offset) => switch (this) {
+    final PointerDownInput input => input.copyWith(
+      position: input.position + offset,
+    ),
+    final PointerMoveInput input => input.copyWith(
+      position: input.position + offset,
+      regionBox: input.regionBox.shift(offset),
+    ),
+    final PointerUpInput input => input.copyWith(
+      position: input.position + offset,
+      regionBox: input.regionBox.shift(offset),
+    ),
+    final PointerHoverInput input => PointerHoverInput(
+      time: input.time,
+      position: input.position + offset,
+      inside: input.inside,
+    ),
+    final PointerScrollInput input => PointerScrollInput(
+      time: input.time,
+      position: input.position + offset,
+      scrollDelta: input.scrollDelta,
+      kind: input.kind,
+    ),
+    final ContextMenuInput input => ContextMenuInput(
+      time: input.time,
+      position: input.position + offset,
+    ),
+    PointerAcceptedInput() ||
+    PointerCancelInput() ||
+    ActivateInput() ||
+    AdjustInput() => this,
+  };
+}
+
+/// Package-internal copies of a [PointerDownInput].
+@internal
+extension PointerDownInputInternal on PointerDownInput {
+  /// This input with the region's facts replaced.
+  PointerDownInput copyWith({
+    Offset? position,
+    Size? regionSize,
+    PressReach? reach,
+  }) => _copy(position: position, regionSize: regionSize, reach: reach);
+
+  /// The same contact later, at [time]: a delivery held back, or a touch
+  /// `Interaction.sequenced` hands on where the finger is then. It keeps
+  /// [contactTime] and [scrollAxes], so timed reactions count from the
+  /// touch and the scroll views around still hold it.
+  PointerDownInput continued({
+    required double time,
+    Offset? position,
+    Offset? globalPosition,
+  }) => _copy(time: time, position: position, globalPosition: globalPosition);
+
+  /// A fresh contact at [time] where a finger that slid onto another part
+  /// is then: [contactTime] is [time] and no scroll view holds it.
+  PointerDownInput handedOver({
+    required double time,
+    required Offset position,
+    required Offset globalPosition,
+  }) => _copy(
+    time: time,
+    position: position,
+    globalPosition: globalPosition,
+    contactTime: time,
+    scrollAxes: const {},
+  );
+
+  PointerDownInput _copy({
+    double? time,
+    Offset? position,
+    Size? regionSize,
+    PressReach? reach,
+    Offset? globalPosition,
+    double? contactTime,
+    Set<Axis>? scrollAxes,
+  }) => PointerDownInput(
+    time: time ?? this.time,
+    pointer: pointer,
+    position: position ?? this.position,
+    regionSize: regionSize ?? this.regionSize,
+    contactTime: contactTime ?? this.contactTime,
+    reach: reach ?? this.reach,
+    globalPosition: globalPosition ?? this.globalPosition,
+    kind: kind,
+    buttons: buttons,
+    scrollAxes: scrollAxes ?? this.scrollAxes,
+    contested: contested,
+    gestureSettings: gestureSettings,
+    textDirection: textDirection,
+  );
+}
+
+/// Package-internal copies of a [PointerMoveInput].
+@internal
+extension PointerMoveInputInternal on PointerMoveInput {
+  /// This input with the given fields replaced; [globalPosition] stays as
+  /// it reads now.
+  PointerMoveInput copyWith({
+    double? time,
+    Offset? position,
+    Rect? regionBox,
+  }) => PointerMoveInput(
+    time: time ?? this.time,
+    pointer: pointer,
+    position: position ?? this.position,
+    regionBox: regionBox ?? this.regionBox,
+    globalPosition: globalPosition,
+  );
+}
+
+/// Package-internal copies of a [PointerUpInput].
+@internal
+extension PointerUpInputInternal on PointerUpInput {
+  /// This input with the given fields replaced; [globalPosition] and
+  /// [globalVelocity] stay as they read now.
+  PointerUpInput copyWith({
+    Offset? position,
+    Offset? velocity,
+    Rect? regionBox,
+  }) => PointerUpInput(
+    time: time,
+    pointer: pointer,
+    position: position ?? this.position,
+    regionBox: regionBox ?? this.regionBox,
+    velocity: velocity ?? this.velocity,
+    heldStill: heldStill,
+    globalPosition: globalPosition,
+    globalVelocity: globalVelocity,
+  );
+}
