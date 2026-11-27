@@ -349,19 +349,6 @@ DarkSpecularRecipe? _specularOf(GlassRecipe recipe) {
   return specular.draws && specular.colorBias < 0 ? specular : null;
 }
 
-// iOS darkens what lies under the dark specular by `3 - 2 B` of its
-// brightest channel (the final shader's specularDarkening). Fake glass reads
-// nothing there and takes the page of its scheme: black under dark regular
-// glass, white under light and clear glass.
-double _pageDarkening(RecipeLook look) {
-  final page =
-      look.variant == GlassVariant.regular &&
-          look.brightness == ui.Brightness.dark
-      ? 0.0
-      : 1.0;
-  return 3 - 2 * page;
-}
-
 Map<FakeSurfaceLane, List<double>> _litLanes(
   FakeGlassLook look,
   WornAppearance appearance, {
@@ -431,10 +418,7 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
     FakeSurfaceLane.ringStroke: edge(RecipeLane.ringStroke),
     FakeSurfaceLane.ringInverseRadius: edge(RecipeLane.ringInverseRadius),
     FakeSurfaceLane.specularStrength: [
-      if (specular == null || worn == null)
-        0
-      else
-        -specular.colorBias * visibility * _pageDarkening(worn),
+      if (specular == null) 0 else -specular.colorBias * visibility,
     ],
     FakeSurfaceLane.specularWidth: edge(RecipeLane.specularWidth),
     FakeSurfaceLane.specularSpread: edge(RecipeLane.specularSpread),

@@ -242,25 +242,23 @@ void main() {
     );
   }
 
-  // Fake glass reads nothing under its ring and takes the page of its
-  // scheme: black under dark glass, white under light glass. Over such a
-  // page its ring lies near real glass's (7 levels off over the light page,
-  // 242 and not white); taken for white under dark glass, it lay 13 lighter.
-  for (final (brightness, page) in [
-    (Brightness.dark, 28),
-    (Brightness.light, 242),
-  ]) {
-    testWidgets('fake glass darkens its ring over the page of its scheme as '
-        'real glass does ($brightness)', (tester) async {
+  // Fake glass reads nothing under its ring: it darkens as over a white
+  // page, which iOS darkens least, in either scheme. Over a light page its
+  // ring lies near real glass's (7 levels off over 242); over black it is
+  // up to three times too light, over mid grey about 33 levels. Taking
+  // black for the page under dark glass put it 120 levels off over white.
+  for (final brightness in Brightness.values) {
+    testWidgets('fake glass darkens its ring as over a white page '
+        '(${brightness.name})', (tester) async {
       tester.view
         ..physicalSize = _view * _dpr
         ..devicePixelRatio = _dpr;
       addTearDown(tester.view.reset);
       final real = _endRing(
-        await _drawn(tester, _grey(page), brightness: brightness),
+        await _drawn(tester, _grey(242), brightness: brightness),
       );
       final fake = _endRing(
-        await _drawn(tester, _grey(page), brightness: brightness, fake: true),
+        await _drawn(tester, _grey(242), brightness: brightness, fake: true),
       );
       expect(fake, closeTo(real, 7));
     });
