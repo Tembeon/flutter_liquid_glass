@@ -36,6 +36,7 @@ Widget _app({
   bool reduceMotion = false,
   bool landscape = false,
   bool composited = false,
+  Widget? badge,
 }) => MediaQuery(
   data: landscape
       ? const MediaQueryData(
@@ -63,6 +64,7 @@ Widget _app({
               GlassTab(
                 icon: composited
                     ? RepaintBoundary(
+                        key: Key('boundary $i'),
                         child: SizedBox.square(
                           key: Key('glyph $i'),
                           dimension: 24,
@@ -70,6 +72,7 @@ Widget _app({
                       )
                     : SizedBox.square(key: Key('glyph $i'), dimension: 24),
                 label: Text(name),
+                badge: i == 0 ? badge : null,
                 builder: (context) =>
                     _scrolling(controller: controller, rows: rows),
               ),
@@ -212,6 +215,54 @@ void main() {
       await _settle(tester);
     });
   }
+
+  testWidgets("the selected tab's badge travels to the minimized circle, "
+      "from 5 to 7 inside the glyph's trailing edge and from 2 below the "
+      "button's top to 2 below the circle's (iOS 27.2 simulator)", (
+    tester,
+  ) async {
+    await _phone(tester);
+    await tester.pumpWidget(
+      _app(
+        behavior: GlassTabBarMinimizeBehavior.onScrollDown,
+        composited: true,
+        badge: const RepaintBoundary(
+          key: Key('badge'),
+          child: SizedBox.square(dimension: 18),
+        ),
+      ),
+    );
+    await tester.pump();
+    // The badge from the glyph, in the selected copy's own space.
+    Offset badgeFromGlyph() {
+      final selected = find.byWidgetPredicate(
+        (widget) => switch (widget.key) {
+          ValueKey(value: (1, _)) => true,
+          _ => false,
+        },
+        skipOffstage: false,
+      );
+      Offset at(Key key) {
+        final box = tester.renderObject<RenderBox>(
+          find.descendant(
+            of: selected,
+            matching: find.byKey(key, skipOffstage: false),
+            skipOffstage: false,
+          ),
+        );
+        return (box.debugLayer! as OffsetLayer).offset;
+      }
+
+      return at(const Key('badge')) - at(const Key('boundary 0'));
+    }
+
+    expect(badgeFromGlyph().dx, closeTo(24 - 5, 0.01));
+    expect(badgeFromGlyph().dy, closeTo((4 + 2) - (24 - 12), 0.01));
+    await _dragUp(tester, 200);
+    expect(_expanded(tester), isFalse);
+    expect(badgeFromGlyph().dx, closeTo(24 - 7, 0.01));
+    expect(badgeFromGlyph().dy, closeTo(2 - (24 - 12), 0.01));
+  });
 
   testWidgets('a user scroll shrinks the bar into a circle 28 points from '
       'the screen corner; a tap on it expands the bar', (tester) async {

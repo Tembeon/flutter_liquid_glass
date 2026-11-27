@@ -25,6 +25,7 @@ class _TabContent extends StatelessWidget {
       _TabItem(
         morph: morph,
         titleGoneAt: selected ? TabBarMinimizeMotion.lensGoneAt : null,
+        circleBadge: selected,
         metrics: metrics,
         children: [
           IconTheme.merge(
