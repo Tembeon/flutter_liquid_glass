@@ -88,11 +88,8 @@ final class CopyLevels {
   /// pixels, or null for as far as the blur reaches; the blur reads the
   /// copy's edge past it (`BlurRecipe.margin`).
   ///
-  /// The copy still holds whole every cell of the levels the glass reads
-  /// ([LevelStrip.widestCell]): a cell the copy's edge cuts changes as the
-  /// glass moves, and glass under Reduce Transparency moving a point a frame
-  /// over coloured stripes stepped its face by up to 38 channel levels
-  /// where it steps by 3 to 5 so (host test).
+  /// A level's cells the copy's edge cuts average what the copy holds
+  /// (copy_levels.frag), so they change smoothly as the glass moves.
   final double? margin;
 
   /// Whether the glass blurs what it shows.
@@ -237,8 +234,8 @@ sealed class CopyNeed {
 
   /// The logical pixels a shader frosting or blurring the copy reads around a
   /// region on a screen of [devicePixelRatio]. A blur reads three sigmas
-  /// out, or its levels' margin where that is less but no less than their
-  /// widest cell; the fill reads the copy's edge for what lies past it.
+  /// out, or its levels' margin where that is less; the fill reads the
+  /// copy's edge for what lies past it.
   ///
   /// A copy drawn at the screen's pixels in place of the ones asked reaches
   /// less: its taps lie at most a sigma wider and its pixel is smaller.
@@ -279,21 +276,9 @@ final class LevelNeed extends CopyNeed {
     final most = levels.most;
     if (most <= 0) return 0;
     final blur = 3 * most;
-    final reach = switch (levels.margin) {
-      null => blur,
-      final margin => min(
-        blur,
-        max(
-          margin,
-          LevelStrip.widestCell(
-            levels,
-            devicePixelRatio: devicePixelRatio,
-            share: share,
-          ),
-        ),
-      ),
-    };
-    return reach + share / devicePixelRatio;
+    final margin = levels.margin;
+    return (margin == null ? blur : min(blur, margin)) +
+        share / devicePixelRatio;
   }
 
   @override
@@ -515,23 +500,6 @@ final class LevelStrip {
     required this.copy,
     required this.grid,
   });
-
-  /// The widest cell, in logical pixels, of the levels a copy at [share]
-  /// carries for glass blurring it from [levels] on a screen of
-  /// [devicePixelRatio]: a cell of its coarsest blur level or of its fill
-  /// level.
-  static double widestCell(
-    CopyLevels levels, {
-    required double devicePixelRatio,
-    required int share,
-  }) {
-    final (:last, :fillStride, first: _, blurs: _) = _choose(
-      levels,
-      pixels: devicePixelRatio / share,
-      share: share,
-    );
-    return max(1 << last, fillStride) * share / devicePixelRatio;
-  }
 
   // The levels a copy at [share] carries for glass blurring it from
   // [levels] at [pixels] copy pixels a logical pixel: the blur levels from

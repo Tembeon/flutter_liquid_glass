@@ -7,7 +7,6 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
-import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
@@ -111,8 +110,7 @@ void main() {
 
   testWidgets(
     'glass under Reduce Transparency reads what lies past it only as far as '
-    "iOS's capture margin or its levels' widest cell, where its blur would "
-    'reach further',
+    "iOS's capture margin, where its blur would reach ten times as far",
     (tester) async {
       const appearance = LiquidGlassAppearance.ios27Regular(
         brightness: Brightness.light,
@@ -133,18 +131,12 @@ void main() {
       final need = reduced.look.need;
 
       final levels = need.levels!;
-      final cell = LevelStrip.widestCell(
-        levels,
-        devicePixelRatio: _dpr,
-        share: need.share,
-      );
       expect(levels.margin, 16);
       expect(need.share, 8);
-      expect(cell, greaterThan(16));
-      expect(3 * levels.most, greaterThan(cell));
+      expect(3 * levels.most, greaterThan(10 * 16));
       expect(
         _farther(reduced, clear),
-        closeTo(cell + need.share / _dpr, 1e-9),
+        closeTo(16 + need.share / _dpr, 1e-9),
       );
     },
     skip: skipProperGlassTests,
