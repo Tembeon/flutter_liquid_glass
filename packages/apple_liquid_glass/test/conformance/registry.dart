@@ -1150,6 +1150,9 @@ const Map<String, String> nonInteractive = {
   'GlassActivityIndicator':
       'spokes that turn while a task runs; activity_indicator_test holds '
       'its sizes, its stop and its reading',
+  'GlassAlertTextField':
+      "describes a field of an alert; alert_test holds the fields' input "
+      'and showGlassAlert runs its checks',
   'GlassBadge': 'a label drawn on another control; announces its text only',
   'GlassBarCustomItem':
       'a bar entry holding custom content, which takes its own input',

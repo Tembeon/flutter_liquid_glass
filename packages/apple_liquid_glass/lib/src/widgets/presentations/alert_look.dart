@@ -169,4 +169,19 @@ abstract final class _AlertLook {
   static const double pressedFillOpacity = 0.4;
 
   static const double popoverWidth = 240;
+
+  // Text fields (alerts passport, 27.2): the group 15 in from the platter's
+  // sides, the first row 16.33 under the message, the buttons 20 under
+  // the last, the text 15 in from a row's sides, a hairline of
+  // (60, 60, 67) at 0.1765 between rows (dark not measured, the same
+  // share of the dark label), the caret (66, 107, 242).
+  static const double fieldInset = 15;
+  static const double fieldsTop = 16.33;
+  static const double buttonsBelowFields = 20;
+  static const double fieldTextInset = 15;
+  static const fieldSeparator = GlassDynamicColor.withBrightness(
+    color: Color(0x2D3C3C43),
+    darkColor: Color(0x2DEBEBF5),
+  );
+  static const cursor = Color(0xFF426BF2);
 }

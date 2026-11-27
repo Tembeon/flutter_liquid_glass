@@ -137,6 +137,7 @@ export 'src/widgets/presentations/alert.dart'
     show
         GlassAlertAction,
         GlassAlertStyle,
+        GlassAlertTextField,
         showGlassActionSheet,
         showGlassAlert;
 export 'src/widgets/presentations/date_picker.dart'

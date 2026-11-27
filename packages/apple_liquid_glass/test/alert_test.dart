@@ -89,6 +89,76 @@ void main() {
     expect(message(), isSameColorAs(const Color(0xCC3C3C43)));
   });
 
+  testWidgets('text fields stand as one group under the message, 290 by 48 '
+      'a row with no gap, the first focused, the buttons 20 under the last', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(navigator));
+    final name = TextEditingController();
+    addTearDown(name.dispose);
+    final ready = ValueNotifier(false);
+    addTearDown(ready.dispose);
+    GlassAlertAction? result;
+    unawaited(
+      showGlassAlert(
+        _context(navigator),
+        title: const Text('Sign in'),
+        message: const Text('Enter your name and password.'),
+        textFields: [
+          GlassAlertTextField(
+            controller: name,
+            placeholder: 'Name',
+            onChanged: (text) => ready.value = text.isNotEmpty,
+          ),
+          const GlassAlertTextField(placeholder: 'Password', obscureText: true),
+        ],
+        actions: [
+          const GlassAlertAction.cancel(child: Text('Cancel')),
+          GlassAlertAction(
+            isDefaultAction: true,
+            enabled: false,
+            enabledListenable: ready,
+            child: const Text('OK'),
+          ),
+        ],
+      ).then((value) => result = value),
+    );
+    await _settle(tester);
+    final fields = find.byType(RawGlassTextField);
+    expect(fields, findsNWidgets(2));
+    final first = tester.getRect(fields.at(0));
+    final second = tester.getRect(fields.at(1));
+    expect(first.size, const Size(290, 48));
+    expect(second.top, first.bottom, reason: 'no gap between rows');
+    final platter = tester.getRect(
+      find.ancestor(of: fields.at(0), matching: find.byType(ListView)),
+    );
+    expect(first.left - platter.left, 15);
+    final button = tester.getRect(find.text('OK'));
+    expect(button.center.dy, greaterThan(second.bottom + 20));
+    expect(
+      tester
+          .widget<EditableText>(find.byType(EditableText).first)
+          .focusNode
+          .hasFocus,
+      isTrue,
+      reason: 'the first field raises the keyboard',
+    );
+
+    await tester.tap(find.text('OK'));
+    await _settle(tester);
+    expect(result, isNull, reason: 'OK waits for a name');
+    await tester.enterText(find.byType(EditableText).first, 'Ann');
+    await tester.pump();
+    expect(ready.value, isTrue);
+    await tester.tap(find.text('OK'));
+    await _settle(tester);
+    expect(result?.isDefaultAction, isTrue);
+    expect(name.text, 'Ann');
+  });
+
   testWidgets('a tap chooses an action, whose handler runs once the alert '
       'has gone', (tester) async {
     await _phone(tester);

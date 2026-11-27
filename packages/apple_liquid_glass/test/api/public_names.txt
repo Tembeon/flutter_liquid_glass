@@ -43,6 +43,7 @@ GlassActivityIndicator
 GlassActivityIndicatorSize
 GlassAlertAction
 GlassAlertStyle
+GlassAlertTextField
 GlassBackButtonDisplayMode
 GlassBadge
 GlassBadgeStyle

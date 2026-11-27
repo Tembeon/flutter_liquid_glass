@@ -2,10 +2,13 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/raw.dart';
+import 'package:apple_liquid_glass/src/widgets/presentations/edit_menu.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/popover.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:liquid_glass_renderer/painting.dart';
@@ -156,6 +159,7 @@ class GlassAlertAction {
     this.onPressed,
     this.isDefaultAction = false,
     this.enabled = true,
+    this.enabledListenable,
   }) : _role = _Role.normal;
 
   /// Creates the action that cancels: it goes first in a row of two buttons
@@ -166,6 +170,7 @@ class GlassAlertAction {
     this.onPressed,
     this.isDefaultAction = false,
     this.enabled = true,
+    this.enabledListenable,
   }) : _role = _Role.cancel;
 
   /// Creates an action that destroys data: its label is red.
@@ -174,6 +179,7 @@ class GlassAlertAction {
     this.onPressed,
     this.isDefaultAction = false,
     this.enabled = true,
+    this.enabledListenable,
   }) : _role = _Role.destructive;
 
   /// The button's label.
@@ -193,6 +199,14 @@ class GlassAlertAction {
   /// its accent fill (iPhone 16 Pro, iOS 27.0.1).
   final bool enabled;
 
+  /// Whether the button takes taps as it changes while the alert shows, in
+  /// place of [enabled]: an OK that waits for a field's text (UIKit
+  /// `isEnabled` set from a text field's handler).
+  final ValueListenable<bool>? enabledListenable;
+
+  /// Whether the button takes taps now.
+  bool get isEnabled => enabledListenable?.value ?? enabled;
+
   final _Role _role;
 
   /// Whether this action cancels.
@@ -200,6 +214,71 @@ class GlassAlertAction {
 
   /// Whether this action destroys data.
   bool get isDestructive => _role == _Role.destructive;
+}
+
+/// A text field of an alert: one row of the group of fields under the
+/// message.
+///
+/// UIKit: `UIAlertController.addTextField(configurationHandler:)`.
+/// SwiftUI: a `TextField` or `SecureField` in `alert`. Flutter: none.
+@immutable
+class GlassAlertTextField {
+  /// Creates a field.
+  const GlassAlertTextField({
+    this.controller,
+    this.placeholder,
+    this.obscureText = false,
+    this.keyboardType,
+    this.textInputAction,
+    this.textCapitalization = TextCapitalization.sentences,
+    this.autocorrect = true,
+    this.enableSuggestions = true,
+    this.autofillHints,
+    this.inputFormatters,
+    this.onChanged,
+    this.onSubmitted,
+    this.semanticLabel,
+  });
+
+  /// The text, or null for the field's own.
+  final TextEditingController? controller;
+
+  /// What the empty field shows, and what accessibility reads after its
+  /// value; null for nothing.
+  final String? placeholder;
+
+  /// Whether the text shows as dots, as a password does.
+  final bool obscureText;
+
+  /// The keyboard, or null for text.
+  final TextInputType? keyboardType;
+
+  /// The keyboard's action key, or null for the platform's default.
+  final TextInputAction? textInputAction;
+
+  /// How the keyboard capitalizes what the user types.
+  final TextCapitalization textCapitalization;
+
+  /// Whether the keyboard corrects what the user types.
+  final bool autocorrect;
+
+  /// Whether the keyboard suggests words.
+  final bool enableSuggestions;
+
+  /// What the platform's autofill may fill the field with, or null.
+  final Iterable<String>? autofillHints;
+
+  /// What the field passes its text through as the user edits it.
+  final List<TextInputFormatter>? inputFormatters;
+
+  /// Called with the text as the user edits it.
+  final ValueChanged<String>? onChanged;
+
+  /// Called with the text when the user submits it from the keyboard.
+  final ValueChanged<String>? onSubmitted;
+
+  /// What accessibility reads for the field, or null for its placeholder.
+  final String? semanticLabel;
 }
 
 /// Shows an iOS 27 alert and completes with the action chosen, or null
@@ -270,6 +349,7 @@ Future<GlassAlertAction?> showGlassAlert(
   BuildContext context, {
   Widget? title,
   Widget? message,
+  List<GlassAlertTextField> textFields = const [],
   List<GlassAlertAction> actions = const [],
   GlassAlertStyle? style,
   Offset? anchorPoint,
@@ -280,6 +360,7 @@ Future<GlassAlertAction?> showGlassAlert(
     presentation: _alert(
       title: title,
       message: message,
+      textFields: textFields,
       actions: actions,
       style: style,
       actionSheet: false,
@@ -350,6 +431,7 @@ Presentation<GlassAlertAction, PresentedProgress> _alert({
   required GlassAlertStyle? style,
   required bool actionSheet,
   required GlassLocalizations strings,
+  List<GlassAlertTextField> textFields = const [],
   Rect? anchorRect,
   Offset? anchorPoint,
 }) {
@@ -366,6 +448,7 @@ Presentation<GlassAlertAction, PresentedProgress> _alert({
       motion: motion,
       title: title,
       message: message,
+      textFields: textFields,
       actions: actions,
       style: style,
       actionSheet: actionSheet,
@@ -398,7 +481,7 @@ Presentation<GlassAlertAction, PresentedProgress> _alert({
 // A disabled cancel action answers nothing, as its button does nothing.
 GlassAlertAction? _cancelOf(List<GlassAlertAction> actions) {
   for (final action in actions) {
-    if (action.isCancel) return action.enabled ? action : null;
+    if (action.isCancel) return action.isEnabled ? action : null;
   }
   return null;
 }
@@ -432,6 +515,7 @@ class _AlertView extends StatefulWidget {
     required this.motion,
     required this.title,
     required this.message,
+    required this.textFields,
     required this.actions,
     required this.style,
     required this.actionSheet,
@@ -443,6 +527,7 @@ class _AlertView extends StatefulWidget {
   final PresentedProgress motion;
   final Widget? title;
   final Widget? message;
+  final List<GlassAlertTextField> textFields;
   final List<GlassAlertAction> actions;
   final GlassAlertStyle? style;
   final bool actionSheet;

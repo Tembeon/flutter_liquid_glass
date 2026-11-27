@@ -171,24 +171,29 @@ class GlassAlertAction
     void Function()? onPressed,
     bool isDefaultAction = ...,
     bool enabled = ...,
+    ValueListenable<bool>? enabledListenable,
   })
   const GlassAlertAction.destructive({
     required Widget child,
     void Function()? onPressed,
     bool isDefaultAction = ...,
     bool enabled = ...,
+    ValueListenable<bool>? enabledListenable,
   })
   const GlassAlertAction({
     required Widget child,
     void Function()? onPressed,
     bool isDefaultAction = ...,
     bool enabled = ...,
+    ValueListenable<bool>? enabledListenable,
   })
   final Widget child
   final bool enabled
+  final ValueListenable<bool>? enabledListenable
   bool get isCancel
   final bool isDefaultAction
   bool get isDestructive
+  bool get isEnabled
   final void Function()? onPressed
 class GlassAlertStyle extends GlassStyle<GlassAlertStyle>
   const GlassAlertStyle({
@@ -211,6 +216,35 @@ class GlassAlertStyle extends GlassStyle<GlassAlertStyle>
   final TextStyle? messageTextStyle
   final TextStyle? titleTextStyle
   overrides: ==, hashCode, lerp, merge
+class GlassAlertTextField
+  const GlassAlertTextField({
+    TextEditingController? controller,
+    String? placeholder,
+    bool obscureText = ...,
+    TextInputType? keyboardType,
+    TextInputAction? textInputAction,
+    TextCapitalization textCapitalization = ...,
+    bool autocorrect = ...,
+    bool enableSuggestions = ...,
+    Iterable<String>? autofillHints,
+    List<TextInputFormatter>? inputFormatters,
+    void Function(String)? onChanged,
+    void Function(String)? onSubmitted,
+    String? semanticLabel,
+  })
+  final bool autocorrect
+  final Iterable<String>? autofillHints
+  final TextEditingController? controller
+  final bool enableSuggestions
+  final List<TextInputFormatter>? inputFormatters
+  final TextInputType? keyboardType
+  final bool obscureText
+  final void Function(String)? onChanged
+  final void Function(String)? onSubmitted
+  final String? placeholder
+  final String? semanticLabel
+  final TextCapitalization textCapitalization
+  final TextInputAction? textInputAction
 enum GlassBackButtonDisplayMode
   title,
   generic,
@@ -5135,6 +5169,7 @@ Future<GlassAlertAction?> showGlassAlert(
   BuildContext context, {
   Widget? title,
   Widget? message,
+  List<GlassAlertTextField> textFields = ...,
   List<GlassAlertAction> actions = ...,
   GlassAlertStyle? style,
   Offset? anchorPoint,
@@ -5609,6 +5644,7 @@ class GlassActivityIndicator (see package:apple_liquid_glass/apple_liquid_glass.
 enum GlassActivityIndicatorSize (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassAlertAction (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassAlertStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassAlertTextField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassBackButtonDisplayMode (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBadge (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBadgeStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)

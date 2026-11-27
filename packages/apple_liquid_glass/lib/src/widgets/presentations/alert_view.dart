@@ -40,9 +40,28 @@ class _AlertViewState extends State<_AlertView> {
   List<GlassAlertAction> _shown = const [];
   bool _row = false;
   bool _rtl = false;
+  Listenable? _enablings;
+
+  @override
+  void initState() {
+    super.initState();
+    _hearEnablings();
+  }
+
+  // An action whose enabled state changes while the alert shows draws and
+  // takes taps as it now stands.
+  void _hearEnablings() {
+    _enablings?.removeListener(_enablingChanged);
+    _enablings = Listenable.merge([
+      for (final action in widget.actions) ?action.enabledListenable,
+    ])..addListener(_enablingChanged);
+  }
+
+  void _enablingChanged() => setState(() {});
 
   @override
   void dispose() {
+    _enablings?.removeListener(_enablingChanged);
     _dismissing?.removeListener(_dismissingChanged);
     _zones.dispose();
     _scroll.dispose();
@@ -59,7 +78,7 @@ class _AlertViewState extends State<_AlertView> {
   }
 
   void _choose(GlassAlertAction action) {
-    if (!action.enabled) return;
+    if (!action.isEnabled) return;
     PresentationHandle.of(
       context,
     ).dismiss(DismissTrigger.programmatic, action);
@@ -165,7 +184,7 @@ class _AlertViewState extends State<_AlertView> {
   TextStyle _labelStyle(GlassAlertAction action, BuildContext context) {
     final look = _look;
     final label = GlassTheme.labelColorOf(context);
-    final color = !action.enabled
+    final color = !action.isEnabled
         ? GlassTheme.tertiaryLabelColorOf(context)
         : action.isDefaultAction
         ? look.defaultActionColor ??
@@ -190,7 +209,7 @@ class _AlertViewState extends State<_AlertView> {
 
   Color _fillOf(GlassAlertAction action, BuildContext context) =>
       GlassDynamicColor.resolve(
-        action.isDefaultAction && action.enabled
+        action.isDefaultAction && action.isEnabled
             ? _look.defaultActionFillColor ??
                   GlassTheme.primaryColorOf(context) ??
                   GlassColors.systemBlue
@@ -212,6 +231,7 @@ class _AlertViewState extends State<_AlertView> {
   @override
   void didUpdateWidget(_AlertView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _hearEnablings();
     _derive();
   }
 
@@ -385,10 +405,26 @@ class _AlertViewState extends State<_AlertView> {
                 children: header,
               ),
             ),
+          if (widget.textFields.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(
+                top: header.isEmpty
+                    ? 0
+                    : _AlertLook.fieldsTop -
+                          (both
+                              ? _AlertLook.headerBottom
+                              : _AlertLook.singleHeaderBottom),
+                left: _AlertLook.fieldInset,
+                right: _AlertLook.fieldInset,
+              ),
+              child: _AlertFields(fields: widget.textFields),
+            ),
           if (buttons.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(
-                top: _AlertLook.buttonInset,
+              padding: EdgeInsets.only(
+                top: widget.textFields.isEmpty
+                    ? _AlertLook.buttonInset
+                    : _AlertLook.buttonsBelowFields,
                 left: _AlertLook.buttonInset,
                 right: _AlertLook.buttonInset,
               ),
@@ -404,9 +440,12 @@ class _AlertViewState extends State<_AlertView> {
             InputZone<int>(
               id: i,
               interactions: _pressOf(i),
-              enabled: action.enabled,
+              enabled: action.isEnabled,
               reach: glassTargetReach,
-              autofocus: action.isDefaultAction && action.enabled,
+              autofocus:
+                  widget.textFields.isEmpty &&
+                  action.isDefaultAction &&
+                  action.isEnabled,
               semantics: SemanticsProperties(
                 label: glassLabelTextOf(action.child),
                 button: true,
@@ -466,4 +505,162 @@ class _AlertViewState extends State<_AlertView> {
       ),
     ),
   );
+}
+
+/// An alert's text fields: one group of 48 point rows, each on its own fill,
+/// the group's outer corners round and the joints square, a hairline under
+/// every row but the last (alerts passport, 27.2); the first takes the
+/// focus, as UIKit's raises the keyboard.
+class _AlertFields extends StatelessWidget {
+  const _AlertFields({required this.fields});
+
+  final List<GlassAlertTextField> fields;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (final (i, field) in fields.indexed)
+        RawGlassTextField(
+          controller: field.controller,
+          autofocus: i == 0,
+          obscureText: field.obscureText,
+          keyboardType: field.keyboardType,
+          textInputAction: field.textInputAction,
+          textCapitalization: field.textCapitalization,
+          autocorrect: field.autocorrect,
+          enableSuggestions: field.enableSuggestions,
+          autofillHints: field.autofillHints,
+          inputFormatters: field.inputFormatters,
+          onChanged: field.onChanged,
+          onSubmitted: field.onSubmitted,
+          semanticLabel: field.semanticLabel,
+          semanticHint: field.placeholder,
+          contextMenuBuilder: (context, state) =>
+              GlassEditMenu.editableText(editableTextState: state),
+          builder: (context, details) => _AlertFieldLook(
+            details: details,
+            placeholder: field.placeholder,
+            first: i == 0,
+            last: i == fields.length - 1,
+          ),
+        ),
+    ],
+  );
+}
+
+class _AlertFieldLook extends StatelessWidget {
+  const _AlertFieldLook({
+    required this.details,
+    required this.placeholder,
+    required this.first,
+    required this.last,
+  });
+
+  final GlassTextFieldDetails details;
+  final String? placeholder;
+  final bool first;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = GlassTextScale.of(context, max: _AlertLook.maxTextScale);
+    final text = scale.resolve(
+      TextStyle(
+        fontSize: _AlertLook.textFontSize,
+        color: GlassDynamicColor.resolve(
+          GlassTheme.labelColorOf(context),
+          context,
+        ),
+      ),
+    );
+    const radius = Radius.circular(_AlertLook.buttonHeight / 2);
+    final placeholder = this.placeholder;
+    final field = DecoratedBox(
+      decoration: BoxDecoration(
+        color: GlassDynamicColor.resolve(
+          GlassColors.tertiarySystemFill,
+          context,
+        ),
+        borderRadius: BorderRadius.vertical(
+          top: first ? radius : Radius.zero,
+          bottom: last ? radius : Radius.zero,
+        ),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          minHeight: _AlertLook.buttonHeight,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: _AlertLook.fieldTextInset,
+          ),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Stack(
+              children: [
+                if (placeholder != null)
+                  Positioned.fill(
+                    child: ExcludeSemantics(
+                      child: ListenableBuilder(
+                        listenable: details.controller,
+                        builder: (context, _) => Visibility(
+                          visible: details.controller.text.isEmpty,
+                          child: Text(
+                            placeholder,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textScaler: scale.scaler,
+                            style: text.copyWith(
+                              color: GlassDynamicColor.resolve(
+                                GlassColors.tertiaryLabel,
+                                context,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                details.text(
+                  style: text,
+                  cursorColor: _AlertLook.cursor,
+                  selectionColor: _AlertLook.cursor.withValues(alpha: 0.2),
+                  scale: scale,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (last) return field;
+    return CustomPaint(
+      foregroundPainter: _FieldSeparator(
+        color: GlassDynamicColor.resolve(_AlertLook.fieldSeparator, context),
+        direction: Directionality.of(context),
+      ),
+      child: field,
+    );
+  }
+}
+
+class _FieldSeparator extends CustomPainter {
+  const _FieldSeparator({required this.color, required this.direction});
+
+  final Color color;
+  final TextDirection direction;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const inset = _AlertLook.fieldTextInset;
+    canvas.drawRect(
+      Rect.fromLTRB(inset, size.height - 1, size.width - inset, size.height),
+      Paint()..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_FieldSeparator oldDelegate) =>
+      color != oldDelegate.color || direction != oldDelegate.direction;
 }
