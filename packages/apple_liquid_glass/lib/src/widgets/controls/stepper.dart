@@ -163,7 +163,46 @@ class GlassStepper extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     super.key,
-  });
+  }) : onIncrement = null,
+       onDecrement = null,
+       _custom = false;
+
+  /// Creates a stepper that holds no value and calls [onIncrement] and
+  /// [onDecrement] for its halves, as SwiftUI's
+  /// `Stepper(onIncrement:onDecrement:)`, for steps through something that
+  /// is not a number; see [RawGlassStepper.custom].
+  const GlassStepper.custom({
+    required this.onIncrement,
+    required this.onDecrement,
+    this.autorepeat = true,
+    this.style,
+    this.decrementIcon,
+    this.incrementIcon,
+    this.decrementLabel,
+    this.incrementLabel,
+    this.semanticLabel,
+    this.statesController,
+    this.focusNode,
+    this.autofocus = false,
+    super.key,
+  }) : value = 0,
+       onChanged = null,
+       onChangeStart = null,
+       onChangeEnd = null,
+       min = 0,
+       max = 0,
+       step = 1,
+       wraps = false,
+       semanticFormatterCallback = null,
+       _custom = true;
+
+  /// See [RawGlassStepper.onIncrement].
+  final VoidCallback? onIncrement;
+
+  /// See [RawGlassStepper.onDecrement].
+  final VoidCallback? onDecrement;
+
+  final bool _custom;
 
   /// See [RawGlassStepper.value].
   final double value;
@@ -253,6 +292,28 @@ class GlassStepper extends StatelessWidget {
     final look = (style ?? const GlassStepperStyle()).merge(
       GlassStepperStyle.maybeOf(context),
     );
+    GlassStepperBuilder builder() =>
+        look.builder ??
+        (context, details) => _StepperLook(
+          details: details,
+          look: look,
+          decrementIcon: decrementIcon,
+          incrementIcon: incrementIcon,
+        );
+    if (_custom) {
+      return RawGlassStepper.custom(
+        onIncrement: onIncrement,
+        onDecrement: onDecrement,
+        autorepeat: autorepeat,
+        decrementLabel: decrementLabel,
+        incrementLabel: incrementLabel,
+        semanticLabel: semanticLabel,
+        statesController: statesController,
+        focusNode: focusNode,
+        autofocus: autofocus,
+        builder: builder(),
+      );
+    }
     return RawGlassStepper(
       value: value,
       onChanged: onChanged,
@@ -270,14 +331,7 @@ class GlassStepper extends StatelessWidget {
       statesController: statesController,
       focusNode: focusNode,
       autofocus: autofocus,
-      builder:
-          look.builder ??
-          (context, details) => _StepperLook(
-            details: details,
-            look: look,
-            decrementIcon: decrementIcon,
-            incrementIcon: incrementIcon,
-          ),
+      builder: builder(),
     );
   }
 }

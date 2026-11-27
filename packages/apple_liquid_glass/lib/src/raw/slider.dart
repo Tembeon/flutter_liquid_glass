@@ -95,6 +95,7 @@ class RawGlassSlider extends StatefulWidget {
     this.max = 1,
     this.ticks = 0,
     this.neutralValue,
+    this.adjustmentStep,
     this.animated = false,
     this.statesController,
     this.focusNode,
@@ -140,6 +141,12 @@ class RawGlassSlider extends StatefulWidget {
   /// null for [min]: a balance or a pitch reads from its middle
   /// (`neutralValue`; slider passport, recheck 27.2).
   final double? neutralValue;
+
+  /// How much a key or a screen reader's increase or decrease changes the
+  /// value of a slider without [ticks], as SwiftUI's `Slider(step:)` and
+  /// UIKit's `accessibilityIncrement` set it; null for a tenth of the
+  /// range. A finger still moves it freely.
+  final double? adjustmentStep;
 
   /// Whether a new [value] from outside moves the thumb on UIKit's
   /// programmatic spring instead of jumping; a stepped slider always jumps.
@@ -295,7 +302,11 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   double _stepFrom(double from, int delta) {
     final ticks = widget.ticks;
     if (ticks < 2) {
-      return (from + delta * RawGlassSlider._keyboardStep).clamp(0.0, 1.0);
+      final step = switch (widget.adjustmentStep) {
+        final step? when step > 0 => step / (widget.max - widget.min),
+        _ => RawGlassSlider._keyboardStep,
+      };
+      return (from + delta * step).clamp(0.0, 1.0);
     }
     final steps = ticks - 1;
     final at = from * steps;

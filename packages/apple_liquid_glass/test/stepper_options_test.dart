@@ -167,4 +167,34 @@ void main() {
     await tester.pump();
     expect(picked, [5, 3]);
   });
+
+  testWidgets('a custom stepper calls its callbacks, a null one disables its '
+      'half, and a held half repeats', (tester) async {
+    final steps = <String>[];
+    await tester.pumpWidget(
+      _app(
+        GlassStepper.custom(
+          onIncrement: () => steps.add('up'),
+          onDecrement: null,
+          semanticLabel: 'Size',
+        ),
+      ),
+    );
+    await tester.tapAt(_half(tester, GlassStepperHalf.increment));
+    await tester.pump();
+    await tester.tapAt(_half(tester, GlassStepperHalf.decrement));
+    await tester.pump();
+    expect(steps, ['up']);
+    final hold = await tester.startGesture(
+      _half(tester, GlassStepperHalf.increment),
+    );
+    await _hold(tester, 1.2);
+    await hold.up();
+    await tester.pump();
+    expect(steps.length, greaterThanOrEqualTo(3));
+    expect(
+      tester.getSemantics(find.byType(RawGlassStepper)).value,
+      isEmpty,
+    );
+  });
 }

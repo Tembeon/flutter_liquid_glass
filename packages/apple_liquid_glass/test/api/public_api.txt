@@ -2302,6 +2302,7 @@ class GlassSlider extends StatefulWidget
     double max = ...,
     int ticks = ...,
     double? neutralValue,
+    double? adjustmentStep,
     bool animated = ...,
     GlassSliderStyle? style,
     WidgetStatesController? statesController,
@@ -2311,6 +2312,7 @@ class GlassSlider extends StatefulWidget
     String Function(double)? semanticFormatterCallback,
     Key? key,
   })
+  final double? adjustmentStep
   final bool animated
   final bool autofocus
   final FocusNode? focusNode
@@ -2502,6 +2504,21 @@ class GlassSplitViewController extends ChangeNotifier
   bool? get showsPrimary
   set showsPrimary(bool? value)
 class GlassStepper extends StatelessWidget
+  const GlassStepper.custom({
+    required void Function()? onIncrement,
+    required void Function()? onDecrement,
+    bool autorepeat = ...,
+    GlassStepperStyle? style,
+    Widget? decrementIcon,
+    Widget? incrementIcon,
+    String? decrementLabel,
+    String? incrementLabel,
+    String? semanticLabel,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    Key? key,
+  })
   const GlassStepper({
     required double value,
     required void Function(double)? onChanged,
@@ -2536,6 +2553,8 @@ class GlassStepper extends StatelessWidget
   final void Function(double)? onChangeEnd
   final void Function(double)? onChangeStart
   final void Function(double)? onChanged
+  final void Function()? onDecrement
+  final void Function()? onIncrement
   final String Function(double)? semanticFormatterCallback
   final String? semanticLabel
   final WidgetStatesController? statesController
@@ -4429,6 +4448,7 @@ class RawGlassSlider extends StatefulWidget
     double max = ...,
     int ticks = ...,
     double? neutralValue,
+    double? adjustmentStep,
     bool animated = ...,
     WidgetStatesController? statesController,
     FocusNode? focusNode,
@@ -4437,6 +4457,7 @@ class RawGlassSlider extends StatefulWidget
     String Function(double)? semanticFormatterCallback,
     Key? key,
   })
+  final double? adjustmentStep
   final bool animated
   final bool autofocus
   final Widget Function(BuildContext, GlassSliderDetails) builder
@@ -4456,6 +4477,19 @@ class RawGlassSlider extends StatefulWidget
   final double value
   overrides: createState
 class RawGlassStepper extends StatefulWidget
+  const RawGlassStepper.custom({
+    required void Function()? onIncrement,
+    required void Function()? onDecrement,
+    required Widget Function(BuildContext, GlassStepperDetails) builder,
+    bool autorepeat = ...,
+    String? decrementLabel,
+    String? incrementLabel,
+    String? semanticLabel,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    Key? key,
+  })
   const RawGlassStepper({
     required double value,
     required void Function(double)? onChanged,
@@ -4487,6 +4521,8 @@ class RawGlassStepper extends StatefulWidget
   final void Function(double)? onChangeEnd
   final void Function(double)? onChangeStart
   final void Function(double)? onChanged
+  final void Function()? onDecrement
+  final void Function()? onIncrement
   final String Function(double)? semanticFormatterCallback
   final String? semanticLabel
   static const Size size

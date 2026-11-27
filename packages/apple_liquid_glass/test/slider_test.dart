@@ -489,6 +489,46 @@ void main() {
     expect(values, [closeTo(16, 1e-9), closeTo(14, 1e-9), 10, 20]);
   });
 
+  testWidgets('an adjustment step sets how far a key steps a continuous '
+      'slider, and screen readers hear the values a step away', (
+    tester,
+  ) async {
+    final values = <double>[];
+    await tester.pumpWidget(
+      _keyApp(
+        GlassSlider(
+          value: 15,
+          onChanged: values.add,
+          autofocus: true,
+          min: 10,
+          max: 20,
+          adjustmentStep: 0.5,
+          semanticFormatterCallback: (value) => value.toStringAsFixed(1),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    expect(values, [closeTo(15.5, 1e-9), closeTo(14.5, 1e-9)]);
+    expect(
+      tester.getSemantics(find.byType(GlassSlider)),
+      matchesSemantics(
+        value: '15.0',
+        increasedValue: '15.5',
+        decreasedValue: '14.5',
+        isSlider: true,
+        isFocusable: true,
+        isFocused: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        hasIncreaseAction: true,
+        hasDecreaseAction: true,
+        hasFocusAction: true,
+      ),
+    );
+  });
+
   testWidgets('an app adds keys with Shortcuts, and right-to-left mirrors '
       'the arrows', (tester) async {
     final values = <double>[];

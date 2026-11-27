@@ -123,7 +123,44 @@ class RawGlassStepper extends StatefulWidget {
     this.focusNode,
     this.autofocus = false,
     super.key,
-  });
+  }) : onIncrement = null,
+       onDecrement = null,
+       _custom = false;
+
+  /// Creates a stepper that holds no value and calls [onIncrement] and
+  /// [onDecrement] for its halves, as SwiftUI's
+  /// `Stepper(onIncrement:onDecrement:)`: a null callback disables its
+  /// half, and screen readers hear [semanticLabel] with no value.
+  const RawGlassStepper.custom({
+    required this.onIncrement,
+    required this.onDecrement,
+    required this.builder,
+    this.autorepeat = true,
+    this.decrementLabel,
+    this.incrementLabel,
+    this.semanticLabel,
+    this.statesController,
+    this.focusNode,
+    this.autofocus = false,
+    super.key,
+  }) : value = 0,
+       onChanged = null,
+       onChangeStart = null,
+       onChangeEnd = null,
+       min = 0,
+       max = 0,
+       step = 1,
+       wraps = false,
+       semanticFormatterCallback = null,
+       _custom = true;
+
+  /// Called for a step of the plus half of a [RawGlassStepper.custom].
+  final VoidCallback? onIncrement;
+
+  /// Called for a step of the minus half of a [RawGlassStepper.custom].
+  final VoidCallback? onDecrement;
+
+  final bool _custom;
 
   /// The value.
   final double value;
@@ -230,7 +267,14 @@ class _RawGlassStepperState extends State<RawGlassStepper>
     }
   }
 
-  bool get enabled => widget.onChanged != null;
+  bool get enabled => widget._custom
+      ? widget.onIncrement != null || widget.onDecrement != null
+      : widget.onChanged != null;
+
+  VoidCallback? _callbackOf(GlassStepperHalf half) => switch (half) {
+    GlassStepperHalf.decrement => widget.onDecrement,
+    GlassStepperHalf.increment => widget.onIncrement,
+  };
 
   double get _minimum => widget.min.isFinite ? widget.min : 0;
 
@@ -247,6 +291,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
   // A step lands within the range up to rounding: 0.9 + 0.1 reaches a
   // maximum of 1.
   bool _canStep(GlassStepperHalf half) {
+    if (widget._custom) return _callbackOf(half) != null;
     final step = _step;
     if (step == 0) return false;
     if (widget.wraps && _maximum > _minimum) return true;
@@ -268,6 +313,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
   }
 
   void _stepBy(GlassStepperHalf half) {
+    if (widget._custom) return _callbackOf(half)?.call();
     final next = _after(half);
     if (next == _value) return;
     if (_touched != null) _touched = next;
@@ -304,7 +350,8 @@ class _RawGlassStepperState extends State<RawGlassStepper>
     final strings = GlassLocalizations.of(context);
     String format(double value) =>
         widget.semanticFormatterCallback?.call(value) ?? _format(value);
-    final value = format(_value);
+    final custom = widget._custom;
+    final value = custom ? null : format(_value);
     InputZone<GlassStepperHalf> half(GlassStepperHalf half, String label) =>
         InputZone(
           id: half,
@@ -328,8 +375,12 @@ class _RawGlassStepperState extends State<RawGlassStepper>
       semantics: SemanticsProperties(
         label: widget.semanticLabel,
         value: value,
-        increasedValue: format(_after(GlassStepperHalf.increment)),
-        decreasedValue: format(_after(GlassStepperHalf.decrement)),
+        increasedValue: custom
+            ? null
+            : format(_after(GlassStepperHalf.increment)),
+        decreasedValue: custom
+            ? null
+            : format(_after(GlassStepperHalf.decrement)),
       ),
       reach: glassTargetReach,
       child: SizedBox.fromSize(

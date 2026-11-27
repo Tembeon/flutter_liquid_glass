@@ -548,6 +548,8 @@ class _StepperPageState extends State<StepperPage> {
   var _brand = Brand.system;
   var _days = 7.0;
   var _pots = 3.0;
+  var _pot = 1;
+  static const _potSizes = ['Small', 'Medium', 'Large', 'Huge'];
 
   @override
   Widget build(BuildContext context) => ComponentPage(
@@ -648,6 +650,17 @@ class _StepperPageState extends State<StepperPage> {
                 value: _pots,
                 max: 12,
                 onChanged: (value) => setState(() => _pots = value),
+              ),
+            ),
+            GlassListRow(
+              title: const Text('Pot size'),
+              detail: Text(_potSizes[_pot]),
+              trailing: GlassStepper.custom(
+                semanticLabel: 'Pot size',
+                onDecrement: _pot == 0 ? null : () => setState(() => _pot--),
+                onIncrement: _pot == _potSizes.length - 1
+                    ? null
+                    : () => setState(() => _pot++),
               ),
             ),
           ],

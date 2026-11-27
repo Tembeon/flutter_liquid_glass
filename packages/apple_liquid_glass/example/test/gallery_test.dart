@@ -413,6 +413,19 @@ void galleryTests({bool onDevice = false}) {
     await flip('Side pager turns by itself');
     await _back(tester);
 
+    await _open(tester, 'Stepper');
+    await _bring(tester, find.text('Pot size'), page);
+    final sizes = find.descendant(
+      of: find.widgetWithText(GlassListRow, 'Pot size'),
+      matching: find.byType(GlassStepper),
+    );
+    await tester.tapAt(
+      tester.getCenter(sizes) + Offset(tester.getSize(sizes).width / 4, 0),
+    );
+    await _frames(tester, 10);
+    expect(find.text('Large'), findsOneWidget);
+    await _back(tester);
+
     await _open(tester, 'Progress view');
     await _bring(tester, find.text('Steep'), page);
     await tester.tap(find.text('Steep'));
