@@ -115,7 +115,7 @@ void main() {
       expect(todayFill.a, moreOrLessEquals(0x1F / 255, epsilon: 0.002));
       expect(_dayCell(tester, '1', 'fill'), isNull);
       expect(
-        tester.widget<Text>(find.text('1')).style!.color!,
+        tester.widget<Text>(find.text('1')).style!.color,
         isSameColorAs(dark ? const Color(0x28EBEBF5) : const Color(0x2D3C3C43)),
       );
     });
