@@ -86,7 +86,8 @@ MotionTransitionLayer _layer(WidgetTester tester, String id) {
 
 int _paintIndex(Layer layer) {
   var index = 0;
-  for (Layer? sibling = layer.parent!.firstChild; sibling != null;) {
+  var sibling = layer.parent!.firstChild;
+  while (sibling != null) {
     if (identical(sibling, layer)) return index;
     index++;
     sibling = sibling.nextSibling;
