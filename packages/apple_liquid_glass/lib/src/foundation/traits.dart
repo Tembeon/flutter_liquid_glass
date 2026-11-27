@@ -41,6 +41,7 @@ final class GlassTraits {
     this.reduceTransparency = false,
     this.prefersCrossFade = false,
     this.showBorders = false,
+    this.reduceHighlighting = false,
     this.glassTintAmount = 0,
     this.prefersReducedResourceUsage = false,
     this.viewPixelRatio = 1,
@@ -74,6 +75,10 @@ final class GlassTraits {
           false,
       prefersCrossFade: reduceMotion && crossFade,
       showBorders: overrides?.showBorders ?? platform?.showBorders ?? false,
+      reduceHighlighting:
+          overrides?.reduceHighlighting ??
+          platform?.reduceHighlighting ??
+          false,
       glassTintAmount:
           (overrides?.glassTintAmount ?? platform?.glassTintAmount ?? 0).clamp(
             0.0,
@@ -122,6 +127,14 @@ final class GlassTraits {
   /// point).
   final bool showBorders;
 
+  /// Reduce Highlighting Effects: a pressed glass surface keeps its flex
+  /// and lift but raises no glow under the finger, as UIKit's flex
+  /// interaction skips its glows (read from UIKit's code).
+  ///
+  /// UIKit: `AccessibilitySettings.isReduceHighlightingEffectsEnabled`
+  /// (iOS 26.4).
+  final bool reduceHighlighting;
+
   /// Where the Liquid Glass slider of iOS 27 (Settings, Appearance) stands,
   /// from 0 (Clear) to 1 (Tinted): the liquid renderer's glass takes its
   /// wash, border and blur from it (`LiquidGlassSettings.sliderPosition`).
@@ -149,6 +162,7 @@ final class GlassTraits {
       other.reduceTransparency == reduceTransparency &&
       other.prefersCrossFade == prefersCrossFade &&
       other.showBorders == showBorders &&
+      other.reduceHighlighting == reduceHighlighting &&
       other.glassTintAmount == glassTintAmount &&
       other.prefersReducedResourceUsage == prefersReducedResourceUsage &&
       other.viewPixelRatio == viewPixelRatio;
@@ -163,6 +177,7 @@ final class GlassTraits {
     reduceTransparency,
     prefersCrossFade,
     showBorders,
+    reduceHighlighting,
     glassTintAmount,
     prefersReducedResourceUsage,
     viewPixelRatio,
@@ -184,6 +199,7 @@ class GlassTraitsOverride extends StatelessWidget {
     this.reduceTransparency,
     this.prefersCrossFade,
     this.showBorders,
+    this.reduceHighlighting,
     this.glassTintAmount,
     this.prefersReducedResourceUsage,
     super.key,
@@ -200,6 +216,9 @@ class GlassTraitsOverride extends StatelessWidget {
 
   /// See [GlassTraits.showBorders].
   final bool? showBorders;
+
+  /// See [GlassTraits.reduceHighlighting].
+  final bool? reduceHighlighting;
 
   /// See [GlassTraits.glassTintAmount].
   final double? glassTintAmount;
@@ -219,6 +238,7 @@ class GlassTraitsOverride extends StatelessWidget {
       reduceTransparency: reduceTransparency ?? outer?.reduceTransparency,
       prefersCrossFade: prefersCrossFade ?? outer?.prefersCrossFade,
       showBorders: showBorders ?? outer?.showBorders,
+      reduceHighlighting: reduceHighlighting ?? outer?.reduceHighlighting,
       glassTintAmount: glassTintAmount ?? outer?.glassTintAmount,
       prefersReducedResourceUsage:
           prefersReducedResourceUsage ?? outer?.prefersReducedResourceUsage,
@@ -233,6 +253,7 @@ class _GlassTraitsScope extends InheritedWidget {
     required this.reduceTransparency,
     required this.prefersCrossFade,
     required this.showBorders,
+    required this.reduceHighlighting,
     required this.glassTintAmount,
     required this.prefersReducedResourceUsage,
     required super.child,
@@ -242,6 +263,7 @@ class _GlassTraitsScope extends InheritedWidget {
   final bool? reduceTransparency;
   final bool? prefersCrossFade;
   final bool? showBorders;
+  final bool? reduceHighlighting;
   final double? glassTintAmount;
   final bool? prefersReducedResourceUsage;
 
@@ -251,6 +273,7 @@ class _GlassTraitsScope extends InheritedWidget {
       reduceTransparency != oldWidget.reduceTransparency ||
       prefersCrossFade != oldWidget.prefersCrossFade ||
       showBorders != oldWidget.showBorders ||
+      reduceHighlighting != oldWidget.reduceHighlighting ||
       glassTintAmount != oldWidget.glassTintAmount ||
       prefersReducedResourceUsage != oldWidget.prefersReducedResourceUsage;
 }

@@ -252,6 +252,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
   late final _shape = ValueNotifier(_shapeFrame);
   late LiquidGlassMaterial _material;
   late Brightness _brightness;
+  bool _glowless = false;
   _LiquidGroupState? _group;
 
   ValueListenable<GlassFrame> get _source => widget.details.frame;
@@ -285,6 +286,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       scaleX: frame.scaleX,
       scaleY: frame.scaleY,
       glow: switch (frame.glow) {
+        _ when _glowless => null,
         final glow? => LiquidGlassGlow(
           center: glow.center,
           radius: glow.radius,
@@ -329,7 +331,9 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       _group = group;
     }
     group.reportGlass(this, widget.details.glass);
-    _brightness = GlassTraits.of(context).brightness;
+    final traits = GlassTraits.of(context);
+    _brightness = traits.brightness;
+    _glowless = traits.reduceHighlighting;
     _material = LiquidGlassRenderer.materialOf(
       widget.details.glass,
       _brightness,

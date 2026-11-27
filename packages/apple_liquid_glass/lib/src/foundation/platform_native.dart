@@ -41,6 +41,7 @@ abstract base class _NativeReader extends ChangeNotifier
       reduceTransparency: _flag(glass_reduce_transparency()),
       showBorders: _flag(glass_show_borders()),
       prefersCrossFade: _flag(glass_prefers_cross_fade()),
+      reduceHighlighting: _flag(glass_reduce_highlighting()),
       glassTintAmount: tint < 0 ? null : tint,
       prefersReducedResourceUsage: _flag(
         glass_prefers_reduced_resource_usage(),

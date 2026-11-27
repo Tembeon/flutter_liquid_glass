@@ -80,6 +80,9 @@ external int glass_prefers_cross_fade();
 external int glass_prefers_reduced_resource_usage();
 
 @ffi.Native<ffi.Int Function()>()
+external int glass_reduce_highlighting();
+
+@ffi.Native<ffi.Int Function()>()
 external int glass_reduce_transparency();
 
 @ffi.Native<ffi.Int Function(ffi.Pointer<ffi.Void>, ffi.Int64)>()

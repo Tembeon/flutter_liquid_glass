@@ -579,6 +579,28 @@ void main() {
       expect(glow(1), isNull);
     });
 
+    testWidgets('under Reduce Highlighting a touch lights nothing, as UIKit '
+        "skips its flex glows (read from its code)", (tester) async {
+      final frames = _Frames(const GlassFrame(glow: _touch));
+      await tester.pumpWidget(
+        _app(
+          const LiquidGlassRenderer(),
+          GlassTraitsOverride(
+            reduceHighlighting: true,
+            child: GlassSurface.live(
+              frame: frames.selection,
+              child: const SizedBox(width: 100, height: 44),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(
+        tester.widget<LiquidGlass>(find.byType(LiquidGlass)).frame!.value.glow,
+        isNull,
+      );
+    });
+
     for (final merge in const [GlassMerge.none(), GlassMerge.spacing(12)]) {
       testWidgets('a surface in the content of a surface in a group that '
           '${merge == const GlassMerge.none() ? 'does not merge' : 'merges'} '

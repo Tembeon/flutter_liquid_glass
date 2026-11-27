@@ -16,6 +16,11 @@ int glass_prefers_cross_fade(void) {
   return -1;
 }
 
+int glass_reduce_highlighting(void) {
+  if (@available(macOS 26.4, *)) return AXReduceHighlightingEffectsEnabled() ? 1 : 0;
+  return -1;
+}
+
 int glass_prefers_reduced_resource_usage(void) {
   return -1;
 }
@@ -37,6 +42,12 @@ void glass_observe_settings(void (^changed)(void)) {
     [sources addObject:@[
       NSNotificationCenter.defaultCenter,
       AXShowBordersEnabledStatusDidChangeNotification,
+    ]];
+  }
+  if (@available(macOS 26.4, *)) {
+    [sources addObject:@[
+      NSNotificationCenter.defaultCenter,
+      AXReduceHighlightingEffectsEnabledDidChangeNotification,
     ]];
   }
   NSMutableArray<NSArray *> *observers = [NSMutableArray array];

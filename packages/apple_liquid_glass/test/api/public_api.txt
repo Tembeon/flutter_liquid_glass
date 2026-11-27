@@ -3641,6 +3641,7 @@ final class GlassTraits
     bool reduceTransparency = ...,
     bool prefersCrossFade = ...,
     bool showBorders = ...,
+    bool reduceHighlighting = ...,
     double glassTintAmount = ...,
     bool prefersReducedResourceUsage = ...,
     double viewPixelRatio = ...,
@@ -3653,6 +3654,7 @@ final class GlassTraits
   final GlassInterfaceLevel interfaceLevel
   final bool prefersCrossFade
   final bool prefersReducedResourceUsage
+  final bool reduceHighlighting
   final bool reduceMotion
   final bool reduceTransparency
   final bool showBorders
@@ -3665,6 +3667,7 @@ class GlassTraitsOverride extends StatelessWidget
     bool? reduceTransparency,
     bool? prefersCrossFade,
     bool? showBorders,
+    bool? reduceHighlighting,
     double? glassTintAmount,
     bool? prefersReducedResourceUsage,
     Key? key,
@@ -3674,6 +3677,7 @@ class GlassTraitsOverride extends StatelessWidget
   final GlassInterfaceLevel? interfaceLevel
   final bool? prefersCrossFade
   final bool? prefersReducedResourceUsage
+  final bool? reduceHighlighting
   final bool? reduceTransparency
   final bool? showBorders
   overrides: build

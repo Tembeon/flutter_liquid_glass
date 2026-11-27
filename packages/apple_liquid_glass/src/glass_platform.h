@@ -15,6 +15,7 @@ GLASS_EXPORT int glass_set_vertical_bar_behavior(void *controller, int64_t behav
 GLASS_EXPORT int glass_reduce_transparency(void);
 GLASS_EXPORT int glass_show_borders(void);
 GLASS_EXPORT int glass_prefers_cross_fade(void);
+GLASS_EXPORT int glass_reduce_highlighting(void);
 GLASS_EXPORT int glass_prefers_reduced_resource_usage(void);
 
 // Where the Liquid Glass slider stands, from 0 to 1, or -1 where the platform
