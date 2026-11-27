@@ -57,8 +57,11 @@ base class LiquidGlassRenderer extends GlassRenderer {
       buildHighlights(context, details, _body(context, details));
 
   Widget _body(BuildContext context, GlassSurfaceDetails details) {
-    if (GlassTraits.of(context).reduceTransparency ||
-        details.role == GlassRole.track) {
+    // A lifted lens under Reduce Transparency is not measured: it stays
+    // flat until it is.
+    if (details.role == GlassRole.track ||
+        details.role == GlassRole.lens &&
+            GlassTraits.of(context).reduceTransparency) {
       return FlatGlassRenderer.flatSurface(context, details);
     }
     if (details.role == GlassRole.lens) {
@@ -88,7 +91,6 @@ base class LiquidGlassRenderer extends GlassRenderer {
 
   @override
   Widget buildGroup(BuildContext context, GlassGroupDetails details) {
-    if (GlassTraits.of(context).reduceTransparency) return details.child;
     return _LiquidGroup(
       fake: fake,
       blend: details.merge.spacing,
@@ -104,24 +106,28 @@ base class LiquidGlassRenderer extends GlassRenderer {
 
   /// The iOS 27 material of [glass] in [brightness], at the Liquid Glass
   /// slider position [sliderPosition], with the face of the Increase
-  /// Contrast setting where [highContrast] says so.
+  /// Contrast setting where [highContrast] says so and as Reduce
+  /// Transparency draws it where [reduceTransparency] says so.
   @internal
   static LiquidGlassMaterial materialOf(
     Glass glass,
     Brightness brightness, {
     double sliderPosition = 0,
     bool highContrast = false,
+    bool reduceTransparency = false,
   }) => glass.isClear
       ? LiquidGlassMaterial.ios27Clear(
           brightness: brightness,
           sliderPosition: sliderPosition,
           highContrast: highContrast,
+          reduceTransparency: reduceTransparency,
           tint: glass.tint ?? const Color(0x00000000),
         )
       : LiquidGlassMaterial.ios27Regular(
           brightness: brightness,
           sliderPosition: sliderPosition,
           highContrast: highContrast,
+          reduceTransparency: reduceTransparency,
           tint: glass.tint ?? const Color(0x00000000),
         );
 

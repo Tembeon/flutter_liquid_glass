@@ -3227,6 +3227,7 @@ base class LiquidGlassRenderer extends GlassRenderer
     Brightness brightness, {
     double sliderPosition = ...,
     bool highContrast = ...,
+    bool reduceTransparency = ...,
   })
   @internal static List<LiquidGlassShadow> shadowsOf(
     GlassRole role,
